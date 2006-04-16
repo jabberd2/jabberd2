@@ -1,0 +1,78 @@
+If any action fails, the component returns it with sm:failed='1' on the
+session element. We don't use the route type at all anymore, that is
+reserved for _routing_ errors. This has the nice side effect of allowing
+us to distinguish between "session ended" and "sm crashed".
+
+No bounce must result from a failed action.
+
+The namespace URL is "http://jabberd.jabberstudio.org/ns/session/1.0"
+
+
+c2s->sm: start session
+
+  <route to='cataclysm.cx' from='c2s'>
+    <sm:session xmlns:sm='[url]' sm:c2s='5' action='start' target='rob@cataclysm.cx/enigma' id='123456'/>
+  </route>
+
+sm->c2s: session started
+
+  <route to='c2s' from='cataclysm.cx'>
+    <sm:session xmlns:sm='[url]' sm:c2s='5' sm:sm='2' action='started' target='rob@cataclysm.cx/enigma' id='123456'/>
+  </route>
+
+
+c2s->sm: end session
+
+  <route to='cataclysm.cx' from='c2s'>
+    <sm:session xmlns:sm='[url]' sm:c2s='5' sm:sm='2' action='end'/>
+  </route>
+
+sm->c2s: session ended
+
+  <route to='c2s' from='cataclysm.cx'>
+    <sm:session xmlns:sm='[url]' sm:c2s='5' sm:sm='2' action='ended'/>
+  </route>
+
+
+c2s->sm: send packet
+
+  <route to='cataclysm.cx' from='c2s'>
+    <message to='foo@jabber.org' xmlns:sm='[url] sm:c2s='5' sm:sm='2'>
+      ...
+    </message>
+  </route>
+
+sm->c2s: send packet
+
+  <route to='c2s' from='cataclysm.cx'>
+    <message from='foo@jabber.org' xmlns:sm='[url] sm:c2s='5' sm:sm='2'>
+      ...
+    </message>
+  </route>
+
+
+c2s->sm: create user
+
+  <route to='c2s' from='cataclysm.cx'>
+    <sm:sessions xmlns:sm='[url]' sm:c2s='5' action='create' target='rob@cataclysm.cx' id='123456'/>
+  </route>
+
+sm->c2s: user created
+
+  <route to='c2s' from='cataclysm.cx'>
+    <sm:sessions xmlns:sm='[url]' sm:c2s='5' action='created' target='rob@cataclysm.cx' id='123456'/>
+  </route>
+
+
+c2s->sm: delete user
+
+  <route to='c2s' from='cataclysm.cx'>
+    <sm:sessions xmlns:sm='[url]' action='delete' target='rob@cataclysm.cx'/>
+  </route>
+
+sm->c2s: user deleteed
+
+  <route to='c2s' from='cataclysm.cx'>
+    <sm:sessions xmlns:sm='[url]' action='deleted' target='rob@cataclysm.cx'/>
+  </route>
+

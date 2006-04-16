@@ -1,0 +1,62 @@
+/*
+ * jabberd - Jabber Open Source Server
+ * Copyright (c) 2002-2004 Jeremie Miller, Thomas Muldowney,
+ *                         Ryan Eatmon, Robert Norris
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
+ */
+
+/** @file util/pool.h
+  * @brief memory pools
+  * $Revision: 1.2 $
+  * $Date: 2004/05/05 23:49:38 $
+  */
+
+#ifndef INCL_UTIL_POOL_H
+#define INCL_UTIL_POOL_H 1
+
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
+
+/* opaque decl */
+typedef struct _pool_st *pool_t;
+
+typedef void (*pool_cleanup_t)(void *arg);
+
+
+#ifdef POOL_DEBUG
+# define pool_new() _pool_new(__FILE__,__LINE__) 
+# define pool_heap(i) _pool_new_heap(i,__FILE__,__LINE__) 
+#else
+# define pool_heap(i) _pool_new_heap(i,NULL,0) 
+# define pool_new() _pool_new(NULL,0)
+#endif
+
+pool_t _pool_new(char *file, int line); /* new pool_t :) */
+pool_t _pool_new_heap(int size, char *file, int line); /* creates a new memory pool_t with an initial heap size */
+void *pmalloc(pool_t p, int size); /* wrapper around malloc, takes from the pool, cleaned up automatically */
+void *pmalloc_x(pool_t p, int size, char c); /* Wrapper around pmalloc which prefils buffer with c */
+void *pmalloco(pool_t p, int size); /* YAPW for zeroing the block */
+char *pstrdup(pool_t p, const char *src); /* wrapper around strdup, gains mem from pool_t */
+void pool_stat(int full); /* print to stderr the changed pools and reset */
+char *pstrdupx(pool_t p, const char *src, int len); /* use given len */
+void pool_cleanup(pool_t p, pool_cleanup_t fn, void *arg); /* calls f(arg) before the pool_t is freed during cleanup */
+void pool_clear(pool_t p);
+void pool_free(pool_t p); /* calls the cleanup functions, frees all the data on the pool, and deletes the pool_t itself */
+int pool_size(pool_t p); /* returns total bytes allocated in this pool_t */
+
+
+#endif

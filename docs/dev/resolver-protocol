@@ -1,0 +1,9 @@
+<route from='router' to='resolver'>
+  <resolve xmlns='http://jabberd.jabberstudio.org/ns/resolver/1.0' type='query' name='cataclysm.cx'/>
+</route>
+
+<route to='router' from='resolver'>
+  <resolve xmlns='http://jabberd.jabberstudio.org/ns/resolver/1.0' type='result' name='cataclysm.cx'>
+    <ip port='5269' ttl='43200'>130.194.2.47</ip>
+  </resolved>
+</route>

@@ -1,0 +1,174 @@
+--
+-- This is the required schema for MySQL. Load this into the database
+-- using the mysql interactive terminal:
+--
+--     mysql> \. db-setup.mysql
+--
+
+CREATE DATABASE jabberd2;
+USE jabberd2;
+
+--
+-- c2s authentication/registration table
+--
+CREATE TABLE `authreg` (
+    `username` TEXT, KEY `username` (`username`(255)),
+    `realm` TINYTEXT, KEY `realm` (`realm`(255)),
+    `password` TINYTEXT,
+    `token` VARCHAR(10),
+    `sequence` INT,
+    `hash` VARCHAR(40) );
+
+--
+-- Session manager tables 
+--
+
+--
+-- Active (seen) users
+-- Used by: core
+--
+CREATE TABLE `active` (
+    `collection-owner` TEXT NOT NULL, KEY(`collection-owner`(255)),
+    `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
+    `time` INT );
+
+--
+-- Logout times
+-- Used by: mod_iq_last
+--
+CREATE TABLE `logout` (
+    `collection-owner` TEXT NOT NULL, KEY(`collection-owner`(255)),
+    `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
+    `time` INT );
+
+--
+-- Roster items
+-- Used by: mod_roster
+--
+CREATE TABLE `roster-items` (
+    `collection-owner` TEXT NOT NULL, KEY(`collection-owner`(255)),
+    `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
+    `jid` TEXT,
+    `name` TEXT,
+    `to` TINYINT,
+    `from` TINYINT,
+    `ask` INT );
+
+--
+-- Roster groups
+-- Used by: mod_roster
+--
+CREATE TABLE `roster-groups` (
+    `collection-owner` TEXT NOT NULL, KEY(`collection-owner`(255)),
+    `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
+    `jid` TEXT,
+    `group` TEXT );
+
+--
+-- vCard (user profile information)
+-- Used by: mod_iq_vcard
+--
+CREATE TABLE `vcard` (
+    `collection-owner` TEXT NOT NULL, KEY(`collection-owner`(255)),
+    `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
+    `fn` TEXT,
+    `nickname` TEXT,
+    `url` TEXT,
+    `tel` TEXT,
+    `email` TEXT,
+    `title` TEXT,
+    `role` TEXT,
+    `bday` TEXT,
+    `desc` TEXT,
+    `n-given` TEXT,
+    `n-family` TEXT,
+    `adr-street` TEXT,
+    `adr-extadd` TEXT,
+    `adr-locality` TEXT,
+    `adr-region` TEXT,
+    `adr-pcode` TEXT,
+    `adr-country` TEXT,
+    `org-orgname` TEXT,
+    `org-orgunit` TEXT );
+
+--
+-- Offline message queue
+-- Used by: mod_offline
+--
+CREATE TABLE `queue` (
+    `collection-owner` TEXT NOT NULL, KEY(`collection-owner`(255)),
+    `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
+    `xml` MEDIUMTEXT );
+
+--
+-- Private XML storage
+-- Used by: mod_iq_private
+--
+CREATE TABLE `private` (
+    `collection-owner` TEXT NOT NULL, KEY(`collection-owner`(255)),
+    `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
+    `ns` TEXT,
+    `xml` MEDIUMTEXT );
+
+--
+-- Message Of The Day (MOTD) messages (announcements)
+-- Used by: mod_announce
+--
+CREATE TABLE `motd-message` (
+    `collection-owner` TEXT NOT NULL, KEY(`collection-owner`(255)),
+    `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
+    `xml` TEXT );
+
+--
+-- Times of last MOTD message for each user
+-- Used by: mod_announce
+--
+CREATE TABLE `motd-times` (
+    `collection-owner` TEXT NOT NULL, KEY(`collection-owner`(255)),
+    `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
+    `time` INT );
+
+--
+-- User-published discovery items
+-- Used by: mod_disco_publish
+--
+CREATE TABLE `disco-items` (
+    `collection-owner` TEXT NOT NULL, KEY(`collection-owner`(255)),
+    `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
+    `jid` TEXT,
+    `name` TEXT,
+    `node` TEXT );
+
+--
+-- Default privacy list
+-- Used by: mod_privacy
+--
+CREATE TABLE `privacy-default` (
+    `collection-owner` TEXT NOT NULL, KEY(`collection-owner`(255)),
+    `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
+    `default` text );
+
+--
+-- Privacy lists
+-- Used by: mod_privacy
+--
+CREATE TABLE `privacy-items` (
+    `collection-owner` TEXT NOT NULL, KEY(`collection-owner`(255)),
+    `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
+    `list` TEXT,
+    `type` TEXT,
+    `value` TEXT,
+    `deny` TINYINT,
+    `order` INT,
+    `block` INT );
+
+--
+-- Vacation settings
+-- Used by: mod_vacation
+--
+CREATE TABLE `vacation-settings` (
+    `collection-owner` TEXT NOT NULL, KEY(`collection-owner`(255)),
+    `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
+    `start` INT,
+    `end` INT,
+    `message` TEXT );

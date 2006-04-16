@@ -1,0 +1,122 @@
+Writing a storage module for jadlsm
+-----------------------------------
+
+The storage manager presents a hash-style interface to underlying data
+stores. The hash "key" is represented by two strings - a data type and
+and arbitrary string (often a JID).
+
+Associated with each key is a set of values, each with an index (ie an
+array). There are five operations that can be performed a particular key:
+
+  put     - appends a data item to the end of the array
+  get     - retrieves the data item at the given index
+  zap     - deletes the data item at the given index, and shifts all the
+            items to the left of the given index back one, to fill in
+            the hole
+  replace - replaces the data item at the given index with another data
+            item
+  count   - counts the number of data items in the array for a given key
+
+Storage module code must be stored in a single file called storage_foo.c
+(where foo is the name of your module), and must export a single
+function, foo_init, which is of the form:
+
+  st_ret_t foo_init(st_module_st mod);
+
+This function should perform any module-wide initialisation. This
+might include reading config settings, connecting to a database, etc.
+The module should fill out the fields of the module structure mod. mod
+contains seven function pointers which your module to set to point to
+the implementation of each function. There is also a field called
+private, which is a void pointer and can be used to store any
+module-specific data.
+
+mod has a field called st, which references the storage manager instance
+for the session manager. The lsm field of st can be used to get to the
+session manager instance, and from there, to the config system, the log
+system, the nad cache, and any other session manager systems.
+
+Your module should implement seven functions which are referenced by the
+pointers in mod. These are:
+
+  st_ret_t db_add_type(st_module_t mod, char *type)
+
+Called to signal to the module that it will be required to manage data
+of this type.
+
+  st_ret_t db_put(st_module_t mod, char *key, char *type, char *buf, int buflen)
+
+Stores a single data item of this type in the array associated with the
+key. If the key exists, the item is added to the end of the array. If
+the key doesn't exist, it is created.
+
+  st_ret_t db_get(st_module_t mod, char *key, char *type, int num, char **buf, int *buflen)
+
+Returns data item #num of this type from the array associated with the
+key. A buffer should be allocated to hold the returned data, and the
+buffer and the length returned in buf and buflen. It is the
+responsibility of the caller to free the returned buffer.
+
+  st_ret_t db_zap(st_module_t mod, char *key, char *type, int num)
+
+Deletes data item #num of this type from the array associated with the
+key. Items following the deleted key are moved left one space in the
+array (to fill in the gap); eg:
+
+   0   1   2   3
+  foo bar baz last
+
+Deleting item 2 would result in
+
+   0   1   2
+  foo bar last
+
+  st_ret_t db_replace(st_module_t mod, char *key, char *type, int num, char *buf, int buflen)
+
+This is effectively a combination of zap and delete, except that the new
+data item is added in-place; ie it replaced the specified value without
+moving any of the other items.
+
+  st_ret_t db_count(st_module_t mod, char *key, char *type, int *count)
+
+Returns the number of items of this type in the array associated with
+the key.
+
+st_ret_t is an enumerated type which is used to flag the result of the
+function call to the caller. Functions should return one of four values:
+
+  st_SUCCESS  - the call completed successfully
+  st_FAILURE  - something went wrong and the call could not complete
+  st_NOTFOUND - the requested storage key does not exist
+                (only for get, zap, replace and count)
+  st_NOTIMPL  - the call is not implemented
+                (or, this module can not handle the given type)
+
+Once completed, your storage module can be included in the build process
+by specifying --storage-module=foo at compile time.
+
+The type configuration for your module is done in jadlsm.xml. You should
+add a section for your module in the <storage/> section. For example, to
+make your module handle the "message" type, you'd use:
+
+  <foo>
+    <type>message</type>
+  </foo>
+
+You can also have multiple types for a module:
+
+  <foo>
+    <type>message</type>
+    <type>last</type>
+  </foo>
+
+Or your module can be set up as the default for all undeclared types:
+
+  <foo>
+    <type/>
+  </foo>
+
+This config file section is a good place to include any configuration
+that your module requires (eg database location, auth credentials, etc).
+
+See storage_db.c for an example implementation.

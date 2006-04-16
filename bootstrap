@@ -1,0 +1,27 @@
+#!/bin/sh
+
+# Check for proper versions of autotools
+# We require:
+#  - autoconf 2.50+
+#  - automake 1.4+
+#  - libtool 1.4+
+#
+## Using prereq in autoconf rather than here, mostly for the debian systems at
+## this point
+if test -z "`autoconf --version 2>&1|head -n 1|egrep '2.5'`"; then
+	echo "Autoconf 2.50+ is required. Aborting build...";
+    exit 1;
+fi
+
+if test -z "`automake --version 2>&1|head -n 1|egrep '1.[4-9]'`"; then
+	echo "Automake 1.4+ is required. Aborting build...";
+	exit 1;
+fi
+
+if test -z "`libtool --version 2>&1|head -n 1|egrep '1.[45]'`"; then
+	echo "Libtool 1.4+ is required. Aborting build...";
+	exit 1;
+fi
+
+# Fire up autotools
+libtoolize --force && aclocal $ACLOCAL_FLAGS && autoheader && automake --include-deps --add-missing && autoconf 

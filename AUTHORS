@@ -1,0 +1,91 @@
+The main culprits for this release are:
+
+  Ryan Eatmon       <reatmon@jabber.org>
+    - Much of the early work on jadc2s, which fed into the design of SX
+      and the components. Also the startup script, and some excellent
+      design work which helped to set the long term goals for the
+      project (router meshing, distributed components, etc).
+
+  Jeremie Miller    <jeremie@jabber.org>
+    - Getting the project off the ground in the first place. MIO, much
+      of the SM core (formerly jadlsm), most of the utilties (which came
+      from the 1.4 server), and of course the NAD subsystem, which is
+      the boon and the bane of a j2 developers' life ;)
+
+  Thomas Muldowney  <temas@jabber.org>
+    - The original Autotools-based build system, some early jadc2s work
+      (rate limiting), utilities, and lots of good testing and debugging
+      advice.
+
+  Robert Norris     <rob@cataclysm.cx>
+    - Overall system design, pretty much all the other code, and the
+      current coordinator for this whole mess.
+
+  Stephen Marquard  <xmpp:scm@jabber.org>
+    - Uber bug fixer and the main dev keeping this project alive
+
+Other people who chipped in:
+
+  Casey Crabb           <crabbkw@nafai.dyndns.org>
+    - Original DB4.1 support
+    - Original private XML storage module
+
+  Matthias Wimmer       <m@tthias.net>
+    - IPv6 support
+    - Misc bugfixes and testing
+
+  William Uther         <willu@cse.unsw.edu.au>
+    - Base64 passwords for pipe-auth
+
+  Wim Lewis             <wiml@hhhh.org>
+    - SX partial write support
+    - Numerous fixes for BSD
+
+  Mike Prince           <mike@mikeprince.com>
+    - SQL templates for MySQL/PostgreSQL authreg modules
+
+  Jamin W. Collins      <jcollins@asgardsrealm.net>
+    - Command line parsing fixes
+
+  Jacek Konieczny       <jajcus@bnet.pl>
+    - Misc bugfixes
+
+  maqi                  <maqi@jabberstudio.org>
+    - Doxygen bootstrapping
+
+  Karsten Huneycutt     <kph@duke.edu>
+    - Patch to get PAM working on non-Linux systems
+
+  Shane DeRidder        <shane@silicondairy.net>
+    - Patch for configurable syslog facility
+
+  Magnus Henoch         <mange@freemail.hu>
+    - Patch for proper router connect retry on OpenBSD
+
+  Dudley Carr           <dudley@cs.stanford.edu>
+    - Patches to bring mod_privacy in line with XMPP-IM
+
+  Patrick Bihan-Faou    <patrick@mindstep.com>
+    - Patch to use PAM account management functions
+
+  Peter Hinz            <peter@cerebus.co.za>
+    - Original Win32 port
+    - Misc bugfixes
+
+  Karsten Petersen      <karsten.petersen@hrz.tu-chemnitz.de>
+    - Misc bugfixes, leak fixes and cleanups
+
+  Etan Reisner          <deryni@eden.rutgers.edu>
+    - Patch to configure c2s to require TLS before auth
+  
+  Albert Chin           <china@thewrittenword.com>
+    - Various fixes to get things running on Solaris, AIX & Tru64
+
+Thanks also go to the testers and bug reporters out there - you know who
+you are. Special thanks in this capacity to Justin Kirby, whose many
+failed efforts to compile j2 helped get much of the build system to
+where it is today.
+
+If you're have questions or problems, please check the README file for
+places you can go for help. Expect to be ignored if you contact the
+authors directly.

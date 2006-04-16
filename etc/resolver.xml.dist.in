@@ -1,0 +1,81 @@
+<!-- Resolver configuration -->
+<resolver>
+  <!-- Our id on the network (default: resolver) -->
+  <id>resolver</id>
+
+  <!-- The process ID file. comment this out if you don't need to know
+       to know the process ID from outside the process (eg for control
+       scripts) -->
+  <pidfile>@localstatedir@/jabberd/pid/resolver.pid</pidfile>
+
+  <!-- Router connection configuration -->
+  <router>
+    <!-- IP/port the router is waiting for connections on -->
+    <ip>127.0.0.1</ip>            <!-- default: 127.0.0.1 -->
+    <port>5347</port>             <!-- default: 5347 -->
+
+    <!-- Username/password to authenticate as -->
+    <user>jabberd</user>          <!-- default: jabberd -->
+    <pass>secret</pass>           <!-- default: secret -->
+
+    <!-- File containing a SSL certificate and private key to use when
+         setting up an encrypted channel with the router. If this is
+         commented out, or the file can't be read, no attempt will be
+         made to establish an encrypted channel with the router. -->
+    <!--
+    <pemfile>@sysconfdir@/server.pem</pemfile>
+    -->
+
+    <!-- Router connection retry -->
+    <retry>
+      <!-- If the connection to the router can't be established at
+           startup, we should try again this many times before exiting.
+           Use -1 to retry indefinitely. [default: 3] -->
+      <init>3</init>
+
+      <!-- If we lost the connection to the router during normal
+           operation (ie we've successfully connected to the router in
+           the past), we should try to reconnect this many times before
+           exiting. Use -1 to retry indefinitely. [default: 3] -->
+      <lost>3</lost>
+
+      <!-- Sleep for this many seconds before trying attempting a
+           reconnect. [default: 2] -->
+      <sleep>2</sleep>
+    </retry>
+  </router>
+
+  <!-- Log configuration - type is "syslog", "file" or "stdout" -->
+  <log type='syslog'>
+    <!-- If logging to syslog, this is the log ident -->
+    <ident>jabberd/resolver</ident>
+
+    <!-- If logging to syslog, this is the log facility
+         (local0 - local7)                        [default: local3] -->
+    <facility>local3</facility>
+
+    <!-- If logging to file, this is the filename of the logfile -->
+    <!--
+    <file>@localstatedir@/jabberd/log/resolver.log</file>
+    -->
+  </log>
+
+  <!-- SRV records will be resolved in the following order. The first
+       one that returns something will be used (ie dereferenced via an
+       A/AAAA lookup). If no SRV records are found, resolver will
+       fallback to a straight A/AAAA lookup. -->
+  <lookup>
+    <!-- _xmpp-server._tcp is mandated by the XMPP spec -->
+    <srv>_xmpp-server._tcp</srv>
+
+    <!-- traditionally, _jabber._tcp has been used -->
+    <srv>_jabber._tcp</srv>
+  </lookup>
+
+  <!-- If this is enabled, the resolver will look up AAAA records as well
+       as A records. This is needed if you want s2s to use IPv6. -->
+  <!--
+  <ipv6/>
+  -->
+
+</resolver>
