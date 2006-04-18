@@ -63,10 +63,10 @@ struct s2s_st {
 
     /** router's conn */
     sx_t                router;
-    int                 fd;
+    mio_fd_t            fd;
 
     /** listening sockets */
-    int                 server_fd;
+    mio_fd_t            server_fd;
 
     /** config */
     config_t            config;
@@ -172,7 +172,7 @@ struct conn_st {
     char                *key;
 
     sx_t                s;
-    int                 fd;
+    mio_fd_t            fd;
 
     char                ip[INET6_ADDRSTRLEN];
     int                 port;
@@ -219,7 +219,7 @@ struct dnscache_st {
 
 extern sig_atomic_t s2s_lost_router;
 
-int             s2s_router_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *arg);
+int             s2s_router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
 int             s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg);
 
 char            *s2s_route_key(pool p, char *local, char *remote);
@@ -231,7 +231,7 @@ void            out_dialback(s2s_t s2s, pkt_t pkt);
 int             out_bounce_queue(s2s_t s2s, const char *domain, int err);
 int             out_bounce_conn_queues(conn_t out, int err);
 
-int             in_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *arg);
+int             in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
 
 /* sx flag for outgoing dialback streams */
 #define S2S_DB_HEADER   (1<<10)

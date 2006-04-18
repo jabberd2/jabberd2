@@ -57,7 +57,7 @@ typedef struct resolver_st {
 
     /** router's conn */
     sx_t                router;
-    int                 fd;
+    mio_fd_t            fd;
 
     /** config */
     config_t            config;

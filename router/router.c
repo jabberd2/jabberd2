@@ -510,7 +510,7 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             break;
 
         case event_READ:
-            log_debug(ZONE, "reading from %d", comp->fd);
+            log_debug(ZONE, "reading from %d", comp->fd->fd);
 
             /* check rate limits */
             if(comp->rate != NULL) {
@@ -523,7 +523,7 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                         comp->rate_log = 1;
                     }
 
-                    log_debug(ZONE, "%d is throttled, delaying read", comp->fd);
+                    log_debug(ZONE, "%d is throttled, delaying read", comp->fd->fd);
 
                     buf->len = 0;
                     return 0;
@@ -540,7 +540,7 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 rlen = buf->len;
             
             /* do the read */
-            len = recv(comp->fd, buf->data, rlen, 0);
+            len = recv(comp->fd->fd, buf->data, rlen, 0);
 
             /* update rate limits */
             if(comp->rate != NULL && len > 0) {
@@ -575,9 +575,9 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             return len;
 
         case event_WRITE:
-            log_debug(ZONE, "writing to %d", comp->fd);
+            log_debug(ZONE, "writing to %d", comp->fd->fd);
 
-            len = send(comp->fd, buf->data, buf->len, 0);
+            len = send(comp->fd->fd, buf->data, buf->len, 0);
             if(len >= 0) {
                 log_debug(ZONE, "%d bytes written", len);
                 return len;
@@ -783,18 +783,17 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
         case event_CLOSED:
             mio_close(comp->r->mio, comp->fd);
-
-            break;
+            return -1;
     }
 
     return 0;
 }
 
-static int _router_accept_check(router_t r, int fd, char *ip) {
+static int _router_accept_check(router_t r, mio_fd_t fd, char *ip) {
     rate_t rt;
 
     if(access_check(r->access, ip) == 0) {
-        log_write(r->log, LOG_NOTICE, "[%d] [%s] access denied by configuration", fd, ip);
+        log_write(r->log, LOG_NOTICE, "[%d] [%s] access denied by configuration", fd->fd, ip);
         return 1;
     }
 
@@ -806,7 +805,7 @@ static int _router_accept_check(router_t r, int fd, char *ip) {
         }
 
         if(rate_check(rt) == 0) {
-            log_write(r->log, LOG_NOTICE, "[%d] [%s] is being rate limited", fd, ip);
+            log_write(r->log, LOG_NOTICE, "[%d] [%s] is being rate limited", fd->fd, ip);
             return 1;
         }
 
@@ -835,7 +834,7 @@ static void _router_route_unbind_walker(xht routes, const char *key, void *val, 
     _router_advertise(comp->r, (char *) key, comp, 1);
 }
 
-int router_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *arg) {
+int router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg) {
     component_t comp = (component_t) arg;
     router_t r = (router_t) arg;
     struct sockaddr_storage sa;
@@ -843,7 +842,7 @@ int router_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *arg) 
 
     switch(a) {
         case action_READ:
-            log_debug(ZONE, "read action on fd %d", fd);
+            log_debug(ZONE, "read action on fd %d", fd->fd);
 
             /* they did something */
             comp->last_activity = time(NULL);
@@ -857,7 +856,7 @@ int router_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *arg) 
             return sx_can_read(comp->s);
 
         case action_WRITE:
-            log_debug(ZONE, "write action on fd %d", fd);
+            log_debug(ZONE, "write action on fd %d", fd->fd);
 
            /* update activity timestamp */
             comp->last_activity = time(NULL);
@@ -865,7 +864,7 @@ int router_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *arg) 
             return sx_can_write(comp->s);
 
         case action_CLOSE:
-            log_debug(ZONE, "close action on fd %d", fd);
+            log_debug(ZONE, "close action on fd %d", fd->fd);
 
             r = comp->r;
 
@@ -892,9 +891,9 @@ int router_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *arg) 
             break;
 
         case action_ACCEPT:
-            log_debug(ZONE, "accept action on fd %d", fd);
+            log_debug(ZONE, "accept action on fd %d", fd->fd);
 
-            getpeername(fd, (struct sockaddr *) &sa, &namelen);
+            getpeername(fd->fd, (struct sockaddr *) &sa, &namelen);
             port = j_inet_getport(&sa);
 
             log_write(r->log, LOG_NOTICE, "[%s, port=%d] connect", (char *) data, port);
@@ -914,7 +913,7 @@ int router_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *arg) 
 
             snprintf(comp->ipport, INET6_ADDRSTRLEN, "%s:%d", comp->ip, comp->port);
 
-            comp->s = sx_new(r->sx_env, fd, _router_sx_callback, (void *) comp);
+            comp->s = sx_new(r->sx_env, fd->fd, _router_sx_callback, (void *) comp);
             mio_app(m, fd, router_mio_callback, (void *) comp);
 
             if(r->byte_rate_total != 0)

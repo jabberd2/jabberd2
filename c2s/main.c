@@ -220,14 +220,14 @@ static int _c2s_router_connect(c2s_t c2s) {
     log_write(c2s->log, LOG_NOTICE, "attempting connection to router at %s, port=%d", c2s->router_ip, c2s->router_port);
 
     c2s->fd = mio_connect(c2s->mio, c2s->router_port, c2s->router_ip, c2s_router_mio_callback, (void *) c2s);
-    if(c2s->fd < 0) {
+    if(c2s->fd == NULL) {
         if(errno == ECONNREFUSED)
             c2s_lost_router = 1;
         log_write(c2s->log, LOG_NOTICE, "connection attempt to router failed: %s (%d)", strerror(errno), errno);
         return 1;
     }
 
-    c2s->router = sx_new(c2s->sx_env, c2s->fd, c2s_router_sx_callback, (void *) c2s);
+    c2s->router = sx_new(c2s->sx_env, c2s->fd->fd, c2s_router_sx_callback, (void *) c2s);
     sx_client_init(c2s->router, 0, NULL, NULL, NULL, "1.0");
 
     return 0;
@@ -382,7 +382,7 @@ static void _c2s_time_checks(c2s_t c2s) {
             xhash_iter_get(c2s->sessions, NULL, xhv.val);
 
             if(c2s->io_check_idle > 0 && now > sess->last_activity + c2s->io_check_idle) {
-                log_write(c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] timed out", sess->fd, sess->ip, sess->port);
+                log_write(c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] timed out", sess->fd->fd, sess->ip, sess->port);
 
                 sx_error(sess->s, stream_err_HOST_GONE, "connection timed out");
                 sx_close(sess->s);
@@ -391,7 +391,7 @@ static void _c2s_time_checks(c2s_t c2s) {
             }
 
             if(c2s->io_check_keepalive > 0 && now > sess->last_activity + c2s->io_check_keepalive && sess->s->state >= state_STREAM) {
-                log_debug(ZONE, "sending keepalive for %d", sess->fd);
+                log_debug(ZONE, "sending keepalive for %d", sess->fd->fd);
 
                 sx_raw_write(sess->s, " ", 1);
             }

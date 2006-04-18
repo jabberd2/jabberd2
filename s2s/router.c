@@ -41,10 +41,10 @@ int s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             break;
 
         case event_READ:
-            log_debug(ZONE, "reading from %d", s2s->fd);
+            log_debug(ZONE, "reading from %d", s2s->fd->fd);
 
             /* do the read */
-            len = recv(s2s->fd, buf->data, buf->len, 0);
+            len = recv(s2s->fd->fd, buf->data, buf->len, 0);
 
             if(len < 0) {
                 if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN) {
@@ -52,7 +52,7 @@ int s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     return 0;
                 }
 
-                log_write(s2s->log, LOG_NOTICE, "[%d] [router] read error: %s (%d)", s2s->fd, strerror(errno), errno);
+                log_write(s2s->log, LOG_NOTICE, "[%d] [router] read error: %s (%d)", s2s->fd->fd, strerror(errno), errno);
 
                 sx_kill(s);
                 
@@ -73,9 +73,9 @@ int s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             return len;
 
         case event_WRITE:
-            log_debug(ZONE, "writing to %d", s2s->fd);
+            log_debug(ZONE, "writing to %d", s2s->fd->fd);
 
-            len = send(s2s->fd, buf->data, buf->len, 0);
+            len = send(s2s->fd->fd, buf->data, buf->len, 0);
             if(len >= 0) {
                 log_debug(ZONE, "%d bytes written", len);
                 return len;
@@ -84,7 +84,7 @@ int s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)
                 return 0;
 
-            log_write(s2s->log, LOG_NOTICE, "[%d] [router] write error: %s (%d)", s2s->fd, strerror(errno), errno);
+            log_write(s2s->log, LOG_NOTICE, "[%d] [router] write error: %s (%d)", s2s->fd->fd, strerror(errno), errno);
 
             sx_kill(s);
 
@@ -186,7 +186,7 @@ int s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 if(s2s->server_fd == 0) {
                     if(s2s->local_port != 0) {
                         s2s->server_fd = mio_listen(s2s->mio, s2s->local_port, s2s->local_ip, in_mio_callback, (void *) s2s);
-                        if(s2s->server_fd < 0) {
+                        if(s2s->server_fd == NULL) {
                             log_write(s2s->log, LOG_ERR, "[%s, port=%d] failed to listen", s2s->local_ip, s2s->local_port);
                             exit(1);
                         } else
@@ -275,21 +275,21 @@ int s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
         case event_CLOSED:
             mio_close(s2s->mio, s2s->fd);
-            break;
+            return -1;
     }
 
     return 0;
 }
 
-int s2s_router_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *arg) {
+int s2s_router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg) {
     s2s_t s2s = (s2s_t) arg;
     int nbytes;
 
     switch(a) {
         case action_READ:
-            log_debug(ZONE, "read action on fd %d", fd);
+            log_debug(ZONE, "read action on fd %d", fd->fd);
 
-            ioctl(fd, FIONREAD, &nbytes);
+            ioctl(fd->fd, FIONREAD, &nbytes);
             if(nbytes == 0) {
                 sx_kill(s2s->router);
                 return 0;
@@ -298,11 +298,11 @@ int s2s_router_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *a
             return sx_can_read(s2s->router);
 
         case action_WRITE:
-            log_debug(ZONE, "write action on fd %d", fd);
+            log_debug(ZONE, "write action on fd %d", fd->fd);
             return sx_can_write(s2s->router);
 
         case action_CLOSE:
-            log_debug(ZONE, "close action on fd %d", fd);
+            log_debug(ZONE, "close action on fd %d", fd->fd);
             log_write(s2s->log, LOG_NOTICE, "connection to router closed");
 
             s2s_lost_router = 1;

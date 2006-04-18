@@ -25,40 +25,90 @@
 #endif
 
 #define MIO_FUNCS \
-    static int _mio_select(mio_t m, int t)                                          \
-    {                                                                               \
-        struct timeval tv;                                                          \
-                                                                                    \
-        m->rfds_out = m->rfds_in;                                                   \
-        m->wfds_out = m->wfds_in;                                                   \
-                                                                                    \
-        tv.tv_sec = t;                                                              \
-        tv.tv_usec = 0;                                                             \
-        return select(m->highfd + 1, &m->rfds_out, &m->wfds_out, NULL, &tv);        \
+    static void _mio_fds_init(mio_priv_t m)                             \
+    {                                                                   \
+        int fd;                                                         \
+        for(fd = 0; fd < m->maxfd; fd++)                                \
+        {                                                               \
+            m->fds[fd].mio_fd.fd = fd;                                  \
+        }                                                               \
+        m->highfd = 0;                                                  \
+    }                                                                   \
+                                                                        \
+    static mio_fd_t _mio_alloc_fd(mio_priv_t m, int fd)                 \
+    {                                                                   \
+        if(fd > m->highfd) m->highfd = fd;                              \
+        return &m->fds[fd].mio_fd;                                      \
+    }                                                                   \
+                                                                        \
+    static int _mio_select(mio_priv_t m, int t)                         \
+    {                                                                   \
+        struct timeval tv;                                              \
+                                                                        \
+        m->rfds_out = m->rfds_in;                                       \
+        m->wfds_out = m->wfds_in;                                       \
+                                                                        \
+        tv.tv_sec = t;                                                  \
+        tv.tv_usec = 0;                                                 \
+        return select(m->highfd + 1, &m->rfds_out, &m->wfds_out, NULL, &tv); \
     }
 
+#define MIO_FD_VARS
+
 #define MIO_VARS \
+    struct mio_priv_fd_st *fds;                                         \
+    int highfd;                                                         \
     fd_set rfds_in, wfds_in, rfds_out, wfds_out;
 
 #define MIO_INIT_VARS(m) \
-    FD_ZERO(&m->rfds_in); \
-    FD_ZERO(&m->wfds_in);
+    do {                                                                \
+        if (maxfd > FD_SETSIZE)                                         \
+            return NULL;                                                \
+                                                                        \
+        if((MIO(m)->fds = malloc(sizeof(struct mio_priv_fd_st) * maxfd)) == NULL) \
+        {                                                               \
+            mio_debug(ZONE,"internal error creating new mio");          \
+            free(m);                                                    \
+            return NULL;                                                \
+        }                                                               \
+        memset(MIO(m)->fds, 0, sizeof(struct mio_priv_fd_st) * maxfd);  \
+                                                                        \
+        _mio_fds_init(MIO(m));                                          \
+        FD_ZERO(&MIO(m)->rfds_in);                                      \
+        FD_ZERO(&MIO(m)->wfds_in);                                      \
+    } while(0)
 
-#define MIO_FREE_VARS(m)
+#define MIO_FREE_VARS(m)        free(MIO(m)->fds)
 
-#define MIO_INIT_FD(m, fd)
+#define MIO_ALLOC_FD(m, rfd)    _mio_alloc_fd(MIO(m), rfd)
+#define MIO_FREE_FD(m, mfd)
 
-#define MIO_REMOVE_FD(m, fd)    do { FD_CLR(fd, &m->rfds_in); FD_CLR(fd, &m->wfds_in); } while(0)
+#define MIO_REMOVE_FD(m, mfd) \
+    do {                                                                \
+        FD_CLR(mfd->mio_fd.fd, &MIO(m)->rfds_in);                       \
+        FD_CLR(mfd->mio_fd.fd, &MIO(m)->wfds_in);                       \
+    } while(0)
 
-#define MIO_CHECK(m, t)         _mio_select(m, t)
+#define MIO_CHECK(m, t)         _mio_select(MIO(m), t)
 
-#define MIO_SET_READ(m, fd)     FD_SET(fd, &m->rfds_in)
-#define MIO_SET_WRITE(m, fd)    FD_SET(fd, &m->wfds_in)
+#define MIO_SET_READ(m, mfd)    FD_SET(mfd->mio_fd.fd, &MIO(m)->rfds_in)
+#define MIO_SET_WRITE(m, mfd)   FD_SET(mfd->mio_fd.fd, &MIO(m)->wfds_in)
 
-#define MIO_UNSET_READ(m, fd)   FD_CLR(fd, &m->rfds_in)
-#define MIO_UNSET_WRITE(m, fd)  FD_CLR(fd, &m->wfds_in)
+#define MIO_UNSET_READ(m, mfd)  FD_CLR(mfd->mio_fd.fd, &MIO(m)->rfds_in)
+#define MIO_UNSET_WRITE(m, mfd) FD_CLR(mfd->mio_fd.fd, &MIO(m)->wfds_in)
 
-#define MIO_CAN_READ(m, fd)     FD_ISSET(fd, &m->rfds_out)
-#define MIO_CAN_WRITE(m, fd)    FD_ISSET(fd, &m->wfds_out)
+#define MIO_CAN_READ(m, iter)   FD_ISSET(iter, &MIO(m)->rfds_out)
+#define MIO_CAN_WRITE(m, iter)  FD_ISSET(iter, &MIO(m)->wfds_out)
+
+
+#define MIO_INIT_ITERATOR(iter) \
+    int iter
+
+#define MIO_ITERATE_RESULTS(m, retval, iter) \
+    for(iter = 0; iter <= MIO(m)->highfd; iter++)
+
+#define MIO_ITERATOR_FD(m, iter) \
+    (&MIO(m)->fds[iter].mio_fd)
+
 
 #define MIO_ERROR(m)            errno

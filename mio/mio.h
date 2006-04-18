@@ -74,40 +74,67 @@ extern "C" {
  * Note: normal fd's don't get events unless the app calls mio_read/write() first!
  */
 
-/** the master mio mama, defined internally */
-typedef struct mio_st *mio_t;
+/** the master mio mama */
+struct mio_st;
+
+typedef struct mio_fd_st
+{
+    int fd;
+} *mio_fd_t;
 
 /** these are the actions and a handler type assigned by the applicaiton using mio */
 typedef enum { action_ACCEPT, action_READ, action_WRITE, action_CLOSE } mio_action_t;
-typedef int (*mio_handler_t) (mio_t m, mio_action_t a, int fd, void* data, void *arg);
+typedef int (*mio_handler_t) (struct mio_st **m, mio_action_t a, struct mio_fd_st *fd, void* data, void *arg);
+
+typedef struct mio_st
+{
+  void (*mio_free)(struct mio_st **m);
+
+  struct mio_fd_st *(*mio_listen)(struct mio_st **m, int port, char *sourceip,
+				  mio_handler_t app, void *arg);
+
+  struct mio_fd_st *(*mio_connect)(struct mio_st **m, int port, char *hostip,
+				   mio_handler_t app, void *arg);
+
+  void (*mio_app)(struct mio_st **m, struct mio_fd_st *fd,
+		  mio_handler_t app, void *arg);
+
+  void (*mio_close)(struct mio_st **m, struct mio_fd_st *fd);
+
+  void (*mio_write)(struct mio_st **m, struct mio_fd_st *fd);
+
+  void (*mio_read)(struct mio_st **m, struct mio_fd_st *fd);
+
+  void (*mio_run)(struct mio_st **m, int timeout);
+} **mio_t;
 
 /** create/free the mio subsytem */
 mio_t mio_new(int maxfd); /* returns NULL if failed */
-void mio_free(mio_t m);
+
+#define mio_free(m) (*m)->mio_free(m)
 
 /** for creating a new listen socket in this mio (returns new fd or <0) */
-int mio_listen(mio_t m, int port, char *sourceip, mio_handler_t app, void *arg);
+#define mio_listen(m, port, sourceip, app, arg) \
+    (*m)->mio_listen(m, port, sourceip, app, arg)
 
 /** for creating a new socket connected to this ip:port (returns new fd or <0, use mio_read/write first) */
-int mio_connect(mio_t m, int port, char *hostip, mio_handler_t app, void *arg);
-
-/** tell mio to track this fd (returns new fd or <0) */
-int mio_fd(mio_t m, int fd, mio_handler_t app, void *arg);
+#define mio_connect(m, port, hostip, app, arg) \
+    (*m)->mio_connect(m, port, hostip, app, arg)
 
 /** re-set the app handler */
-void mio_app(mio_t m, int fd, mio_handler_t app, void *arg);
+#define mio_app(m, fd, app, arg) (*m)->mio_app(m, fd, app, arg)
 
 /** request that mio close this fd */
-void mio_close(mio_t m, int fd);
+#define mio_close(m, fd) (*m)->mio_close(m, fd)
 
 /** mio should try the write action on this fd now */
-void mio_write(mio_t m, int fd);
+#define mio_write(m, fd) (*m)->mio_write(m, fd)
 
 /** process read events for this fd */
-void mio_read(mio_t m, int fd);
+#define mio_read(m, fd) (*m)->mio_read(m, fd)
 
 /** give some cpu time to mio to check it's sockets, 0 is non-blocking */
-void mio_run(mio_t m, int timeout);
+#define mio_run(m, timeout) (*m)->mio_run(m, timeout)
 
 #ifdef __cplusplus
 }

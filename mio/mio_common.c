@@ -29,29 +29,12 @@
 
 #include "mio.h"
 
+#include "util/inaddr.h"
 
-mio_t mio_epoll_new(int maxfd);
-mio_t mio_poll_new(int maxfd);
-mio_t mio_select_new(int maxfd);
-
+/** eve */
 mio_t mio_new(int maxfd)
 {
-  mio_t m = NULL;
+    mio_t m;
 
-#ifdef MIO_EPOLL
-  m = mio_epoll_new(maxfd);
-  if (m != NULL) return m;
-#endif
-
-#ifdef MIO_SELECT
-  m = mio_select_new(maxfd);
-  if (m != NULL) return m;
-#endif
-
-#ifdef MIO_POLL
-  m = mio_poll_new(maxfd);
-  if (m != NULL) return m;
-#endif
-
-  return m;
+    return NULL;
 }

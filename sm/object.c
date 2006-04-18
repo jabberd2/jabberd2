@@ -238,6 +238,9 @@ int os_object_get(os_t os, os_object_t o, const char *key, void **val, os_type_t
     if (type == os_type_UNKNOWN)
       type = osf->type;
 
+    if (type == os_type_UNKNOWN)
+      type = osf->type; 
+
     switch(type) {
         case os_type_BOOLEAN:
         case os_type_INTEGER:

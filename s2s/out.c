@@ -89,7 +89,7 @@
  */
 
 /* forward decls */
-static int _out_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *arg);
+static int _out_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
 static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg);
 static void _out_result(conn_t out, nad_t nad);
 static void _out_verify(conn_t out, nad_t nad);
@@ -137,7 +137,7 @@ static void _out_dialback(conn_t out, char *rkey) {
     *c = '/';
 
     log_debug(ZONE, "sending auth request for %s (key %s)", rkey, dbkey);
-    log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] sending dialback auth request for route '%s'", out->fd, out->ip, out->port, rkey);
+    log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] sending dialback auth request for route '%s'", out->fd->fd, out->ip, out->port, rkey);
 
     /* off it goes */
     sx_nad_write(out->s, nad);
@@ -263,8 +263,8 @@ void out_packet(s2s_t s2s, pkt_t pkt) {
 
         out->fd = mio_connect(s2s->mio, pkt->port, pkt->ip, _out_mio_callback, (void *) out);
 
-	if (out->fd < 0) {
-            log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] mio_connect error: %s (%d)", out->fd, out->ip, out->port, strerror(errno), errno);
+	if (out->fd == NULL) {
+            log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] mio_connect error: %s (%d)", out->fd->fd, out->ip, out->port, strerror(errno), errno);
 
             /* bounce queues */
             out_bounce_queue(s2s, pkt->to->domain, stanza_err_SERVICE_UNAVAILABLE);
@@ -279,7 +279,7 @@ void out_packet(s2s_t s2s, pkt_t pkt) {
             free(out->key);
             free(out);
 	} else {
-            log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] outgoing connection", out->fd, out->ip, out->port);
+            log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] outgoing connection", out->fd->fd, out->ip, out->port);
 
             out->s = sx_new(s2s->sx_env, out->fd, _out_sx_callback, (void *) out);
 
@@ -463,19 +463,19 @@ void out_resolve(s2s_t s2s, nad_t nad) {
 }
 
 /** mio callback for outgoing conns */
-static int _out_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *arg) {
+static int _out_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg) {
     conn_t out = (conn_t) arg;
     char ipport[INET6_ADDRSTRLEN + 17];
     int nbytes;
 
     switch(a) {
         case action_READ:
-            log_debug(ZONE, "read action on fd %d", fd);
+            log_debug(ZONE, "read action on fd %d", fd->fd);
 
             /* they did something */
             out->last_activity = time(NULL);
 
-            ioctl(fd, FIONREAD, &nbytes);
+            ioctl(fd->fd, FIONREAD, &nbytes);
             if(nbytes == 0) {
                 sx_kill(out->s);
                 return 0;
@@ -484,7 +484,7 @@ static int _out_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *
             return sx_can_read(out->s);
 
         case action_WRITE:
-            log_debug(ZONE, "write action on fd %d", fd);
+            log_debug(ZONE, "write action on fd %d", fd->fd);
 
             /* update activity timestamp */
             out->last_activity = time(NULL);
@@ -492,7 +492,7 @@ static int _out_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *
             return sx_can_write(out->s);
 
         case action_CLOSE:
-            log_debug(ZONE, "close action on fd %d", fd);
+            log_debug(ZONE, "close action on fd %d", fd->fd);
 
             /* bounce queues */
             out_bounce_conn_queues(out, stanza_err_SERVICE_UNAVAILABLE);
@@ -502,7 +502,7 @@ static int _out_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *
             /* generate the ip/port pair */
             snprintf(ipport, INET6_ADDRSTRLEN + 16, "%s/%d", out->ip, out->port);
 
-            log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] disconnect", fd, out->ip, out->port);
+            log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] disconnect", fd->fd, out->ip, out->port);
 
             xhash_zap(out->s2s->out, ipport);
 
@@ -549,10 +549,10 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             break;
 
         case event_READ:
-            log_debug(ZONE, "reading from %d", out->fd);
+            log_debug(ZONE, "reading from %d", out->fd->fd);
 
             /* do the read */
-            len = recv(out->fd, buf->data, buf->len, 0);
+            len = recv(out->fd->fd, buf->data, buf->len, 0);
 
             if(len < 0) {
                 if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN) {
@@ -560,7 +560,7 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     return 0;
                 }
 
-                log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] read error: %s (%d)", out->fd, out->ip, out->port, strerror(errno), errno);
+                log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] read error: %s (%d)", out->fd->fd, out->ip, out->port, strerror(errno), errno);
 
                 sx_kill(s);
                 
@@ -581,9 +581,9 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             return len;
 
         case event_WRITE:
-            log_debug(ZONE, "writing to %d", out->fd);
+            log_debug(ZONE, "writing to %d", out->fd->fd);
 
-            len = send(out->fd, buf->data, buf->len, 0);
+            len = send(out->fd->fd, buf->data, buf->len, 0);
             if(len >= 0) {
                 log_debug(ZONE, "%d bytes written", len);
                 return len;
@@ -592,7 +592,7 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)
                 return 0;
 
-            log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] write error: %s (%d)", out->fd, out->ip, out->port, strerror(errno), errno);
+            log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] write error: %s (%d)", out->fd->fd, out->ip, out->port, strerror(errno), errno);
 
             sx_kill(s);
 
@@ -600,7 +600,7 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
         case event_ERROR:
             sxe = (sx_error_t *) data;
-            log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] error: %s (%s)", out->fd, out->ip, out->port, sxe->generic, sxe->specific);
+            log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] error: %s (%s)", out->fd->fd, out->ip, out->port, sxe->generic, sxe->specific);
 
             break;
 
@@ -696,8 +696,7 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
         case event_CLOSED:
             mio_close(out->s2s->mio, out->fd);
-
-            break;
+            return -1;
     }
 
     return 0;
@@ -731,7 +730,7 @@ static void _out_result(conn_t out, nad_t nad) {
 
     /* key is valid */
     if(nad_find_attr(nad, 0, -1, "type", "valid") >= 0) {
-        log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] outgoing route '%s' is now valid%s", out->fd, out->ip, out->port, rkey, out->s->ssf ? ", SSL negotiated" : "");
+        log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] outgoing route '%s' is now valid%s", out->fd->fd, out->ip, out->port, rkey, out->s->ssf ? ", SSL negotiated" : "");
 
         xhash_put(out->states, pstrdup(xhash_pool(out->states), rkey), (void *) conn_VALID);    /* !!! small leak here */
 
@@ -771,10 +770,10 @@ static void _out_result(conn_t out, nad_t nad) {
     }
 
     /* invalid */
-    log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] outgoing route '%s' is now invalid", out->fd, out->ip, out->port, rkey);
+    log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] outgoing route '%s' is now invalid", out->fd->fd, out->ip, out->port, rkey);
 
     /* close connection */
-    log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] closing connection", out->fd, out->ip, out->port);
+    log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] closing connection", out->fd->fd, out->ip, out->port);
 
     /* report stream error */
     sx_error(out->s, stream_err_INVALID_ID, "dialback negotiation failed");
@@ -837,10 +836,10 @@ static void _out_verify(conn_t out, nad_t nad) {
     attr = nad_find_attr(nad, 0, -1, "type", "valid");
     if(attr >= 0) {
         xhash_put(in->states, pstrdup(xhash_pool(in->states), rkey), (void *) conn_VALID);
-        log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] incoming route '%s' is now valid%s", in->fd, in->ip, in->port, rkey, in->s->ssf ? ", SSL negotiated" : "");
+        log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] incoming route '%s' is now valid%s", in->fd->fd, in->ip, in->port, rkey, in->s->ssf ? ", SSL negotiated" : "");
         valid = 1;
     } else {
-        log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] incoming route '%s' is now invalid", in->fd, in->ip, in->port, rkey);
+        log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] incoming route '%s' is now invalid", in->fd->fd, in->ip, in->port, rkey);
         valid = 0;
     }
 

@@ -40,7 +40,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
             break;
 
         case event_READ:
-            log_debug(ZONE, "reading from %d", sess->fd);
+            log_debug(ZONE, "reading from %d", sess->fd->fd);
 
             /* check rate limits */
             if(sess->rate != NULL) {
@@ -49,14 +49,14 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                     /* inform the app if we haven't already */
                     if(!sess->rate_log) {
                         if(s->state >= state_STREAM && sess->jid != NULL)
-                            log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s] is being byte rate limited", sess->fd, sess->jid);
+                            log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s] is being byte rate limited", sess->fd->fd, sess->jid);
                         else
-                            log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] is being byte rate limited", sess->fd, sess->ip, sess->port);
+                            log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] is being byte rate limited", sess->fd->fd, sess->ip, sess->port);
 
                         sess->rate_log = 1;
                     }
 
-                    log_debug(ZONE, "%d is throttled, delaying read", sess->fd);
+                    log_debug(ZONE, "%d is throttled, delaying read", sess->fd->fd);
 
                     buf->len = 0;
                     return 0;
@@ -69,7 +69,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
             }
 
             /* do the read */
-            len = recv(sess->fd, buf->data, buf->len, 0);
+            len = recv(sess->fd->fd, buf->data, buf->len, 0);
 
             if(len < 0) {
                 if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN) {
@@ -78,9 +78,9 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                 }
 
                 if(s->state >= state_STREAM && sess->jid != NULL)
-                    log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s] read error: %s (%d)", sess->fd, jid_full(sess->jid), strerror(errno), errno);
+                    log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s] read error: %s (%d)", sess->fd->fd, jid_full(sess->jid), strerror(errno), errno);
                 else
-                    log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] read error: %s (%d)", sess->fd, sess->ip, sess->port, strerror(errno), errno);
+                    log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] read error: %s (%d)", sess->fd->fd, sess->ip, sess->port, strerror(errno), errno);
 
                 sx_kill(s);
                 
@@ -101,9 +101,9 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
             return len;
 
         case event_WRITE:
-            log_debug(ZONE, "writing to %d", sess->fd);
+            log_debug(ZONE, "writing to %d", sess->fd->fd);
 
-            len = send(sess->fd, buf->data, buf->len, 0);
+            len = send(sess->fd->fd, buf->data, buf->len, 0);
             if(len >= 0) {
                 log_debug(ZONE, "%d bytes written", len);
                 return len;
@@ -113,9 +113,9 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                 return 0;
             
             if(s->state >= state_OPEN && sess->jid != NULL)
-                log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s] write error: %s (%d)", sess->fd, jid_full(sess->jid), strerror(errno), errno);
+                log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s] write error: %s (%d)", sess->fd->fd, jid_full(sess->jid), strerror(errno), errno);
             else
-                log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s. port=%d] write error: %s (%d)", sess->fd, sess->ip, sess->port, strerror(errno), errno);
+                log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s. port=%d] write error: %s (%d)", sess->fd->fd, sess->ip, sess->port, strerror(errno), errno);
         
             sx_kill(s);
         
@@ -124,9 +124,9 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
         case event_ERROR:
             sxe = (sx_error_t *) data;
             if(sess->jid != NULL)
-                log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s] error: %s (%s)", sess->fd, jid_full(sess->jid), sxe->generic, sxe->specific);
+                log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s] error: %s (%s)", sess->fd->fd, jid_full(sess->jid), sxe->generic, sxe->specific);
             else
-                log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] error: %s (%s)", sess->fd, sess->ip, sess->port, sxe->generic, sxe->specific);
+                log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] error: %s (%s)", sess->fd->fd, sess->ip, sess->port, sxe->generic, sxe->specific);
 
             break;
             
@@ -336,18 +336,17 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 
         case event_CLOSED:
             mio_close(sess->c2s->mio, sess->fd);
-
-            break;
+            return -1;
     }
 
     return 0;
 }
 
-static int _c2s_client_accept_check(c2s_t c2s, int fd, char *ip) {
+static int _c2s_client_accept_check(c2s_t c2s, mio_fd_t fd, char *ip) {
     rate_t rt;
 
     if(access_check(c2s->access, ip) == 0) {
-        log_write(c2s->log, LOG_NOTICE, "[%d] [%s] access denied by configuration", fd, ip);
+        log_write(c2s->log, LOG_NOTICE, "[%d] [%s] access denied by configuration", fd->fd, ip);
         return 1;
     }
 
@@ -360,7 +359,7 @@ static int _c2s_client_accept_check(c2s_t c2s, int fd, char *ip) {
         }
 
         if(rate_check(rt) == 0) {
-            log_write(c2s->log, LOG_NOTICE, "[%d] [%s] is being rate limited", fd, ip);
+            log_write(c2s->log, LOG_NOTICE, "[%d] [%s] is being rate limited", fd->fd, ip);
             return 1;
         }
 
@@ -370,7 +369,7 @@ static int _c2s_client_accept_check(c2s_t c2s, int fd, char *ip) {
     return 0;
 }
 
-static int _c2s_client_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *arg) {
+static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg) {
     sess_t sess = (sess_t) arg;
     c2s_t c2s = (c2s_t) arg;
     struct sockaddr_storage sa;
@@ -378,12 +377,12 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, int fd, void *data,
 
     switch(a) {
         case action_READ:
-            log_debug(ZONE, "read action on fd %d", fd);
+            log_debug(ZONE, "read action on fd %d", fd->fd);
 
             /* they did something */
             sess->last_activity = time(NULL);
 
-            ioctl(fd, FIONREAD, &nbytes);
+            ioctl(fd->fd, FIONREAD, &nbytes);
             if(nbytes == 0) {
                 sx_kill(sess->s);
                 return 0;
@@ -392,14 +391,14 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, int fd, void *data,
             return sx_can_read(sess->s);
 
         case action_WRITE:
-            log_debug(ZONE, "write action on fd %d", fd);
+            log_debug(ZONE, "write action on fd %d", fd->fd);
 
             return sx_can_write(sess->s);
 
         case action_CLOSE:
-            log_debug(ZONE, "close action on fd %d", fd);
+            log_debug(ZONE, "close action on fd %d", fd->fd);
 
-            log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] disconnect", sess->fd, sess->ip, sess->port);
+            log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] disconnect", sess->fd->fd, sess->ip, sess->port);
 
             /* tell the sm to close their session */
             if(sess->active)
@@ -414,12 +413,12 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, int fd, void *data,
             break;
 
         case action_ACCEPT:
-            log_debug(ZONE, "accept action on fd %d", fd);
+            log_debug(ZONE, "accept action on fd %d", fd->fd);
 
-            getpeername(fd, (struct sockaddr *) &sa, &namelen);
+            getpeername(fd->fd, (struct sockaddr *) &sa, &namelen);
             port = j_inet_getport(&sa);
 
-            log_write(c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] connect", fd, (char *) data, port);
+            log_write(c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] connect", fd->fd, (char *) data, port);
 
             if(_c2s_client_accept_check(c2s, fd, (char *) data) != 0)
                 return 1;
@@ -437,18 +436,18 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, int fd, void *data,
             /* they did something */
             sess->last_activity = time(NULL);
 
-            sess->s = sx_new(c2s->sx_env, fd, _c2s_client_sx_callback, (void *) sess);
+            sess->s = sx_new(c2s->sx_env, fd->fd, _c2s_client_sx_callback, (void *) sess);
             mio_app(m, fd, _c2s_client_mio_callback, (void *) sess);
 
             if(c2s->byte_rate_total != 0)
                 sess->rate = rate_new(c2s->byte_rate_total, c2s->byte_rate_seconds, c2s->byte_rate_wait);
 
             /* find out which port this is */
-            getsockname(fd, (struct sockaddr *) &sa, &namelen);
+            getsockname(fd->fd, (struct sockaddr *) &sa, &namelen);
             port = j_inet_getport(&sa);
 
             /* remember it */
-            sprintf(sess->skey, "%d", fd);
+            sprintf(sess->skey, "%d", fd->fd);
             xhash_put(c2s->sessions, sess->skey, (void *) sess);
 
 #ifdef HAVE_SSL
@@ -542,10 +541,10 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             break;
 
         case event_READ:
-            log_debug(ZONE, "reading from %d", c2s->fd);
+            log_debug(ZONE, "reading from %d", c2s->fd->fd);
 
             /* do the read */
-            len = recv(c2s->fd, buf->data, buf->len, 0);
+            len = recv(c2s->fd->fd, buf->data, buf->len, 0);
 
             if(len < 0) {
                 if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN) {
@@ -553,7 +552,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     return 0;
                 }
 
-                log_write(c2s->log, LOG_NOTICE, "[%d] [router] read error: %s (%d)", c2s->fd, strerror(errno), errno);
+                log_write(c2s->log, LOG_NOTICE, "[%d] [router] read error: %s (%d)", c2s->fd->fd, strerror(errno), errno);
 
                 sx_kill(s);
                 
@@ -574,9 +573,9 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             return len;
 
         case event_WRITE:
-            log_debug(ZONE, "writing to %d", c2s->fd);
+            log_debug(ZONE, "writing to %d", c2s->fd->fd);
 
-            len = send(c2s->fd, buf->data, buf->len, 0);
+            len = send(c2s->fd->fd, buf->data, buf->len, 0);
             if(len >= 0) {
                 log_debug(ZONE, "%d bytes written", len);
                 return len;
@@ -585,7 +584,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN) 
                 return 0;
 
-            log_write(c2s->log, LOG_NOTICE, "[%d] [router] write error: %s (%d)", c2s->fd, strerror(errno), errno);
+            log_write(c2s->log, LOG_NOTICE, "[%d] [router] write error: %s (%d)", c2s->fd->fd, strerror(errno), errno);
         
             sx_kill(s);
         
@@ -689,30 +688,30 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 #endif
                     if(c2s->local_port != 0) {
                         c2s->server_fd = mio_listen(c2s->mio, c2s->local_port, c2s->local_ip, _c2s_client_mio_callback, (void *) c2s);
-                        if(c2s->server_fd < 0)
+                        if(c2s->server_fd == NULL)
                             log_write(c2s->log, LOG_ERR, "[%s, port=%d] failed to listen", c2s->local_ip, c2s->local_port);
                         else
                             log_write(c2s->log, LOG_NOTICE, "[%s, port=%d] listening for connections", c2s->local_ip, c2s->local_port);
                     } else
-                        c2s->server_fd = -1;
+                        c2s->server_fd = NULL;
             
 #ifdef HAVE_SSL
                     if(c2s->local_ssl_port != 0 && c2s->local_pemfile != NULL) {
                         c2s->server_ssl_fd = mio_listen(c2s->mio, c2s->local_ssl_port, c2s->local_ip, _c2s_client_mio_callback, (void *) c2s);
-                        if(c2s->server_ssl_fd < 0)
+                        if(c2s->server_ssl_fd == NULL)
                             log_write(c2s->log, LOG_ERR, "[%s, port=%d] failed to listen", c2s->local_ip, c2s->local_ssl_port);
                         else
                             log_write(c2s->log, LOG_NOTICE, "[%s, port=%d] listening for SSL connections", c2s->local_ip, c2s->local_ssl_port);
                     } else
-                        c2s->server_ssl_fd = -1;
+                        c2s->server_ssl_fd = NULL;
 #endif
                 }
 
 #ifdef HAVE_SSL
-                if(c2s->server_fd < 0 && c2s->server_ssl_fd < 0) {
+                if(c2s->server_fd == NULL && c2s->server_ssl_fd == NULL) {
                     log_write(c2s->log, LOG_ERR, "both normal and SSL ports are disabled, nothing to do!");
 #else
-                if(c2s->server_fd < 0) {
+                if(c2s->server_fd == NULL) {
                     log_write(c2s->log, LOG_ERR, "server port is disabled, nothing to do!");
 #endif
                     exit(1);
@@ -1025,21 +1024,21 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
         case event_CLOSED:
             mio_close(c2s->mio, c2s->fd);
-            break;
+            return -1;
     }
 
     return 0;
 }
 
-int c2s_router_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *arg) {
+int c2s_router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg) {
     c2s_t c2s = (c2s_t) arg;
     int nbytes;
 
     switch(a) {
         case action_READ:
-            log_debug(ZONE, "read action on fd %d", fd);
+            log_debug(ZONE, "read action on fd %d", fd->fd);
 
-            ioctl(fd, FIONREAD, &nbytes);
+            ioctl(fd->fd, FIONREAD, &nbytes);
             if(nbytes == 0) {
                 sx_kill(c2s->router);
                 return 0;
@@ -1048,11 +1047,11 @@ int c2s_router_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *a
             return sx_can_read(c2s->router);
 
         case action_WRITE:
-            log_debug(ZONE, "write action on fd %d", fd);
+            log_debug(ZONE, "write action on fd %d", fd->fd);
             return sx_can_write(c2s->router);
 
         case action_CLOSE:
-            log_debug(ZONE, "close action on fd %d", fd);
+            log_debug(ZONE, "close action on fd %d", fd->fd);
             log_write(c2s->log, LOG_NOTICE, "connection to router closed");
 
             c2s_lost_router = 1;

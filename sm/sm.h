@@ -175,7 +175,7 @@ struct sm_st {
     sx_plugin_t         sx_ssl;             /**< SX SSL plugin */
 
     sx_t                router;             /**< SX of router connection */
-    int                 fd;                 /**< file descriptor of router connection */
+    mio_fd_t            fd;                 /**< file descriptor of router connection */
 
     xht                 users;              /**< pointers to currently loaded users (key is user@@domain) */
 
@@ -268,7 +268,7 @@ int             aci_check(xht acls, char *type, jid_t jid);
 void            aci_unload(xht acls);
 
 int             sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg);
-int             sm_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *arg);
+int             sm_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
 void            sm_timestamp(time_t t, char timestamp[18]);
 void            sm_c2s_action(sess_t dest, char *action, char *target);
 void            sm_signature(sm_t sm, char *str);

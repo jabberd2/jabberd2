@@ -264,7 +264,7 @@ static void _router_time_checks(router_t r) {
           xhash_iter_get(r->components, NULL, xhv.val);
 
          if(r->check_keepalive > 0 && target->last_activity > 0 && now > target->last_activity + r->check_keepalive && target->s->state >= state_STREAM) {
-               log_debug(ZONE, "sending keepalive for %d", target->fd);
+               log_debug(ZONE, "sending keepalive for %d", target->fd->fd);
                sx_raw_write(target->s, " ", 1);
           }
        } while(xhash_iter_next(r->components));
@@ -407,7 +407,7 @@ int main(int argc, char **argv)
     r->mio = mio_new(r->io_max_fds);
 
     r->fd = mio_listen(r->mio, r->local_port, r->local_ip, router_mio_callback, (void *) r);
-    if(r->fd < 0) {
+    if(r->fd == NULL) {
         log_write(r->log, LOG_ERR, "[%s, port=%d] unable to listen (%s)", r->local_ip, r->local_port, strerror(errno));
         exit(1);
     }

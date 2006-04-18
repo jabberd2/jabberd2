@@ -43,7 +43,7 @@ typedef struct authreg_st   *authreg_t;
 struct sess_st {
     c2s_t               c2s;
 
-    int                 fd;
+    mio_fd_t            fd;
 
     char                skey[10];
 
@@ -105,12 +105,12 @@ struct c2s_st {
 
     /** router's conn */
     sx_t                router;
-    int                 fd;
+    mio_fd_t            fd;
 
     /** listening sockets */
-    int                 server_fd;
+    mio_fd_t            server_fd;
 #ifdef HAVE_SSL
-    int                 server_ssl_fd;
+    mio_fd_t            server_ssl_fd;
 #endif
 
     /** config */
@@ -212,7 +212,7 @@ struct c2s_st {
 
 extern sig_atomic_t c2s_lost_router;
 
-int             c2s_router_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *arg);
+int             c2s_router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
 int             c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg);
 
 void            sm_start(sess_t sess);

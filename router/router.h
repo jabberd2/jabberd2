@@ -106,7 +106,7 @@ struct router_st {
     mio_t               mio;
 
     /** listening socket */
-    int                 fd;
+    mio_fd_t            fd;
 
     /** time checks */
     int                 check_interval;
@@ -144,7 +144,7 @@ struct component_st {
     router_t            r;
 
     /** file descriptor */
-    int                 fd;
+    mio_fd_t            fd;
 
     /** remote ip and port */
     char                ip[INET6_ADDRSTRLEN];
@@ -180,7 +180,7 @@ struct alias_st {
     alias_t             next;
 };
 
-int     router_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *arg);
+int     router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
 void    router_sx_handshake(sx_t s, sx_buf_t buf, void *arg);
 
 xht     aci_load(router_t r);

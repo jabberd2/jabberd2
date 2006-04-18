@@ -149,14 +149,14 @@ static int _s2s_router_connect(s2s_t s2s) {
     log_write(s2s->log, LOG_NOTICE, "attempting connection to router at %s, port=%d", s2s->router_ip, s2s->router_port);
 
     s2s->fd = mio_connect(s2s->mio, s2s->router_port, s2s->router_ip, s2s_router_mio_callback, (void *) s2s);
-    if(s2s->fd < 0) {
+    if(s2s->fd == NULL) {
         if(errno == ECONNREFUSED)
             s2s_lost_router = 1;
         log_write(s2s->log, LOG_NOTICE, "connection attempt to router failed: %s (%d)", strerror(errno), errno);
         return 1;
     }
 
-    s2s->router = sx_new(s2s->sx_env, s2s->fd, s2s_router_sx_callback, (void *) s2s);
+    s2s->router = sx_new(s2s->sx_env, s2s->fd->fd, s2s_router_sx_callback, (void *) s2s);
     sx_client_init(s2s->router, 0, NULL, NULL, NULL, "1.0");
 
     return 0;
@@ -181,7 +181,7 @@ int _s2s_check_conn_routes(s2s_t s2s, conn_t conn, const char *direction)
               dialback_time = (time_t) xhash_get(conn->states_time, rkey);
 
               if(now > dialback_time + s2s->check_queue) {
-                 log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] dialback for %s route '%s' timed out", conn->fd, conn->ip, conn->port, direction, rkey);
+                 log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] dialback for %s route '%s' timed out", conn->fd->fd, conn->ip, conn->port, direction, rkey);
 
                  xhash_zap(conn->states, rkey);
                  xhash_zap(conn->states_time, rkey);
@@ -261,7 +261,7 @@ static void _s2s_time_checks(s2s_t s2s) {
 
                 /* connect timeout check */
                 if(!conn->online && now > conn->init_time + s2s->check_queue) {
-                    log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] connection to %s timed out", conn->fd, conn->ip, conn->port, domain);
+                    log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] connection to %s timed out", conn->fd->fd, conn->ip, conn->port, domain);
 
                     /* bounce queue */
                     out_bounce_queue(s2s, domain, stanza_err_REMOTE_SERVER_TIMEOUT);
@@ -285,7 +285,7 @@ static void _s2s_time_checks(s2s_t s2s) {
                 if (_s2s_check_conn_routes(s2s, conn, "outgoing")) {
                     log_debug(ZONE, "checking pending verify requests for outgoing conn %s", key);
                     if (conn->verify > 0 && now > conn->last_verify + s2s->check_queue) {
-                        log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] dialback verify request timed out", conn->fd, conn->ip, conn->port);
+                        log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] dialback verify request timed out", conn->fd->fd, conn->ip, conn->port);
                         sx_error(conn->s, stream_err_CONNECTION_TIMEOUT, "dialback verify request timed out");
                         sx_close(conn->s);
                     }
@@ -302,7 +302,7 @@ static void _s2s_time_checks(s2s_t s2s) {
                 if (_s2s_check_conn_routes(s2s, conn, "incoming"))
                     /* if the connection is still valid, check that dialbacks have been initiated */
                     if(!xhash_count(conn->states) && now > conn->init_time + s2s->check_queue) {
-                        log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] no dialback started", conn->fd, conn->ip, conn->port); 
+                        log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] no dialback started", conn->fd->fd, conn->ip, conn->port); 
                         sx_error(conn->s, stream_err_CONNECTION_TIMEOUT, "no dialback initiated");
                         sx_close(conn->s);
                     }
@@ -314,9 +314,9 @@ static void _s2s_time_checks(s2s_t s2s) {
                 xhv.conn_val = &conn;
                 xhash_iter_get(s2s->in_accept, (const char **) &key, xhv.val);
 
-                log_debug(ZONE, "checking stream connection state for incoming conn %i", conn->fd);
+                log_debug(ZONE, "checking stream connection state for incoming conn %i", conn->fd->fd);
                 if(!conn->online && now > conn->init_time + s2s->check_queue) {
-                    log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] stream initiation timed out", conn->fd, conn->ip, conn->port);
+                    log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] stream initiation timed out", conn->fd->fd, conn->ip, conn->port);
                     sx_close(conn->s);
                 }
             } while(xhash_iter_next(s2s->in_accept));
@@ -330,7 +330,7 @@ static void _s2s_time_checks(s2s_t s2s) {
             xhash_iter_get(s2s->out, NULL, xhv.val);
 
             if(s2s->check_keepalive > 0 && conn->last_activity > 0 && now > conn->last_activity + s2s->check_keepalive && conn->s->state >= state_STREAM) {
-                log_debug(ZONE, "sending keepalive for %d", conn->fd);
+                log_debug(ZONE, "sending keepalive for %d", conn->fd->fd);
 
                 sx_raw_write(conn->s, " ", 1);
             }
@@ -346,7 +346,7 @@ static void _s2s_time_checks(s2s_t s2s) {
                 xhash_iter_get(s2s->out, (const char **) &key, xhv.val);
                 log_debug(ZONE, "checking idle state for %s", key);
                 if (conn->last_packet > 0 && now > conn->last_packet + s2s->check_idle && conn->s->state >= state_STREAM) {
-                    log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] idle timeout", conn->fd, conn->ip, conn->port);
+                    log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] idle timeout", conn->fd->fd, conn->ip, conn->port);
                     sx_close(conn->s);
                 }
             } while(xhash_iter_next(s2s->out));
@@ -358,7 +358,7 @@ static void _s2s_time_checks(s2s_t s2s) {
                 xhash_iter_get(s2s->in, (const char **) &key, xhv.val);
                 log_debug(ZONE, "checking idle state for %s", key);
                 if (conn->last_packet > 0 && now > conn->last_packet + s2s->check_idle && conn->s->state >= state_STREAM) {
-                    log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] idle timeout", conn->fd, conn->ip, conn->port);
+                    log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] idle timeout", conn->fd->fd, conn->ip, conn->port);
                     sx_close(conn->s);
                 }
             } while(xhash_iter_next(s2s->in));

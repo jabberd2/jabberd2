@@ -60,7 +60,7 @@ static void _in_result(conn_t in, nad_t nad);
 static void _in_verify(conn_t in, nad_t nad);
 static void _in_packet(conn_t in, nad_t nad);
 
-int in_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *arg) {
+int in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg) {
     conn_t in = (conn_t) arg;
     s2s_t s2s = (s2s_t) arg;
     struct sockaddr_storage sa;
@@ -69,9 +69,9 @@ int in_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *arg) {
 
     switch(a) {
         case action_READ:
-            log_debug(ZONE, "read action on fd %d", fd);
+            log_debug(ZONE, "read action on fd %d", fd->fd);
 
-            ioctl(fd, FIONREAD, &nbytes);
+            ioctl(fd->fd, FIONREAD, &nbytes);
             if(nbytes == 0) {
                 sx_kill(in->s);
                 return 0;
@@ -80,14 +80,14 @@ int in_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *arg) {
             return sx_can_read(in->s);
 
         case action_WRITE:
-            log_debug(ZONE, "write action on fd %d", fd);
+            log_debug(ZONE, "write action on fd %d", fd->fd);
             return sx_can_write(in->s);
 
         case action_CLOSE:
-            log_debug(ZONE, "close action on fd %d", fd);
+            log_debug(ZONE, "close action on fd %d", fd->fd);
 
             /* !!! logging */
-            log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] disconnect", fd, in->ip, in->port);
+            log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] disconnect", fd->fd, in->ip, in->port);
 
             jqueue_push(in->s2s->dead, (void *) in->s, 0);
 
@@ -106,12 +106,12 @@ int in_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *arg) {
         case action_ACCEPT:
             s2s = (s2s_t) arg;
 
-            log_debug(ZONE, "accept action on fd %d", fd);
+            log_debug(ZONE, "accept action on fd %d", fd->fd);
             
-            getpeername(fd, (struct sockaddr *) &sa, &namelen);
+            getpeername(fd->fd, (struct sockaddr *) &sa, &namelen);
             port = j_inet_getport(&sa);
 
-            log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] incoming connection", fd, (char *) data, port);
+            log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] incoming connection", fd->fd, (char *) data, port);
 
             /* new conn */
             in = (conn_t) malloc(sizeof(struct conn_st));
@@ -129,7 +129,7 @@ int in_mio_callback(mio_t m, mio_action_t a, int fd, void *data, void *arg) {
 
             in->init_time = time(NULL);
 
-            in->s = sx_new(s2s->sx_env, in->fd, _in_sx_callback, (void *) in);
+            in->s = sx_new(s2s->sx_env, in->fd->fd, _in_sx_callback, (void *) in);
             mio_app(m, in->fd, in_mio_callback, (void *) in);
 
             /* add to incoming connections hash */
@@ -167,10 +167,10 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             break;
 
         case event_READ:
-            log_debug(ZONE, "reading from %d", in->fd);
+            log_debug(ZONE, "reading from %d", in->fd->fd);
 
             /* do the read */
-            len = recv(in->fd, buf->data, buf->len, 0);
+            len = recv(in->fd->fd, buf->data, buf->len, 0);
 
             if(len < 0) {
                 if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN) {
@@ -178,7 +178,7 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     return 0;
                 }
 
-                log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] read error: %s (%d)", in->fd, in->ip, in->port, strerror(errno), errno);
+                log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] read error: %s (%d)", in->fd->fd, in->ip, in->port, strerror(errno), errno);
 
                 sx_kill(s);
                 
@@ -199,9 +199,9 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             return len;
 
         case event_WRITE:
-            log_debug(ZONE, "writing to %d", in->fd);
+            log_debug(ZONE, "writing to %d", in->fd->fd);
 
-            len = send(in->fd, buf->data, buf->len, 0);
+            len = send(in->fd->fd, buf->data, buf->len, 0);
             if(len >= 0) {
                 log_debug(ZONE, "%d bytes written", len);
                 return len;
@@ -210,7 +210,7 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)
                 return 0;
 
-            log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] write error: %s (%d)", in->fd, in->ip, in->port, strerror(errno), errno);
+            log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] write error: %s (%d)", in->fd->fd, in->ip, in->port, strerror(errno), errno);
 
             sx_kill(s);
 
@@ -218,7 +218,7 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
         case event_ERROR:
             sxe = (sx_error_t *) data;
-            log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] error: %s (%s)", in->fd, in->ip, in->port, sxe->generic, sxe->specific);
+            log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] error: %s (%s)", in->fd->fd, in->ip, in->port, sxe->generic, sxe->specific);
 
             break;
 
@@ -229,7 +229,7 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
             /* first time, bring them online */
             if ((!in->online)||(strcmp(in->key,s->id)!=0)) { 
-                log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] incoming stream online (id %s)", in->fd, in->ip, in->port, s->id);
+                log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] incoming stream online (id %s)", in->fd->fd, in->ip, in->port, s->id);
 
                 in->online = 1;
 
@@ -311,8 +311,7 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
         case event_CLOSED:
             mio_close(in->s2s->mio, in->fd);
-
-            break;
+            return -1;
     }
 
     return 0;
@@ -344,11 +343,11 @@ static void _in_result(conn_t in, nad_t nad) {
 
     rkey = s2s_route_key(NULL, to->domain, from->domain);
 
-    log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] received dialback auth request for route '%s'", in->fd, in->ip, in->port, rkey);
+    log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] received dialback auth request for route '%s'", in->fd->fd, in->ip, in->port, rkey);
 
     /* get current state */
     if((conn_state_t) xhash_get(in->states, rkey) == conn_VALID) {
-        log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] route '%s' is already valid: sending valid", in->fd, in->ip, in->port, rkey);
+        log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] route '%s' is already valid: sending valid", in->fd->fd, in->ip, in->port, rkey);
 
         /* its already valid, just reply right now */
         stanza_tofrom(nad, 0);
@@ -370,7 +369,7 @@ static void _in_result(conn_t in, nad_t nad) {
 
     /* need the key */
     if(NAD_CDATA_L(nad, 0) <= 0) {
-        log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] no dialback key given with db result packet", in->fd, in->ip, in->port, rkey);
+        log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] no dialback key given with db result packet", in->fd->fd, in->ip, in->port, rkey);
         free(rkey);
         nad_free(nad);
         jid_free(from);
@@ -470,7 +469,7 @@ static void _in_verify(conn_t in, nad_t nad) {
         type = "invalid";
     }
 
-    log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] checking dialback verification from %s: sending %s", in->fd, in->ip, in->port, from->domain, type);
+    log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] checking dialback verification from %s: sending %s", in->fd->fd, in->ip, in->port, from->domain, type);
 
     log_debug(ZONE, "letting them know");
 
@@ -518,7 +517,7 @@ static void _in_packet(conn_t in, nad_t nad) {
 
     /* drop packets received on routes not valid on that connection as per XMPP 8.3.10 */
     if((conn_state_t) xhash_get(in->states, rkey) != conn_VALID) {
-        log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] dropping packet on unvalidated route: '%s'", in->fd, in->ip, in->port, rkey);
+        log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] dropping packet on unvalidated route: '%s'", in->fd->fd, in->ip, in->port, rkey);
         free(rkey);
         nad_free(nad);
         jid_free(from);
