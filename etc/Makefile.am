@@ -8,7 +8,8 @@ jabberd_bin = router resolver sm s2s c2s
 edit = sed \
 	-e 's,@sysconfdir\@,$(sysconfdir),g' \
 	-e 's,@localstatedir\@,$(localstatedir),g' \
-	-e 's,@bindir\@,$(bindir),g'
+	-e 's,@bindir\@,$(bindir),g' \
+	-e 's,@libdir\@,$(libdir),g'
 
 $(sysconf_DATA):
 	@echo "generating $@ from $@.in"; \
