@@ -19,6 +19,8 @@ CREATE TABLE "authreg" (
     "sequence" integer,
     "hash" varchar(40) );
 
+CREATE SEQUENCE "object-sequence";
+
 --
 -- Session manager tables 
 --
@@ -29,7 +31,7 @@ CREATE TABLE "authreg" (
 --
 CREATE TABLE "active" (
     "collection-owner" text PRIMARY KEY,
-    "object-sequence" serial,
+    "object-sequence" bigint,
     "time" integer );
 
 --
@@ -38,7 +40,7 @@ CREATE TABLE "active" (
 --
 CREATE TABLE "logout" (
     "collection-owner" text PRIMARY KEY,
-    "object-sequence" serial,
+    "object-sequence" bigint,
     "time" integer NOT NULL );
 
 --
@@ -47,7 +49,7 @@ CREATE TABLE "logout" (
 --
 CREATE TABLE "roster-items" (
     "collection-owner" text,
-    "object-sequence" serial,
+    "object-sequence" bigint,
     "jid" text NOT NULL,
     "name" text,
     "to" boolean NOT NULL,
@@ -63,7 +65,7 @@ CREATE INDEX i_rosteri_owner ON "roster-items" USING btree ("collection-owner");
 --
 CREATE TABLE "roster-groups" (
     "collection-owner" text,
-    "object-sequence" serial,
+    "object-sequence" bigint,
     "jid" text NOT NULL,
     "group" text NOT NULL,
     PRIMARY KEY ("collection-owner", "jid", "group") );
@@ -77,7 +79,7 @@ CREATE INDEX i_rosterg_owner_jid ON "roster-groups" USING btree ("collection-own
 --
 CREATE TABLE "vcard" (
     "collection-owner" text PRIMARY KEY,
-    "object-sequence" serial,
+    "object-sequence" bigint,
     "fn" text,
     "nickname" text,
     "url" text,
@@ -132,7 +134,7 @@ CREATE TABLE "vcard" (
 --
 CREATE TABLE "queue" (
     "collection-owner" text,
-    "object-sequence" serial,
+    "object-sequence" bigint,
     "xml" text NOT NULL );
 
 CREATE INDEX i_queue_owner ON "queue" USING btree ("collection-owner");
@@ -143,7 +145,7 @@ CREATE INDEX i_queue_owner ON "queue" USING btree ("collection-owner");
 --
 CREATE TABLE "private" (
     "collection-owner" text,
-    "object-sequence" serial,
+    "object-sequence" bigint,
     "ns" text,
     "xml" text,
     PRIMARY KEY ("collection-owner", "ns") );
@@ -156,7 +158,7 @@ CREATE INDEX i_private_owner ON "private" USING btree ("collection-owner");
 --
 CREATE TABLE "motd-message" (
     "collection-owner" text PRIMARY KEY,
-    "object-sequence" serial,
+    "object-sequence" bigint,
     "xml" text NOT NULL);
 
 --
@@ -165,7 +167,7 @@ CREATE TABLE "motd-message" (
 --
 CREATE TABLE "motd-times" (
     "collection-owner" text PRIMARY KEY,
-    "object-sequence" serial,
+    "object-sequence" bigint,
     "time" integer NOT NULL);
 
 --
@@ -174,7 +176,7 @@ CREATE TABLE "motd-times" (
 --
 CREATE TABLE "disco-items" (
     "collection-owner" text,
-    "object-sequence" serial,
+    "object-sequence" bigint,
     "jid" text,
     "name" text,
     "node" text );
@@ -187,7 +189,7 @@ CREATE INDEX i_discoi_owner ON "disco-items" USING btree ("collection-owner");
 --
 CREATE TABLE "privacy-default" (
     "collection-owner" text PRIMARY KEY,
-    "object-sequence" serial,
+    "object-sequence" bigint,
     "default" text );
 
 --
@@ -196,7 +198,7 @@ CREATE TABLE "privacy-default" (
 --
 CREATE TABLE "privacy-items" (
     "collection-owner" text,
-    "object-sequence" serial,
+    "object-sequence" bigint,
     "list" text NOT NULL,
     "type" text,
     "value" text,
@@ -212,7 +214,7 @@ CREATE INDEX i_privacyi_owner ON "privacy-items" USING btree ("collection-owner"
 --
 CREATE TABLE "vacation-settings" (
     "collection-owner" text PRIMARY KEY,
-    "object-sequence" serial,
+    "object-sequence" bigint,
     "start" int,
     "end" int,
     "message" text );
@@ -223,7 +225,7 @@ CREATE TABLE "vacation-settings" (
 --
 CREATE TABLE "status" (
     "collection-owner" text PRIMARY KEY,
-    "object-sequence" serial,
+    "object-sequence" bigint,
     "status" text,
     "show" text,
     "last-login" int DEFAULT '0',
