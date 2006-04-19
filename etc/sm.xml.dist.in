@@ -190,16 +190,25 @@
        this may cause strange behaviour. Make sure you know what you're
        doing. -->
   <modules>
+    <!-- Dynamic sm modules path
+
+         Trailing slash is significant. -->
+    <!--
+    <path>@libdir@/</path>
+    -->
 
     <!-- sess-start. The modules in this chain are called when a session
          is first started (usually on request by c2s as part of the
          authentication process). This is normally used to load
          per-session data. -->
-    <chain id='sess-start'/>
+    <chain id='sess-start'>
+      <module>status</module>           <!-- record status information -->
+    </chain>
 
     <!-- sess-end. The modules in this chain are called just before a
          session is destroyed (after the client has disconnected). -->
     <chain id='sess-end'>
+      <module>status</module>           <!-- update status information -->
       <module>iq-last</module>          <!-- update logout time -->
     </chain>
 
@@ -209,6 +218,7 @@
          this is usually handled by the "deliver" module. -->
     <chain id='in-sess'>
       <module>validate</module>         <!-- validate packet type -->
+      <module>status</module>           <!-- update status information -->
       <module>privacy</module>          <!-- manage privacy lists -->
       <module>roster</module>           <!-- handle roster get/sets and s10ns -->
       <module>vacation</module>         <!-- manage vacation settings -->
@@ -314,6 +324,7 @@
       <module>privacy</module>          <!-- delete privacy lists -->
       <module>roster</module>           <!-- delete roster -->
       <module>vacation</module>         <!-- delete vacation settings -->
+      <module>status</module>           <!-- delete status information -->
       <module>iq-last</module>          <!-- delete last logout time -->
       <module>iq-private</module>       <!-- delete private data -->
       <module>iq-vcard</module>         <!-- delete vcard -->
