@@ -226,7 +226,7 @@ CREATE TABLE "vacation-settings" (
 CREATE TABLE "status" (
     "collection-owner" text PRIMARY KEY,
     "object-sequence" bigint,
-    "status" text,
+    "status" text NOT NULL,
     "show" text,
     "last-login" int DEFAULT '0',
     "last-logout" int DEFAULT '0' );
