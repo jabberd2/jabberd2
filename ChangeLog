@@ -1,3 +1,6 @@
+2006-04-20 Tomasz Sterna <tomek@xiaoka.com>
+	* ported mod_status to current version
+
 2006-04-19 Tomasz Sterna <tomek@xiaoka.com>
 	* integrated more robust support for vCards
 	* fixed and extended db-setup.pgsql schema

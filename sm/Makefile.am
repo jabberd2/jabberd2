@@ -18,6 +18,7 @@ lib_LTLIBRARIES = libmod_active.la \
                   libmod_privacy.la \
                   libmod_roster.la \
                   libmod_session.la \
+                  libmod_status.la \
                   libmod_template-roster.la \
                   libmod_vacation.la \
                   libmod_validate.la
@@ -99,6 +100,9 @@ libmod_roster_la_LDFLAGS = -shared -E
 
 libmod_session_la_SOURCES = mod_session.c
 libmod_session_la_LDFLAGS = -shared -E
+
+libmod_status_la_SOURCES = mod_status.c
+libmod_status_la_LDFLAGS = -shared -E
 
 libmod_template_roster_la_SOURCES = mod_template_roster.c
 libmod_template_roster_la_LDFLAGS = -shared -E

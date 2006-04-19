@@ -218,3 +218,15 @@ CREATE TABLE "vacation-settings" (
     "start" int,
     "end" int,
     "message" text );
+
+--
+-- User status information
+-- Used by: mod_status
+--
+CREATE TABLE "status" (
+    "collection-owner" text PRIMARY KEY,
+    "object-sequence" bigint,
+    "status" text,
+    "show" text,
+    "last-login" int DEFAULT '0',
+    "last-logout" int DEFAULT '0' );
