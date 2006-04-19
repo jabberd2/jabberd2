@@ -69,27 +69,55 @@ CREATE TABLE `roster-groups` (
 -- Used by: mod_iq_vcard
 --
 CREATE TABLE `vcard` (
-    `collection-owner` TEXT NOT NULL, KEY(`collection-owner`(255)),
+    `collection-owner` VARCHAR(255) NOT NULL, KEY(`collection-owner`(255)),
     `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
-    `fn` TEXT,
-    `nickname` TEXT,
-    `url` TEXT,
-    `tel` TEXT,
-    `email` TEXT,
-    `title` TEXT,
-    `role` TEXT,
-    `bday` TEXT,
+    `fn` VARCHAR(255),
+    `nickname` VARCHAR(255),
+    `url` VARCHAR(255),
+    `tel` VARCHAR(255),
+    `email` VARCHAR(255),
+    `title` VARCHAR(255),
+    `role` VARCHAR(255),
+    `bday` VARCHAR(255),        # Shouldn't this be a DATE?
+    `tz` VARCHAR(7),
+    `n-family` VARCHAR(255),
+    `n-given` VARCHAR(255),
+    `n-middle` VARCHAR(255),
+    `n-prefix` VARCHAR(255),
+    `n-suffix` VARCHAR(255),
+    `adr-street` VARCHAR(255),
+    `adr-extadd` VARCHAR(255),
+    `adr-pobox` VARCHAR(15),
+    `adr-locality` VARCHAR(255),
+    `adr-region` VARCHAR(255),
+    `adr-pcode` VARCHAR(31),
+    `adr-country` VARCHAR(63),
+    `geo-lat` VARCHAR(255),
+    `geo-lon` VARCHAR(255),
+    `org-orgname` VARCHAR(255),
+    `org-orgunit` VARCHAR(255),
+    `agent-extval` VARCHAR(255),
+    `sort-string` VARCHAR(255),
     `desc` TEXT,
-    `n-given` TEXT,
-    `n-family` TEXT,
-    `adr-street` TEXT,
-    `adr-extadd` TEXT,
-    `adr-locality` TEXT,
-    `adr-region` TEXT,
-    `adr-pcode` TEXT,
-    `adr-country` TEXT,
-    `org-orgname` TEXT,
-    `org-orgunit` TEXT );
+    `note` TEXT,
+    
+    `photo-type` VARCHAR(127),
+    `photo-binval` TEXT,
+    `photo-extval` VARCHAR(255),
+    
+    `logo-type` VARCHAR(127),
+    `logo-binval` TEXT,
+    `logo-extval` VARCHAR(255),
+    
+    `sound-phonetic` VARCHAR(255),
+    `sound-binval` TEXT,
+    `sound-extval` VARCHAR(255),
+    
+    `key-type` VARCHAR(127),
+    `key-cred` TEXT,
+    
+    `rev` VARCHAR(255)
+    );
 
 --
 -- Offline message queue

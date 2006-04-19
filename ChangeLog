@@ -1,52 +1,77 @@
+2006-04-19 Tomasz Sterna <tomek@xiaoka.com>
+	* integrated more robust support for vCards
+	* fixed and extended db-setup.pgsql schema
+
+2006-04-18 Tomasz Sterna <tomek@xiaoka.com>
+	* integrated epoll support
+
 2005-10-02 Justin Kirby <justin-j2@openaether.org>
 	* fixed SASL anonymous, bug#126
+
 2005-09-27 Justin Kirby <justin-j2@openaether.org>
 	* fixed edge cases with new dynamic jid code
+
+2005-09-15 Robert Quattlebaum <darco@deepdarc.com>
+        * Added more robust support for vCards in genereal, including JEP-0153
+        * Added the new vCard fields to the schema
+        * Changed the field types to be a little bit more reasonable
+
 2005-09-20 Justin Kirby <justin-j2@openaether.org>
 	* fixed incorrect free order in c2s, byg#125
 	* corrected debug logging, bug#119
+
 2005-09-09 Justin Kirby <justin-j2@openaether.org>
 	* fixed s2s bus error on 64-bit architectures, bug#122
 	* fixed c2s collisions due to long jids, bug#118
 	* fixed error response to iq result, bug#110
 	* fixed roster pushing packets without id, bug#73
 	* updated dynamic jid patch to stable version, bug#100
+
 2005-08-25 Justin Kirby <justin-j2@openaether.org>
 	* fixed double free of nad in c2s and s2s, bug#97
+
 2005-08-21 Justin Kirby <justin-j2@openaether.org>
 	* added check in configure for db43 and db41, bug#105
 	* major memory enhancement, made jid structure dynamically allocated, bug#100
+
 2005-08-17 Justin Kirby <justin-j2@openaether.org>
 	* modules in sm are now dynamic libs, bug#103
 	* fixed glibc error with custom sql statements, bug#106
 	* fixed segfault with keepalives, bug#102
+
 2005-08-07 Justin Kirby <justin-j2@openaether.org>
 	* replaced scod with cyrus sasl, bug#45
+
 2005-06-22 Justin Kirby <justin-j2@openaether.org>
 	* fixed sx io mem leak, bug#90
 	* fixed c2s glibc abort and mysql option flags, bug#82
 	* fixed version attribute reply in stream, bug#94
 	* Support verification of SSL certificates for c2s and s2s, bug#56
+
 2005-06-02 Justin Kirby <justin-j2@openaether.org>
 	* fixed only one user is loaded correctly for each router acl, bug#60
 	* fixed s2s segfault under particular connection timeout conditions, bug#66
 	* fixed id is being case sensitive, bug#68
 	* fixed Users cannot login after a long period of server inactivity, bug#69
 	* fixed  handling of stream errors, bug#79
+
 2005-04-20 Justin Kirby <justin-j2@openaether.org>
 	* fixed s2s segfault from resolver race condition bug#59
 	* fixed mem leak in s2s bug#59
+
 2005-04-14 Justin Kirby <justin-j2@openaether.org>
 	* added oracle support. 
 	* add keepalives to router bug#54
 	* fixed info in PROTOCOL file
 	* Fixed handling of (un)subscribe packets for XMPP-IM compliance
+
 2005-04-07 Justin Kirby <justin-j2@openaether.org>
 	* fixed time values which were not stored correctly
 	* the '>' must always be escaped (andrey)
 	* fixed failed access_check() in hpux-ia64
 	* fixed ssl memory leak
 	* fixed s2s segfaults relating firewall problems
+
 2005-03-31 Justin Kirby <justin-j2@openaether.org>
 	* Memory cleanups in shutdown
 	* Fixed mysql varchar and options in storage
@@ -58,6 +83,7 @@
 	* Disconnected log sink no longer causes crash
 	* Fixed  cases where dns resolution fails, s2s does not remove the domain from theoutgoing queue hash.
 	* Where an outgoing domain is inactive (no active connection), s2s does not check  whether there are packets queued before attempting to bounce queued packets (and adding a debug notice)
+
 2005-01-07 Justin Kirby <justin-j2@openaether.org>
 	* Reset router reconnection counter after successful reconnect
 	* Correctly close sm sessions held by components which do not close down cleanly

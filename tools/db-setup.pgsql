@@ -5,15 +5,15 @@
 --     template1=> \i db-setup.pgsql
 --
 
-CREATE DATABASE jabberd2;
-\c jabberd2
+-- CREATE DATABASE jabberd2;
+-- \c jabberd2
 
 --
 -- c2s authentication/registration table
 --
 CREATE TABLE "authreg" (
-    "username" varchar(256),
-    "realm" varchar(256),
+    "username" varchar(1023) NOT NULL,
+    "realm" varchar(1023) NOT NULL,
     "password" varchar(256),
     "token" varchar(10),
     "sequence" integer,
@@ -41,7 +41,7 @@ CREATE TABLE "active" (
 CREATE TABLE "logout" (
     "collection-owner" text PRIMARY KEY,
     "object-sequence" bigint,
-    "time" integer );
+    "time" integer NOT NULL );
 
 --
 -- Roster items
@@ -50,11 +50,14 @@ CREATE TABLE "logout" (
 CREATE TABLE "roster-items" (
     "collection-owner" text,
     "object-sequence" bigint,
-    "jid" text,
+    "jid" text NOT NULL,
     "name" text,
-    "to" boolean,
-    "from" boolean,
-    "ask" integer );
+    "to" boolean NOT NULL,
+    "from" boolean NOT NULL,
+    "ask" integer NOT NULL,
+    PRIMARY KEY ("collection-owner", "jid") );
+
+CREATE INDEX i_rosteri_owner ON "roster-items" USING btree ("collection-owner");
 
 --
 -- Roster groups
@@ -63,15 +66,19 @@ CREATE TABLE "roster-items" (
 CREATE TABLE "roster-groups" (
     "collection-owner" text,
     "object-sequence" bigint,
-    "jid" text,
-    "group" text );
+    "jid" text NOT NULL,
+    "group" text NOT NULL,
+    PRIMARY KEY ("collection-owner", "jid", "group") );
+
+CREATE INDEX i_rosterg_owner ON "roster-groups" USING btree ("collection-owner");
+CREATE INDEX i_rosterg_owner_jid ON "roster-groups" USING btree ("collection-owner", "jid");
 
 --
 -- vCard (user profile information)
 -- Used by: mod_iq_vcard
 --
 CREATE TABLE "vcard" (
-    "collection-owner" text,
+    "collection-owner" text PRIMARY KEY,
     "object-sequence" bigint,
     "fn" text,
     "nickname" text,
@@ -80,18 +87,46 @@ CREATE TABLE "vcard" (
     "email" text,
     "title" text,
     "role" text,
-    "bday" text,
-    "desc" text,
-    "n-given" text,
+    "bday" timestamp,
+    "tz" text,
     "n-family" text,
+    "n-given" text,
+    "n-middle" text,
+    "n-prefix" text,
+    "n-suffix" text,
     "adr-street" text,
     "adr-extadd" text,
+    "adr-pobox" text,
     "adr-locality" text,
     "adr-region" text,
     "adr-pcode" text,
     "adr-country" text,
+    "geo-lat" text,
+    "geo-lon" text,
     "org-orgname" text,
-    "org-orgunit" text );
+    "org-orgunit" text,
+    "agent-extval" text,
+    "sort-string" text,
+    "desc" text,
+    "note" text,
+    
+    "photo-type" text,
+    "photo-binval" text,
+    "photo-extval" text,
+    
+    "logo-type" text,
+    "logo-binval" text,
+    "logo-extval" text,
+    
+    "sound-phonetic" text,
+    "sound-binval" text,
+    "sound-extval" text,
+    
+    "key-type" text,
+    "key-cred" text,
+    
+    "rev" text
+    );
 
 --
 -- Offline message queue
@@ -100,7 +135,9 @@ CREATE TABLE "vcard" (
 CREATE TABLE "queue" (
     "collection-owner" text,
     "object-sequence" bigint,
-    "xml" text );
+    "xml" text NOT NULL );
+
+CREATE INDEX i_queue_owner ON "queue" USING btree ("collection-owner");
 
 --
 -- Private XML storage
@@ -110,7 +147,10 @@ CREATE TABLE "private" (
     "collection-owner" text,
     "object-sequence" bigint,
     "ns" text,
-    "xml" text );
+    "xml" text,
+    PRIMARY KEY ("collection-owner", "ns") );
+
+CREATE INDEX i_private_owner ON "private" USING btree ("collection-owner");
 
 --
 -- Message Of The Day (MOTD) messages (announcements)
@@ -119,7 +159,7 @@ CREATE TABLE "private" (
 CREATE TABLE "motd-message" (
     "collection-owner" text PRIMARY KEY,
     "object-sequence" bigint,
-    "xml" text );
+    "xml" text NOT NULL);
 
 --
 -- Times of last MOTD message for each user
@@ -128,7 +168,7 @@ CREATE TABLE "motd-message" (
 CREATE TABLE "motd-times" (
     "collection-owner" text PRIMARY KEY,
     "object-sequence" bigint,
-    "time" integer );
+    "time" integer NOT NULL);
 
 --
 -- User-published discovery items
@@ -140,6 +180,8 @@ CREATE TABLE "disco-items" (
     "jid" text,
     "name" text,
     "node" text );
+
+CREATE INDEX i_discoi_owner ON "disco-items" USING btree ("collection-owner");
 
 --
 -- Default privacy list
@@ -157,12 +199,14 @@ CREATE TABLE "privacy-default" (
 CREATE TABLE "privacy-items" (
     "collection-owner" text,
     "object-sequence" bigint,
-    "list" text,
+    "list" text NOT NULL,
     "type" text,
     "value" text,
     "deny" boolean,
     "order" integer,
     "block" integer );
+
+CREATE INDEX i_privacyi_owner ON "privacy-items" USING btree ("collection-owner");
 
 --
 -- Vacation settings

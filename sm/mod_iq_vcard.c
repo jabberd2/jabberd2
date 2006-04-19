@@ -30,11 +30,16 @@
 #define uri_VCARD    "vcard-temp"
 static int ns_VCARD = 0;
 
+#define VCARD_MAX_FIELD_SIZE    (16384)
+
 /**
  * these are the vcard attributes that gabber supports. they're also
  * all strings, and thus easy to automate. there might be more in
  * regular use, we need to check that out. one day, when we're all
  * using real foaf profiles, we'll have bigger things to worry about :)
+ *
+ * darco(2005-09-15): Added quite a few more fields, including those
+ * necessary for vCard avatar support. 
  */
 
 static char *_iq_vcard_map[] = {
@@ -47,9 +52,13 @@ static char *_iq_vcard_map[] = {
     "ROLE",         "role",
     "BDAY",         "bday",
     "DESC",         "desc",
-    "N/GIVEN",      "n-given",
     "N/FAMILY",     "n-family",
+    "N/GIVEN",      "n-given",
+    "N/MIDDLE",     "n-middle",
+    "N/PREFIX",     "n-prefix",
+    "N/SUFFIX",     "n-suffix",
     "ADR/STREET",   "adr-street",
+    "ADR/POBOX",    "adr-pobox",
     "ADR/EXTADD",   "adr-extadd",
     "ADR/LOCALITY", "adr-locality",
     "ADR/REGION",   "adr-region",
@@ -57,6 +66,30 @@ static char *_iq_vcard_map[] = {
     "ADR/CTRY",     "adr-country",
     "ORG/ORGNAME",  "org-orgname",
     "ORG/ORGUNIT",  "org-orgunit",
+    
+    "TZ",           "tz",
+    "GEO/LAT",      "geo-lat",
+    "GEO/LON",      "geo-lon",
+    "AGENT/EXTVAL", "agent-extval",
+    "NOTE",         "note",
+    "REV",          "rev",
+    "SORT-STRING",  "sort-string",
+
+    "KEY/TYPE",     "key-type",
+    "KEY/CRED",     "key-cred",
+    
+    "PHOTO/TYPE",   "photo-type",
+    "PHOTO/BINVAL", "photo-binval",
+    "PHOTO/EXTVAL", "photo-extval",
+    
+    "LOGO/TYPE",    "logo-type",
+    "LOGO/BINVAL",  "logo-binval",
+    "LOGO/EXTVAL",  "logo-extval",
+    
+    "SOUND/PHONETIC","sound-phonetic",
+    "SOUND/BINVAL", "sound-binval",
+    "SOUND/EXTVAL", "sound-extval",
+    
     NULL,           NULL
 };
 
@@ -64,7 +97,7 @@ static os_t _iq_vcard_to_object(pkt_t pkt) {
     os_t os;
     os_object_t o;
     int i = 0, elem;
-    char *vkey, *dkey, *vskey, ekey[10], cdata[4096];
+    char *vkey, *dkey, *vskey, ekey[10], cdata[VCARD_MAX_FIELD_SIZE];
 
     log_debug(ZONE, "building object from packet");
 
@@ -95,8 +128,8 @@ static os_t _iq_vcard_to_object(pkt_t pkt) {
 
         log_debug(ZONE, "extracted vcard key %s val '%.*s' for db key %s", vkey, NAD_CDATA_L(pkt->nad, elem), NAD_CDATA(pkt->nad, elem), dkey);
 
-        snprintf(cdata, 4096, "%.*s", NAD_CDATA_L(pkt->nad, elem), NAD_CDATA(pkt->nad, elem));
-        cdata[4095] = '\0';
+        snprintf(cdata, sizeof(cdata), "%.*s", NAD_CDATA_L(pkt->nad, elem), NAD_CDATA(pkt->nad, elem));
+        cdata[sizeof(cdata)-1] = '\0';
         os_object_put(o, dkey, cdata, os_type_STRING);
     }
 
