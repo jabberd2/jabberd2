@@ -87,7 +87,7 @@ CREATE TABLE "vcard" (
     "email" text,
     "title" text,
     "role" text,
-    "bday" timestamp,
+    "bday" text,
     "tz" text,
     "n-family" text,
     "n-given" text,
