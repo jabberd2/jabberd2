@@ -594,6 +594,8 @@ struct st_driver_st {
     st_ret_t    (*put)(st_driver_t drv, const char *type, const char *owner, os_t os);
     /** get handler */
     st_ret_t    (*get)(st_driver_t drv, const char *type, const char *owner, const char *filter, os_t *os);
+    /** count handler */
+    st_ret_t    (*count)(st_driver_t drv, const char *type, const char *owner, const char *filter, int *count);
     /** delete handler */
     st_ret_t    (*delete)(st_driver_t drv, const char *type, const char *owner, const char *filter);
     /** replace handler */
@@ -615,6 +617,8 @@ st_ret_t        storage_add_type(storage_t st, const char *driver, const char *t
 st_ret_t        storage_put(storage_t st, const char *type, const char *owner, os_t os);
 /** get objects matching this filter */
 st_ret_t        storage_get(storage_t st, const char *type, const char *owner, const char *filter, os_t *os);
+/** count objects matching this filter */
+st_ret_t        storage_count(storage_t st, const char *type, const char *owner, const char *filter, int *count);
 /** delete objects matching this filter */
 st_ret_t        storage_delete(storage_t st, const char *type, const char *owner, const char *filter);
 /** replace objects matching this filter with objects in this set (atomic delete + get) */

@@ -30,8 +30,8 @@
 typedef struct _mod_offline_st {
     int dropmessages;
     int dropsubscriptions;
+    int userquota;
 } *mod_offline_t;
-
 
 static mod_ret_t _offline_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     st_ret_t ret;
@@ -105,11 +105,24 @@ static mod_ret_t _offline_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     os_t os;
     os_object_t o;
     pkt_t event;
+    st_ret_t ret;
+    int queuesize;
 
     /* send messages and s10ns to the top session */
     if(user->top != NULL && (pkt->type & pkt_MESSAGE || pkt->type & pkt_S10N)) {
         pkt_sess(pkt, user->top);
         return mod_HANDLED;
+    }
+
+    /* if user quotas are enabled, count the number of offline messages this user has in the queue */
+    if(offline->userquota > 0) {
+        ret = storage_count(user->sm->st, "queue", jid_user(user->jid), NULL, &queuesize);
+
+        log_debug(ZONE, "storage_count ret is %i queue size is %i", ret, queuesize);
+
+        /* if the user's quota is exceeded, return an error */
+        if (ret == st_SUCCESS && (pkt->type & pkt_MESSAGE) && queuesize >= offline->userquota)
+           return -stanza_err_SERVICE_UNAVAILABLE;
     }
 
     /* save messages and s10ns for later */
@@ -238,21 +251,21 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     module_t mod = mi->mod;
     char *configval;
     mod_offline_t offline;
-    int dropmessages = 0;
-    int dropsubscriptions = 0;
 
-    if (mod->init) return 0;
+    if(mod->init) return 0;
+
+    offline = (mod_offline_t) malloc(sizeof(struct _mod_offline_st));
+    memset(offline, 0, sizeof(struct _mod_offline_st));
 
     configval = config_get_one(mod->mm->sm->config, "offline.dropmessages", 0);
     if (configval != NULL)
-        dropmessages = 1;
+        offline->dropmessages = 1;
+
     configval = config_get_one(mod->mm->sm->config, "offline.dropsubscriptions", 0);
     if (configval != NULL)
-        dropsubscriptions = 1;
+        offline->dropsubscriptions = 1;
 
-    offline = (mod_offline_t) malloc(sizeof(struct _mod_offline_st));
-    offline->dropmessages = dropmessages;
-    offline->dropsubscriptions = dropsubscriptions;
+    offline->userquota = j_atoi(config_get_one(mod->mm->sm->config, "offline.userquota", 0), 0);
 
     mod->private = offline;
 

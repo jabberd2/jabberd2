@@ -406,7 +406,6 @@
 
   <!-- Offline module configuration -->
   <offline>
-  
     <!-- Do not store messages in offline store -->
     <!--
     <dropmessages/>
@@ -417,6 +416,10 @@
     <dropsubscriptions/>
     -->
     
+    <!-- Offline storage message quota -->
+    <!--
+    <userquota>500</userquota>
+    -->
   </offline>
 
 </sm>

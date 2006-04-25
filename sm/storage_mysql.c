@@ -444,6 +444,74 @@ static st_ret_t _st_mysql_get(st_driver_t drv, const char *type, const char *own
     return st_SUCCESS;
 }
 
+static st_ret_t _st_mysql_count(st_driver_t drv, const char *type, const char *owner, const char *filter, int *count) {
+    drvdata_t data = (drvdata_t) drv->private;
+    char *cond, *buf = NULL;
+    int buflen = 0;
+    MYSQL_RES *res;
+    int ntuples, nfields;
+    MYSQL_ROW tuple;
+    char tbuf[128];
+
+    if(mysql_ping(data->conn) != 0) {
+        log_write(drv->st->sm->log, LOG_ERR, "mysql: connection to database lost");
+        return st_FAILED;
+    }
+
+    if(data->prefix != NULL) {
+        snprintf(tbuf, sizeof(tbuf), "%s%s", data->prefix, type);
+        type = tbuf;
+    }
+
+    cond = _st_mysql_convert_filter(drv, owner, filter);
+    log_debug(ZONE, "generated filter: %s", cond);
+
+    MYSQL_SAFE(buf, strlen(type) + strlen(cond) + 31, buflen);
+    sprintf(buf, "SELECT COUNT(*) FROM `%s` WHERE %s", type, cond);
+    free(cond);
+
+    log_debug(ZONE, "prepared sql: %s", buf);
+
+    if(mysql_query(data->conn, buf) != 0) {
+        log_write(drv->st->sm->log, LOG_ERR, "mysql: sql select failed: %s", mysql_error(data->conn));
+        free(buf);
+        return st_FAILED;
+    }
+    free(buf);
+
+    res = mysql_store_result(data->conn);
+    if(res == NULL) {
+        log_write(drv->st->sm->log, LOG_ERR, "mysql: sql result retrieval failed: %s", mysql_error(data->conn));
+        return st_FAILED;
+    }
+
+    ntuples = mysql_num_rows(res);
+    if(ntuples == 0) {
+        mysql_free_result(res);
+        return st_NOTFOUND;
+    }
+
+    log_debug(ZONE, "%d tuples returned", ntuples);
+
+    nfields = mysql_num_fields(res);
+
+    if(nfields == 0) {
+        log_debug(ZONE, "weird, tuples were returned but no fields *shrug*");
+        mysql_free_result(res);
+        return st_NOTFOUND;
+    }
+
+    if((tuple = mysql_fetch_row(res)) == NULL)
+        return st_NOTFOUND;
+
+    if (count!=NULL)
+        *count = atoi(tuple[0]);
+
+    mysql_free_result(res);
+
+    return st_SUCCESS;
+}
+
 static st_ret_t _st_mysql_delete(st_driver_t drv, const char *type, const char *owner, const char *filter) {
     drvdata_t data = (drvdata_t) drv->private;
     char *cond, *buf = NULL;
@@ -586,6 +654,7 @@ st_ret_t st_mysql_init(st_driver_t drv) {
 
     drv->add_type = _st_mysql_add_type;
     drv->put = _st_mysql_put;
+    drv->count = _st_mysql_count;
     drv->get = _st_mysql_get;
     drv->delete = _st_mysql_delete;
     drv->replace = _st_mysql_replace;

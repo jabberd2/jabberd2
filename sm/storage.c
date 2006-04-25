@@ -289,6 +289,32 @@ st_ret_t storage_get(storage_t st, const char *type, const char *owner, const ch
     return (drv->get)(drv, type, owner, filter, os);
 }
 
+st_ret_t storage_count(storage_t st, const char *type, const char *owner, const char *filter, int *count) {
+    st_driver_t drv;
+    st_ret_t ret;
+
+    log_debug(ZONE, "storage_count: type=%s owner=%s filter=%s", type, owner, filter);
+
+    /* find the handler for this type */
+    drv = xhash_get(st->types, type);
+    if(drv == NULL) {
+        /* never seen it before, so it goes to the default driver */
+        drv = st->default_drv;
+        if(drv == NULL) {
+            log_debug(ZONE, "no driver associated with type, and no default driver");
+            return st_NOTIMPL;
+        }
+
+        /* register the type */
+        ret = storage_add_type(st, drv->name, type);
+        if(ret != st_SUCCESS)
+            return ret;
+    }
+
+    return (drv->count != NULL) ? (drv->count)(drv, type, owner, filter, count) : st_NOTIMPL;
+}
+
+
 st_ret_t storage_delete(storage_t st, const char *type, const char *owner, const char *filter) {
     st_driver_t drv;
     st_ret_t ret;
