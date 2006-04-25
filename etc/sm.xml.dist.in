@@ -404,4 +404,19 @@
     </template>
   </user>
 
+  <!-- Offline module configuration -->
+  <offline>
+  
+    <!-- Do not store messages in offline store -->
+    <!--
+    <dropmessages/>
+    -->
+    
+    <!-- Do not store subscription requests in offline store -->
+    <!--
+    <dropsubscriptions/>
+    -->
+    
+  </offline>
+
 </sm>

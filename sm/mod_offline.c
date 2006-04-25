@@ -27,6 +27,12 @@
   * $Revision: 1.26 $
   */
 
+typedef struct _mod_offline_st {
+    int dropmessages;
+    int dropsubscriptions;
+} *mod_offline_t;
+
+
 static mod_ret_t _offline_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     st_ret_t ret;
     os_t os;
@@ -94,6 +100,7 @@ static mod_ret_t _offline_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 }
 
 static mod_ret_t _offline_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
+    mod_offline_t offline = (mod_offline_t) mi->mod->private;
     int ns, elem, attr;
     os_t os;
     os_object_t o;
@@ -106,7 +113,8 @@ static mod_ret_t _offline_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     }
 
     /* save messages and s10ns for later */
-    if(pkt->type & pkt_MESSAGE || pkt->type & pkt_S10N) {
+    if((pkt->type & pkt_MESSAGE && !offline->dropmessages) ||
+       (pkt->type & pkt_S10N && !offline->dropsubscriptions)) {
         log_debug(ZONE, "saving message for later");
 
         pkt_delay(pkt, time(NULL), user->sm->id);
@@ -220,14 +228,38 @@ static void _offline_user_delete(mod_instance_t mi, jid_t jid) {
     storage_delete(mi->sm->st, "queue", jid_user(jid), NULL);
 }
 
+static void _offline_free(module_t mod) {
+    mod_offline_t offline = (mod_offline_t) mod->private;
+
+    free(offline);
+}
+
 DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     module_t mod = mi->mod;
+    char *configval;
+    mod_offline_t offline;
+    int dropmessages = 0;
+    int dropsubscriptions = 0;
 
     if (mod->init) return 0;
+
+    configval = config_get_one(mod->mm->sm->config, "offline.dropmessages", 0);
+    if (configval != NULL)
+        dropmessages = 1;
+    configval = config_get_one(mod->mm->sm->config, "offline.dropsubscriptions", 0);
+    if (configval != NULL)
+        dropsubscriptions = 1;
+
+    offline = (mod_offline_t) malloc(sizeof(struct _mod_offline_st));
+    offline->dropmessages = dropmessages;
+    offline->dropsubscriptions = dropsubscriptions;
+
+    mod->private = offline;
 
     mod->in_sess = _offline_in_sess;
     mod->pkt_user = _offline_pkt_user;
     mod->user_delete = _offline_user_delete;
+    mod->free = _offline_free;
 
     return 0;
 }

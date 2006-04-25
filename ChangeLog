@@ -1,12 +1,15 @@
+2006-04-25 Tomasz Sterna <tomek@xiaoka.com>
+	* integrated offline message and subscription dropping by Cedric Vivier
+
 2006-04-20 Tomasz Sterna <tomek@xiaoka.com>
-	* ported mod_status to current version
+	* ported mod_status by Lucas Nussbaum to current version
 
 2006-04-19 Tomasz Sterna <tomek@xiaoka.com>
-	* integrated more robust support for vCards
+	* integrated more robust support for vCards by Robert Quattlebaum
 	* fixed and extended db-setup.pgsql schema
 
 2006-04-18 Tomasz Sterna <tomek@xiaoka.com>
-	* integrated epoll support
+	* integrated epoll support by Christof Meerwald
 
 2005-10-02 Justin Kirby <justin-j2@openaether.org>
 	* fixed SASL anonymous, bug#126
