@@ -1,5 +1,7 @@
 2006-04-25 Tomasz Sterna <tomek@xiaoka.com>
 	* integrated offline message and subscription dropping by Cedric Vivier
+	* integrated offline message quota by Stephen Marquard
+	* implemented pgsql_count() in sm/storage_pgsql
 
 2006-04-20 Tomasz Sterna <tomek@xiaoka.com>
 	* ported mod_status by Lucas Nussbaum to current version

@@ -468,6 +468,72 @@ static st_ret_t _st_pgsql_get(st_driver_t drv, const char *type, const char *own
     return st_SUCCESS;
 }
 
+static st_ret_t _st_pgsql_count(st_driver_t drv, const char *type, const char *owner, const char *filter, int *count) {
+    drvdata_t data = (drvdata_t) drv->private;
+    char *cond, *buf = NULL;
+    int buflen = 0;
+    PGresult *res;
+    int ntuples, nfields;
+    char tbuf[128];
+
+    if(data->prefix != NULL) {
+        snprintf(tbuf, sizeof(tbuf), "%s%s", data->prefix, type);
+        type = tbuf;
+    }
+
+    cond = _st_pgsql_convert_filter(drv, owner, filter);
+    log_debug(ZONE, "generated filter: %s", cond);
+
+    PGSQL_SAFE(buf, strlen(type) + strlen(cond) + 31, buflen);
+    sprintf(buf, "SELECT COUNT(*) FROM \"%s\" WHERE %s", type, cond);
+    free(cond);
+
+    log_debug(ZONE, "prepared sql: %s", buf);
+
+    res = PQexec(data->conn, buf);
+
+    if(PQresultStatus(res) != PGRES_TUPLES_OK && PQstatus(data->conn) != CONNECTION_OK) {
+        log_write(drv->st->sm->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
+        PQclear(res);
+        PQreset(data->conn);
+        res = PQexec(data->conn, buf);
+    }
+
+    free(buf);
+
+    if(PQresultStatus(res) != PGRES_TUPLES_OK) {
+        log_write(drv->st->sm->log, LOG_ERR, "pgsql: sql select failed: %s", PQresultErrorMessage(res));
+        PQclear(res);
+        return st_FAILED;
+    }
+
+    ntuples = PQntuples(res);
+    if(ntuples == 0) {
+        PQclear(res);
+        return st_NOTFOUND;
+    }
+
+    log_debug(ZONE, "%d tuples returned", ntuples);
+
+    nfields = PQnfields(res);
+
+    if(nfields == 0) {
+        log_debug(ZONE, "weird, tuples were returned but no fields *shrug*");
+        PQclear(res);
+        return st_NOTFOUND;
+    }
+
+    if(PQgetisnull(res, 0, 0) || PQftype(res, 0) != 23)
+        return st_NOTFOUND;
+
+    if (count!=NULL)
+        *count = atoi(PQgetvalue(res, 0, 0));
+
+    PQclear(res);
+
+    return st_SUCCESS;
+}
+
 static st_ret_t _st_pgsql_delete(st_driver_t drv, const char *type, const char *owner, const char *filter) {
     drvdata_t data = (drvdata_t) drv->private;
     char *cond, *buf = NULL;
@@ -631,6 +697,7 @@ st_ret_t st_pgsql_init(st_driver_t drv) {
 
     drv->add_type = _st_pgsql_add_type;
     drv->put = _st_pgsql_put;
+    drv->count = _st_pgsql_count;
     drv->get = _st_pgsql_get;
     drv->delete = _st_pgsql_delete;
     drv->replace = _st_pgsql_replace;
