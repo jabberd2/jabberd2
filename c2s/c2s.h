@@ -151,6 +151,9 @@ struct c2s_st {
     /** encrypted port */
     int                 local_ssl_port;
 
+    /** http forwarding URL */
+    char                *http_forward;
+
     /** max file descriptors */
     int                 io_max_fds;
 

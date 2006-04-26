@@ -116,6 +116,11 @@
     <!--
     <ssl-port>5223</ssl-port>
     -->
+
+    <!-- Forward incoming HTTP clients to a real HTTP server -->
+    <!--
+    <httpforward>http://www.jabber.org/</httpforward>
+    -->
   </local>
 
   <!-- Input/output settings -->

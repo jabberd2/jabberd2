@@ -96,6 +96,40 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 
             log_debug(ZONE, "read %d bytes", len);
 
+            if (!sess->active && !sess->authd) {
++    /* If the first char is G then it's for HTTP (GET ....)
++       and if we configured http client forwarding to a real http server */
++    if (first[0] == 'G' && c->c2s->http_forward)
++    {
++	char* http =
++		"HTTP/1.0 301 Found\r\n"
++		"Location: %s\r\n"
++		"Server: jadc2s " VERSION "\r\n"
++		"Expires: Fri, 10 Oct 1997 10:10:10 GMT\r\n"
++		"Pragma: no-cache\r\n"
++		"Cache-control: private\r\n"
++		"Connection: close\r\n\r\n";
++	char *buf;
++	
++	buf = malloc((strlen(c->c2s->http_forward) + strlen(http)) * sizeof(char));
++	sprintf (buf, http, c->c2s->http_forward);
++	
++	log_debug(ZONE, "This is an incoming HTTP connection - forwarding to: %s", c->c2s->http_forward);
++	
++	/* read all incoming data */
++	while(_read_actual(c,fd,first,1) > 0) { }
++
++	_write_actual(c,fd,buf,strlen(buf));
++	
++	/* close connection */
++        mio_close(c->c2s->mio, c->fd);
++	
++	free(buf);
++	
++	return;
+            
+            }
+
             buf->len = len;
 
             return len;
