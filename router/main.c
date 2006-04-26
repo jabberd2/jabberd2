@@ -193,7 +193,7 @@ static void _router_config_expand(router_t r)
 static int _router_sx_sasl_callback(int cb, void *arg, void ** res, sx_t s, void *cbarg) {
     router_t r = (router_t) cbarg;
     sx_sasl_creds_t creds;
-    char buf[1024];
+    static char buf[1024];
     char *pass;
 
     switch(cb) {

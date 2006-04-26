@@ -39,6 +39,21 @@
 /* Forward definitions */
 static void _sx_sasl_free(sx_t, sx_plugin_t);
 
+static int _sx_sasl_getopt(void * glob_context,
+			   const char *plugin_name,
+			   const char *option,
+			   const char **result,
+			   unsigned *len)
+{
+    if (strcmp(option,"auxprop_plugin") == 0) {
+        *result = "jabberdsx";
+        if (len)
+            *len = strlen("jabberdsx");
+        return SASL_OK;
+    }
+    return SASL_FAIL;
+}
+
 /* Support auxprop so that we can use the standard Jabber authreg plugins
  * with SASL mechanisms requiring passwords 
  */
@@ -47,8 +62,8 @@ static void _sx_auxprop_lookup(void *glob_context,
 			      unsigned flags,
 			      const char *user,
 			      unsigned ulen) {
-    char *userid = NULL;
-    char *realm  = NULL;
+    const char *realm  = NULL;
+    char *c;
     int ret;
     const struct propval *to_fetch, *current;
     char *user_buf = NULL;
@@ -70,18 +85,17 @@ static void _sx_auxprop_lookup(void *glob_context,
     memcpy(user_buf, user, ulen);
     user_buf[ulen] = '\0';
 
-    /* Parse the supplied username, splitting it into user and realm
-     * components. I suspect that 'parseuser' isn't actually part of the
-     * exported API, so maybe we should reimplement this. */
+    c = strchr(user_buf, '@');
+    if (!c) {
+        if (sparams->user_realm && sparams->user_realm[0])
+            realm = sparams->user_realm;
+        else
+            realm = sparams->serverFQDN;
+    } else {
+        *c = '\0';
+        realm = c+1;
+    }
 
-    ret = _plug_parseuser(sparams->utils, &userid, &realm,
-                          sparams->user_realm?sparams->user_realm:
-                                              sparams->serverFQDN, 
-                          user_buf);
-    if (ret != SASL_OK)
-        goto done;
-   
- 
     /* At present, we only handle fetching the user's password */
     to_fetch = sparams->utils->prop_get(sparams->propctx);
     if (!to_fetch)
@@ -96,21 +110,16 @@ static void _sx_auxprop_lookup(void *glob_context,
 		    continue;
             }
 
-            /* Do the lookup, returning the results into value and value_len */
-            if (strcmp(SASL_AUX_PASSWORD_PROP, current->name))  {
-                creds.authnid = userid;
-                creds.realm = realm;
-                if ((ctx->cb)(sx_sasl_cb_GET_PASS, &creds, (void **)&value, 
-                              NULL, ctx->cbarg) == sx_sasl_ret_OK) {
-                    sparams->utils->prop_set(sparams->propctx, current->name,
-                                             value, strlen(value));
-                }
+            creds.authnid = user_buf;
+            creds.realm = realm;
+            if ((ctx->cb)(sx_sasl_cb_GET_PASS, &creds, (void **)&value, 
+                          NULL, ctx->cbarg) == sx_sasl_ret_OK) {
+                sparams->utils->prop_set(sparams->propctx, current->name,
+                                         value, strlen(value));
             }
         }
     }
  done:
-    if (userid) sparams->utils->free(userid);
-    if (realm) sparams->utils->free(realm);
     if (user_buf) sparams->utils->free(user_buf);
 }
 
@@ -139,13 +148,28 @@ sx_auxprop_init(const sasl_utils_t *utils, int max_version, int *out_version,
 static int _sx_sasl_checkpass(sasl_conn_t *conn, void *ctx, const char *user, const char *pass, unsigned passlen, struct propctx *propctx) {
     _sx_sasl_data_t sd = (_sx_sasl_data_t)ctx;
     struct sx_sasl_creds_st creds = {NULL, NULL, NULL, NULL};
+    char *c;
+    char *buf;
 
-    creds.authnid = user;
+    /* SASL doesn't seem to pass us the username and realm as seperate items,
+     * instead it combines them into the 'user' variable. In order to preserve
+     * the existing behaviour, we need to split them up again ...
+     */
+
+    buf = strdup(user);
+    c = strchr(buf,'@');
+    if (c) {
+        *c = '\0';
+        creds.realm = c+1;
+    }
+    creds.authnid = buf;
     creds.pass = pass;
-    
+
     if (sd->ctx->cb(sx_sasl_cb_CHECK_PASS, &creds, NULL, sd->stream, sd->ctx->cbarg)==sx_sasl_ret_OK) {
+        free(buf);
         return SASL_OK;
     } else {
+        free(buf);
         return SASL_BADAUTH;
     }
 }
@@ -178,7 +202,7 @@ static int _sx_sasl_canon_user(sasl_conn_t *conn, void *ctx, const char *user, u
 static int _sx_sasl_proxy_policy(sasl_conn_t *conn, void *ctx, const char *requested_user, int rlen, const char *auth_identity, int alen, const char *realm, int urlen, struct propctx *propctx) {
     _sx_sasl_data_t sd = (_sx_sasl_data_t) ctx;
     struct sx_sasl_creds_st creds = {NULL, NULL, NULL, NULL};
-    char *buf;
+    char *buf, *c;
 
     sasl_getprop(conn, SASL_MECHNAME, (const void **) &buf);
     if (strcmp(buf, "ANONYMOUS") == 0) {
@@ -191,16 +215,26 @@ static int _sx_sasl_proxy_policy(sasl_conn_t *conn, void *ctx, const char *reque
                           "Requested identity is not authenticated identity");
             return SASL_BADAUTH;
         }
-        creds.authnid = auth_identity;
+	/* By this point, SASL's monkeyed around with the auth_identity, and
+         * appended the realm to it. We don't really want this, so we need to
+         * split it up again */
+	buf = strdup(auth_identity);
+	c = strchr(buf, '@');
+	if (c)
+	    *c = '\0';
+        creds.authnid = buf;
         creds.realm = realm;
         creds.authzid = requested_user;
         /* If we start being fancy and allow auth_identity to be different from
          * requested_user, then this will need to be changed to permit it!
          */
-        if ((sd->ctx->cb)(sx_sasl_cb_CHECK_AUTHZID, &creds, NULL, sd->stream, sd->ctx->cbarg)==sx_sasl_ret_OK) 
+        if ((sd->ctx->cb)(sx_sasl_cb_CHECK_AUTHZID, &creds, NULL, sd->stream, sd->ctx->cbarg)==sx_sasl_ret_OK) {
+	    free(buf);
             return SASL_OK;
-        else
+        } else {
+            free(buf);
             return SASL_BADAUTH;
+        }
     }
 }
 
@@ -248,6 +282,7 @@ static int _sx_sasl_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
 
 static int _sx_sasl_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     sasl_conn_t *sasl;
+    sx_error_t sxe;
     int *x, len;
     char *out;
 
@@ -261,7 +296,13 @@ static int _sx_sasl_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     _sx_debug(ZONE, "doing sasl decode");
 
     /* decode the input */
-    sasl_decode(sasl, buf->data, buf->len, (const char **) &out, &len);
+    if (sasl_decode(sasl, buf->data, buf->len, (const char **) &out, &len)
+      != SASL_OK) {
+      /* Fatal error */
+      _sx_gen_error(sxe, SX_ERR_AUTH, "SASL Stream decoding failed", NULL);
+      _sx_event(s, event_ERROR, (void *) &sxe);
+      return -1;
+    }
     
     /* replace the buffer */
     _sx_buffer_set(buf, out, len, NULL);
@@ -298,7 +339,7 @@ void _sx_sasl_open(sx_t s, sasl_conn_t *sasl) {
     free(method);
 }
 
-/** make the stream suthenticated second time round */
+/** make the stream authenticated second time round */
 static void _sx_sasl_stream(sx_t s, sx_plugin_t p) {
     _sx_sasl_t ctx = (_sx_sasl_t) p->private;
     sasl_conn_t *sasl;
@@ -887,7 +928,13 @@ int sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args) {
     
     _sx_auxprop_plugin.glob_context = (void *) ctx;
 
-    ret = sasl_server_init(NULL, appname);
+    ctx->saslcallbacks = calloc(sizeof(sasl_callback_t), 2);
+    ctx->saslcallbacks[0].id = SASL_CB_GETOPT;
+    ctx->saslcallbacks[0].proc = &_sx_sasl_getopt;
+    ctx->saslcallbacks[0].context = NULL;
+    ctx->saslcallbacks[1].id = SASL_CB_LIST_END;
+
+    ret = sasl_server_init(ctx->saslcallbacks, appname);
     if(ret != SASL_OK) {
         _sx_debug(ZONE, "sasl_server_init() failed (%s), disabling", sasl_errstring(ret, NULL, NULL));
         return 1;

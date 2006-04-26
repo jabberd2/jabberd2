@@ -61,6 +61,8 @@ typedef struct _sx_sasl_st {
 
     sx_sasl_callback_t          cb;
     void                        *cbarg;
+
+    sasl_callback_t		*saslcallbacks;
 } *_sx_sasl_t;
 
 /* data for per-conncetion sasl handshakes */
