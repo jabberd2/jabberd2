@@ -141,7 +141,6 @@ void pres_update(sess_t sess, pkt_t pkt) {
 
             /* update vars */
             sess->available = 1;
-            sess->invisible = 0;
 
             /* new priority */
             sess->pri = pkt->pri;
@@ -220,49 +219,12 @@ void pres_update(sess_t sess, pkt_t pkt) {
 
             /* update vars */
             sess->available = 0;
-            sess->invisible = 0;
 
             /* done */
             pkt_free(pkt);
 
             break;
 
-        case pkt_PRESENCE_INVIS:
-            log_debug(ZONE, "invisible presence for session %s", jid_full(sess->jid));
-            
-            /* only process if we're not already invisible */
-            if(!sess->invisible) {
-                /* B3: forward to all in T, unless in A or E */
-
-                /* loop the roster, looking for trusted */
-                if(xhash_iter_first(sess->user->roster))
-                do {
-                    xhash_iter_get(sess->user->roster, NULL, (void *) &item);
-
-                    /* if they can see us, and we haven't sent directed to them, then tell them we're gone */
-                    if(item->from && !jid_search(sess->A, item->jid) && !jid_search(sess->E, item->jid)) {
-                        log_debug(ZONE, "sending unavailable (invisible) to %s", jid_full(item->jid));
-                        pkt_router(pkt_create(sess->user->sm, "presence", "unavailable", jid_full(item->jid), jid_full(sess->jid)));
-                    }
-                } while(xhash_iter_next(sess->user->roster));
-
-                /* forward to our active sessions */
-                for(sscan = sess->user->sessions; sscan != NULL; sscan = sscan->next) {
-                    if(sscan != sess && sscan->available) {
-                        log_debug(ZONE, "sending unavailable (invisible) to our session %s", jid_full(sscan->jid));
-                        pkt_router(pkt_create(sess->user->sm, "presence", "unavailable", jid_full(sscan->jid), jid_full(sess->jid)));
-                    }
-                }
-            }
-
-            /* update vars */
-            sess->invisible = 1;
-
-            /* done */
-            pkt_free(pkt);
-
-            break;
-        
         default:
             log_debug(ZONE, "pres_update got packet type %d, this shouldn't happen", pkt->type);
             pkt_free(pkt);
@@ -281,7 +243,7 @@ void pres_in(user_t user, pkt_t pkt) {
 
     /* loop over each session */
     for(scan = user->sessions; scan != NULL; scan = scan->next) {
-        /* don't deliver to unavailable sessions: B5(a) */
+        /* don't deliver to unavailable sessions: B4(a) */
         if(!scan->available)
             continue;
 
@@ -293,16 +255,10 @@ void pres_in(user_t user, pkt_t pkt) {
         if(pkt->type == pkt_PRESENCE_PROBE) {
             log_debug(ZONE, "probe from %s for %s", jid_full(pkt->from), jid_full(scan->jid));
 
-            /* B4(a): respond if in T and I clear */
-            if(!scan->invisible && pres_trust(user, pkt->from)) {
+            /* B3: respond if in T */
+            if(pres_trust(user, pkt->from)) {
                 log_debug(ZONE, "responding with last presence update");
                 pkt_router(pkt_dup(scan->pres, jid_full(pkt->from), jid_full(scan->jid)));
-            }
-
-            /* B4(b): respond if in T and in A and I set */
-            else if(scan->invisible && pres_trust(user, pkt->from) && jid_search(scan->A, pkt->from)) {
-                log_debug(ZONE, "we're invisible, responding with raw available");
-                pkt_router(pkt_create(user->sm, "presence", NULL, jid_full(pkt->from), jid_full(scan->jid)));
             }
 
             else {
@@ -315,7 +271,7 @@ void pres_in(user_t user, pkt_t pkt) {
             continue;
         }
 
-        /* deliver to session: B5(b) */
+        /* deliver to session: B4(b) */
         log_debug(ZONE, "forwarding to %s", jid_full(scan->jid));
         pkt_sess(pkt_dup(pkt, jid_full(scan->jid), jid_full(pkt->from)), scan);
     }
@@ -324,7 +280,7 @@ void pres_in(user_t user, pkt_t pkt) {
 }
 
 void pres_error(sess_t sess, jid_t jid) {
-    /* bounced updates: B6: add to E, remove from A  */
+    /* bounced updates: B5: add to E, remove from A  */
     log_debug(ZONE, "bounced presence from %s, adding to error list", jid_full(jid));
     sess->E = jid_append(sess->E, jid);
     sess->A = jid_zap(sess->A, jid);
@@ -340,7 +296,7 @@ void pres_deliver(sess_t sess, pkt_t pkt) {
     }
 
     if(pkt->type == pkt_PRESENCE) {
-        /* B7: forward, add to A (unless in T), remove from E */
+        /* B6: forward, add to A (unless in T), remove from E */
         log_debug(ZONE, "delivering directed available presence to %s", jid_full(pkt->to));
         if(!pres_trust(sess->user, pkt->to))
             sess->A = jid_append(sess->A, pkt->to);
@@ -350,7 +306,7 @@ void pres_deliver(sess_t sess, pkt_t pkt) {
     }
 
     if(pkt->type == pkt_PRESENCE_UN) {
-        /* B8: forward, remove from A and E */
+        /* B7: forward, remove from A and E */
         log_debug(ZONE, "delivering directed unavailable presence to %s", jid_full(pkt->to));
         sess->A = jid_zap(sess->A, pkt->to);
         sess->E = jid_zap(sess->E, pkt->to);
@@ -393,9 +349,9 @@ void pres_roster(sess_t sess, item_t item) {
         return;
     }
 
-    /* if they're now trusted, and we're not invisible, and we haven't sent
+    /* if they're now trusted and we haven't sent
      * them directed presence, then they get to see us for the first time */
-    if(item->from && !sess->invisible && !jid_search(sess->A, item->jid) && !jid_search(sess->E, item->jid)) {
+    if(item->from && !jid_search(sess->A, item->jid) && !jid_search(sess->E, item->jid)) {
         log_debug(ZONE, "forcing available to %s after roster change", jid_full(item->jid));
         pkt_router(pkt_dup(sess->pres, jid_full(item->jid), jid_full(sess->jid)));
     }

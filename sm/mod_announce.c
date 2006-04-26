@@ -176,7 +176,7 @@ static void _announce_broadcast_user(xht users, const char *key, void *val, void
     nad_t nad;
 
     for(sess = user->sessions; sess != NULL; sess = sess->next) {
-        if((!sess->available && !sess->invisible) || sess->pri < 0)
+        if(!sess->available || sess->pri < 0)
             continue;
 
         log_debug(ZONE, "resending to '%s'", jid_full(sess->jid));

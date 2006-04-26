@@ -111,13 +111,6 @@ static mod_ret_t _presence_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
         }
     }
 
-    /* someone sent us a raw invisible? hrm */
-    if(pkt->type == pkt_PRESENCE_INVIS) {
-        log_debug(ZONE, "urgh, broken server sent us an invisible, rewriting it");
-        nad_set_attr(pkt->nad, 1, -1, "type", "unavailable", 11);
-        pkt->type = pkt_PRESENCE_UN;
-    }
-
     /* if there's a resource, send it direct */
     if(*pkt->to->resource != '\0') {
         sess = sess_match(user, pkt->to->resource);
@@ -145,7 +138,6 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     mod->pkt_user = _presence_pkt_user;
 
     feature_register(mod->mm->sm, "presence");
-    feature_register(mod->mm->sm, "presence-invisible");
 
     return 0;
 }

@@ -154,9 +154,6 @@ static mod_ret_t _status_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 		case pkt_PRESENCE_UN:
 			show = "unavailable";
 			break;
-		case pkt_PRESENCE_INVIS:
-			show = "invisible";
-			break;
 		default:
 			elem = nad_find_elem(pkt->nad, 1, NAD_ENS(pkt->nad, 1), "show", 1);
 			if (elem < 0)

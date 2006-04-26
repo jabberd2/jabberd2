@@ -112,7 +112,6 @@ typedef enum {
     pkt_MESSAGE = 0x10,         /**< message */
     pkt_PRESENCE = 0x20,        /**< presence */
     pkt_PRESENCE_UN = 0x21,     /**< presence (unavailable) */
-    pkt_PRESENCE_INVIS = 0x22,  /**< presence (invisible) */
     pkt_PRESENCE_PROBE = 0x24,  /**< presence (probe) */
     pkt_S10N = 0x40,            /**< subscribe request */
     pkt_S10N_ED = 0x41,         /**< subscribed response */
@@ -268,7 +267,6 @@ struct sess_st {
     pkt_t               pres;               /**< copy of the last presence packet we received */
 
     int                 available;          /**< true if this session is available */
-    int                 invisible;          /**< true if this session is invisible */
     int                 pri;                /**< current priority of this session */
 
     jid_t               A;                  /**< list of jids that this session has sent directed presence to */

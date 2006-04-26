@@ -60,7 +60,7 @@ static void _sess_end_guts(sess_t sess) {
     sess_t scan;
 
     /* fake an unavailable presence from this session, so that modules and externals know we're gone */
-    if(sess->available || sess->invisible || sess->A != NULL)
+    if(sess->available || sess->A != NULL)
         mm_in_sess(sess->user->sm->mm, sess, pkt_create(sess->user->sm, "presence", "unavailable", NULL, NULL));
 
     /* inform the modules */

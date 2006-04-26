@@ -169,8 +169,6 @@ pkt_t pkt_new(sm_t sm, nad_t nad) {
                         pkt->type = pkt_PRESENCE_UN;
                     else if(NAD_AVAL_L(pkt->nad, attr) == 5 && strncmp("probe", NAD_AVAL(pkt->nad, attr), 5) == 0)
                         pkt->type = pkt_PRESENCE_PROBE;
-                    else if(NAD_AVAL_L(pkt->nad, attr) == 9 && strncmp("invisible", NAD_AVAL(pkt->nad, attr), 9) == 0)
-                        pkt->type = pkt_PRESENCE_INVIS;
                     else if(NAD_AVAL_L(pkt->nad, attr) == 9 && strncmp("subscribe", NAD_AVAL(pkt->nad, attr), 9) == 0)
                         pkt->type = pkt_S10N;
                     else if(NAD_AVAL_L(pkt->nad, attr) == 10 && strncmp("subscribed", NAD_AVAL(pkt->nad, attr), 10) == 0)
