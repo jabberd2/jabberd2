@@ -225,6 +225,7 @@
       <module>iq-vcard</module>         <!-- store and retrieve the user's vcard -->
       <module>iq-private</module>       <!-- manage the user's private data store -->
       <module>disco</module>            <!-- respond to agents requests from sessions -->
+      <module>amp</module>              <!-- advanced message processing -->
       <module>offline</module>          <!-- if we're coming online for the first time, deliver queued messages -->
       <module>announce</module>         <!-- deliver motd -->
       <module>presence</module>         <!-- process and distribute presence updates -->
@@ -262,6 +263,7 @@
       <module>iq-last</module>          <!-- return the server uptime -->
       <module>iq-time</module>          <!-- return the current server time -->
       <module>iq-version</module>       <!-- return the server name and version -->
+      <module>amp</module>              <!-- advanced message processing -->
       <module>disco</module>            <!-- build the disco list; respond to disco queries -->
       <module>announce</module>         <!-- send broadcast messages (announce, motd, etc) -->
       <module>help</module>             <!-- resend sm messages to administrators -->
@@ -277,6 +279,7 @@
       <module>roster</module>           <!-- handle s10n responses -->
       <module>presence</module>         <!-- process and distribute incoming presence from external entities -->
       <module>iq-vcard</module>         <!-- grab user vcards -->
+      <module>amp</module>              <!-- advanced message processing -->
       <module>deliver</module>          <!-- deliver the packet to an active session if we can -->
       <module>vacation</module>         <!-- send vacation messages -->
       <module>offline</module>          <!-- save messages and s10ns for later -->
@@ -403,6 +406,33 @@
       -->
     </template>
   </user>
+
+  <!-- Advanced Message Processing module configuration -->
+  <amp>
+    <!-- You can disable some actions -->
+    <!--
+    <disableactions>
+      <drop/>
+      <error/>
+      <alert/>
+      <notify/>
+    </disableactions>
+    -->
+
+    <!-- You can disable some conditions -->
+    <!--
+    <disableconditions>
+      <expireat/>
+      <matchresource/>
+      <deliver/>
+    </disableconditions>
+    -->
+    
+    <!-- You need to enable this if your server has offline storage disabled -->
+    <!--
+    <offlinestoragedisabled/>
+    -->
+  </amp>
 
   <!-- Offline module configuration -->
   <offline>

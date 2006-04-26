@@ -1,3 +1,7 @@
+2006-04-26 Tomasz Sterna <tomek@xiaoka.com>
+	* integrated psql schema fixes by Cedric Vivier
+	* integrated mod_amp by Cedric Vivier
+
 2006-04-25 Tomasz Sterna <tomek@xiaoka.com>
 	* integrated offline message and subscription dropping by Cedric Vivier
 	* integrated offline message quota by Stephen Marquard

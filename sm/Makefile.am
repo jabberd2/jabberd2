@@ -3,6 +3,7 @@ INCLUDES = -DCONFIG_DIR=\"$(sysconfdir)\"
 bin_PROGRAMS = sm
 lib_LTLIBRARIES = libmod_active.la \
                   libmod_announce.la \
+                  libmod_amp.la \
                   libmod_deliver.la \
                   libmod_disco.la \
                   libmod_disco-publish.la \
@@ -55,6 +56,9 @@ libmod_active_la_LDFLAGS = -shared -E
 
 libmod_announce_la_SOURCES = mod_announce.c
 libmod_announce_la_LDFLAGS = -shared -E
+
+libmod_amp_la_SOURCES = mod_amp.c
+libmod_amp_la_LDFLAGS = -shared -E
 
 libmod_deliver_la_SOURCES = mod_deliver.c
 libmod_deliver_la_LDFLAGS = -shared -E

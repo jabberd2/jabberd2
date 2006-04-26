@@ -72,6 +72,16 @@ typedef struct mm_st        *mm_t;
 #define uri_DISCO_ITEMS "http://jabber.org/protocol/disco#items"
 #define uri_DISCO_INFO  "http://jabber.org/protocol/disco#info"
 
+#define uri_AMP                         "http://jabber.org/protocol/amp"
+#define uri_AMP_ERRORS                  "http://jabber.org/protocol/amp#errors"
+#define uri_AMP_ACTION_DROP             "http://jabber.org/protocol/amp?action=drop"
+#define uri_AMP_ACTION_ERROR            "http://jabber.org/protocol/amp?action=error"
+#define uri_AMP_ACTION_NOTIFY           "http://jabber.org/protocol/amp?action=notify"
+#define uri_AMP_CONDITION_DELIVER       "http://jabber.org/protocol/amp?condition=deliver"
+#define uri_AMP_CONDITION_EXPIREAT      "http://jabber.org/protocol/amp?condition=expire-at"
+#define uri_AMP_CONDITION_MATCHRESOURCE "http://jabber.org/protocol/amp?condition=match-resource"
+
+
 /* indexed known namespace values */
 #define ns_AUTH         (1)
 #define ns_REGISTER     (2)
@@ -86,6 +96,15 @@ typedef struct mm_st        *mm_t;
 #define ns_DISCO        (11)
 #define ns_DISCO_ITEMS  (12)
 #define ns_DISCO_INFO   (13)
+
+#define ns_AMP                          (14)
+#define ns_AMP_ERRORS                   (15)
+#define ns_AMP_ACTION_DROP              (16)
+#define ns_AMP_ACTION_ERROR             (17)
+#define ns_AMP_ACTION_NOTIFY            (18)
+#define ns_AMP_CONDITION_DELIVER        (19)
+#define ns_AMP_CONDITION_EXPIREAT       (20)
+#define ns_AMP_CONDITION_MATCHRESOURCE  (21)
 
 /** packet types */
 typedef enum { 

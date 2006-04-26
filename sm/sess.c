@@ -202,3 +202,16 @@ sess_t sess_match(user_t user, char *resource) {
 
     return NULL;
 }
+
+/** match a session by exact resource */
+sess_t sess_match_exact(user_t user, char *resource) {
+    sess_t sess;
+
+    for(sess = user->sessions; sess != NULL; sess = sess->next) {
+        /* exact matches */
+        if(strcmp(sess->jid->resource, resource) == 0)
+            return sess;
+    }
+
+    return NULL;
+}
