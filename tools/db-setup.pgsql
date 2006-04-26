@@ -8,6 +8,8 @@
 -- CREATE DATABASE jabberd2;
 -- \c jabberd2
 
+CREATE SEQUENCE "object-sequence";
+
 --
 -- c2s authentication/registration table
 --
@@ -17,9 +19,11 @@ CREATE TABLE "authreg" (
     "password" varchar(256),
     "token" varchar(10),
     "sequence" integer,
-    "hash" varchar(40) );
+    "hash" varchar(40),
+    PRIMARY KEY ("username", "realm") );
 
-CREATE SEQUENCE "object-sequence";
+CREATE INDEX i_authreg_username ON "authreg"("username");
+CREATE INDEX i_authreg_realm ON "authreg"("realm");
 
 --
 -- Session manager tables 
@@ -31,8 +35,8 @@ CREATE SEQUENCE "object-sequence";
 --
 CREATE TABLE "active" (
     "collection-owner" text PRIMARY KEY,
-    "object-sequence" bigint,
-    "time" integer );
+    "object-sequence" bigint DEFAULT nextval('object-sequence'),
+    "time" integer NOT NULL DEFAULT 0 );
 
 --
 -- Logout times
@@ -40,16 +44,16 @@ CREATE TABLE "active" (
 --
 CREATE TABLE "logout" (
     "collection-owner" text PRIMARY KEY,
-    "object-sequence" bigint,
-    "time" integer NOT NULL );
+    "object-sequence" bigint DEFAULT nextval('object-sequence'),
+    "time" integer NOT NULL DEFAULT 0 );
 
 --
 -- Roster items
 -- Used by: mod_roster
 --
 CREATE TABLE "roster-items" (
-    "collection-owner" text,
-    "object-sequence" bigint,
+    "collection-owner" text NOT NULL,
+    "object-sequence" bigint DEFAULT nextval('object-sequence'),
     "jid" text NOT NULL,
     "name" text,
     "to" boolean NOT NULL,
@@ -57,21 +61,21 @@ CREATE TABLE "roster-items" (
     "ask" integer NOT NULL,
     PRIMARY KEY ("collection-owner", "jid") );
 
-CREATE INDEX i_rosteri_owner ON "roster-items" USING btree ("collection-owner");
+CREATE INDEX i_rosteri_owner ON "roster-items"("collection-owner");
 
 --
 -- Roster groups
 -- Used by: mod_roster
 --
 CREATE TABLE "roster-groups" (
-    "collection-owner" text,
-    "object-sequence" bigint,
+    "collection-owner" text NOT NULL,
+    "object-sequence" bigint DEFAULT nextval('object-sequence'),
     "jid" text NOT NULL,
     "group" text NOT NULL,
     PRIMARY KEY ("collection-owner", "jid", "group") );
 
-CREATE INDEX i_rosterg_owner ON "roster-groups" USING btree ("collection-owner");
-CREATE INDEX i_rosterg_owner_jid ON "roster-groups" USING btree ("collection-owner", "jid");
+CREATE INDEX i_rosterg_owner ON "roster-groups"("collection-owner");
+CREATE INDEX i_rosterg_owner_jid ON "roster-groups"("collection-owner", "jid");
 
 --
 -- vCard (user profile information)
@@ -79,7 +83,7 @@ CREATE INDEX i_rosterg_owner_jid ON "roster-groups" USING btree ("collection-own
 --
 CREATE TABLE "vcard" (
     "collection-owner" text PRIMARY KEY,
-    "object-sequence" bigint,
+    "object-sequence" bigint DEFAULT nextval('object-sequence'),
     "fn" text,
     "nickname" text,
     "url" text,
@@ -133,24 +137,24 @@ CREATE TABLE "vcard" (
 -- Used by: mod_offline
 --
 CREATE TABLE "queue" (
-    "collection-owner" text,
-    "object-sequence" bigint,
+    "collection-owner" text NOT NULL,
+    "object-sequence" bigint DEFAULT nextval('object-sequence'),
     "xml" text NOT NULL );
 
-CREATE INDEX i_queue_owner ON "queue" USING btree ("collection-owner");
+CREATE INDEX i_queue_owner ON "queue"("collection-owner");
 
 --
 -- Private XML storage
 -- Used by: mod_iq_private
 --
 CREATE TABLE "private" (
-    "collection-owner" text,
-    "object-sequence" bigint,
+    "collection-owner" text NOT NULL,
+    "object-sequence" bigint DEFAULT nextval('object-sequence'),
     "ns" text,
     "xml" text,
     PRIMARY KEY ("collection-owner", "ns") );
 
-CREATE INDEX i_private_owner ON "private" USING btree ("collection-owner");
+CREATE INDEX i_private_owner ON "private"("collection-owner");
 
 --
 -- Message Of The Day (MOTD) messages (announcements)
@@ -158,7 +162,7 @@ CREATE INDEX i_private_owner ON "private" USING btree ("collection-owner");
 --
 CREATE TABLE "motd-message" (
     "collection-owner" text PRIMARY KEY,
-    "object-sequence" bigint,
+    "object-sequence" bigint DEFAULT nextval('object-sequence'),
     "xml" text NOT NULL);
 
 --
@@ -167,7 +171,7 @@ CREATE TABLE "motd-message" (
 --
 CREATE TABLE "motd-times" (
     "collection-owner" text PRIMARY KEY,
-    "object-sequence" bigint,
+    "object-sequence" bigint DEFAULT nextval('object-sequence'),
     "time" integer NOT NULL);
 
 --
@@ -175,13 +179,13 @@ CREATE TABLE "motd-times" (
 -- Used by: mod_disco_publish
 --
 CREATE TABLE "disco-items" (
-    "collection-owner" text,
-    "object-sequence" bigint,
+    "collection-owner" text NOT NULL,
+    "object-sequence" bigint DEFAULT nextval('object-sequence'),
     "jid" text,
     "name" text,
     "node" text );
 
-CREATE INDEX i_discoi_owner ON "disco-items" USING btree ("collection-owner");
+CREATE INDEX i_discoi_owner ON "disco-items"("collection-owner");
 
 --
 -- Default privacy list
@@ -189,7 +193,7 @@ CREATE INDEX i_discoi_owner ON "disco-items" USING btree ("collection-owner");
 --
 CREATE TABLE "privacy-default" (
     "collection-owner" text PRIMARY KEY,
-    "object-sequence" bigint,
+    "object-sequence" bigint DEFAULT nextval('object-sequence'),
     "default" text );
 
 --
@@ -197,8 +201,8 @@ CREATE TABLE "privacy-default" (
 -- Used by: mod_privacy
 --
 CREATE TABLE "privacy-items" (
-    "collection-owner" text,
-    "object-sequence" bigint,
+    "collection-owner" text NOT NULL,
+    "object-sequence" bigint DEFAULT nextval('object-sequence'),
     "list" text NOT NULL,
     "type" text,
     "value" text,
@@ -206,7 +210,7 @@ CREATE TABLE "privacy-items" (
     "order" integer,
     "block" integer );
 
-CREATE INDEX i_privacyi_owner ON "privacy-items" USING btree ("collection-owner");
+CREATE INDEX i_privacyi_owner ON "privacy-items"("collection-owner");
 
 --
 -- Vacation settings
@@ -214,9 +218,9 @@ CREATE INDEX i_privacyi_owner ON "privacy-items" USING btree ("collection-owner"
 --
 CREATE TABLE "vacation-settings" (
     "collection-owner" text PRIMARY KEY,
-    "object-sequence" bigint,
-    "start" int,
-    "end" int,
+    "object-sequence" bigint DEFAULT nextval('object-sequence'),
+    "start" integer,
+    "end" integer,
     "message" text );
 
 --
