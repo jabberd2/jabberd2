@@ -100,7 +100,8 @@ static void _announce_load(module_t mod, moddata_t data) {
                 telem[1] = timestamp[16];
                 tm.tm_sec = atoi(telem);
             
-                data->t = mktime(&tm);
+	        tzset();
+                data->t = mktime(&tm) - timezone;
             }
         }
 
