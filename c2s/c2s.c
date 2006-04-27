@@ -114,11 +114,8 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                 answer = malloc(len * sizeof(char));
                 sprintf (answer, http, sess->c2s->http_forward);
     
-                log_debug(ZONE, "This is an incoming HTTP connection - forwarding to: %s", sess->c2s->http_forward);
+                log_write(sess->c2s->log, LOG_NOTICE, "[%d] bouncing HTTP request to %s", sess->fd->fd, sess->c2s->http_forward);
     
-                /* read all incoming data */
-                while(recv(sess->fd->fd, buf->data, buf->len, 0) > 0) { }
-
                 /* send HTTP answer */
                 len = send(sess->fd->fd, answer, len-1, 0);
 
