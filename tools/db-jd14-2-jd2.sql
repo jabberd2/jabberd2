@@ -34,6 +34,7 @@ CREATE VIEW managers_password AS SELECT managers.jid, authreg."password", manage
 -- Drop unconvertable and unused tables first
 --
 DROP TABLE presence;
+DROP TABLE last;
 DROP TABLE roster; -- It's support is buggy in jabberd14 so I haven't used it.
 
 --
