@@ -10,7 +10,7 @@
 -- zmodyfikowac formularz modyfikacji danych usera
 -- zmodyfikowac proces odzyskiwania hasla
 ALTER TABLE recovery RENAME COLUMN mailaddress TO email;
-ALTER TABLE recovery ADD COLUMN "collection-owner" text not null;
+ALTER TABLE recovery ADD COLUMN "collection-owner" text;
 UPDATE recovery SET "collection-owner" = username || '@' || realm;
 ALTER TABLE recovery ALTER COLUMN "collection-owner" SET not null;
 ALTER TABLE recovery DROP COLUMN username;
