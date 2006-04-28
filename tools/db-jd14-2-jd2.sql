@@ -34,7 +34,6 @@ CREATE VIEW managers_password AS SELECT managers.jid, authreg."password", manage
 -- Drop unconvertable and unused tables first
 --
 DROP TABLE presence;
-DROP TABLE last;
 DROP TABLE roster; -- It's support is buggy in jabberd14 so I haven't used it.
 
 --
@@ -50,7 +49,6 @@ DROP TABLE users;
 ALTER TABLE queue ADD COLUMN storetime timestamp not null default current_timestamp;
 INSERT INTO queue ("collection-owner",xml,storetime) SELECT username || '@' || realm, xml, storetime FROM messages WHERE xml != '';
 DROP TABLE messages;
-
 
 --
 -- Convert vCard data
@@ -74,3 +72,8 @@ photo_data_mime,photo_data,photo_url,'','','',
 
 DROP TABLE userprofile;
 
+--
+-- Convert iq-last data
+--
+INSERT INTO logout ("collection-owner",time) SELECT username || '@' || realm, (substring(substring(xml from 'last=.[0-9]+') from '[0-9]+'))::integer FROM last;
+DROP TABLE last;
