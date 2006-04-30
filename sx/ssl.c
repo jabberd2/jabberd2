@@ -641,6 +641,14 @@ int sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args) {
         return 1;
     }
     
+    /* Load the CA chain, if configured */
+    if (cachain != NULL) {
+        ret = SSL_CTX_load_verify_locations (ctx, cachain, NULL);
+        if(ret != 1) {
+            _sx_debug(ZONE, "WARNING: couldn't load CA chain: %s", cachain);
+        }
+    }
+
     /* load the certificate */
     ret = SSL_CTX_use_certificate_file(ctx, pemfile, SSL_FILETYPE_PEM);
     if(ret != 1) {
@@ -655,14 +663,6 @@ int sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args) {
         _sx_debug(ZONE, "couldn't load private key from %s", pemfile);
         SSL_CTX_free(ctx);
         return 1;
-    }
-
-    /* Load the CA chain, if configured */
-    if (cachain != NULL) {
-        ret = SSL_CTX_load_verify_locations (ctx, cachain, NULL);
-        if(ret != 1) {
-            _sx_debug(ZONE, "WARNING: couldn't load CA chain: %s", cachain);
-        }
     }
 
     /* check the private key matches the certificate */
