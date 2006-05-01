@@ -199,9 +199,9 @@ static mod_ret_t _roster_in_sess_s10n(mod_instance_t mi, sess_t sess, pkt_t pkt)
     }
 
     /* a request */
-    if(pkt->type == pkt_S10N)
+    if(pkt->type == pkt_S10N && ! item->to)
         item->ask = 1;
-    else if(pkt->type == pkt_S10N_UN)
+    else if(pkt->type == pkt_S10N_UN && item->to)
         item->ask = 2;
 
     /* changing states */
@@ -507,8 +507,8 @@ static mod_ret_t _roster_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt)
 
     /* get the roster item */
     item = (item_t) xhash_get(user->roster, jid_full(pkt->from));
-    if(item == NULL) {
-        /* they're not on the roster, so subs / unsubs go direct */
+    if(item == NULL || item->ask == 0) {
+        /* subs / unsubs go direct */
         if(pkt->type == pkt_S10N || pkt->type == pkt_S10N_UN)
             return mod_PASS;
 
@@ -553,6 +553,15 @@ static mod_ret_t _roster_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt)
         }
 
         return mod_PASS;
+    }
+
+    /* trying to unsubscribe */
+    if( (pkt->type == pkt_S10N_ED && ! item->ask == 1)
+     || (pkt->type == pkt_S10N_UNED && ! item->ask == 2) )
+    {
+        /* we didn't ask for this, so we don't care */
+        pkt_free(pkt);
+        return mod_HANDLED;
     }
 
     /* update our s10n */
