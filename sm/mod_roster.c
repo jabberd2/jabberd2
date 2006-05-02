@@ -507,12 +507,29 @@ static mod_ret_t _roster_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt)
 
     /* get the roster item */
     item = (item_t) xhash_get(user->roster, jid_full(pkt->from));
-    if(item == NULL || item->ask == 0) {
-        /* subs / unsubs go direct */
-        if(pkt->type == pkt_S10N || pkt->type == pkt_S10N_UN)
+    if(item == NULL) {
+        /* subs go direct */
+        if(pkt->type == pkt_S10N)
             return mod_PASS;
 
         /* we didn't ask for this, so we don't care */
+        pkt_free(pkt);
+        return mod_HANDLED;
+    }
+
+    /* ignore bogus answers */
+    if( (pkt->type == pkt_S10N_ED && (item->ask != 1 || item->to) )
+     || (pkt->type == pkt_S10N_UNED && ! item->to) )
+    {
+        /* remove pending ask */
+        if( (pkt->type == pkt_S10N_ED && item->ask == 1)
+         || (pkt->type == pkt_S10N_UNED && item->ask == 2) )
+        {
+            item->ask = 0;
+            /* save changes */
+            _roster_save_item(user, item);
+        }
+        
         pkt_free(pkt);
         return mod_HANDLED;
     }
@@ -536,7 +553,7 @@ static mod_ret_t _roster_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt)
         return mod_PASS;
     }
 
-    /* trying to unsubscribe */
+    /* handle unsubscribe */
     if(pkt->type == pkt_S10N_UN)
     {
         if(!item->from)
@@ -545,32 +562,33 @@ static mod_ret_t _roster_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt)
             nad_set_attr(pkt->nad, 1, -1, "type", "unsubscribed", 12);
             pkt_router(pkt_tofrom(pkt));
 
-            /* update their presence from the leading session */
-            if(user->top != NULL)
-                pres_roster(user->top, item);
-
             return mod_HANDLED;
         }
 
-        return mod_PASS;
-    }
+        /* change state */
+        item->from = 0;
 
-    /* trying to unsubscribe */
-    if( (pkt->type == pkt_S10N_ED && ! item->ask == 1)
-     || (pkt->type == pkt_S10N_UNED && ! item->ask == 2) )
-    {
-        /* we didn't ask for this, so we don't care */
-        pkt_free(pkt);
-        return mod_HANDLED;
+        /* confirm unsubscription */
+        pkt_router(pkt_create(user->sm, "presence", "unsubscribed", jid_user(pkt->from), jid_user(user->jid)));
+
+        /* update their presence from the leading session */
+        if(user->top != NULL)
+            pres_roster(user->top, item);
     }
 
     /* update our s10n */
     if(pkt->type == pkt_S10N_ED)
+    {
         item->to = 1;
-    else
+        if(item->ask == 1)
+            item->ask = 0;
+    }
+    if(pkt->type == pkt_S10N_UNED)
+    {
         item->to = 0;
-
-    item->ask = 0;
+        if(item->ask == 2)
+            item->ask = 0;
+    }
 
     /* save changes */
     _roster_save_item(user, item);
