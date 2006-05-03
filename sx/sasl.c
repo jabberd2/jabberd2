@@ -1067,7 +1067,7 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, c
     /* !!! XXX certs */
     /*
     if(ext != NULL) {
-        ext->external_id = "foo";
+        ext->external_id = strdup("foo");
         ext->external_ssf = 20;
     }
     */
