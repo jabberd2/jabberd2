@@ -872,6 +872,7 @@ static void _sx_sasl_free(sx_t s, sx_plugin_t p) {
     if(sd->sasl != NULL) sasl_dispose(&sd->sasl);
     if(sd->user != NULL) free(sd->user);
     if(sd->psecret != NULL) free(sd->psecret);
+    if(sd->callbacks != NULL) free(sd->callbacks);
 
     free(sd);
 
@@ -879,9 +880,14 @@ static void _sx_sasl_free(sx_t s, sx_plugin_t p) {
 }
 
 static void _sx_sasl_unload(sx_plugin_t p) {
+    _sx_sasl_t ctx;
 
-    if (p->private)
-        free(p->private);
+    ctx = (_sx_sasl_t) p->private;
+
+    if (ctx->appname != NULL) free(ctx->appname);
+    if (ctx->saslcallbacks != NULL) free(ctx->saslcallbacks);
+
+    if (p->private != NULL) free(p->private);
 }
 
 /** args: appname, flags, callback, cb arg */
@@ -1053,6 +1059,7 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, c
 
         free(sd->user);
         free(sd->psecret);
+        free(sd->callbacks);
         free(sd);
 
         return 1;
@@ -1093,6 +1100,7 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, c
 
         free(sd->user);
         free(sd->psecret);
+        free(sd->callbacks);
         free(sd);
 
         return 1;
