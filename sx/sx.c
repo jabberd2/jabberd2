@@ -255,7 +255,6 @@ void _sx_buffer_alloc_margin(sx_buf_t buf, int before, int after)
             buf->heap = realloc(buf->heap, before+after);
         else
             buf->heap = malloc(before+after);
-        memset(buf->heap, 0, before+after);
         buf->data = buf->heap + before;
         return;
     }
@@ -266,15 +265,12 @@ void _sx_buffer_alloc_margin(sx_buf_t buf, int before, int after)
         if (old_leader >= before && old_leader <= (before * 4)) {
             buf->heap = realloc(buf->heap, before + buf->len + after);
             buf->data = buf->heap + old_leader;
-            memset(buf->heap, 0, before);
-            memset(buf->data + buf->len, 0, after);
             return;
         }
     }
 
     /* Most general case --- allocate a new buffer, copy stuff over, free the old one. */
     new_heap = malloc(before + buf->len + after);
-    memset(new_heap, 0, before + buf->len + after);
     memcpy(new_heap + before, buf->data, buf->len);
     if (buf->heap != NULL)
         free(buf->heap);
