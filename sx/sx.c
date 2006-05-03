@@ -203,6 +203,7 @@ sx_buf_t _sx_buffer_new(char *data, int len, _sx_notify_t notify, void *notify_a
     sx_buf_t buf;
 
     buf = (sx_buf_t) malloc(sizeof(struct _sx_buf_st));
+    memset(buf, 0, sizeof(struct _sx_buf_st));
 
     if (len <= 0) {
         buf->data = buf->heap = NULL;

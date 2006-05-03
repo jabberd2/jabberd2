@@ -497,6 +497,9 @@ static void _sx_ssl_client(sx_t s, sx_plugin_t p) {
     SSL_set_bio(sc->ssl, sc->rbio, sc->wbio);
     SSL_set_connect_state(sc->ssl);
 
+    /* empty external_id */
+    sc->external_id = NULL;
+
     /* alternate pemfile */
     /* !!! figure out how to error correctly here - just returning will cause
      *     us to send a normal unencrypted stream start while the server is
@@ -568,6 +571,9 @@ static void _sx_ssl_server(sx_t s, sx_plugin_t p) {
     sc->ssl = SSL_new((SSL_CTX *) p->private);
     SSL_set_bio(sc->ssl, sc->rbio, sc->wbio);
     SSL_set_accept_state(sc->ssl);
+
+    /* empty external_id */
+    sc->external_id = NULL;
 
     /* buffer queue */
     sc->wq = jqueue_new();
