@@ -211,10 +211,8 @@ sx_buf_t _sx_buffer_new(char *data, int len, _sx_notify_t notify, void *notify_a
         buf->data = buf->heap = (char *) malloc(sizeof(char) * len);
         if(data != NULL)
             memcpy(buf->data, data, len);
-#ifndef NDEBUG
         else
             memset(buf->data, '$', len);  /* catch uninitialized use */
-#endif
         buf->len = len;
     }
 
