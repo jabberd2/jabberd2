@@ -33,6 +33,7 @@
     {                                                                   \
         struct epoll_event event;                                       \
         mio_priv_fd_t priv_fd = malloc(sizeof (struct mio_priv_fd_st)); \
+        memset(priv_fd, 0, sizeof (struct mio_priv_fd_st));             \
                                                                         \
         priv_fd->mio_fd.fd = fd;                                        \
         priv_fd->events = 0;                                            \
