@@ -119,7 +119,7 @@ int in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg)
 
             in->s2s = s2s;
 
-            strcpy(in->ip, (char *) data);
+            strncpy(in->ip, (char *) data, INET6_ADDRSTRLEN);
             in->port = port;
 
             in->states = xhash_new(101);

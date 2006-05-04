@@ -101,7 +101,7 @@ static void _sx_auxprop_lookup(void *glob_context,
     if (!to_fetch)
         goto done;
     for (current = to_fetch; current->name; current++) {
-        if (strcmp(current->name, SASL_AUX_PASSWORD) == 0) {
+        if (strncmp(current->name, SASL_AUX_PASSWORD, sizeof(SASL_AUX_PASSWORD)) == 0) {
             /* If we've already got a value, see if we can override it */
             if (current->values) {
                 if (flags & SASL_AUXPROP_OVERRIDE) 
@@ -183,7 +183,7 @@ static int _sx_sasl_canon_user(sasl_conn_t *conn, void *ctx, const char *user, u
     char *buf;
     _sx_sasl_data_t sd = (_sx_sasl_data_t)ctx;
     sasl_getprop(conn, SASL_MECHNAME, (const void **) &buf);
-    if (strcmp(buf, "ANONYMOUS") == 0) {
+    if (strncmp(buf, "ANONYMOUS", 10) == 0) {
         sd->ctx->cb(sx_sasl_cb_GEN_AUTHZID, NULL, (void **)&buf, sd->stream, sd->ctx->cbarg);
         strncpy(out_user, buf, out_umax);
         out_user[out_umax]='\0';
@@ -205,7 +205,7 @@ static int _sx_sasl_proxy_policy(sasl_conn_t *conn, void *ctx, const char *reque
     char *buf, *c;
 
     sasl_getprop(conn, SASL_MECHNAME, (const void **) &buf);
-    if (strcmp(buf, "ANONYMOUS") == 0) {
+    if (strncmp(buf, "ANONYMOUS", 10) == 0) {
         /* If they're anonymous, their ID comes from us, so it must be OK! */
         return SASL_OK;
     } else {

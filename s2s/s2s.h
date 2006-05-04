@@ -155,7 +155,7 @@ struct pkt_st {
 
     int                 db;
 
-    char                ip[INET6_ADDRSTRLEN];
+    char                ip[INET6_ADDRSTRLEN+1];
     int                 port;
 };
 
@@ -174,7 +174,7 @@ struct conn_st {
     sx_t                s;
     mio_fd_t            fd;
 
-    char                ip[INET6_ADDRSTRLEN];
+    char                ip[INET6_ADDRSTRLEN+1];
     int                 port;
 
     /** states of outgoing dialbacks (key is local/remote) */
@@ -205,7 +205,7 @@ struct dnscache_st {
     char                name[1024];
 
     /** ip and port that the name resolves to */
-    char                ip[INET6_ADDRSTRLEN];
+    char                ip[INET6_ADDRSTRLEN+1];
     int                 port;
 
     /** time that this entry expires */
