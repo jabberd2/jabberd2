@@ -215,7 +215,7 @@ fi
 
 dnl syslog
 if test "x-$ac_cv_header_syslog_h" = "x-yes" ; then
-    AC_CHECK_FUNCS(syslog)
+    AC_CHECK_FUNCS(syslog vsyslog)
 fi
 
 if test "x-$ac_cv_header_windows_h" = "x-yes" ; then
