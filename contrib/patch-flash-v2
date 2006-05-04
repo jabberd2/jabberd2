@@ -128,7 +128,7 @@ diff -u /usr/local/src/jabberd-2.0s6/c2s/c2s.c c2s/c2s.c
              return len;
  
          case event_WRITE:
-             log_debug(ZONE, "writing to %d", sess->fd);
+             log_debug(ZONE, "writing to %d", sess->fd->fd);
 +
 +#ifdef CP2005_FLASH_PATCH
 +            if (sess->flash_client) {
@@ -155,7 +155,7 @@ diff -u /usr/local/src/jabberd-2.0s6/c2s/c2s.c c2s/c2s.c
 +            }
 +#endif
  
-             len = send(sess->fd, buf->data, buf->len, 0);
+             len = send(sess->fd->fd, buf->data, buf->len, 0);
              if(len >= 0) {
 diff -u /usr/local/src/jabberd-2.0s6/c2s/c2s.h c2s/c2s.h
 --- /usr/local/src/jabberd-2.0s6/c2s/c2s.h	Tue Dec  7 18:38:05 2004

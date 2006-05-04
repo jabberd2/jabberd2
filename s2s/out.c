@@ -281,7 +281,7 @@ void out_packet(s2s_t s2s, pkt_t pkt) {
 	} else {
             log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] outgoing connection", out->fd->fd, out->ip, out->port);
 
-            out->s = sx_new(s2s->sx_env, out->fd, _out_sx_callback, (void *) out);
+            out->s = sx_new(s2s->sx_env, out->fd->fd, _out_sx_callback, (void *) out);
 
 #ifdef HAVE_SSL
 	    /* Send a stream version of 1.0 if we can do STARTTLS */
