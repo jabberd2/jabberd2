@@ -103,9 +103,11 @@ log_t log_new(log_type_t type, char *ident, char *facility)
 void log_write(log_t log, int level, const char *msgfmt, ...)
 {
     va_list ap;
-    char *pos, message[MAX_LOG_LINE];
+    char *pos, message[MAX_LOG_LINE+1];
     int sz;
     time_t t;
+
+    memset(&message, '\0', MAX_LOG_LINE+1);
 
     if(log->type == log_SYSLOG) {
         va_start(ap, msgfmt);
