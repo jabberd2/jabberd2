@@ -392,6 +392,8 @@ static void _sx_sasl_stream(sx_t s, sx_plugin_t p) {
                                   ctx->sec_props.security_flags, &sasl);
             if(ret != SASL_OK) {
                 _sx_debug(ZONE, "sasl_server_new failed (%s), not offering sasl for this conn", sasl_errstring(ret, NULL, NULL));
+                free(sd->callbacks);
+                free(sd);
                 return;
             }
 
@@ -399,10 +401,9 @@ static void _sx_sasl_stream(sx_t s, sx_plugin_t p) {
             ext_id = NULL;
             for(i = 0; i < s->env->nplugins; i++)
                 if(s->env->plugins[i]->magic == SX_SASL_SSL_MAGIC)
-                    ext_id = (char *) s->plugin_data[s->env->plugins[i]->index];
+                    ext_id = ((_sx_ssl_conn_t) s->plugin_data[s->env->plugins[i]->index])->external_id;
 
             /* if we've got some, setup for external auth */
-            ret = SASL_OK;
             if(ext_id != NULL) {
                 ret = sasl_setprop(sasl, SASL_AUTH_EXTERNAL, ext_id);
                 if(ret == SASL_OK) 
@@ -420,6 +421,8 @@ static void _sx_sasl_stream(sx_t s, sx_plugin_t p) {
 
             if(ret != SASL_OK) {
                 _sx_debug(ZONE, "sasl_setprop failed (%s), not offering sasl for this conn", sasl_errstring(ret, NULL, NULL));
+                free(sd->callbacks);
+                free(sd);
                 return;
             }
 
@@ -943,6 +946,8 @@ int sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args) {
     ret = sasl_server_init(ctx->saslcallbacks, appname);
     if(ret != SASL_OK) {
         _sx_debug(ZONE, "sasl_server_init() failed (%s), disabling", sasl_errstring(ret, NULL, NULL));
+        free(ctx->saslcallbacks);
+        free(ctx);
         return 1;
     }
 
@@ -1057,8 +1062,8 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, c
     if(ret != SASL_OK) {
         _sx_debug(ZONE, "sasl_client_new failed, (%s), not authing", sasl_errstring(ret, NULL, NULL));
 
-        free(sd->user);
-        free(sd->psecret);
+        if (sd->user != NULL) free(sd->user);
+        if (sd->psecret != NULL) free(sd->psecret);
         free(sd->callbacks);
         free(sd);
 
@@ -1069,7 +1074,7 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, c
     ext_id = NULL;
     for(i = 0; i < s->env->nplugins; i++)
         if(s->env->plugins[i]->magic == SX_SASL_SSL_MAGIC)
-            ext_id = (char *) s->plugin_data[s->env->plugins[i]->index];
+            ext_id = ((_sx_ssl_conn_t) s->plugin_data[s->env->plugins[i]->index])->external_id;
 
     /* !!! XXX certs */
     /*
@@ -1080,7 +1085,6 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, c
     */
 
     /* if we've got some, setup for external auth */
-    ret = SASL_OK;
     if(ext_id != NULL) {
         ret = sasl_setprop(sd->sasl, SASL_AUTH_EXTERNAL, ext_id);
         if(ret == SASL_OK) ret = sasl_setprop(sd->sasl, SASL_SSF_EXTERNAL, &s->ssf);
@@ -1098,8 +1102,8 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, c
 
         sasl_dispose(&sd->sasl);
 
-        free(sd->user);
-        free(sd->psecret);
+        if (sd->user != NULL) free(sd->user);
+        if (sd->psecret != NULL) free(sd->psecret);
         free(sd->callbacks);
         free(sd);
 
@@ -1113,8 +1117,9 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, c
 
         sasl_dispose(&sd->sasl);
 
-        free(sd->user);
-        free(sd->psecret);
+        if (sd->user != NULL) free(sd->user);
+        if (sd->psecret != NULL) free(sd->psecret);
+        free(sd->callbacks);
         free(sd);
 
         return 1;
