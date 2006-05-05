@@ -150,8 +150,10 @@ static int _sx_ssl_process(sx_t s, sx_plugin_t p, nad_t nad) {
             nad_free(nad);
 
             /* free the pemfile arg */
-            if(s->plugin_data[p->index] != NULL)
+            if(s->plugin_data[p->index] != NULL) {
                 free(s->plugin_data[p->index]);
+                s->plugin_data[p->index] == NULL;
+            }
 
             _sx_debug(ZONE, "server can't handle ssl, business as usual");
 
@@ -505,7 +507,8 @@ static void _sx_ssl_client(sx_t s, sx_plugin_t p) {
      *     us to send a normal unencrypted stream start while the server is
      *     waiting for ClientHelo. the server will flag an error, but it won't
      *     help the admin at all to figure out what happened */
-    pemfile = s->plugin_data[p->index]; s->plugin_data[p->index] = NULL;
+    pemfile = s->plugin_data[p->index];
+    s->plugin_data[p->index] = NULL;
     if(pemfile != NULL) {
         /* load the certificate */
         ret = SSL_use_certificate_file(sc->ssl, pemfile, SSL_FILETYPE_PEM);
@@ -609,6 +612,8 @@ static void _sx_ssl_free(sx_t s, sx_plugin_t p) {
     jqueue_free(sc->wq);
 
     free(sc);
+    
+    s->plugin_data[p->index] == NULL;
 }
 
 static void _sx_ssl_unload(sx_plugin_t p) {
