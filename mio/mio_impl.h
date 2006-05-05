@@ -113,7 +113,8 @@ static void _mio_close(mio_t m, mio_fd_t fd)
     MIO_REMOVE_FD(m, FD(m,fd));
 
     /* let the app know, it must process any waiting write data it has and free it's arg */
-    ACT(m, fd, action_CLOSE, NULL);
+    if (FD(m,fd)->app != NULL)
+        ACT(m, fd, action_CLOSE, NULL);
 
     /* close the socket, and reset all memory */
     close(fd->fd);
