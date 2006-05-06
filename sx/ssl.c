@@ -151,6 +151,8 @@ static int _sx_ssl_process(sx_t s, sx_plugin_t p, nad_t nad) {
 
             /* free the pemfile arg */
             if(s->plugin_data[p->index] != NULL) {
+                if( ((_sx_ssl_conn_t)s->plugin_data[p->index])->pemfile != NULL )
+                    free(((_sx_ssl_conn_t)s->plugin_data[p->index])->pemfile);
                 free(s->plugin_data[p->index]);
                 s->plugin_data[p->index] == NULL;
             }
@@ -478,7 +480,7 @@ static int _sx_ssl_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
 
 static void _sx_ssl_client(sx_t s, sx_plugin_t p) {
     _sx_ssl_conn_t sc;
-    char *pemfile;
+    char *pemfile == NULL;
     int ret;
 
     /* only bothering if they asked for wrappermode */
@@ -507,8 +509,11 @@ static void _sx_ssl_client(sx_t s, sx_plugin_t p) {
      *     us to send a normal unencrypted stream start while the server is
      *     waiting for ClientHelo. the server will flag an error, but it won't
      *     help the admin at all to figure out what happened */
-    pemfile = s->plugin_data[p->index];
-    s->plugin_data[p->index] = NULL;
+    if(s->plugin_data[p->index] != NULL) {
+        pemfile = ((_sx_ssl_conn_t)s->plugin_data[p->index])->pemfile;
+        free(s->plugin_data[p->index]);
+        s->plugin_data[p->index] = NULL;
+    }
     if(pemfile != NULL) {
         /* load the certificate */
         ret = SSL_use_certificate_file(sc->ssl, pemfile, SSL_FILETYPE_PEM);
@@ -726,8 +731,11 @@ int sx_ssl_client_starttls(sx_plugin_t p, sx_t s, char *pemfile) {
     _sx_debug(ZONE, "initiating starttls sequence");
 
     /* save the given pemfile for later */
-    if(pemfile != NULL)
-        s->plugin_data[p->index] = (void *) strdup(pemfile);
+    if(pemfile != NULL) {
+        s->plugin_data[p->index] = (_sx_ssl_conn_t) malloc(sizeof(struct _sx_ssl_conn_st));
+        memset(s->plugin_data[p->index], 0, sizeof(struct _sx_ssl_conn_st));
+        ((_sx_ssl_conn_t)s->plugin_data[p->index])->pemfile = strdup(pemfile);
+    }
 
     /* go */
     jqueue_push(s->wbufq, _sx_buffer_new("<starttls xmlns='" uri_TLS "'/>", strlen(uri_TLS) + 20, NULL, NULL), 0);

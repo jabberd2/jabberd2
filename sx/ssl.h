@@ -68,6 +68,8 @@ typedef struct _sx_ssl_conn_st {
     jqueue_t    wq;
 
     int         last_state;
+
+    char        *pemfile;
 } *_sx_ssl_conn_t;
 
 #ifdef __cplusplus
