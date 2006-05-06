@@ -32,7 +32,6 @@
     static mio_fd_t _mio_alloc_fd(mio_t m, int fd)                      \
     {                                                                   \
         struct epoll_event event;                                       \
-        memset(&event, 0, sizeof(event));                               \
         mio_priv_fd_t priv_fd = malloc(sizeof (struct mio_priv_fd_st)); \
         memset(priv_fd, 0, sizeof (struct mio_priv_fd_st));             \
                                                                         \
@@ -40,10 +39,11 @@
         priv_fd->events = 0;                                            \
                                                                         \
         event.events = priv_fd->events;                                 \
-        event.data.ptr = &priv_fd->mio_fd;                              \
+        event.data.u64 = 0;                                             \
+        event.data.ptr = priv_fd;                              \
         epoll_ctl(MIO(m)->epoll_fd, EPOLL_CTL_ADD, fd, &event);         \
                                                                         \
-        return &priv_fd->mio_fd;                                        \
+        return (mio_fd_t)priv_fd;                                        \
     }
 
 
@@ -75,8 +75,8 @@
 #define MIO_REMOVE_FD(m, mfd) \
     do {                                                                \
         struct epoll_event event;                                       \
-        memset(&event, 0, sizeof(event));                               \
         event.events = 0;                                               \
+        event.data.u64 = 0;                                             \
         event.data.ptr = mfd;                                           \
         epoll_ctl(MIO(m)->epoll_fd, EPOLL_CTL_DEL,                      \
                   mfd->mio_fd.fd, &event);                              \
@@ -87,9 +87,9 @@
 #define MIO_SET_READ(m, mfd) \
     do {                                                                \
         struct epoll_event event;                                       \
-        memset(&event, 0, sizeof(event));                               \
         mfd->events |= EPOLLIN;                                         \
         event.events = mfd->events;                                     \
+        event.data.u64 = 0;                                             \
         event.data.ptr = mfd;                                           \
         epoll_ctl(MIO(m)->epoll_fd, EPOLL_CTL_MOD,                      \
                   mfd->mio_fd.fd, &event);                              \
@@ -98,9 +98,9 @@
 #define MIO_SET_WRITE(m, mfd) \
     do {                                                                \
         struct epoll_event event;                                       \
-        memset(&event, 0, sizeof(event));                               \
         mfd->events |= EPOLLOUT;                                        \
         event.events = mfd->events;                                     \
+        event.data.u64 = 0;                                             \
         event.data.ptr = mfd;                                           \
         epoll_ctl(MIO(m)->epoll_fd, EPOLL_CTL_MOD,                      \
                   mfd->mio_fd.fd, &event);                              \
@@ -109,9 +109,9 @@
 #define MIO_UNSET_READ(m, mfd) \
     do {                                                                \
         struct epoll_event event;                                       \
-        memset(&event, 0, sizeof(event));                               \
         mfd->events &= ~EPOLLIN;                                        \
         event.events = mfd->events;                                     \
+        event.data.u64 = 0;                                             \
         event.data.ptr = mfd;                                           \
         epoll_ctl(MIO(m)->epoll_fd, EPOLL_CTL_MOD,                      \
                   mfd->mio_fd.fd, &event);                              \
@@ -119,9 +119,9 @@
 #define MIO_UNSET_WRITE(m, mfd) \
     do {                                                                \
         struct epoll_event event;                                       \
-        memset(&event, 0, sizeof(event));                               \
         mfd->events &= ~(EPOLLOUT);                                     \
         event.events = mfd->events;                                     \
+        event.data.u64 = 0;                                             \
         event.data.ptr = mfd;                                           \
         epoll_ctl(MIO(m)->epoll_fd, EPOLL_CTL_MOD,                      \
                   mfd->mio_fd.fd, &event);                              \
