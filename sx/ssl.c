@@ -480,7 +480,7 @@ static int _sx_ssl_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
 
 static void _sx_ssl_client(sx_t s, sx_plugin_t p) {
     _sx_ssl_conn_t sc;
-    char *pemfile == NULL;
+    char *pemfile = NULL;
     int ret;
 
     /* only bothering if they asked for wrappermode */
