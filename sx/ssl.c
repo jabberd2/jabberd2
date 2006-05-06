@@ -608,13 +608,16 @@ static void _sx_ssl_free(sx_t s, sx_plugin_t p) {
     }
 
     if(sc->external_id != NULL) free(sc->external_id);
+    if(sc->pemfile != NULL) free(sc->pemfile);
 
-    if(sc->ssl) SSL_free(sc->ssl);      /* frees wbio and rbio too */
+    if(sc->ssl != NULL) SSL_free(sc->ssl);      /* frees wbio and rbio too */
 
-    while((buf = jqueue_pull(sc->wq)) != NULL)
-        _sx_buffer_free(buf);
+    if(sc->wq != NULL) {
+        while((buf = jqueue_pull(sc->wq)) != NULL)
+            _sx_buffer_free(buf);
 
-    jqueue_free(sc->wq);
+        jqueue_free(sc->wq);
+    }
 
     free(sc);
     
