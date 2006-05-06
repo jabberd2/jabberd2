@@ -269,7 +269,7 @@ void out_packet(s2s_t s2s, pkt_t pkt) {
             /* bounce queues */
             out_bounce_queue(s2s, pkt->to->domain, stanza_err_SERVICE_UNAVAILABLE);
 
-            xhash_zap(s2s->out, ipport);
+            xhash_zap(s2s->out, out->key);
 
             xhash_free(out->states);
             xhash_free(out->states_time);
