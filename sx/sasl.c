@@ -400,7 +400,7 @@ static void _sx_sasl_stream(sx_t s, sx_plugin_t p) {
             /* get external data from the ssl plugin */
             ext_id = NULL;
             for(i = 0; i < s->env->nplugins; i++)
-                if(s->env->plugins[i]->magic == SX_SASL_SSL_MAGIC)
+                if(s->env->plugins[i]->magic == SX_SASL_SSL_MAGIC && s->plugin_data[s->env->plugins[i]->index] != NULL)
                     ext_id = ((_sx_ssl_conn_t) s->plugin_data[s->env->plugins[i]->index])->external_id;
 
             /* if we've got some, setup for external auth */
@@ -1073,7 +1073,7 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, c
     /* get external data from the ssl plugin */
     ext_id = NULL;
     for(i = 0; i < s->env->nplugins; i++)
-        if(s->env->plugins[i]->magic == SX_SASL_SSL_MAGIC)
+        if(s->env->plugins[i]->magic == SX_SASL_SSL_MAGIC && s->plugin_data[s->env->plugins[i]->index] != NULL)
             ext_id = ((_sx_ssl_conn_t) s->plugin_data[s->env->plugins[i]->index])->external_id;
 
     /* !!! XXX certs */
