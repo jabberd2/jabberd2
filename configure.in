@@ -762,6 +762,12 @@ if test "x-$want_pool_debug" = "x-yes" ; then
     AC_DEFINE(POOL_DEBUG,1,[Define to 1 if you want to enable memory pool statistics.])
 fi
 
+AC_ARG_ENABLE(mio_debug, AC_HELP_STRING([--enable-mio-debug], [enable managed IO debug output]),
+              want_mio_debug=$enableval, want_mio_debug=no)
+if test "x-$want_mio_debug" = "x-yes" ; then
+    AC_DEFINE(MIO_DEBUG,1,[Define to 1 if you want to enable managed IO debug output.])
+fi
+
 
 dnl
 dnl finishing up
