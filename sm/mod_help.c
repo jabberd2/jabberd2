@@ -18,6 +18,9 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
+/* for strndup */
+#define _GNU_SOURCE
+#include <string.h>
 #include "sm.h"
 
 /** @file sm/mod_help.c
@@ -31,6 +34,9 @@ static mod_ret_t _help_pkt_sm(mod_instance_t mi, pkt_t pkt)
 {
     module_t mod = mi->mod;
     jid_t all, msg, jid;
+    int subj, subjectl;
+    char *org_subject;
+    char *subject;
 
     /* we want messages addressed to the sm itself */
     if(pkt->type != pkt_MESSAGE || pkt->to->resource[0] != '\0')
@@ -41,21 +47,40 @@ static mod_ret_t _help_pkt_sm(mod_instance_t mi, pkt_t pkt)
     all = xhash_get(mod->mm->sm->acls, "all");
     msg = xhash_get(mod->mm->sm->acls, "messages");
 
+    nad_set_attr(pkt->nad, 1, -1, "type", NULL, 0);
+    subj = nad_find_elem(pkt->nad, 1, NAD_ENS(pkt->nad, 1), "subject", 1);
+    if(subj >= 0 && NAD_CDATA_L(pkt->nad, subj) > 0)
+    {
+        org_subject = strndup(NAD_CDATA(pkt->nad, subj), NAD_CDATA_L(pkt->nad, subj));
+    } else {
+        org_subject = "(none)";
+    }
+    subjectl = strlen(org_subject) + strlen(jid_full(pkt->to)) + 8;
+    subject = (char *) malloc(sizeof(char) * subjectl);
+    snprintf(subject, subjectl, "Fwd[%s]: %s", jid_full(pkt->to), org_subject);
+    if(subj >= 0 && NAD_CDATA_L(pkt->nad, subj) > 0)
+    {
+        free(org_subject);
+        nad_drop_elem(pkt->nad, subj);
+    }
+    nad_insert_elem(pkt->nad, 1, NAD_ENS(pkt->nad, 1), "subject", subject);
+
     for(jid = all; jid != NULL; jid = jid->next)
     {
         log_debug(ZONE, "resending to %s", jid_full(jid));
-        pkt_router(pkt_dup(pkt, jid_full(jid), mod->mm->sm->id));
+        pkt_router(pkt_dup(pkt, jid_full(jid), jid_full(pkt->from)));
     }
 
     for(jid = msg; jid != NULL; jid = jid->next)
         if(!jid_search(all, jid))
         {
             log_debug(ZONE, "resending to %s", jid_full(jid));
-            pkt_router(pkt_dup(pkt, jid_full(jid), NULL));
+            pkt_router(pkt_dup(pkt, jid_full(jid), jid_full(pkt->from)));
         }
 
     /* !!! autoreply */
 
+    free(subject);
     pkt_free(pkt);
 
     return mod_HANDLED;
