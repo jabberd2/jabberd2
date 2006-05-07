@@ -44,16 +44,16 @@ static int _status_sess_start(mod_instance_t mi, sess_t sess) {
     ret = storage_get(sess->user->sm->st, "status", jid_user(sess->jid), NULL, &os);
     if (ret == st_SUCCESS)
     {
-	    if (os_iter_first(os))
-	    {
-		o = os_iter_object(os);
-		os_object_get_time(os, o, "last-logout", &lastlogout);
-	    }
-	    os_free(os);
+        if (os_iter_first(os))
+        {
+            o = os_iter_object(os);
+            os_object_get_time(os, o, "last-logout", &lastlogout);
+        }
+        os_free(os);
     }
     else
     {
-	    lastlogout = (time_t) 0;
+        lastlogout = (time_t) 0;
     }
     
     t = time(NULL);
@@ -80,16 +80,16 @@ static void _status_sess_end(mod_instance_t mi, sess_t sess) {
     ret = storage_get(sess->user->sm->st, "status", jid_user(sess->jid), NULL, &os);
     if (ret == st_SUCCESS)
     {
-	    if (os_iter_first(os))
-	    {
-		o = os_iter_object(os);
-		os_object_get_time(os, o, "last-login", &lastlogin);
-	    }
-	    os_free(os);
+        if (os_iter_first(os))
+        {
+            o = os_iter_object(os);
+            os_object_get_time(os, o, "last-login", &lastlogin);
+        }
+        os_free(os);
     }
     else
     {
-	    lastlogin = (time_t) 0;
+        lastlogin = (time_t) 0;
     }
 
     t = time(NULL);
@@ -102,12 +102,6 @@ static void _status_sess_end(mod_instance_t mi, sess_t sess) {
     storage_replace(sess->user->sm->st, "status", jid_user(sess->jid), NULL, os);
     os_free(os);
 }
-/* To delete an account :
- *  <iq id='A0' type='set' to='jabber.blop.info'>
-    <query xmlns='jabber:iq:register'>
-    <remove/>
-    </query>
-    </iq> */
 
 static void _status_user_delete(mod_instance_t mi, jid_t jid) {
     module_t mod = mi->mod;
@@ -124,6 +118,8 @@ static mod_ret_t _status_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     os_object_t o;
     st_ret_t ret;
     char * show;
+    int show_free = 0;
+
     /* only handle presence */
     if(!(pkt->type & pkt_PRESENCE))
         return mod_PASS;
@@ -131,53 +127,56 @@ static mod_ret_t _status_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     ret = storage_get(sess->user->sm->st, "status", jid_user(sess->jid), NULL, &os);
     if (ret == st_SUCCESS)
     {
-	    if (os_iter_first(os))
-	    {
-		o = os_iter_object(os);
-		os_object_get_time(os, o, "last-login", &lastlogin);
-		os_object_get_time(os, o, "last-logout", &lastlogout);
-	    }
-	    os_free(os);
+        if (os_iter_first(os))
+        {
+            o = os_iter_object(os);
+            os_object_get_time(os, o, "last-login", &lastlogin);
+            os_object_get_time(os, o, "last-logout", &lastlogout);
+        }
+        os_free(os);
     }
     else
     {
-	    lastlogin = (time_t) 0;
-	    lastlogout = (time_t) 0;
+        lastlogin = (time_t) 0;
+        lastlogout = (time_t) 0;
     }
 
     /* If the presence is for a specific user, ignore it. */
     if(pkt->to == NULL)
     {
-	switch(pkt->type)
-	{
-		int elem;
-		case pkt_PRESENCE_UN:
-			show = "unavailable";
-			break;
-		default:
-			elem = nad_find_elem(pkt->nad, 1, NAD_ENS(pkt->nad, 1), "show", 1);
-			if (elem < 0)
-			{
-				show = "";
-			}
-			else
-			{	
-				if (NAD_CDATA_L(pkt->nad, elem) <= 0 || NAD_CDATA_L(pkt->nad, elem) > 19)
-					show = "";
-				else
-					show = strndup(NAD_CDATA(pkt->nad, elem), NAD_CDATA_L(pkt->nad, elem));
-			}
-	}
+    switch(pkt->type)
+    {
+        int elem;
+        case pkt_PRESENCE_UN:
+            show = "unavailable";
+            break;
+        default:
+            elem = nad_find_elem(pkt->nad, 1, NAD_ENS(pkt->nad, 1), "show", 1);
+            if (elem < 0)
+            {
+                show = "";
+            }
+            else
+            {    
+                if (NAD_CDATA_L(pkt->nad, elem) <= 0 || NAD_CDATA_L(pkt->nad, elem) > 19)
+                    show = "";
+                else
+                {
+                    show = strndup(NAD_CDATA(pkt->nad, elem), NAD_CDATA_L(pkt->nad, elem));
+                    show_free = 1;
+                }
+            }
+    }
 
-	    os = os_new();
-	    o = os_object_new(os);
-	    os_object_put(o, "status", "online", os_type_STRING);
-	    os_object_put(o, "show", show, os_type_STRING);
-	    os_object_put(o, "last-login", (void **) &lastlogin, os_type_INTEGER);
-	    os_object_put(o, "last-logout", (void **) &lastlogout, os_type_INTEGER);
-	    storage_replace(sess->user->sm->st, "status", jid_user(sess->jid), NULL, os);
-	    os_free(os);
-
+        os = os_new();
+        o = os_object_new(os);
+        os_object_put(o, "status", "online", os_type_STRING);
+        os_object_put(o, "show", show, os_type_STRING);
+        os_object_put(o, "last-login", (void **) &lastlogin, os_type_INTEGER);
+        os_object_put(o, "last-logout", (void **) &lastlogout, os_type_INTEGER);
+        storage_replace(sess->user->sm->st, "status", jid_user(sess->jid), NULL, os);
+        os_free(os);
+        if(show_free) free(show);
     }
     return mod_PASS;
 }
