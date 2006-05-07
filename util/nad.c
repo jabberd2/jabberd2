@@ -433,6 +433,29 @@ int nad_insert_elem(nad_t nad, int parent, int ns, const char *name, const char 
     return elem;
 }
 
+/** remove an element (and its subelements) */
+void nad_drop_elem(nad_t nad, int elem) {
+    int next, cur;
+
+    _nad_ptr_check(__func__, nad);
+
+    if(elem >= nad->ecur) return;
+
+    /* find the next elem at this depth to move into the space */
+    next = elem + 1;
+    while(next < nad->ecur && nad->elems[next].depth > nad->elems[elem].depth) next++;
+
+    /* relocate */
+    if(next < nad->ecur)
+        memmove(&nad->elems[elem], &nad->elems[next], (nad->ecur - next) * sizeof(struct nad_elem_st));
+    nad->ecur -= next - elem;
+
+    /* relink parents */
+    for(cur = elem; cur < nad->ecur; cur++)
+        if(nad->elems[cur].parent > next)
+            nad->elems[cur].parent -= (next - elem);
+}
+
 /** wrap an element with another element */
 void nad_wrap_elem(nad_t nad, int elem, int ns, const char *name)
 {
@@ -448,6 +471,11 @@ void nad_wrap_elem(nad_t nad, int elem, int ns, const char *name)
     memmove(&nad->elems[elem + 1], &nad->elems[elem], (nad->ecur - elem) * sizeof(struct nad_elem_st));
     nad->ecur++;
 
+    /* relink parents on moved elements */
+    for(cur = elem + 1; cur < nad->ecur; cur++)
+        if(nad->elems[cur].parent > elem + 1)
+            nad->elems[cur].parent++;
+
     /* set up req'd parts of new elem */
     nad->elems[elem].lname = strlen(name);
     nad->elems[elem].iname = _nad_cdata(nad,name,nad->elems[elem].lname);
@@ -461,9 +489,163 @@ void nad_wrap_elem(nad_t nad, int elem, int ns, const char *name)
     nad->elems[elem+1].depth++;
     for(cur = elem + 2; cur < nad->ecur && nad->elems[cur].depth > nad->elems[elem].depth; cur++) nad->elems[cur].depth++;
 
-    /* relink the parents */
+    /* hook up the parent */
     nad->elems[elem].parent = nad->elems[elem + 1].parent;
-    nad->elems[elem + 1].parent = elem;
+}
+
+/** insert part of a nad into another nad */
+int nad_insert_nad(nad_t dest, int delem, nad_t src, int selem) {
+    int nelem, first, i, j, ns, nattr, attr;
+    char buri[256], *uri = buri, bprefix[256], *prefix = bprefix;
+
+    _nad_ptr_check(__func__, dest);
+    _nad_ptr_check(__func__, src);
+
+    /* can't do anything if these aren't real elems */
+    if(src->ecur <= selem || dest->ecur <= delem)
+        return -1;
+
+    /* figure out how many elements to copy */
+    nelem = 1;
+    while(selem + nelem < src->ecur && src->elems[selem + nelem].depth > src->elems[selem].depth) nelem++;
+
+    /* make room */
+    NAD_SAFE(dest->elems, (dest->ecur + nelem) * sizeof(struct nad_elem_st), dest->elen);
+
+    /* relocate all the elems after us */
+    memmove(&dest->elems[delem + nelem + 1], &dest->elems[delem + 1], (dest->ecur - delem - 1) * sizeof(struct nad_elem_st));
+    dest->ecur += nelem;
+
+    /* relink parents on moved elements */
+    for(i = delem + nelem; i < dest->ecur; i++)
+        if(dest->elems[i].parent > delem)
+            dest->elems[i].parent += nelem;
+
+    first = delem + 1;
+
+    /* copy them in, one at a time */
+    for(i = 0; i < nelem; i++) {
+        /* link the parent */
+        dest->elems[first + i].parent = delem + (src->elems[selem + i].parent - src->elems[selem].parent);
+
+        /* depth */
+        dest->elems[first + i].depth = dest->elems[delem].depth + (src->elems[selem + i].depth - src->elems[selem].depth) + 1;
+
+        /* name */
+        dest->elems[first + i].lname = src->elems[selem + i].lname;
+        dest->elems[first + i].iname = _nad_cdata(dest, src->cdata + src->elems[selem + i].iname, src->elems[selem + i].lname);
+
+        /* cdata */
+        dest->elems[first + i].lcdata = src->elems[selem + i].lcdata;
+        dest->elems[first + i].icdata = _nad_cdata(dest, src->cdata + src->elems[selem + i].icdata, src->elems[selem + i].lcdata);
+        dest->elems[first + i].ltail = src->elems[selem + i].ltail;
+        dest->elems[first + i].itail = _nad_cdata(dest, src->cdata + src->elems[selem + i].itail, src->elems[selem + i].ltail);
+
+        /* namespaces */
+        dest->elems[first + i].my_ns = dest->elems[first + i].ns = dest->scope = -1;
+        
+        /* first, the element namespace */
+        ns = src->elems[selem + i].my_ns;
+        if(ns >= 0) {
+            for(j = 0; j < dest->ncur; j++)
+                if(NAD_NURI_L(src, ns) == NAD_NURI_L(dest, j) && strncmp(NAD_NURI(src, ns), NAD_NURI(dest, j), NAD_NURI_L(src, ns)) == 0) {
+                    dest->elems[first + i].my_ns = j;
+                    break;
+                }
+
+            /* not found, gotta add it */
+            if(j == dest->ncur) {
+                /* make room */
+                /* !!! this can go once we have _ex() functions */
+                if(NAD_NURI_L(src, ns) > 255)
+                    uri = (char *) malloc(sizeof(char) * (NAD_NURI_L(src, ns) + 1));
+                if(NAD_NPREFIX_L(src, ns) > 255)
+                    prefix = (char *) malloc(sizeof(char) * (NAD_NURI_L(src, ns) + 1));
+
+                sprintf(uri, "%.*s", NAD_NURI_L(src, ns), NAD_NURI(src, ns));
+
+                if(NAD_NPREFIX_L(src, ns) > 0) {
+                    sprintf(prefix, "%.*s", NAD_NPREFIX_L(src, ns), NAD_NPREFIX(src, ns));
+                    dest->elems[first + i].my_ns = nad_add_namespace(dest, uri, prefix);
+                } else
+                    dest->elems[first + i].my_ns = nad_add_namespace(dest, uri, NULL);
+
+                if(uri != buri) free(uri);
+                if(prefix != bprefix) free(prefix);
+            }
+        }
+
+        /* then, any declared namespaces */
+        for(ns = src->elems[selem + i].ns; ns >= 0; ns = src->nss[ns].next) {
+            for(j = 0; j < dest->ncur; j++)
+                if(NAD_NURI_L(src, ns) == NAD_NURI_L(dest, j) && strncmp(NAD_NURI(src, ns), NAD_NURI(dest, j), NAD_NURI_L(src, ns)) == 0)
+                    break;
+
+            /* not found, gotta add it */
+            if(j == dest->ncur) {
+                /* make room */
+                /* !!! this can go once we have _ex() functions */
+                if(NAD_NURI_L(src, ns) > 255)
+                    uri = (char *) malloc(sizeof(char) * (NAD_NURI_L(src, ns) + 1));
+                if(NAD_NPREFIX_L(src, ns) > 255)
+                    prefix = (char *) malloc(sizeof(char) * (NAD_NURI_L(src, ns) + 1));
+
+                sprintf(uri, "%.*s", NAD_NURI_L(src, ns), NAD_NURI(src, ns));
+
+                if(NAD_NPREFIX_L(src, ns) > 0) {
+                    sprintf(prefix, "%.*s", NAD_NPREFIX_L(src, ns), NAD_NPREFIX(src, ns));
+                    nad_add_namespace(dest, uri, prefix);
+                } else
+                    nad_add_namespace(dest, uri, NULL);
+
+                if(uri != buri) free(uri);
+                if(prefix != bprefix) free(prefix);
+            }
+        }
+
+        /* scope any new namespaces onto this element */
+        dest->elems[first + i].ns = dest->scope; dest->scope = -1;
+
+        /* attributes */
+        dest->elems[first + i].attr = -1;
+        if(src->acur > 0) {
+            nattr = 0;
+            for(attr = src->elems[selem + i].attr; attr >= 0; attr = src->attrs[attr].next) nattr++;
+
+            /* make room */
+            NAD_SAFE(dest->attrs, (dest->acur + nattr) * sizeof(struct nad_attr_st), dest->alen);
+
+            /* kopy ker-azy! */
+            for(attr = src->elems[selem + i].attr; attr >= 0; attr = src->attrs[attr].next) {
+                /* name */
+                dest->attrs[dest->acur].lname = src->attrs[attr].lname;
+                dest->attrs[dest->acur].iname = _nad_cdata(dest, src->cdata + src->attrs[attr].iname, src->attrs[attr].lname);
+
+                /* val */
+                dest->attrs[dest->acur].lval = src->attrs[attr].lval;
+                dest->attrs[dest->acur].ival = _nad_cdata(dest, src->cdata + src->attrs[attr].ival, src->attrs[attr].lval);
+        
+                /* namespace */
+                dest->attrs[dest->acur].my_ns = -1;
+
+                ns = src->attrs[attr].my_ns;
+                if(ns >= 0)
+                    for(j = 0; j < dest->ncur; j++)
+                        if(NAD_NURI_L(src, ns) == NAD_NURI_L(dest, j) && strncmp(NAD_NURI(src, ns), NAD_NURI(dest, j), NAD_NURI_L(src, ns)) == 0) {
+                            dest->attrs[dest->acur].my_ns = j;
+                            break;
+                        }
+                        
+                /* link it up */
+                dest->attrs[dest->acur].next = dest->elems[first + i].attr;
+                dest->elems[first + i].attr = dest->acur;
+
+                dest->acur++;
+            }
+        }
+    }
+
+    return first;
 }
 
 /** create a new elem on the list */
@@ -640,16 +822,28 @@ void _nad_escape(nad_t nad, int data, int len, int flag)
         data = ic+1;
     }
 
-    /* next look for > */
+    /* check for ]]>, we need to escape the > */
     while(flag >= 1 && (c = memchr(nad->cdata + data, '>', len)) != NULL)
     {
         ic = c - nad->cdata;
         _nad_escape(nad, data, ic - data, 0);
 
-        /* ensure enough space, and add our escaped &gt; */
-        NAD_SAFE(nad->cdata, nad->ccur + 4, nad->clen);
-        memcpy(nad->cdata + nad->ccur, "&gt;", 4);
-        nad->ccur += 4;
+        /* check for the sequence */
+        if(c >= nad->cdata + 2 && c[-1] == ']' && c[-2] == ']')
+        {
+            /* ensure enough space, and add our escaped &gt; */
+            NAD_SAFE(nad->cdata, nad->ccur + 4, nad->clen);
+            memcpy(nad->cdata + nad->ccur, "&gt;", 4);
+            nad->ccur += 4;
+        }
+
+        /* otherwise, just plug the > in as-is */
+        else
+        {
+            NAD_SAFE(nad->cdata, nad->ccur + 1, nad->clen);
+            *(nad->cdata + nad->ccur) = '>';
+            nad->ccur++;
+        }
 
         /* just update and loop for more */
         len -= (ic+1) - data;
