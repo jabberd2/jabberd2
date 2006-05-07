@@ -55,9 +55,9 @@ static mod_ret_t _help_pkt_sm(mod_instance_t mi, pkt_t pkt)
     } else {
         org_subject = "(none)";
     }
-    subjectl = strlen(org_subject) + strlen(jid_full(pkt->to)) + 8;
+    subjectl = strlen(org_subject) + strlen(jid_full(pkt->from)) + 8;
     subject = (char *) malloc(sizeof(char) * subjectl);
-    snprintf(subject, subjectl, "Fwd[%s]: %s", jid_full(pkt->to), org_subject);
+    snprintf(subject, subjectl, "Fwd[%s]: %s", jid_full(pkt->from), org_subject);
     if(subj >= 0 && NAD_CDATA_L(pkt->nad, subj) > 0)
     {
         free(org_subject);
@@ -68,14 +68,14 @@ static mod_ret_t _help_pkt_sm(mod_instance_t mi, pkt_t pkt)
     for(jid = all; jid != NULL; jid = jid->next)
     {
         log_debug(ZONE, "resending to %s", jid_full(jid));
-        pkt_router(pkt_dup(pkt, jid_full(jid), jid_full(pkt->from)));
+        pkt_router(pkt_dup(pkt, jid_full(jid), mod->mm->sm->id));
     }
 
     for(jid = msg; jid != NULL; jid = jid->next)
         if(!jid_search(all, jid))
         {
             log_debug(ZONE, "resending to %s", jid_full(jid));
-            pkt_router(pkt_dup(pkt, jid_full(jid), jid_full(pkt->from)));
+            pkt_router(pkt_dup(pkt, jid_full(jid), mod->mm->sm->id));
         }
 
     /* !!! autoreply */
