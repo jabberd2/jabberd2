@@ -264,7 +264,7 @@ void out_packet(s2s_t s2s, pkt_t pkt) {
         out->fd = mio_connect(s2s->mio, pkt->port, pkt->ip, _out_mio_callback, (void *) out);
 
 	if (out->fd == NULL) {
-            log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] mio_connect error: %s (%d)", out->fd->fd, out->ip, out->port, strerror(errno), errno);
+            log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] mio_connect error: %s (%d)", -1, out->ip, out->port, strerror(errno), errno);
 
             /* bounce queues */
             out_bounce_queue(s2s, pkt->to->domain, stanza_err_SERVICE_UNAVAILABLE);
