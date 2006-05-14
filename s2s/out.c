@@ -455,7 +455,8 @@ void out_resolve(s2s_t s2s, nad_t nad) {
 
     for(i = 0; i < npkt; i++) {
         pkt = jqueue_pull(q);
-        out_packet(s2s, pkt);
+        if(pkt)
+            out_packet(s2s, pkt);
     }
 
     jid_free(name);
