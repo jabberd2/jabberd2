@@ -89,6 +89,16 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
                     sprintf(errstring, "%.*s", NAD_CDATA_L(nad, 0), NAD_CDATA(nad, 0));
                 }
 
+                /* if not available, log the whole packet for debugging */
+                if (errstring == NULL) {
+                    char *xml;
+                    int xlen;
+
+                    nad_print(nad, 0, &xml, &xlen);
+                    errstring = (char *) malloc(sizeof(char) * (xlen + 1));
+                    sprintf(errstring, "%.*s", xlen, xml);
+                }
+
                 if(s->state < state_CLOSING) {
                     _sx_gen_error(sxe, SX_ERR_STREAM, "Stream error", errstring);
                     _sx_event(s, event_ERROR, (void *) &sxe);
