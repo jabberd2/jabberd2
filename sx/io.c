@@ -96,7 +96,7 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
 
                     nad_print(nad, 0, &xml, &xlen);
                     errstring = (char *) malloc(sizeof(char) * (xlen + 1));
-                    sprintf(errstring, "%.*s", xlen, xml);
+                    sprintf(errstring, "%.*s", &xlen, &xml);
                 }
 
                 if(s->state < state_CLOSING) {
