@@ -628,15 +628,7 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, char *mech, char *in,
     }
 
     /* decode the response */
-    if(inlen >  0) {
-        _sx_sasl_decode(in, inlen, &buf, &buflen);
-    } else {
-        _sx_debug(ZONE, "sasl handshake failed: no data to decode");
-
-        _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_TEMPORARY_FAILURE), 0);
-
-        return;
-    }
+    _sx_sasl_decode(in, inlen, &buf, &buflen);
 
     /* process the data */
     if(mech != NULL)
