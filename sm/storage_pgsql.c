@@ -523,7 +523,7 @@ static st_ret_t _st_pgsql_count(st_driver_t drv, const char *type, const char *o
         return st_NOTFOUND;
     }
 
-    if(PQgetisnull(res, 0, 0) || PQftype(res, 0) != 23)
+    if(PQgetisnull(res, 0, 0) || PQftype(res, 0) != 20)
         return st_NOTFOUND;
 
     if (count!=NULL)
