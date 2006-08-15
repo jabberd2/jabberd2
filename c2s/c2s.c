@@ -486,8 +486,8 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
             if(port == c2s->local_ssl_port)
                 sx_server_init(sess->s, SX_SSL_WRAPPER | SX_SASL_OFFER);
             else
-                sx_server_init(sess->s, ((sess->host->host_pemfile != NULL) ? SX_SSL_STARTTLS_OFFER : 0) | SX_SASL_OFFER |
-                    (sess->host->host_require_starttls ? SX_SSL_STARTTLS_REQUIRE : 0));
+                sx_server_init(sess->s, ((sess->host != NULL && sess->host->host_pemfile != NULL) ? SX_SSL_STARTTLS_OFFER : 0) | SX_SASL_OFFER |
+                    (sess->host != NULL && sess->host->host_require_starttls ? SX_SSL_STARTTLS_REQUIRE : 0));
 #else
             sx_server_init(sess->s, SX_SASL_OFFER);
 #endif

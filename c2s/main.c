@@ -232,18 +232,10 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
     char mechbuf[256];
     struct jid_st jid;
     jid_static_buf jid_buf;
-    host_t host;
     int i, r;
 
     /* init static jid */
     jid_static(&jid,&jid_buf);
-
-    /* get host for request */
-    host = xhash_get(c2s->hosts, s->req_to);
-    if(host == NULL) {
-        log_write(c2s->log, LOG_ERR, "SASL callback for non-existing host: %s", s->req_to);
-        return sx_sasl_ret_FAIL;
-    }
 
     switch(cb) {
         case sx_sasl_cb_GET_REALM:
@@ -252,6 +244,14 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
                 my_realm = "";
 
             else {
+                host_t host;
+                /* get host for request */
+                host = xhash_get(c2s->hosts, s->req_to);
+                if(host == NULL) {
+                    log_write(c2s->log, LOG_ERR, "SASL callback for non-existing host: %s", s->req_to);
+                    return sx_sasl_ret_FAIL;
+                }
+
                 my_realm = host->realm;
                 if(my_realm == NULL)
                     my_realm = s->req_to;
@@ -555,7 +555,7 @@ int main(int argc, char **argv)
     /* hosts mapping */
     c2s->hosts = xhash_new(1023);
 
-    elem = config_get(c2s->config, "hosts.id");
+    elem = config_get(c2s->config, "local.id");
     for(i = 0; i < elem->nvalues; i++) {
         host_t host = (host_t) malloc(sizeof(struct host_st));
         memset(host, 0, sizeof(struct host_st));
