@@ -122,9 +122,6 @@ static void _c2s_config_expand(c2s_t c2s)
 
     c2s->local_pemfile = config_get_one(c2s->config, "local.pemfile", 0);
 
-    if(config_get(c2s->config, "local.require-starttls") != NULL)
-        c2s->local_require_starttls = 1;
-
     c2s->local_cachain = config_get_one(c2s->config, "local.cachain", 0);
 
     c2s->local_verify_mode = j_atoi(config_get_one(c2s->config, "local.verify-mode", 0), 0);
@@ -140,14 +137,6 @@ static void _c2s_config_expand(c2s_t c2s)
     c2s->io_check_keepalive = j_atoi(config_get_one(c2s->config, "io.check.keepalive", 0), 0);
 
     c2s->ar_module_name = config_get_one(c2s->config, "authreg.module", 0);
-
-    c2s->ar_register_enable = (config_get(c2s->config, "authreg.register.enable") != NULL);
-    if(c2s->ar_register_enable) {
-        c2s->ar_register_instructions = config_get_one(c2s->config, "authreg.register.instructions", 0);
-        if(c2s->ar_register_instructions == NULL)
-            c2s->ar_register_instructions = "Enter a username and password to register with this server.";
-    } else
-        c2s->ar_register_password = (config_get(c2s->config, "authreg.register.password") != NULL);
 
     if(config_get(c2s->config, "authreg.mechanisms.traditional.plain") != NULL) c2s->ar_mechanisms |= AR_MECH_TRAD_PLAIN;
     if(config_get(c2s->config, "authreg.mechanisms.traditional.digest") != NULL) c2s->ar_mechanisms |= AR_MECH_TRAD_DIGEST;
@@ -243,10 +232,18 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
     char mechbuf[256];
     struct jid_st jid;
     jid_static_buf jid_buf;
+    host_t host;
     int i, r;
 
     /* init static jid */
     jid_static(&jid,&jid_buf);
+
+    /* get host for request */
+    host = xhash_get(c2s->hosts, s->req_to);
+    if(host == NULL) {
+        log_write(c2s->log, LOG_ERR, "SASL callback for non-existing host: %s", s->req_to);
+        return sx_sasl_ret_FAIL;
+    }
 
     switch(cb) {
         case sx_sasl_cb_GET_REALM:
@@ -255,7 +252,7 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
                 my_realm = "";
 
             else {
-                my_realm = xhash_get(c2s->realms, s->req_to);
+                my_realm = host->realm;
                 if(my_realm == NULL)
                     my_realm = s->req_to;
             }
@@ -555,11 +552,14 @@ int main(int argc, char **argv)
 
     c2s->mio = mio_new(c2s->io_max_fds);
 
-    /* realm mapping */
-    c2s->realms = xhash_new(51);
+    /* hosts mapping */
+    c2s->hosts = xhash_new(1023);
 
-    elem = config_get(c2s->config, "local.id");
+    elem = config_get(c2s->config, "hosts.id");
     for(i = 0; i < elem->nvalues; i++) {
+        host_t host = (host_t) malloc(sizeof(struct host_st));
+        memset(host, 0, sizeof(struct host_st));
+
         realm = j_attr((const char **) elem->attrs[i], "realm");
 
         /* stringprep ids (domain names) so that they are in canonical form */
@@ -567,13 +567,31 @@ int main(int argc, char **argv)
         id[1023] = '\0';
 #ifdef HAVE_IDN
         if (stringprep_nameprep(id, 1024) != 0) {
-           log_write(c2s->log, LOG_ERR, "cannot stringprep id %s, aborting", id);
-           exit(1);
+            log_write(c2s->log, LOG_ERR, "cannot stringprep id %s, aborting", id);
+            exit(1);
         }
 #endif
-        xhash_put(c2s->realms, pstrdup(xhash_pool(c2s->realms), id), (realm != NULL) ? realm : pstrdup(xhash_pool(c2s->realms), id));
 
-        log_write(c2s->log, LOG_NOTICE, "[%s] configured; realm=%s", id, realm);
+        host->realm = (realm != NULL) ? realm : pstrdup(xhash_pool(c2s->hosts), id);
+
+        host->host_pemfile = j_attr((const char **) elem->attrs[i], "pemfile");
+
+        host->host_require_starttls = (j_attr((const char **) elem->attrs[i], "require-starttls") != NULL);
+
+        host->host_verify_mode = j_atoi(j_attr((const char **) elem->attrs[i], "verify-mode"), 0);
+
+        host->ar_register_enable = (j_attr((const char **) elem->attrs[i], "register-enable") != NULL);
+        if(host->ar_register_enable) {
+            host->ar_register_instructions = j_attr((const char **) elem->attrs[i], "instructions");
+            if(host->ar_register_instructions == NULL)
+                host->ar_register_instructions = "Enter a username and password to register with this server.";
+        } else
+            host->ar_register_password = (j_attr((const char **) elem->attrs[i], "password-change") != NULL);
+
+        xhash_put(c2s->hosts, pstrdup(xhash_pool(c2s->hosts), id), host);
+
+        log_write(c2s->log, LOG_NOTICE, "[%s] configured; realm=%s, registration %s",
+                  id, realm, (host->ar_register_enable ? "enabled" : "disabled"));
     }
 
     c2s->sm_avail = xhash_new(51);
@@ -691,7 +709,7 @@ int main(int argc, char **argv)
 
     xhash_free(c2s->sm_avail);
 
-    xhash_free(c2s->realms);
+    xhash_free(c2s->hosts);
 
     jqueue_free(c2s->dead);
 

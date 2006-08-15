@@ -36,6 +36,7 @@
 #endif
 
 /* forward decl */
+typedef struct host_st      *host_t;
 typedef struct c2s_st       *c2s_t;
 typedef struct sess_st      *sess_t;
 typedef struct authreg_st   *authreg_t;
@@ -57,8 +58,6 @@ struct sess_st {
 
     time_t              last_activity;
 
-    char                *realm;
-
     int                 bound;
     int                 active;
 
@@ -70,7 +69,10 @@ struct sess_st {
     jid_t               jid;
 
     /** session id for us and them */
-    char                c2s_id[10], sm_id[41];
+    char                c2s_id[24], sm_id[41];
+
+    /** host this session belongs to */
+    host_t              host;
 
     /** this holds the id of the current pending SM request */
     char                sm_request[41];
@@ -80,6 +82,26 @@ struct sess_st {
 #define AR_MECH_TRAD_PLAIN      (1<<0)
 #define AR_MECH_TRAD_DIGEST     (1<<1)
 #define AR_MECH_TRAD_ZEROK      (1<<2)
+
+struct host_st {
+    /** our realm (SASL) */
+    char                *realm;
+
+    /** starttls pemfile */
+    char                *host_pemfile;
+
+    /** verify-mode  */
+    int                 host_verify_mode;
+
+    /** require starttls */
+    int                 host_require_starttls;
+
+    /** registration */
+    int                 ar_register_enable;
+    char                *ar_register_instructions;
+    int                 ar_register_password;
+
+};
 
 struct c2s_st {
     /** our id (hostname) with the router */
@@ -136,20 +158,17 @@ struct c2s_st {
     /** unencrypted port */
     int                 local_port;
 
-    /** starttls pemfile */
-    char                *local_pemfile;
+    /** encrypted port */
+    int                 local_ssl_port;
 
-    /** require starttls */
-    int                 local_require_starttls;
+    /** encrypted port pemfile */
+    char                *local_pemfile;
 
     /** certificate chain */
     char                *local_cachain;
 
     /** verify-mode  */
     int                 local_verify_mode;
-
-    /** encrypted port */
-    int                 local_ssl_port;
 
     /** http forwarding URL */
     char                *http_forward;
@@ -167,11 +186,6 @@ struct c2s_st {
     /** auth/reg module */
     char                *ar_module_name;
     authreg_t           ar;
-
-    /** registration */
-    int                 ar_register_enable;
-    char                *ar_register_instructions;
-    int                 ar_register_password;
 
     /** allowed mechanisms */
     int                 ar_mechanisms;
@@ -206,8 +220,8 @@ struct c2s_st {
     /** true if we're bound in the router */
     int                 online;
 
-    /** domain -> auth realm mapping */
-    xht                 realms;
+    /** hosts mapping */
+    xht                 hosts;
 
     /** availability of sms that we are servicing */
     xht                 sm_avail;

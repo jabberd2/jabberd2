@@ -204,7 +204,7 @@ static void _authreg_auth_get(c2s_t c2s, sess_t sess, nad_t nad) {
     }
     
     /* do we have the user? */
-    if((c2s->ar->user_exists)(c2s->ar, username, sess->realm) == 0) {
+    if((c2s->ar->user_exists)(c2s->ar, username, sess->host->realm) == 0) {
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_OLD_UNAUTH), 0));
         return;
     }
@@ -243,7 +243,7 @@ static void _authreg_auth_get(c2s_t c2s, sess_t sess, nad_t nad) {
         nad_append_elem(nad, ns, "digest", 2);
 
     /* don't offer zerok if the sequence is zero */
-    if(c2s->ar_mechanisms & AR_MECH_TRAD_ZEROK && c2s->ar->get_zerok != NULL && c2s->ar->set_zerok != NULL && (c2s->ar->get_zerok)(c2s->ar, username, sess->realm, shash, stoken, &ssequence) == 0 && ssequence > 0)
+    if(c2s->ar_mechanisms & AR_MECH_TRAD_ZEROK && c2s->ar->get_zerok != NULL && c2s->ar->set_zerok != NULL && (c2s->ar->get_zerok)(c2s->ar, username, sess->host->realm, shash, stoken, &ssequence) == 0 && ssequence > 0)
     {
         snprintf(seqs, 10, "%d", ssequence - 1);
         nad_append_elem(nad, ns, "sequence", 2);
@@ -319,13 +319,13 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
     }
     
     /* do we have the user? */
-    if((c2s->ar->user_exists)(c2s->ar, username, sess->realm) == 0) {
+    if((c2s->ar->user_exists)(c2s->ar, username, sess->host->realm) == 0) {
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_OLD_UNAUTH), 0));
         return;
     }
     
     /* zerok auth */
-    if(!authd && c2s->ar_mechanisms & AR_MECH_TRAD_ZEROK && c2s->ar->get_zerok != NULL && c2s->ar->set_zerok != NULL && (c2s->ar->get_zerok)(c2s->ar, username, sess->realm, shash, stoken, &ssequence) == 0)
+    if(!authd && c2s->ar_mechanisms & AR_MECH_TRAD_ZEROK && c2s->ar->get_zerok != NULL && c2s->ar->set_zerok != NULL && (c2s->ar->get_zerok)(c2s->ar, username, sess->host->realm, shash, stoken, &ssequence) == 0)
     {
         elem = nad_find_elem(nad, 1, ns, "hash", 1);
         if(elem >= 0)
@@ -340,7 +340,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
 
                 /* don't auth them if we can't update their auth creds */
                 snprintf(str, 41, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
-                if((c2s->ar->set_zerok)(c2s->ar, username, sess->realm, str, stoken, ssequence) == 0)
+                if((c2s->ar->set_zerok)(c2s->ar, username, sess->host->realm, str, stoken, ssequence) == 0)
                 {
                     authd = 1;
                     log_debug(ZONE, "zerok auth succeeded");
@@ -357,7 +357,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
         elem = nad_find_elem(nad, 1, ns, "digest", 1);
         if(elem >= 0)
         {
-            if((c2s->ar->get_password)(c2s->ar, username, sess->realm, str) == 0)
+            if((c2s->ar->get_password)(c2s->ar, username, sess->host->realm, str) == 0)
             {
                 snprintf(hash, 280, "%s%s", sess->s->id, str);
                 shahash_r(hash, hash);
@@ -377,7 +377,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
         elem = nad_find_elem(nad, 1, ns, "password", 1);
         if(elem >= 0)
         {
-            if((c2s->ar->get_password)(c2s->ar, username, sess->realm, str) == 0 && strlen(str) == NAD_CDATA_L(nad, elem) && strncmp(str, NAD_CDATA(nad, elem), NAD_CDATA_L(nad, elem)) == 0)
+            if((c2s->ar->get_password)(c2s->ar, username, sess->host->realm, str) == 0 && strlen(str) == NAD_CDATA_L(nad, elem) && strncmp(str, NAD_CDATA(nad, elem), NAD_CDATA_L(nad, elem)) == 0)
             {
                 log_debug(ZONE, "plaintext auth (compare) succeeded");
                 authd = 1;
@@ -392,7 +392,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
         if(elem >= 0)
         {
             snprintf(str, 1024, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
-            if((c2s->ar->check_password)(c2s->ar, username, sess->realm, str) == 0)
+            if((c2s->ar->check_password)(c2s->ar, username, sess->host->realm, str) == 0)
             {
                 log_debug(ZONE, "plaintext auth (check) succeded");
                 authd = 1;
@@ -449,7 +449,7 @@ static void _authreg_register_get(c2s_t c2s, sess_t sess, nad_t nad) {
     char id[128];
 
     /* registrations can happen if reg is enabled and we can create users and set passwords */
-    if(sess->active || !(c2s->ar->set_password != NULL && c2s->ar->create_user != NULL && c2s->ar_register_enable)) {
+    if(sess->active || !(c2s->ar->set_password != NULL && c2s->ar->create_user != NULL && sess->host->ar_register_enable)) {
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_NOT_ALLOWED), 0));
         return;
     }
@@ -479,7 +479,7 @@ static void _authreg_register_get(c2s_t c2s, sess_t sess, nad_t nad) {
     nad_append_elem(nad, ns, "password", 2);
 
     nad_append_elem(nad, ns, "instructions", 2);
-    nad_append_cdata(nad, c2s->ar_register_instructions, strlen(c2s->ar_register_instructions), 3);
+    nad_append_cdata(nad, sess->host->ar_register_instructions, strlen(sess->host->ar_register_instructions), 3);
 
     /* give it back to the client */
     sx_nad_write(sess->s, nad);
@@ -492,7 +492,7 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
     char username[1024], password[1024], hash[41], token[11], str[51];
 
     /* if we're not configured for registration (or pw changes), or we can't set passwords, fail outright */
-    if(!(c2s->ar_register_enable || c2s->ar_register_password) || c2s->ar->set_password == NULL) {
+    if(!(sess->host->ar_register_enable || sess->host->ar_register_password) || c2s->ar->set_password == NULL) {
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_NOT_ALLOWED), 0));
         return;
     }
@@ -502,7 +502,7 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
     /* removals */
     if(sess->active && nad_find_elem(nad, 1, ns, "remove", 1) >= 0) {
         /* only if full reg is enabled */
-        if(!c2s->ar_register_enable) {
+        if(!sess->host->ar_register_enable) {
             sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_NOT_ALLOWED), 0));
             return;
         }
@@ -516,13 +516,13 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
         }
 
         /* otherwise, delete them */
-        if((c2s->ar->delete_user)(c2s->ar, sess->jid->node, sess->realm) != 0) {
+        if((c2s->ar->delete_user)(c2s->ar, sess->jid->node, sess->host->realm) != 0) {
             log_debug(ZONE, "user delete failed");
             sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_INTERNAL_SERVER_ERROR), 0));
             return;
         }
 
-        log_write(c2s->log, LOG_NOTICE, "[%d] deleted user: user=%s; realm=%s", sess->s->tag, sess->jid->node, sess->realm);
+        log_write(c2s->log, LOG_NOTICE, "[%d] deleted user: user=%s; realm=%s", sess->s->tag, sess->jid->node, sess->host->realm);
 
         log_write(c2s->log, LOG_NOTICE, "[%d] registration remove succeeded, requesting user deletion: jid=%s", sess->s->tag, jid_user(sess->jid));
 
@@ -589,13 +589,13 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
     }
 
     /* can't go on if we're not doing full reg */
-    else if(!c2s->ar_register_enable) {
+    else if(!sess->host->ar_register_enable) {
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_NOT_ALLOWED), 0));
         return;
     }
 
     /* if they exist, bounce */
-    else if((c2s->ar->user_exists)(c2s->ar, username, sess->realm))
+    else if((c2s->ar->user_exists)(c2s->ar, username, sess->host->realm))
     {
         log_debug(ZONE, "attempt to register %s, but they already exist", username);
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_CONFLICT), 0));
@@ -610,7 +610,7 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
     }
 
     /* otherwise, create them */
-    else if((c2s->ar->create_user)(c2s->ar, username, sess->realm) != 0)
+    else if((c2s->ar->create_user)(c2s->ar, username, sess->host->realm) != 0)
     {
         log_debug(ZONE, "user create failed");
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_INTERNAL_SERVER_ERROR), 0));
@@ -618,13 +618,13 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
     }
 
     else
-        log_write(c2s->log, LOG_NOTICE, "[%d] created user: user=%s; realm=%s", sess->s->tag, username, sess->realm);
+        log_write(c2s->log, LOG_NOTICE, "[%d] created user: user=%s; realm=%s", sess->s->tag, username, sess->host->realm);
 
     /* extract the password */
     snprintf(password, 257, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
 
     /* change it */
-    if((c2s->ar->set_password)(c2s->ar, username, sess->realm, password) != 0)
+    if((c2s->ar->set_password)(c2s->ar, username, sess->host->realm, password) != 0)
     {
         log_debug(ZONE, "password store failed");
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_INTERNAL_SERVER_ERROR), 0));
@@ -645,7 +645,7 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
 
         hash[40] = '\0';
     
-        if((c2s->ar->set_zerok)(c2s->ar, username, sess->realm, hash, token, sequence) != 0)
+        if((c2s->ar->set_zerok)(c2s->ar, username, sess->host->realm, hash, token, sequence) != 0)
         {
             log_debug(ZONE, "zerok store failed");
             sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_INTERNAL_SERVER_ERROR), 0));

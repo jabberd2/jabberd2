@@ -171,11 +171,11 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                 return 0;
             }
 
-            /* setup the realm */
-            sess->realm = xhash_get(sess->c2s->realms, s->req_to);
+            /* setup the host */
+            sess->host = xhash_get(sess->c2s->hosts, s->req_to);
 
-            if(sess->realm == NULL) {
-                log_debug(ZONE, "no service available for requested domain '%s'", s->req_to);
+            if(sess->host == NULL) {
+                log_debug(ZONE, "no host available for requested domain '%s'", s->req_to);
                 sx_error(s, stream_err_HOST_UNKNOWN, "service requested for unknown domain");
                 sx_close(s);
                 
@@ -486,8 +486,8 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
             if(port == c2s->local_ssl_port)
                 sx_server_init(sess->s, SX_SSL_WRAPPER | SX_SASL_OFFER);
             else
-                sx_server_init(sess->s, ((c2s->local_pemfile != NULL) ? SX_SSL_STARTTLS_OFFER : 0) | SX_SASL_OFFER |
-                    (c2s->local_require_starttls ? SX_SSL_STARTTLS_REQUIRE : 0));
+                sx_server_init(sess->s, ((sess->host->host_pemfile != NULL) ? SX_SSL_STARTTLS_OFFER : 0) | SX_SASL_OFFER |
+                    (sess->host->host_require_starttls ? SX_SSL_STARTTLS_REQUIRE : 0));
 #else
             sx_server_init(sess->s, SX_SASL_OFFER);
 #endif
@@ -514,10 +514,10 @@ static void _c2s_component_presence(c2s_t c2s, nad_t nad) {
     if(nad_find_attr(nad, 0, -1, "type", NULL) < 0) {
         log_debug(ZONE, "component available from '%s'", from);
 
-        if(xhash_get(c2s->realms, from) != NULL) {
+        if(xhash_get(c2s->hosts, from) != NULL) {
             log_debug(ZONE, "sm for serviced domain '%s' online", from);
 
-            xhash_put(c2s->sm_avail, pstrdup(xhash_pool(c2s->realms), from), (void *) 1);
+            xhash_put(c2s->sm_avail, pstrdup(xhash_pool(c2s->sm_avail), from), (void *) 1);
         }
 
         nad_free(nad);
@@ -878,10 +878,10 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
                         /* create failed, so we need to remove them from authreg */
                         if(NAD_AVAL_L(nad, action) == 6 && c2s->ar->delete_user != NULL) {
-                            if((c2s->ar->delete_user)(c2s->ar, sess->jid->node, sess->realm) != 0)
-                                log_write(c2s->log, LOG_NOTICE, "[%d] user creation failed, and unable to delete user credentials: user=%s, realm=%s", sess->s->tag, sess->jid->node, sess->realm);
+                            if((c2s->ar->delete_user)(c2s->ar, sess->jid->node, sess->host->realm) != 0)
+                                log_write(c2s->log, LOG_NOTICE, "[%d] user creation failed, and unable to delete user credentials: user=%s, realm=%s", sess->s->tag, sess->jid->node, sess->host->realm);
                             else
-                                log_write(c2s->log, LOG_NOTICE, "[%d] user creation failed, so deleted user credentials: user=%s, realm=%s", sess->s->tag, sess->jid->node, sess->realm);
+                                log_write(c2s->log, LOG_NOTICE, "[%d] user creation failed, so deleted user credentials: user=%s, realm=%s", sess->s->tag, sess->jid->node, sess->host->realm);
                         }
 
                         /* error the result and return it to the client */
