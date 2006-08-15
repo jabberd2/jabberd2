@@ -62,27 +62,20 @@
 
   <!-- Local network configuration -->
   <local>
-    <!-- Who we identify ourselves as. This should correspond to the
-         ID (host) that the session manager thinks it is. You can
-         specify more than one to support virtual hosts, as long as you
-         have additional session manager instances on the network to
-         handle those hosts. The realm attribute specifies the auth/reg
-         or SASL authentication realm for the host. If the attribute is
-         not specified, the realm will be selected by the SASL
-         mechanism, or will be the same as the ID itself. Be aware that
-         users are assigned to a realm, not a host, so two hosts in the
-         same realm will have the same users.
-         If no realm is specified, it will be set to be the same as the
-         ID. -->
-    <id>localhost</id>
-    <!-- <id realm='company'>localhost</id> -->
-
     <!-- IP address to bind to (default: 0.0.0.0) -->
     <ip>0.0.0.0</ip>
 
     <!-- Port to bind to, or 0 to disable unencrypted access to the
          server (default: 5222) -->
     <port>5222</port>
+
+    <!-- Older versions of jabberd support encrypted client connections
+         via an additional listening socket on port 5223. If you want
+         this (required to allow pre-STARTTLS clients to do SSL),
+         uncomment this -->
+    <!--
+    <ssl-port>5223</ssl-port>
+    -->
 
     <!-- File containing a SSL certificate and private key for client
          connections. If this is commented out, clients will not be
@@ -102,26 +95,64 @@
     <cachain>@sysconfdir@/cachain.pem</cachain>
     -->
 
-    <!-- Require STARTTLS. If this is enabled, clients must do STARTTLS
-         before they can authenticate. Until the stream is encrypted,
-         all packets will be dropped. -->
-    <!--
-    <require-starttls/>
-    -->
-
-    <!-- Older versions of jabberd support encrypted client connections
-         via an additional listening socket on port 5223. If you want
-         this (required to allow pre-STARTTLS clients to do SSL),
-         uncomment this -->
-    <!--
-    <ssl-port>5223</ssl-port>
-    -->
-
     <!-- Forward incoming HTTP clients to a real HTTP server -->
     <!--
     <httpforward>http://www.jabber.org/</httpforward>
     -->
   </local>
+
+  <!-- Local hosts configuration. -->
+  <hosts>
+    <!-- Who we identify ourselves as. This should correspond to the
+         ID (host) that the session manager thinks it is. You can
+         specify more than one to support virtual hosts, as long as you
+         have additional session manager instances on the network to
+         handle those hosts.
+         
+         realm
+         attribute specifies the auth/reg or SASL authentication realm
+         for the host. If the attribute is not specified, the realm will
+         be selected by the SASL mechanism, or will be the same as the ID
+         itself. Be aware that users are assigned to a realm, not a host,
+         so two hosts in the same realm will have the same users. If no
+         realm is specified, it will be set to be the same as the ID.
+         
+         pemfile
+         attribute specifies the file containing a SSL certificate and
+         private key for client connections. If this is non existant,
+         clients will not be offered the STARTTLS stream extension
+         
+         verify-mode
+         SSL verify mode - see SSL_CTX_set_verify(3), mode parameter
+         
+         require-starttls
+         If this is enabled, clients must do STARTTLS
+         before they can authenticate. Until the stream is encrypted,
+         all packets will be dropped.
+         
+         register-enable
+         Remove this attribute to disable account registrations.
+         
+         instructions
+         Human-readable instructions to be returned to client when
+         registration is requested.
+         
+         password-change
+         Password change only. When registration is disabled, it may
+         still be useful to allow clients to change their password. If
+         you want this, add this attribute when you disable registration.
+          -->
+    <id register-enable='true'>localhost</id>
+    <!-- or
+    <id realm='company'
+        pemfile='/usr/local/etc/jabberd/server.pem'
+        verify-mode='7'
+        require-starttls='true'
+        register-enable='true'
+        instructions='Enter a username and password to register with this server.'
+        password-change='true'
+    >localhost</id> -->
+  </hosts>
 
   <!-- Input/output settings -->
   <io>
@@ -223,25 +254,6 @@
   <authreg>
     <!-- Backend module to use -->
     <module>mysql</module>
-
-    <!-- Registration configuration -->
-    <register>
-      <!-- Account registration is enabled by default (provided the
-           auth/reg module in use supports it). Comment this out to
-           disable. -->
-      <enable/>
-
-      <!-- Human-readable instructions to be returned to client when
-           registration is requested. -->
-      <instructions>Enter a username and password to register with this server.</instructions>
-
-      <!-- Password change only. When registration is disabled, it may
-           still be useful to allow clients to change their password. If
-           you want this, uncomment this when you disable registration. -->
-      <!--
-      <password/>
-      -->
-    </register>
 
     <!-- Available authentication mechanisms -->
     <mechanisms>
