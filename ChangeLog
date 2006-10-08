@@ -1,3 +1,6 @@
+2006-10-08 Tomasz Sterna <tomek@xiaoka.com>
+	* integrated Juha Heinanen's authreg_pam realm handling
+
 2006-08-15 Tomasz Sterna <tomek@xiaoka.com>
 	* implemented c2s configuration per host basis
 
