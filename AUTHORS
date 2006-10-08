@@ -22,7 +22,10 @@ The main culprits for this release are:
       current coordinator for this whole mess.
 
   Stephen Marquard  <xmpp:scm@jabber.org>
-    - Uber bug fixer and the main dev keeping this project alive
+    - Uber bug fixer
+
+  Tomasz Sterna <xmpp:smoku@xiaoka.com>
+    - Bug fixer, merger. Keeping jabberd2 alive at xiaoka.com.
 
 Other people who chipped in:
 
