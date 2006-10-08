@@ -63,12 +63,28 @@ static int _ar_pam_delay(int ret, unsigned int usec, void *arg) {
 static int _ar_pam_check_password(authreg_t ar, char *username, char *realm, char password[257]) {
     struct pam_conv conv;
     pam_handle_t *pam;
-    int ret;
+    int ret, user_len, realm_len;
+    char *user_realm = 0;
 
     conv.conv = _ar_pam_conversation;
     conv.appdata_ptr = password;
 
-    ret = pam_start("jabberd", username, &conv, &pam);
+    if (realm) {
+	realm_len = strlen(realm);
+	if (realm_len > 0) {
+	    user_len = strlen(username);
+	    user_realm = malloc(user_len + realm_len + 2);
+	    strcpy(user_realm, username);
+	    *(user_realm + user_len) = '@';
+	    strcpy(user_realm + user_len + 1, realm);
+	}
+    }
+    if (user_realm) {
+	ret = pam_start("jabberd", user_realm, &conv, &pam);
+    } else {
+	ret = pam_start("jabberd", username, &conv, &pam);
+    }
+    if (user_realm) free(user_realm);
     if(ret != PAM_SUCCESS) {
         log_write(ar->c2s->log, LOG_ERR, "pam: couldn't initialise PAM: %s", pam_strerror(NULL, ret));
         return 1;
