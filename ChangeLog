@@ -1,3 +1,64 @@
+2006-08-15 Tomasz Sterna <tomek@xiaoka.com>
+	* implemented c2s configuration per host basis
+
+2006-07-19 Tomasz Sterna <tomek@xiaoka.com>
+	* fixed counting queue messages
+
+2006-05-24 Tomasz Sterna <tomek@xiaoka.com>
+	* logging the whole error packet on error
+
+2006-05-10 Tomasz Sterna <tomek@xiaoka.com>
+	* fixed logging failed connection fd
+
+2006-05-07 Tomasz Sterna <tomek@xiaoka.com>
+	* forwarding help messages as message from sm
+	  subject is modified to: "Fwd[from]: org subject"
+	* remerged nad_drop_elem() and nad_insert_nad()
+	* fixed memleak
+
+2006-05-06 Tomasz Sterna <tomek@xiaoka.com>
+	* memory cleanup checks
+	* pemfile handling fixes
+	* cosmetics
+	* ext_id fixes
+	* MIO debug added
+	* epoll fixes
+	* sasl handling and memleaks fixed
+
+2006-05-05 Tomasz Sterna <tomek@xiaoka.com>
+	* temporary pemfile freeing tracking
+	* check for vsyslog
+	* added some bounds checking
+
+2006-05-04 Tomasz Sterna <tomek@xiaoka.com>
+	* fd to fd->fd transition fixes
+	* unterminated string error fixed
+	* epoll memory handling fixes
+
+2006-05-03 Tomasz Sterna <tomek@xiaoka.com>
+	* fixed memleaks
+	* malloc'ed memory cleaning/initialising
+	* wrong stream external_id handling fixed
+	* removed unused NDEBUG compile switch
+	* clean malloc'ed memory
+
+2006-05-02 Tomasz Sterna <tomek@xiaoka.com>
+	* segv bugfix
+	* more presence/subscription handling fixes
+
+2006-05-01 Tomasz Sterna <tomek@xiaoka.com>
+	* fixed subscription acknowledgment endless-loop
+	  RFC3921 8.2.9, RFC3921 9.2, RFC3921 8.2.8
+	* CA chain loading order fix
+
+2006-04-28 Tomasz Sterna <tomek@xiaoka.com>
+	* iq:last conversion
+	* jabberd14 xdb_sql database to jabberd2 database conversion script
+
+2006-04-27 Tomasz Sterna <tomek@xiaoka.com>
+	* removed reading whole http request
+	* added bounce logging
+
 2006-04-26 Tomasz Sterna <tomek@xiaoka.com>
 	* integrated psql schema fixes by Cedric Vivier
 	* integrated mod_amp by Cedric Vivier
