@@ -49,11 +49,6 @@
 # include <config.h>
 #endif
 
-/* !!! if configure ever checks for expat, then remove this */
-#ifndef HAVE_EXPAT
-# define HAVE_EXPAT 1
-#endif
-
 #include "pool.h"
 
 struct nad_elem_st {
@@ -148,10 +143,8 @@ void nad_print(nad_t nad, int elem, char **xml, int *len);
 void nad_serialize(nad_t nad, char **buf, int *len);
 nad_t nad_deserialize(pool_t p, const char *buf);
 
-#ifdef HAVE_EXPAT
 /** create a nad from raw xml */
 nad_t nad_parse(pool_t p, const char *buf, int len);
-#endif
 
 /* these are some helpful macros */
 #define NAD_ENAME(N,E) (N->cdata + N->elems[E].iname)

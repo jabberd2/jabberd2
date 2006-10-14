@@ -3,7 +3,6 @@ jabber2/
     docs/       - Documentation
         dev/    - Hacker docs
 
-    expat/      - Expat (XML parsing library)
     idn/        - GNU Libidn (stringprep)
     mio/        - Managed Input/Ouput (FD event processor)
     sx/         - Streams for XML (Jabber connection / stream library)

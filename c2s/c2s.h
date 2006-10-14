@@ -22,6 +22,8 @@
 # include <config.h>
 #endif
 
+#include <expat.h>
+
 #include "mio/mio.h"
 #include "sx/sx.h"
 #include "sx/ssl.h"

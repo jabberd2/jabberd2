@@ -48,8 +48,7 @@ sm_LDFLAGS = -Wl,-export-dynamic
 sm_LDADD = $(top_builddir)/sx/libsx.la \
            $(top_builddir)/mio/libmio.la \
            $(top_builddir)/util/libutil.la \
-           $(top_builddir)/subst/libsubst.la \
-           $(top_builddir)/expat/libexpat.la
+           $(top_builddir)/subst/libsubst.la
 
 libmod_active_la_SOURCES = mod_active.c
 libmod_active_la_LDFLAGS = -shared -E

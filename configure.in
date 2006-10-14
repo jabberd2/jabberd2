@@ -312,6 +312,13 @@ if test "x-$want_ssl" = "x-yes" ; then
     AC_DEFINE(HAVE_SSL,1,[Define to 1 if OpenSSL is available.])
 fi
 
+dnl find expat
+AC_ARG_ENABLE(expat, AC_HELP_STRING([--enable-expat], [enable expat (yes)]), want_expat=$enableval, want_expat=yes)
+if test "x-$want_expat" = "x-yes" ; then
+    AC_CHECK_HEADERS(expat.h)
+    LIBS="-lexpat $LIBS"
+fi
+
 
 dnl
 dnl optional libs
@@ -782,7 +789,6 @@ AC_OUTPUT(Makefile \
           etc/templates/Makefile \
           tools/Makefile \
           man/Makefile \
-          expat/Makefile \
           mio/Makefile \
           subst/Makefile \
           sx/Makefile \

@@ -25,6 +25,7 @@
 
 #include <sasl/sasl.h>
 #include <sasl/saslutil.h>
+#include <sasl/saslplug.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -19,7 +19,7 @@
  */
 
 #include "util.h"
-#include "expat/expat.h"
+#include "expat.h"
 
 /** new config structure */
 config_t config_new(void)

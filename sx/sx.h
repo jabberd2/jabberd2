@@ -27,7 +27,7 @@
 
 #include "ac-stdint.h"
 
-#include <expat/expat.h>
+#include <expat.h>
 #include <util/util.h>
 
 #ifdef __cplusplus

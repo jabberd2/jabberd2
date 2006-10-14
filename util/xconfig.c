@@ -20,7 +20,7 @@
 
 #include "xconfig.h"
 
-#include "expat/expat.h"
+#include "expat.h"
 
 #include <stdio.h>
 #include <string.h>

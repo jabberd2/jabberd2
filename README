@@ -1,10 +1,16 @@
-README for Jabber Open Source Server (2.0s8)
+README for Jabber Open Source Server (2.1ch)
 
-Thanks for downloading jabberd 2.0. Below are some basic instructions to
+Thanks for downloading jabberd 2.1. Below are some basic instructions to
 get you started. Complete documentation is available at
 http://jabberd.jabberstudio.org/2/docs/
 
 -- the jabberd team
+
+
+Required packages:
+
+ - expat - XML parsing libraries
+     http://expat.sourceforge.net/
 
 
 Optional packages:

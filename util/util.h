@@ -31,6 +31,8 @@
 #include <errno.h>
 #include <assert.h>
 
+#include <expat.h>
+
 #ifdef HAVE_SYS_TYPES_H
 # include <sys/types.h>
 #endif
@@ -72,10 +74,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* expat is available */
-#define HAVE_EXPAT 1
-
 
 /* crypto hashing utils */
 #include "sha1.h"
@@ -531,10 +529,8 @@ void nad_print(nad_t nad, int elem, char **xml, int *len);
 void nad_serialize(nad_t nad, char **buf, int *len);
 nad_t nad_deserialize(nad_cache_t cache, const char *buf);
 
-#ifdef HAVE_EXPAT
 /** create a nad from raw xml */
 nad_t nad_parse(nad_cache_t cache, const char *buf, int len);
-#endif
 
 /* these are some helpful macros */
 #define NAD_ENAME(N,E) (N->cdata + N->elems[E].iname)

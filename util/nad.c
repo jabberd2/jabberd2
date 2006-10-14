@@ -34,9 +34,7 @@
 
 #include "util.h"
 
-#ifdef HAVE_EXPAT
-#include "expat/expat.h"
-#endif
+#include "expat.h"
 
 /* define NAD_DEBUG to get pointer tracking - great for weird bugs that you can't reproduce */
 #ifdef NAD_DEBUG
@@ -1180,7 +1178,6 @@ nad_t nad_deserialize(nad_cache_t cache, const char *buf) {
     return nad;
 }
 
-#ifdef HAVE_EXPAT
 
 /** parse a buffer into a nad */
 
@@ -1323,5 +1320,3 @@ nad_t nad_parse(nad_cache_t cache, const char *buf, int len) {
 
     return bd.nad;
 }
-
-#endif
