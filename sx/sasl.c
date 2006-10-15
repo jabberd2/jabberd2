@@ -345,7 +345,7 @@ static void _sx_sasl_stream(sx_t s, sx_plugin_t p) {
     sasl_conn_t *sasl;
     _sx_sasl_data_t sd;
     int ret, i;
-    char *realm, *ext_id, *mech;
+    char *realm = NULL, *ext_id, *mech;
     sasl_security_properties_t sec_props;
 
     /* First time around, we need to set up our SASL connection, otherwise

@@ -249,6 +249,7 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
                 host = xhash_get(c2s->hosts, s->req_to);
                 if(host == NULL) {
                     log_write(c2s->log, LOG_ERR, "SASL callback for non-existing host: %s", s->req_to);
+                    *res = (void *)NULL;
                     return sx_sasl_ret_FAIL;
                 }
 
@@ -258,7 +259,7 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
             }
 
             strncpy(buf, my_realm, 256);
-            *res = buf;
+            *res = (void *)buf;
 
             log_debug(ZONE, "sx sasl callback: get realm: realm is '%s'", buf);
             return sx_sasl_ret_OK;
