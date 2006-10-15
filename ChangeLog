@@ -1,5 +1,6 @@
 2006-10-15 Tomasz Sterna <tomek@xiaoka.com>
 	* fixed STARTTLS stream feature offer
+	* fixed SEGV in SASL negotiation
 
 2006-10-14 Tomasz Sterna <tomek@xiaoka.com>
 	* using system-wide expat (by Maxim Britov)
