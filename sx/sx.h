@@ -137,7 +137,7 @@ struct _sx_buf_st {
 /* exported functions */
 
 /* make/break */
-sx_t                        sx_new(sx_env_t env, int tag, sx_callback_t cb, void *arg);
+sx_t                         sx_new(sx_env_t env, int tag, sx_callback_t cb, void *arg);
 void                        sx_free(sx_t s);
 
 /* get things ready */
@@ -150,7 +150,7 @@ int                         sx_can_write(sx_t s);
 
 /** sending a nad */
 void                        sx_nad_write_elem(sx_t s, nad_t nad, int elem);
-#define sx_nad_write(s,nad) sx_nad_write_elem(s, nad, 0)
+#define sx_nad_write(s,nad)  sx_nad_write_elem(s, nad, 0)
 
 /** sending raw data */
 void                        sx_raw_write(sx_t s, char *buf, int len);
@@ -159,11 +159,11 @@ void                        sx_raw_write(sx_t s, char *buf, int len);
 void                        sx_auth(sx_t s, const char *auth_method, const char *auth_id);
 
 /* make/break an environment */
-sx_env_t                    sx_env_new(void);
+sx_env_t                     sx_env_new(void);
 void                        sx_env_free(sx_env_t env);
 
 /** load a plugin into the environment */
-sx_plugin_t                 sx_env_plugin(sx_env_t env, sx_plugin_init_t init, ...);
+sx_plugin_t                  sx_env_plugin(sx_env_t env, sx_plugin_init_t init, ...);
 
 /* send errors and close stuff */
 void                        sx_error(sx_t s, int err, char *text);
@@ -197,7 +197,7 @@ int                         _sx_chain_nad_write(sx_t s, nad_t nad, int elem);
 int                         _sx_chain_nad_read(sx_t s, nad_t nad);
 
 /* buffer utilities */
-sx_buf_t                    _sx_buffer_new(char *data, int len, _sx_notify_t notify, void *notify_arg);
+sx_buf_t                     _sx_buffer_new(char *data, int len, _sx_notify_t notify, void *notify_arg);
 void                        _sx_buffer_free(sx_buf_t buf);
 void                        _sx_buffer_clear(sx_buf_t buf);
 void                        _sx_buffer_alloc_margin(sx_buf_t buf, int before, int after);
@@ -219,29 +219,29 @@ void                        _sx_close(sx_t s);
 /** read/write plugin chain */
 typedef struct _sx_chain_st *_sx_chain_t;
 struct _sx_chain_st {
-    sx_plugin_t             p;
+    sx_plugin_t              p;
 
-    _sx_chain_t             wnext;          /* -> write */
-    _sx_chain_t             rnext;          /* <- read */
+    _sx_chain_t              wnext;          /* -> write */
+    _sx_chain_t              rnext;          /* <- read */
 };
 
 /** holds the state for a single stream */
 struct _sx_st {
     /* environment */
-    sx_env_t                env;
+    sx_env_t                 env;
 
     /* tag, for logging */
     int                     tag;
 
     /* callback */
-    sx_callback_t           cb;
+    sx_callback_t            cb;
     void                    *cb_arg;
 
     /* type */
-    _sx_type_t              type;
+    _sx_type_t               type;
 
     /* flags */
-    unsigned int            flags;
+    unsigned int          flags;
 
     /* application namespace */
     char                    *ns;
@@ -260,30 +260,30 @@ struct _sx_st {
     char                    *id;
 
     /* io chain */
-    _sx_chain_t             wio, rio;
+    _sx_chain_t              wio, rio;
 
     /* nad chain */
-    _sx_chain_t             wnad, rnad;
+    _sx_chain_t              wnad, rnad;
 
     /* internal queues */
-    jqueue_t                wbufq;              /* buffers waiting to go to wio */
-    sx_buf_t                wbufpending;        /* buffer passed through wio but not written yet */
-    jqueue_t                rnadq;              /* completed nads waiting to go to rnad */
+    jqueue_t                 wbufq;              /* buffers waiting to go to wio */
+    sx_buf_t                 wbufpending;        /* buffer passed through wio but not written yet */
+    jqueue_t                 rnadq;              /* completed nads waiting to go to rnad */
 
     /* do we want to read or write? */
     int                     want_read, want_write;
 
     /* current state */
-    _sx_state_t             state;
+    _sx_state_t              state;
 
     /* parser */
-    XML_Parser              expat;
+    XML_Parser               expat;
     int                     depth;
     int                     fail;
 
     /* nad cache and nad currently being built */
-    nad_cache_t             nad_cache;
-    nad_t                   nad;
+    nad_cache_t              nad_cache;
+    nad_t                    nad;
 
     /* plugin storage */
     void                    **plugin_data;
@@ -304,7 +304,7 @@ struct _sx_st {
 
 /** a plugin */
 struct _sx_plugin_st {
-    sx_env_t                env;
+    sx_env_t                 env;
 
     int                     magic;              /* unique id so that plugins can find each other */
 
