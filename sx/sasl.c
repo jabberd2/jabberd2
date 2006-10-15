@@ -387,7 +387,7 @@ static void _sx_sasl_stream(sx_t s, sx_plugin_t p) {
 
             /* startup */
             ret = sasl_server_new(ctx->appname, NULL,
-                                  realm[0] == '\0' ? NULL : realm,
+                                  realm ? (realm[0] == '\0' ? NULL : realm) : NULL,
                                   NULL, NULL, sd->callbacks,
                                   ctx->sec_props.security_flags, &sasl);
             if(ret != SASL_OK) {
