@@ -1,3 +1,6 @@
+2006-10-15 Tomasz Sterna <tomek@xiaoka.com>
+	* fixed STARTTLS stream feature offer
+
 2006-10-14 Tomasz Sterna <tomek@xiaoka.com>
 	* using system-wide expat (by Maxim Britov)
 
