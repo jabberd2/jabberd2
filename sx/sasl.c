@@ -670,6 +670,8 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, char *mech, char *in,
         return;
     }
 
+    if (outlen != 0) free(out);
+
     /* its over */
     buf = (char *) sasl_errdetail(sd->sasl);
     if(buf == NULL)
