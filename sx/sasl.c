@@ -627,7 +627,7 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, char *mech, char *in,
     if(mech != NULL) {
         _sx_debug(ZONE, "auth request from client (mechanism=%s)", mech);
     } else {
-        _sx_debug(ZONE, "response from client (response: %.*s)", buf, buflen);
+        _sx_debug(ZONE, "response from client (response: %.*s)", buflen, buf);
     }
 
     /* process the data */
@@ -649,7 +649,9 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, char *mech, char *in,
         ((sx_buf_t) s->wbufq->front->data)->notify = _sx_sasl_notify_success;
         ((sx_buf_t) s->wbufq->front->data)->notify_arg = (void *) p;
 
-        return;
+	if (outlen != 0) free(out);
+        
+	return;
     }
 
     /* in progress */
@@ -662,6 +664,8 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, char *mech, char *in,
         _sx_nad_write(s, _sx_sasl_challenge(s, buf, buflen), 0);
 
         free(buf);
+
+	if (outlen != 0) free(out);
 
         return;
     }
