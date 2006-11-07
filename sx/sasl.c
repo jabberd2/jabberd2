@@ -621,14 +621,14 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, char *mech, char *in,
     char *buf, *out;
     int buflen, outlen, ret;
 
+    /* decode the response */
+    _sx_sasl_decode(in, inlen, &buf, &buflen);
+
     if(mech != NULL) {
         _sx_debug(ZONE, "auth request from client (mechanism=%s)", mech);
     } else {
-        _sx_debug(ZONE, "response from client");
+        _sx_debug(ZONE, "response from client (response: %.*s)", buf, buflen);
     }
-
-    /* decode the response */
-    _sx_sasl_decode(in, inlen, &buf, &buflen);
 
     /* process the data */
     if(mech != NULL)
