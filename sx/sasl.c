@@ -649,8 +649,6 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, char *mech, char *in,
         ((sx_buf_t) s->wbufq->front->data)->notify = _sx_sasl_notify_success;
         ((sx_buf_t) s->wbufq->front->data)->notify_arg = (void *) p;
 
-	if (outlen != 0) free(out);
-        
 	return;
     }
 
@@ -665,12 +663,8 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, char *mech, char *in,
 
         free(buf);
 
-	if (outlen != 0) free(out);
-
         return;
     }
-
-    if (outlen != 0) free(out);
 
     /* its over */
     buf = (char *) sasl_errdetail(sd->sasl);
