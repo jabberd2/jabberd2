@@ -577,6 +577,14 @@ int main(int argc, char **argv)
 
         host->host_pemfile = j_attr((const char **) elem->attrs[i], "pemfile");
 
+        if(c2s->sx_ssl == NULL && host->host_pemfile != NULL) {
+            c2s->sx_ssl = sx_env_plugin(c2s->sx_env, sx_ssl_init, host->host_pemfile, c2s->local_cachain, c2s->local_verify_mode);
+            if(c2s->sx_ssl == NULL) {
+                log_write(c2s->log, LOG_ERR, "failed to load %s SSL pemfile", host->realm);
+                host->host_pemfile = NULL;
+            }
+        }
+
         host->host_require_starttls = (j_attr((const char **) elem->attrs[i], "require-starttls") != NULL);
 
         host->host_verify_mode = j_atoi(j_attr((const char **) elem->attrs[i], "verify-mode"), 0);
