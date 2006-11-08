@@ -94,7 +94,7 @@ typedef union {
     unsigned char   buf[MAX_PACKET];
 } dns_packet_t;
 
-static void *_a_rr(dns_packet_t packet, unsigned char *eom, unsigned char **scan) {
+static void *_a_rr(dns_packet_t *packet, unsigned char *eom, unsigned char **scan) {
     struct in_addr in;
 
     GETLONG(in.s_addr, *scan);
@@ -103,7 +103,7 @@ static void *_a_rr(dns_packet_t packet, unsigned char *eom, unsigned char **scan
     return strdup(inet_ntoa(in));
 }
 
-static void *_aaaa_rr(dns_packet_t packet, unsigned char *eom, unsigned char **scan) {
+static void *_aaaa_rr(dns_packet_t *packet, unsigned char *eom, unsigned char **scan) {
     char addr[INET6_ADDRSTRLEN];
     struct sockaddr_in6 sa6;
     int i;
@@ -123,7 +123,7 @@ static void *_aaaa_rr(dns_packet_t packet, unsigned char *eom, unsigned char **s
     return strdup(addr);
 }
 
-static void *_srv_rr(dns_packet_t packet, unsigned char *eom, unsigned char **scan) {
+static void *_srv_rr(dns_packet_t *packet, unsigned char *eom, unsigned char **scan) {
     unsigned int priority, weight, port;
     int len;
     char host[256];
@@ -133,7 +133,7 @@ static void *_srv_rr(dns_packet_t packet, unsigned char *eom, unsigned char **sc
     GETSHORT(weight, *scan);
     GETSHORT(port, *scan);
 
-    len = dn_expand(packet.buf, eom, *scan, host, 256);
+    len = dn_expand(packet->buf, eom, *scan, host, 256);
     if (len < 0)
         return NULL;
     *scan = (unsigned char *) (*scan + len);
@@ -253,15 +253,15 @@ dns_host_t dns_resolve(const char *zone, int query_type) {
         switch(type)
         {
             case T_A:
-                reply[an]->rr = _a_rr(packet, eom, &scan);
+                reply[an]->rr = _a_rr(&packet, eom, &scan);
                 break;
 
             case T_AAAA:
-                reply[an]->rr = _aaaa_rr(packet, eom, &scan);
+                reply[an]->rr = _aaaa_rr(&packet, eom, &scan);
                 break;
 
             case T_SRV:
-                reply[an]->rr = _srv_rr(packet, eom, &scan);
+                reply[an]->rr = _srv_rr(&packet, eom, &scan);
                 break;
 
             default:
