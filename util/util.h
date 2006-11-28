@@ -729,6 +729,39 @@ extern char *b64_decode(char *buf);
 extern nad_t stanza_error(nad_t nad, int elem, int err);
 extern nad_t stanza_tofrom(nad_t nad, int elem);
 
+typedef struct _stanza_error_st {
+    char        *name;
+    char        *type;
+    char        *code;
+} *stanza_error_t;
+
+/** if you change these, reflect your changes in the defines above */
+static struct _stanza_error_st _stanza_errors[] = {
+    { "bad-request",                "modify",   "400" },    /* stanza_err_BAD_REQUEST */
+    { "conflict",                   "cancel",   "409" },    /* stanza_err_CONFLICT */
+    { "feature-not-implemented",    "cancel",   "501" },    /* stanza_err_FEATURE_NOT_IMPLEMENTED */
+    { "forbidden",                  "auth",     "403" },    /* stanza_err_FORBIDDEN */
+    { "gone",                       "modify",   "302" },    /* stanza_err_GONE */
+    { "internal-server-error",      "wait",     "500" },    /* stanza_err_INTERNAL_SERVER_ERROR */
+    { "item-not-found",             "cancel",   "404" },    /* stanza_err_ITEM_NOT_FOUND */
+    { "jid-malformed",              "modify",   "400" },    /* stanza_err_JID_MALFORMED */
+    { "not-acceptable",             "cancel",   "406" },    /* stanza_err_NOT_ACCEPTABLE */
+    { "not-allowed",                "cancel",   "405" },    /* stanza_err_NOT_ALLOWED */
+    { "payment-required",           "auth",     "402" },    /* stanza_err_PAYMENT_REQUIRED */
+    { "recipient-unavailable",      "wait",     "404" },    /* stanza_err_RECIPIENT_UNAVAILABLE */
+    { "redirect",                   "modify",   "302" },    /* stanza_err_REDIRECT */
+    { "registration-required",      "auth",     "407" },    /* stanza_err_REGISTRATION_REQUIRED */
+    { "remote-server-not-found",    "cancel",   "404" },    /* stanza_err_REMOTE_SERVER_NOT_FOUND */
+    { "remote-server-timeout",      "wait",     "502" },    /* stanza_err_REMOTE_SERVER_TIMEOUT */
+    { "resource-constraint",        "wait",     "500" },    /* stanza_err_RESOURCE_CONSTRAINT */
+    { "service-unavailable",        "cancel",   "503" },    /* stanza_err_SERVICE_UNAVAILABLE */
+    { "subscription-required",      "auth",     "407" },    /* stanza_err_SUBSCRIPTION_REQUIRED */
+    { "undefined-condition",        NULL,       "500" },    /* stanza_err_UNDEFINED_CONDITION */
+    { "unexpected-request",         "wait",     "400" },    /* stanza_err_UNEXPECTED_REQUEST */
+    { NULL,                         NULL,       "401" },    /* stanza_err_OLD_UNAUTH */
+    { NULL,                         NULL,       NULL  }
+};
+
 
 /* hex conversion utils */
 void hex_from_raw(char *in, int inlen, char *out);
