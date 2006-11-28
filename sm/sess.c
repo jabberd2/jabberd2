@@ -45,6 +45,9 @@ void sess_route(sess_t sess, pkt_t pkt) {
     nad_set_attr(pkt->nad, 0, -1, "to", sess->c2s, 0);
     nad_set_attr(pkt->nad, 0, -1, "from", sess->user->sm->id, 0);
 
+    /* remove error attribute */
+    nad_set_attr(pkt->nad, 0, -1, "error", NULL, 0);
+
     /* and send it out */
     sx_nad_write(sess->user->sm->router, pkt->nad);
 
