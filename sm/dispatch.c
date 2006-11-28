@@ -40,8 +40,20 @@ void dispatch(sm_t sm, pkt_t pkt) {
     }
 
     /* routing errors, add a im error */
-    if(pkt->rtype & route_ERROR)
-        pkt_error(pkt, stanza_err_REMOTE_SERVER_NOT_FOUND);
+    if(pkt->rtype & route_ERROR) {
+        int i, aerror, stanza_err;
+	aerror = nad_find_attr(pkt->nad, 0, -1, "error", NULL);
+	stanza_err = stanza_err_REMOTE_SERVER_NOT_FOUND;
+	if(aerror >= 0) {
+	    for(i=0; _stanza_errors[i].code != NULL; i++)
+	        if(strncmp(_stanza_errors[i].code, NAD_AVAL(pkt->nad, aerror), NAD_AVAL_L(pkt->nad, aerror)) == 0) {
+		    stanza_err = stanza_err_BAD_REQUEST + i;
+		    break;
+		}
+	}
+        if(pkt_error(pkt, stanza_err) == NULL)
+	    return;
+    }
 
     /*
      * - if its from the router (non-route) it goes straight to pkt_router
