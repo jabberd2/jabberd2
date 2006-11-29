@@ -408,6 +408,17 @@ static void _router_process_route(component_t comp, nad_t nad) {
         if(xhash_count(comp->r->log_sinks) > 0)
             xhash_walk(comp->r->log_sinks, _router_route_log_sink, (void *) nad);
 
+        /* filter it */
+        if(comp->r->filter != NULL) {
+	    int ret = filter_packet(comp->r, nad);
+	    if(ret > 0) {
+                log_debug(ZONE, "packet filtered out: %s (%s)", _stanza_errors[ret - stanza_err_BAD_REQUEST].name, _stanza_errors[ret - stanza_err_BAD_REQUEST].code);
+                nad_set_attr(nad, 0, -1, "error", _stanza_errors[ret - stanza_err_BAD_REQUEST].code, 3);
+                _router_comp_write(comp, nad);
+                return;
+	    }
+	}
+
         /* push it out */
         log_debug(ZONE, "writing route for '%s' to %s, port %d", to->domain, target->ip, target->port);
 

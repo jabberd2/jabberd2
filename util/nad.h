@@ -106,6 +106,15 @@ int nad_find_namespace(nad_t nad, int elem, const char *uri, const char *prefix)
 /** find a namespace in scope (and optionally prefix) */
 int nad_find_scoped_namespace(nad_t nad, const char *uri, const char *prefix);
 
+/** find elem using XPath like query
+ *  name -- "name" for the child tag of that name
+ *          "name/name" for a sub child (recurses)
+ *          "?attrib" to match the first tag with that attrib defined
+ *          "?attrib=value" to match the first tag with that attrib and value
+ *          or any combination: "name/name/?attrib", etc
+ */
+int nad_find_elem_path(nad_t nad, int elem, int ns, const char *name);
+
 /** reset or store the given attribute */
 void nad_set_attr(nad_t nad, int elem, int ns, const char *name, const char *val, int vallen);
 

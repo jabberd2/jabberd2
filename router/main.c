@@ -376,6 +376,8 @@ int main(int argc, char **argv)
 
     r->aci = aci_load(r);
 
+    if(filter_load(r)) exit(1);
+
     r->conn_rates = xhash_new(101);
 
     r->pc = prep_cache_new();
@@ -424,6 +426,9 @@ int main(int argc, char **argv)
             log_free(r->log);
             r->log = log_new(r->log_type, r->log_ident, r->log_facility);
             log_write(r->log, LOG_NOTICE, "log started");
+
+	    filter_unload(r);
+	    filter_load(r);
 
             router_logrotate = 0;
         }
@@ -494,6 +499,9 @@ int main(int argc, char **argv)
 
     /* unload acls */
     aci_unload(r->aci);
+
+    /* unload filter */
+    filter_unload(r);
 
     sx_env_free(r->sx_env);
 

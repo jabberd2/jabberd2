@@ -54,6 +54,15 @@ typedef struct router_st    *router_t;
 typedef struct component_st *component_t;
 typedef struct alias_st     *alias_t;
 
+typedef struct acl_s *acl_t;
+struct acl_s {
+    int error;
+    char *what;
+    char *from;
+    char *to;
+    acl_t next;
+};
+
 struct router_st {
     /** our id */
     char                *id;
@@ -64,6 +73,10 @@ struct router_st {
     /** user table */
     xht                 users;
     time_t              users_load;
+
+    /** user table */
+    acl_t               filter;
+    time_t              filter_load;
 
     /** logging */
     log_t               log;

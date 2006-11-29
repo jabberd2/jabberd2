@@ -296,7 +296,7 @@ int nad_find_attr(nad_t nad, int elem, int ns, const char *name, const char *val
 
     /* make sure there are valid args */
     if(elem >= nad->ecur || name == NULL) return -1;
-
+ 
     attr = nad->elems[elem].attr;
     lname = strlen(name);
     if(val != NULL) lval = strlen(val);
@@ -361,6 +361,69 @@ int nad_find_scoped_namespace(nad_t nad, const char *uri, const char *prefix)
     }
 
     return -1;
+}
+
+/** find elem using XPath like query
+ *  name -- "name" for the child tag of that name
+ *          "name/name" for a sub child (recurses)
+ *          "?attrib" to match the first tag with that attrib defined
+ *          "?attrib=value" to match the first tag with that attrib and value
+ *          or any combination: "name/name/?attrib", etc
+ */
+int nad_find_elem_path(nad_t nad, int elem, int ns, const char *name) {
+    char *str, *slash, *qmark, *equals;
+
+    _nad_ptr_check(__func__, nad);
+
+    /* make sure there are valid args */
+    if(elem >= nad->ecur || name == NULL) return -1;
+
+    /* if it's plain name just search children */
+    if(strstr(name, "/") == NULL && strstr(name,"?") == NULL)
+        return nad_find_elem(nad, elem, ns, name, 1);
+
+    str = strdup(name);
+    slash = strstr(str, "/");
+    qmark = strstr(str, "?");
+    equals = strstr(str, "=");
+
+    /* no / in element name part */
+    if(qmark != NULL && (slash == NULL || qmark < slash))
+    { /* of type ?attrib */
+
+        *qmark = '\0';
+        qmark++;
+        if(equals != NULL)
+        {
+            *equals = '\0';
+            equals++;
+        }
+
+        for(elem = nad_find_elem(nad, elem, ns, str, 1); ; elem = nad_find_elem(nad, elem, ns, str, 0)) {
+            if(elem < 0) break;
+	    if(strcmp(qmark, "xmlns") == 0) {
+	        if(nad_find_namespace(nad, elem, equals, NULL) >= 0) break;
+            }
+	    else {
+	        if(nad_find_attr(nad, elem, ns, qmark, equals) >= 0) break;
+	    }
+        }
+
+        free(str);
+        return elem;
+    }
+
+    /* there is a / in element name part - need to recurse */
+    *slash = '\0';
+    ++slash;
+
+    for(elem = nad_find_elem(nad, elem, ns, str, 1); ; elem = nad_find_elem(nad, elem, ns, str, 0)) {
+        if(elem < 0) break;
+	if(nad_find_elem_path(nad, elem, ns, slash) >= 0) break;
+    }
+
+    free(str);
+    return elem;
 }
 
 /** create, update, or zap any matching attr on this elem */
