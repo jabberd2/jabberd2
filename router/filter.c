@@ -170,27 +170,31 @@ int filter_load(router_t r) {
 int filter_packet(router_t r, nad_t nad) {
     acl_t acl;
     int ato, afrom, error = 0;
-    char *to = NULL, *from = NULL;
+    unsigned char *cur, *to = NULL, *from = NULL;
 
     ato = nad_find_attr(nad, 1, -1, "to", NULL);
     afrom = nad_find_attr(nad, 1, -1, "from", NULL);
     if(ato >= 0 && NAD_AVAL_L(nad,ato) > 0) {
         to = (char *) malloc(sizeof(char) * (NAD_AVAL_L(nad, ato) + 1));
         sprintf(to, "%.*s", NAD_AVAL_L(nad, ato), NAD_AVAL(nad, ato));
+        cur = strstr(to, "/");	/* remove the resource part */
+	if(cur != NULL) *cur = '\0';
     }
     if(afrom >= 0 && NAD_AVAL_L(nad,afrom) > 0) {
         from = (char *) malloc(sizeof(char) * (NAD_AVAL_L(nad, afrom) + 1));
         sprintf(from, "%.*s", NAD_AVAL_L(nad, afrom), NAD_AVAL(nad, afrom));
+	cur = strstr(from, "/");
+	if(cur != NULL) *cur = '\0';
     }
 
     for(acl = r->filter; acl != NULL; acl = acl->next) {
-	if( from == NULL && acl->from != NULL) continue;
+	if( from == NULL && acl->from != NULL) continue;	/* no match if NULL matched vs not-NULL */
         if( to == NULL && acl->to != NULL ) continue;
-	if( from != NULL && acl->from == NULL) continue;
+	if( from != NULL && acl->from == NULL) continue;	/* no match if not-NULL matched vs NULL */
         if( to != NULL && acl->to == NULL ) continue;
-        if( from != NULL && acl->from != NULL && fnmatch(acl->from, from, 0) != 0 ) continue;
+        if( from != NULL && acl->from != NULL && fnmatch(acl->from, from, 0) != 0 ) continue;	/* do filename-like match */
         if( to != NULL && acl->to != NULL && fnmatch(acl->to, to, 0) != 0 ) continue;
-        if( acl->what != NULL && nad_find_elem_path(nad, 0, -1, acl->what) < 0 ) continue;
+        if( acl->what != NULL && nad_find_elem_path(nad, 0, -1, acl->what) < 0 ) continue;	/* match packet type */
         log_debug(ZONE, "matched packet %s->%s vs rule (%s %s->%s)", from, to, acl->what, acl->from, acl->to);
 	error = acl->error;
 	break;
