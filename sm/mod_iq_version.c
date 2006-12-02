@@ -58,7 +58,7 @@ static mod_ret_t _iq_version_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     if(pkt->type != pkt_IQ || pkt->ns != ns_VERSION)
         return mod_PASS;
 
-    nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "name", "jabberd2 (session manager)");
+    nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "name", "jabberd session manager");
     nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "version", mi->sm->signature);
 
     /* figure out the os type */

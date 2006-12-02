@@ -8,7 +8,7 @@ dnl
 AC_PREREQ(2.57)
 
 dnl startup
-AC_INIT(jabberd, 2.1ch)
+AC_INIT(jabberd, 2.1)
 AM_INIT_AUTOMAKE
 
 dnl copyright
