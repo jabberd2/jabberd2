@@ -312,6 +312,13 @@ static mod_ret_t _disco_pkt_sm_populate(mod_instance_t mi, pkt_t pkt)
     if(elem < 0)
         return -stanza_err_BAD_REQUEST;
 
+    /* we don't want to list other im servers on the router */
+    if(nad_find_attr(pkt->nad, elem, -1, "category", "server") >= 0
+    && nad_find_attr(pkt->nad, elem, -1, "type", "im") >= 0) {
+        pkt_free(pkt);
+        return mod_HANDLED;
+    }
+
     /* see if we already have this service */
     svc = xhash_get(d->dyn, jid_full(pkt->from));
     if(svc == NULL)
