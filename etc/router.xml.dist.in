@@ -177,4 +177,8 @@
     -->
   </aci>
 
+  <!-- File containing packet filter rules.
+       May be used for fine grained packet routing control. -->
+  <filter>@sysconfdir@/router-filter.xml</filter>
+
 </router>

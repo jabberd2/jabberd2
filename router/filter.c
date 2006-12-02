@@ -59,8 +59,9 @@ int filter_load(router_t r) {
 
     f = fopen(filterfile, "r");
     if(f == NULL) {
-        log_write(r->log, LOG_ERR, "couldn't open filter file %s: %s", filterfile, strerror(errno));
-        return 1;
+        log_write(r->log, LOG_NOTICE, "couldn't open filter file %s: %s", filterfile, strerror(errno));
+        r->filter_load = time(NULL);
+        return 0;
     }
 
     fseek(f, 0, SEEK_END);
