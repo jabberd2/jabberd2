@@ -22,9 +22,11 @@
 
 #include "sx.h"
 #include "ssl.h"
-#include "sasl.h"
 /* Gack - need this otherwise SASL's MD5 definitions conflict with OpenSSLs */
-#define MD5_H
+#ifdef MD5_CTX
+#  define MD5_H
+#endif
+#include "sasl.h"
 #include <sasl/saslplug.h>
 
 /* RFC 3290 defines a number of failure messages */

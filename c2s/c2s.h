@@ -27,6 +27,9 @@
 #include "mio/mio.h"
 #include "sx/sx.h"
 #include "sx/ssl.h"
+#ifdef MD5_CTX
+#  define MD5_H
+#endif
 #include "sx/sasl.h"
 #include "util/util.h"
 
