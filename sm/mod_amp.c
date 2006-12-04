@@ -18,6 +18,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
+#define _GNU_SOURCE
+#include <string.h>
 #include "sm.h"
 #include "util/util.h"
 #ifdef HAVE_IDN
