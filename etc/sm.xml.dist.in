@@ -141,6 +141,20 @@
       <user>jabberd2</user>
       <pass>secret</pass>
     </oracle>
+
+    <!-- SQLite driver configuration -->
+    <sqlite>
+      <!-- Database name -->
+      <dbname>/var/lib/jabberd/sm.db</dbname>
+
+      <!-- Transacation support. If this is commented out, transactions
+           will be disabled. This might make database accesses faster,
+           but data may be lost if jabberd crashes. -->
+      <transactions/>
+
+      <!-- SQLite busy-timeout in milliseconds. -->
+      <busy-timeout>2000</busy-timeout>
+    </sqlite>
   </storage>
   
   <!-- Access control information -->

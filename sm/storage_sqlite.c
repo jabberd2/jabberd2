@@ -498,6 +498,7 @@ static st_ret_t _st_sqlite_get (st_driver_t drv, const char *type,
     sqlite3_finalize (stmt);
 
     if (num_rows == 0) {
+        os_free(*os);
 	return st_NOTFOUND;
     }
 

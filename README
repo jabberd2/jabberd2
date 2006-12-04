@@ -30,6 +30,8 @@ Optional packages:
      http://www.mysql.com/
  - PAM
      http://www.linux-pam.org/  (for Linux)
+ - SQLite (3.0 or higher)
+     http://www.sqlite.org/
 
 
 Build:
@@ -57,6 +59,9 @@ Options to ./configure:
 
   --enable-db (default: disabled)
       Compile Berkeley DB auth/reg/storage support
+
+  --enable-sqlite (default: disabled)
+      Compile SQLite storage support
 
   --enable-ldap (default: disabled)
       Compile OpenLDAP auth/reg support

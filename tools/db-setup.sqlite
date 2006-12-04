@@ -7,13 +7,16 @@
 --
 -- c2s authentication/registration table
 --
-CREATE TABLE 'authreg' (
-    'username' TEXT,
-    'realm' TEXT,
-    'password' TEXT,
-    'token' VARCHAR(10),
-    'sequence' INTEGER,
-    'hash' VARCHAR(40) );
+CREATE TABLE "authreg" (
+    "username" TEXT NOT NULL,
+    "realm" TEXT NOT NULL,
+    "password" TEXT,
+    "token" TEXT,
+    "sequence" INTEGER,
+    "hash" TEXT );
+
+CREATE INDEX i_authreg_username ON "authreg"("username");
+CREATE INDEX i_authreg_realm ON "authreg"("realm");
 
 --
 -- Session manager tables 
@@ -23,148 +26,200 @@ CREATE TABLE 'authreg' (
 -- Active (seen) users
 -- Used by: core
 --
-CREATE TABLE 'active' (
-    'collection-owner' TEXT NOT NULL,
-    'object-sequence' INTEGER PRIMARY KEY,
-    'time' INT );
+CREATE TABLE "active" (
+    "collection-owner" TEXT NOT NULL,
+    "object-sequence" INTEGER PRIMARY KEY,
+    "time" INTEGER NOT NULL DEFAULT 0 );
 
 --
 -- Logout times
 -- Used by: mod_iq_last
 --
-CREATE TABLE 'logout' (
-    'collection-owner' TEXT NOT NULL,
-    'object-sequence' INTEGER PRIMARY KEY,
-    'time' INT );
+CREATE TABLE "logout" (
+    "collection-owner" TEXT NOT NULL,
+    "object-sequence" INTEGER PRIMARY KEY,
+    "time" INTEGER NOT NULL DEFAULT 0 );
 
 --
 -- Roster items
 -- Used by: mod_roster
 --
-CREATE TABLE 'roster-items' (
-    'collection-owner' TEXT NOT NULL,
-    'object-sequence' INTEGER PRIMARY KEY,
-    'jid' TEXT,
-    'name' TEXT,
-    'to' BOOL,
-    'from' BOOL,
-    'ask' INTEGER );
+CREATE TABLE "roster-items" (
+    "collection-owner" TEXT NOT NULL,
+    "object-sequence" INTEGER PRIMARY KEY,
+    "jid" TEXT NOT NULL,
+    "name" TEXT,
+    "to" BOOLEAN NOT NULL,
+    "from" BOOLEAN NOT NULL,
+    "ask" INTEGER NOT NULL );
+
+CREATE INDEX i_rosteri_owner ON "roster-items"("collection-owner");
 
 --
 -- Roster groups
 -- Used by: mod_roster
 --
-CREATE TABLE 'roster-groups' (
-    'collection-owner' TEXT NOT NULL,
-    'object-sequence' INTEGER PRIMARY KEY,
-    'jid' TEXT,
-    'group' TEXT );
+CREATE TABLE "roster-groups" (
+    "collection-owner" TEXT NOT NULL,
+    "object-sequence" INTEGER PRIMARY KEY,
+    "jid" TEXT NOT NULL,
+    "group" TEXT NOT NULL );
+
+CREATE INDEX i_rosterg_owner ON "roster-groups"("collection-owner");
+CREATE INDEX i_rosterg_owner_jid ON "roster-groups"("collection-owner", "jid");
 
 --
 -- vCard (user profile information)
 -- Used by: mod_iq_vcard
 --
-CREATE TABLE 'vcard' (
-    'collection-owner' TEXT NOT NULL,
-    'object-sequence' INTEGER PRIMARY KEY,
-    'fn' TEXT,
-    'nickname' TEXT,
-    'url' TEXT,
-    'tel' TEXT,
-    'email' TEXT,
-    'title' TEXT,
-    'role' TEXT,
-    'bday' TEXT,
-    'desc' TEXT,
-    'n-given' TEXT,
-    'n-family' TEXT,
-    'adr-street' TEXT,
-    'adr-extadd' TEXT,
-    'adr-locality' TEXT,
-    'adr-region' TEXT,
-    'adr-pcode' TEXT,
-    'adr-country' TEXT,
-    'org-orgname' TEXT,
-    'org-orgunit' TEXT );
+CREATE TABLE "vcard" (
+    "collection-owner" TEXT NOT NULL,
+    "object-sequence" INTEGER PRIMARY KEY,
+    "fn" TEXT,
+    "nickname" TEXT,
+    "url" TEXT,
+    "tel" TEXT,
+    "email" TEXT,
+    "title" TEXT,
+    "role" TEXT,
+    "bday" TEXT,
+    "tz" TEXT,
+    "n-family" TEXT,
+    "n-given" TEXT,
+    "n-middle" TEXT,
+    "n-prefix" TEXT,
+    "n-suffix" TEXT,
+    "adr-street" TEXT,
+    "adr-extadd" TEXT,
+    "adr-pobox" TEXT,
+    "adr-locality" TEXT,
+    "adr-region" TEXT,
+    "adr-pcode" TEXT,
+    "adr-country" TEXT,
+    "geo-lat" TEXT,
+    "geo-lon" TEXT,
+    "org-orgname" TEXT,
+    "org-orgunit" TEXT,
+    "agent-extval" TEXT,
+    "sort-string" TEXT,
+    "desc" TEXT,
+    "note" TEXT,
+    
+    "photo-type" TEXT,
+    "photo-binval" TEXT,
+    "photo-extval" TEXT,
+    
+    "logo-type" TEXT,
+    "logo-binval" TEXT,
+    "logo-extval" TEXT,
+    
+    "sound-phonetic" TEXT,
+    "sound-binval" TEXT,
+    "sound-extval" TEXT,
+    
+    "key-type" TEXT,
+    "key-cred" TEXT,
+    
+    "rev" TEXT );
 
 --
 -- Offline message queue
 -- Used by: mod_offline
 --
-CREATE TABLE 'queue' (
-    'collection-owner' TEXT NOT NULL,
-    'object-sequence' INTEGER PRIMARY KEY,
-    'xml' TEXT );
+CREATE TABLE "queue" (
+    "collection-owner" TEXT NOT NULL,
+    "object-sequence" INTEGER PRIMARY KEY,
+    "xml" TEXT NOT NULL );
+
+CREATE INDEX i_queue_owner ON "queue"("collection-owner");
 
 --
 -- Private XML storage
 -- Used by: mod_iq_private
 --
-CREATE TABLE 'private' (
-    'collection-owner' TEXT NOT NULL,
-    'object-sequence' INTEGER PRIMARY KEY,
-    'ns' TEXT,
-    'xml' TEXT );
+CREATE TABLE "private" (
+    "collection-owner" TEXT NOT NULL,
+    "object-sequence" INTEGER PRIMARY KEY,
+    "ns" TEXT,
+    "xml" TEXT );
+
+CREATE INDEX i_private_owner ON "private"("collection-owner");
 
 --
 -- Message Of The Day (MOTD) messages (announcements)
 -- Used by: mod_announce
 --
-CREATE TABLE 'motd-message' (
-    'collection-owner' TEXT NOT NULL,
-    'object-sequence' INTEGER PRIMARY KEY,
-    'xml' TEXT );
+CREATE TABLE "motd-message" (
+    "collection-owner" TEXT NOT NULL,
+    "object-sequence" INTEGER PRIMARY KEY,
+    "xml" TEXT NOT NULL );
 
 --
 -- Times of last MOTD message for each user
 -- Used by: mod_announce
 --
-CREATE TABLE 'motd-times' (
-    'collection-owner' TEXT NOT NULL,
-    'object-sequence' INTEGER PRIMARY KEY,
-    'time' INTEGER );
+CREATE TABLE "motd-times" (
+    "collection-owner" TEXT NOT NULL,
+    "object-sequence" INTEGER PRIMARY KEY,
+    "time" INTEGER NOT NULL );
 
 --
 -- User-published discovery items
 -- Used by: mod_disco_publish
 --
-CREATE TABLE 'disco-items' (
-    'collection-owner' TEXT NOT NULL,
-    'object-sequence' INTEGER PRIMARY KEY,
-    'jid' TEXT,
-    'name' TEXT,
-    'node' TEXT );
+CREATE TABLE "disco-items" (
+    "collection-owner" TEXT NOT NULL,
+    "object-sequence" INTEGER PRIMARY KEY,
+    "jid" TEXT,
+    "name" TEXT,
+    "node" TEXT );
+
+CREATE INDEX i_discoi_owner ON "disco-items"("collection-owner");
 
 --
 -- Default privacy list
 -- Used by: mod_privacy
 --
-CREATE TABLE 'privacy-default' (
-    'collection-owner' TEXT NOT NULL,
-    'object-sequence' INTEGER PRIMARY KEY,
-    'default' TEXT );
+CREATE TABLE "privacy-default" (
+    "collection-owner" TEXT NOT NULL,
+    "object-sequence" INTEGER PRIMARY KEY,
+    "default" TEXT );
 
 --
 -- Privacy lists
 -- Used by: mod_privacy
 --
-CREATE TABLE 'privacy-items' (
-    'collection-owner' TEXT NOT NULL,
-    'object-sequence' INTEGER PRIMARY KEY,
-    'list' TEXT,
-    'type' TEXT,
-    'value' TEXT,
-    'deny' BOOL,
-    'order' INTEGER,
-    'block' INTEGER );
+CREATE TABLE "privacy-items" (
+    "collection-owner" TEXT NOT NULL,
+    "object-sequence" INTEGER PRIMARY KEY,
+    "list" TEXT NOT NULL,
+    "type" TEXT,
+    "value" TEXT,
+    "deny" BOOL,
+    "order" INTEGER,
+    "block" INTEGER );
+
+CREATE INDEX i_privacyi_owner ON "privacy-items"("collection-owner");
 
 --
 -- Vacation settings
 -- Used by: mod_vacation
 --
-CREATE TABLE 'vacation-settings' (
-    'collection-owner' TEXT NOT NULL,
-    'object-sequence' INTEGER PRIMARY KEY,
-    'start' INTEGER,
-    'end' INTEGER,
-    'message' TEXT );
+CREATE TABLE "vacation-settings" (
+    "collection-owner" TEXT NOT NULL,
+    "object-sequence" INTEGER PRIMARY KEY,
+    "start" INTEGER,
+    "end" INTEGER,
+    "message" TEXT );
+
+--
+-- User status information
+-- Used by: mod_status
+--
+CREATE TABLE "status" (
+    "collection-owner" text NOT NULL,
+    "object-sequence" INTEGER PRIMARY KEY,
+    "status" TEXT NOT NULL,
+    "show" TEXT,
+    "last-login" INTEGER DEFAULT '0',
+    "last-logout" INTEGER DEFAULT '0' );
