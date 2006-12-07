@@ -30,15 +30,18 @@
 static int _active_user_load(mod_instance_t mi, user_t user) {
     os_t os;
     os_object_t o;
+    int ret;
 
     /* get their active status */
-    if(storage_get(user->sm->st, "active", jid_user(user->jid), NULL, &os) == st_SUCCESS && os_iter_first(os)) {
+    if((ret = storage_get(user->sm->st, "active", jid_user(user->jid), NULL, &os)) == st_SUCCESS && os_iter_first(os)) {
         o = os_iter_object(os);
         os_object_get_time(os, o, "time", &user->active);
         os_free(os);
     } else
-        /* can't load them if they're inactive */
-        return 1;
+    	if(ret == st_NOTFOUND)
+	    return 0;
+	else
+            return 1;
 
     return 0;
 }
