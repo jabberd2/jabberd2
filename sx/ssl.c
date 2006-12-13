@@ -669,7 +669,7 @@ int sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args) {
     }
 
     /* load the certificate */
-    ret = SSL_CTX_use_certificate_file(ctx, pemfile, SSL_FILETYPE_PEM);
+    ret = SSL_CTX_use_certificate_chain_file(ctx, pemfile);
     if(ret != 1) {
         _sx_debug(ZONE, "couldn't load certificate from %s", pemfile);
         SSL_CTX_free(ctx);
