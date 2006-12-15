@@ -91,7 +91,7 @@ typedef struct _nad_st {
 nad_t nad_new(pool_t p);
 
 /** copy a nad */
-nad_t nad_copy(nad_t nad, pool_t p);
+nad_t nad_copy(nad_t nad);
 
 /** find the next element with this name/depth */
 /** 0 for siblings, 1 for children and so on */
