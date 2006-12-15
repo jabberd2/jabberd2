@@ -203,7 +203,7 @@ static void _offline_user_delete(mod_instance_t mi, jid_t jid) {
                 o = os_iter_object(os);
 
                 if(os_object_get_nad(os, o, "xml", &nad)) {
-                    queued = pkt_new(mi->mod->mm->sm, nad);
+                    queued = pkt_new(mi->mod->mm->sm, nad_copy(nad));
                     if(queued == NULL) {
                         log_debug(ZONE, "invalid queued packet, not delivering");
                     } else {
