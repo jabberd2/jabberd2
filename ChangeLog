@@ -1,3 +1,19 @@
+2006-12-15 Tomasz Sterna <tomek@xiaoka.com>
+	* fixed nad_copy() declaration
+	* mod_offline user delete nad double-free fix
+
+2006-12-13 Tomasz Sterna <tomek@xiaoka.com>
+	* SSL certificate chain loading fix
+
+2006-12-04 Tomasz Sterna <tomek@xiaoka.com>
+	* applied SQLite fixes by Christof Meerwald
+	* fixed MD5_CTX compilation errors
+	* fixed compilation warnings
+
+2006-12-02 Tomasz Sterna <tomek@xiaoka.com>
+	* updated README
+	* added BUGS
+
 2006-12-02 Tomasz Sterna <tomek@xiaoka.com>
 	* other im servers on the router are not listed on disco
 	* changed version reply to be better informative
