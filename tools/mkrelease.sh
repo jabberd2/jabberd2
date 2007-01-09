@@ -14,8 +14,8 @@ cd "$APPNAME-$APPVER"
 sed -i "s/^AC_INIT([a-z]\+.*, [0-9]\+.*)$/AC_INIT($APPNAME, $APPVER)/" configure.in
 ./bootstrap
 cd ..
-tar zcf "$DSTDIR/$APPNAME-$APPVER.tar.gz" "$APPNAME-$APPVER"
-tar jcf "$DSTDIR/$APPNAME-$APPVER.tar.bz2" "$APPNAME-$APPVER"
+tar -zchf "$DSTDIR/$APPNAME-$APPVER.tar.gz" "$APPNAME-$APPVER"
+tar -jchf "$DSTDIR/$APPNAME-$APPVER.tar.bz2" "$APPNAME-$APPVER"
 cd "$DSTDIR"
 ls -l "$APPNAME-$APPVER.tar."{gz,bz2}
 
