@@ -32,7 +32,7 @@
 
 #include "sx/sx.h"
 #include "sx/ssl.h"
-#ifdef MD5_CTX
+#ifdef HEADER_MD5_H
 #  define MD5_H
 #endif
 #include "sx/sasl.h"

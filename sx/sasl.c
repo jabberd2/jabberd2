@@ -23,7 +23,7 @@
 #include "sx.h"
 #include "ssl.h"
 /* Gack - need this otherwise SASL's MD5 definitions conflict with OpenSSLs */
-#ifdef MD5_CTX
+#ifdef HEADER_MD5_H
 #  define MD5_H
 #endif
 #include "sasl.h"
