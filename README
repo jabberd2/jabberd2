@@ -135,13 +135,19 @@ All the processes can take the following switches:
     -D output lots of debugging info (if compiled with --enable-debug)
 
 
+Upgrade:
+
+  Please see UPGRADE file.
+
+
 Support:
 
 Documentation: http://jabberd.jabberstudio.org/2/docs/
-Wiki:  http://j2.openaether.org/mediawiki
+Wiki: http://docs.xiaoka.com/jabberd2:start
+      http://j2.openaether.org/mediawiki
 
-    Bugs to: http://j2.openaether.org/bugzilla/
-Requests to: http://j2.openaether.org/bugzilla/
+    Bugs to: http://bugs.xiaoka.com/proj3
+Requests to: http://bugs.xiaoka.com/proj3
 
 Everything else: jabberd@jabberstudio.org
  (Subscribe at http://mail.jabber.org/mailman/listinfo/jabberd
@@ -161,8 +167,8 @@ reporting problems - it will make helping you much easier.
 Copyright & License:
   
  jabberd - Jabber Open Source Server
- Copyright (c) 2002-2004 Jeremie Miller, Thomas Muldowney,
-                         Ryan Eatmon, Robert Norris.
+ Copyright (c) 2002-2007 Jeremie Miller, Thomas Muldowney,
+                         Ryan Eatmon, Robert Norris, Tomasz Sterna.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by

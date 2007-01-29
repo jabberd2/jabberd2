@@ -1,0 +1,85 @@
+This file contains upgrade instructions between different versions of jabberd2.
+
+
+* 2.0 to 2.1 upgrade:
+
+What had change:
+- c2s.xml local/id syntax:
+- DB schema
+
+Upgrade:
+
+Basically all <local/> subitems and registration options from section
+<register/> are configurable per-realm now. So you need to move pemfile,
+verify-mode, require-starttls to <id/> attributes.
+You may also use subitems of <local/> as before, and these will be used
+for legacy port 5223 SSL wrapper.
+
+Options require-starttls, register-enable and password-change ale boolean.
+These are enabled if set to anything. 'true' seems reasonable for clarity.
+WARNING: Setting 'false' doesn't disable it!!!
+
+When you disabled new registrations for a realm not setting register-enable,
+you may wish to set password-change to enable users to change password.
+
+For new options like httpforward, see example c2s.xml for reference.
+
+
+DB changes:
+You need to add the following fields to the "vcard" table:
+
+ALTER TABLE vcard ADD COLUMN "tz" text;
+ALTER TABLE vcard ADD COLUMN "n-middle" text;
+ALTER TABLE vcard ADD COLUMN "n-prefix" text;
+ALTER TABLE vcard ADD COLUMN "n-suffix" text;
+ALTER TABLE vcard ADD COLUMN "n-prefx" text;
+ALTER TABLE vcard ADD COLUMN "n-suffix" text;
+ALTER TABLE vcard ADD COLUMN "adr-street" text;
+ALTER TABLE vcard ADD COLUMN "adr-extadd" text;
+ALTER TABLE vcard ADD COLUMN "adr-pobox" text;
+ALTER TABLE vcard ADD COLUMN "adr-locality" text;
+ALTER TABLE vcard ADD COLUMN "adr-region" text;
+ALTER TABLE vcard ADD COLUMN "adr-pcode" text;
+ALTER TABLE vcard ADD COLUMN "adr-country" text;
+ALTER TABLE vcard ADD COLUMN "geo-lat" text;
+ALTER TABLE vcard ADD COLUMN "geo-lon" text;
+ALTER TABLE vcard ADD COLUMN "org-orgname" text;
+ALTER TABLE vcard ADD COLUMN "agent-extval" text;
+ALTER TABLE vcard ADD COLUMN "sort-string" text;
+ALTER TABLE vcard ADD COLUMN "desc" text;
+ALTER TABLE vcard ADD COLUMN "note" text;
+ALTER TABLE vcard ADD COLUMN "photo-type" text;
+ALTER TABLE vcard ADD COLUMN "photo-binval" text;
+ALTER TABLE vcard ADD COLUMN "photo-extval" text;
+ALTER TABLE vcard ADD COLUMN "logo-type" text;
+ALTER TABLE vcard ADD COLUMN "logo-binval" text;
+ALTER TABLE vcard ADD COLUMN "logo-extval" text;
+ALTER TABLE vcard ADD COLUMN "sound-phonetic" text;
+ALTER TABLE vcard ADD COLUMN "sound-binval" text;
+ALTER TABLE vcard ADD COLUMN "sound-extval" text;
+ALTER TABLE vcard ADD COLUMN "key-type" text;
+ALTER TABLE vcard ADD COLUMN "key-cred" text;
+ALTER TABLE vcard ADD COLUMN "rev" text;
+
+and create table "status":
+
+CREATE TABLE "status" (
+    "collection-owner" text PRIMARY KEY,
+    "object-sequence" bigint,
+    "status" text NOT NULL,
+    "show" text,
+    "last-login" int DEFAULT '0',
+    "last-logout" int DEFAULT '0' );
+
+NOTE: PostgreSQL schema was greatly improved as a whole.
+It might be a good idea to dump your data (as INSERTS), recreate DB from
+new schema and import data back again.
+
+
+
+
+Please report all errors of this howto to:
+http://bugs.xiaoka.com/proj3
+
+Tomasz Sterna <tomek@xiaoka.com>
+
