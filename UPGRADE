@@ -6,6 +6,7 @@ This file contains upgrade instructions between different versions of jabberd2.
 What had change:
 - c2s.xml local/id syntax:
 - DB schema
+- amp and status modules
 
 Upgrade:
 
@@ -74,6 +75,14 @@ CREATE TABLE "status" (
 NOTE: PostgreSQL schema was greatly improved as a whole.
 It might be a good idea to dump your data (as INSERTS), recreate DB from
 new schema and import data back again.
+
+
+New modules: amp and status
+
+In order for amp and status session manager modules to work, you need to
+add them to appropriate chains in sm.xml and set their configuration options.
+Chains needed to be updated: sess-start, sess-end, in-sess, pkt-sm, pkt-user
+and user-delete. For details see sm.xml.dist.
 
 
 
