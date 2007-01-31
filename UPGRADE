@@ -7,6 +7,8 @@ What had change:
 - c2s.xml local/id syntax:
 - DB schema
 - amp and status modules
+- CyrusSASL usage
+
 
 Upgrade:
 
@@ -83,6 +85,12 @@ In order for amp and status session manager modules to work, you need to
 add them to appropriate chains in sm.xml and set their configuration options.
 Chains needed to be updated: sess-start, sess-end, in-sess, pkt-sm, pkt-user
 and user-delete. For details see sm.xml.dist.
+
+
+CyrusSASL
+
+You need working CyrusSASL installation. Please take care to include all
+required auth modules. Especially cyrus-sasl-md5 and cyrus-sasl-plain.
 
 
 
