@@ -9,10 +9,11 @@ DSTDIR=`pwd`
 rm -rf "$TMPDIR"
 mkdir "$TMPDIR"
 cd "$TMPDIR"
+svn -q copy "$1" `dirname "$1"`"/tags/$APPNAME-$APPVER" -m "Tagging $APPVER release"
 svn -q export "$1" "$APPNAME-$APPVER"
 cd "$APPNAME-$APPVER"
 sed -i "s/^AC_INIT([a-z]\+.*, [0-9]\+.*)$/AC_INIT($APPNAME, $APPVER)/" configure.in
-./bootstrap
+autoreconf --install --force
 cd ..
 tar -zchf "$DSTDIR/$APPNAME-$APPVER.tar.gz" "$APPNAME-$APPVER"
 tar -jchf "$DSTDIR/$APPNAME-$APPVER.tar.bz2" "$APPNAME-$APPVER"
