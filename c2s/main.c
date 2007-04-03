@@ -142,6 +142,10 @@ static void _c2s_config_expand(c2s_t c2s)
     if(config_get(c2s->config, "authreg.mechanisms.traditional.digest") != NULL) c2s->ar_mechanisms |= AR_MECH_TRAD_DIGEST;
     if(config_get(c2s->config, "authreg.mechanisms.traditional.zerok") != NULL) c2s->ar_mechanisms |= AR_MECH_TRAD_ZEROK;
 
+    if(config_get(c2s->config, "authreg.ssl-mechanisms.traditional.plain") != NULL) c2s->ar_ssl_mechanisms |= AR_MECH_TRAD_PLAIN;
+    if(config_get(c2s->config, "authreg.ssl-mechanisms.traditional.digest") != NULL) c2s->ar_ssl_mechanisms |= AR_MECH_TRAD_DIGEST;
+    if(config_get(c2s->config, "authreg.ssl-mechanisms.traditional.zerok") != NULL) c2s->ar_ssl_mechanisms |= AR_MECH_TRAD_ZEROK;
+
     elem = config_get(c2s->config, "io.limits.bytes");
     if(elem != NULL)
     {
@@ -354,6 +358,21 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
             }
             mechbuf[i]='\0';
 
+            /* Determine if our configuration will let us use this mechanism.
+             * We support different mechanisms for both SSL and normal use */
+             
+            /* Using SSF is potentially dangerous, as SASL can alse set the
+             * SSF of the connection. However, SASL shouldn't do so until after
+             * we've finished mechanism establishment 
+             */
+            if (s->ssf>0) {
+                r = snprintf(buf, sizeof(buf), "authreg.ssl-mechanisms.sasl.%s",mechbuf);
+                if (r < -1 || r > sizeof(buf))
+                    return sx_sasl_ret_FAIL;
+                if(config_get(c2s->config,buf) != NULL)
+                    return sx_sasl_ret_OK;
+            }
+            
             r = snprintf(buf, sizeof(buf), "authreg.mechanisms.sasl.%s",mechbuf);
             if (r < -1 || r > sizeof(buf))
                 return sx_sasl_ret_FAIL;

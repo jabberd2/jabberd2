@@ -194,7 +194,8 @@ struct c2s_st {
 
     /** allowed mechanisms */
     int                 ar_mechanisms;
-
+    int                 ar_ssl_mechanisms;
+    
     /** connection rates */
     int                 conn_rate_total;
     int                 conn_rate_seconds;

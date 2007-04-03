@@ -169,6 +169,7 @@ void authreg_free(authreg_t ar) {
 static void _authreg_auth_get(c2s_t c2s, sess_t sess, nad_t nad) {
     int ns, elem, ssequence, attr;
     char username[1024], shash[41], stoken[11], seqs[10], id[128];
+    int ar_mechs;
 
     /* can't auth if they're active */
     if(sess->active) {
@@ -197,8 +198,12 @@ static void _authreg_auth_get(c2s_t c2s, sess_t sess, nad_t nad) {
     }
 #endif
 
+    ar_mechs = c2s->ar_mechanisms;
+    if (sess->s->ssf>0) 
+        ar_mechs = ar_mechs | c2s->ar_ssl_mechanisms;
+        
     /* no point going on if we have no mechanisms */
-    if(!(c2s->ar_mechanisms & (AR_MECH_TRAD_PLAIN | AR_MECH_TRAD_DIGEST | AR_MECH_TRAD_ZEROK))) {
+    if(!(ar_mechs & (AR_MECH_TRAD_PLAIN | AR_MECH_TRAD_DIGEST | AR_MECH_TRAD_ZEROK))) {
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_FORBIDDEN), 0));
         return;
     }
@@ -236,14 +241,14 @@ static void _authreg_auth_get(c2s_t c2s, sess_t sess, nad_t nad) {
     nad_append_elem(nad, ns, "resource", 2);
 
     /* fill out the packet with available auth mechanisms */
-    if(c2s->ar_mechanisms & AR_MECH_TRAD_PLAIN && (c2s->ar->get_password != NULL || c2s->ar->check_password != NULL))
+    if(ar_mechs & AR_MECH_TRAD_PLAIN && (c2s->ar->get_password != NULL || c2s->ar->check_password != NULL))
         nad_append_elem(nad, ns, "password", 2);
 
-    if(c2s->ar_mechanisms & AR_MECH_TRAD_DIGEST && c2s->ar->get_password != NULL)
+    if(ar_mechs & AR_MECH_TRAD_DIGEST && c2s->ar->get_password != NULL)
         nad_append_elem(nad, ns, "digest", 2);
 
     /* don't offer zerok if the sequence is zero */
-    if(c2s->ar_mechanisms & AR_MECH_TRAD_ZEROK && c2s->ar->get_zerok != NULL && c2s->ar->set_zerok != NULL && (c2s->ar->get_zerok)(c2s->ar, username, sess->host->realm, shash, stoken, &ssequence) == 0 && ssequence > 0)
+    if(ar_mechs & AR_MECH_TRAD_ZEROK && c2s->ar->get_zerok != NULL && c2s->ar->set_zerok != NULL && (c2s->ar->get_zerok)(c2s->ar, username, sess->host->realm, shash, stoken, &ssequence) == 0 && ssequence > 0)
     {
         snprintf(seqs, 10, "%d", ssequence - 1);
         nad_append_elem(nad, ns, "sequence", 2);
@@ -263,6 +268,7 @@ static void _authreg_auth_get(c2s_t c2s, sess_t sess, nad_t nad) {
 static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
     int ns, elem, attr, authd = 0, ssequence;
     char username[1024], resource[1024], str[1024], shash[41], stoken[11], hash[280];
+    int ar_mechs;
 
     /* can't auth if they're active */
     if(sess->active) {
@@ -312,8 +318,12 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
     }
 #endif
 
+    ar_mechs = c2s->ar_mechanisms;
+    if (sess->s->ssf > 0)
+        ar_mechs = ar_mechs | c2s->ar_ssl_mechanisms;
+    
     /* no point going on if we have no mechanisms */
-    if(!(c2s->ar_mechanisms & (AR_MECH_TRAD_PLAIN | AR_MECH_TRAD_DIGEST | AR_MECH_TRAD_ZEROK))) {
+    if(!(ar_mechs & (AR_MECH_TRAD_PLAIN | AR_MECH_TRAD_DIGEST | AR_MECH_TRAD_ZEROK))) {
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_FORBIDDEN), 0));
         return;
     }
@@ -325,7 +335,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
     }
     
     /* zerok auth */
-    if(!authd && c2s->ar_mechanisms & AR_MECH_TRAD_ZEROK && c2s->ar->get_zerok != NULL && c2s->ar->set_zerok != NULL && (c2s->ar->get_zerok)(c2s->ar, username, sess->host->realm, shash, stoken, &ssequence) == 0)
+    if(!authd && ar_mechs & AR_MECH_TRAD_ZEROK && c2s->ar->get_zerok != NULL && c2s->ar->set_zerok != NULL && (c2s->ar->get_zerok)(c2s->ar, username, sess->host->realm, shash, stoken, &ssequence) == 0)
     {
         elem = nad_find_elem(nad, 1, ns, "hash", 1);
         if(elem >= 0)
@@ -352,7 +362,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
     }
 
     /* digest auth */
-    if(!authd && c2s->ar_mechanisms & AR_MECH_TRAD_DIGEST && c2s->ar->get_password != NULL)
+    if(!authd && ar_mechs & AR_MECH_TRAD_DIGEST && c2s->ar->get_password != NULL)
     {
         elem = nad_find_elem(nad, 1, ns, "digest", 1);
         if(elem >= 0)
@@ -372,7 +382,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
     }
 
     /* plaintext auth (compare) */
-    if(!authd && c2s->ar_mechanisms & AR_MECH_TRAD_PLAIN && c2s->ar->get_password != NULL)
+    if(!authd && ar_mechs & AR_MECH_TRAD_PLAIN && c2s->ar->get_password != NULL)
     {
         elem = nad_find_elem(nad, 1, ns, "password", 1);
         if(elem >= 0)
@@ -386,7 +396,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
     }
 
     /* plaintext auth (check) */
-    if(!authd && c2s->ar_mechanisms & AR_MECH_TRAD_PLAIN && c2s->ar->check_password != NULL)
+    if(!authd && ar_mechs & AR_MECH_TRAD_PLAIN && c2s->ar->check_password != NULL)
     {
         elem = nad_find_elem(nad, 1, ns, "password", 1);
         if(elem >= 0)
@@ -632,7 +642,9 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
     }
 
     /* store zerok data if we can */
-    if(c2s->ar_mechanisms & AR_MECH_TRAD_ZEROK && c2s->ar->set_zerok != NULL)
+    if(((c2s->ar_mechanisms & AR_MECH_TRAD_ZEROK) ||
+        (c2s->ar_ssl_mechanisms & AR_MECH_TRAD_ZEROK)) && 
+       c2s->ar->set_zerok != NULL)
     {
         snprintf(token, 11, "%X", (unsigned int) time(NULL));
 

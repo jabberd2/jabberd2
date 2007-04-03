@@ -283,6 +283,23 @@
 
     </mechanisms>
 
+    <!-- Additional mechanisms that are also available when the
+         connection is encrypted. Ie. when START-TLS had been
+         negotiated, or user connected on SSL-wrapped port. -->
+    <ssl-mechanisms>
+
+      <!-- it's advisable that you disable plain in the above
+           <mechanisms/> section -->
+      <traditional>
+        <plain/>
+      </traditional>
+
+      <sasl>
+        <plain/>
+      </sasl>
+
+    </ssl-mechanisms>
+
     <!-- MySQL module configuration -->
     <mysql>
       <!-- Database server host and port -->
