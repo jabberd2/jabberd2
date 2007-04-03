@@ -289,7 +289,7 @@ static int _storage_mio_callback(mio_t m, mio_action_t a, int fd, void *data, vo
     switch(a) {
         case action_READ:
 
-            ioctl(fd, FIONREAD, &nbytes);
+            ioctl(fd->fd, FIONREAD, &nbytes);
             if(nbytes == 0) {
                 sx_kill(st->router);
                 return 0;
