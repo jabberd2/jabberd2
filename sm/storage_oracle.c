@@ -18,13 +18,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
-/** @file sm/storage_oracle.c
-  * @brief oracle storage module
-  * @author Nathan Christiansen
-  * $Date: 2005/06/02 04:54:33 $
-  * $Revision: 1.2 $
-  */
-
 #include "sm.h"
 
 #ifdef STORAGE_ORACLE
@@ -102,31 +95,72 @@ int checkOCIError(st_driver_t drv, char *szDoing, OCIError *m_ociError, sword nS
   return nStatus;
 }
 
+
+/* Return the number of occurrences of key in src */
+int count_chars(char *src, char key)
+{
+  int count = 0;
+
+  while ( *src != '\0' )
+  {
+    if ( *src == key )
+      count++; 
+    src++;
+  }
+  
+  return count;
+}
+
+
+
 int oracle_escape_string(char *dest, int dest_length, char *src, int src_length)
 {
   int  result = 0;
   /* src is not null ended */
   char *src_end  = src + src_length;
   char *dest_end = dest + dest_length - 1;
-   
+
   while (src < src_end)
   {
     if (dest < dest_end)
     {
-      static const char ESCAPED_STR[] = "'&";
-      
+      static const char ESCAPED_STR[] = "&";
+      static const char QUOTE_STR[] = "'";
+
       if (strchr(ESCAPED_STR, *src) != NULL)
+      {
+        if (dest + 9 < dest_end)
+        {
+          /*  '||'&'||' */
+          *dest++ = '\'';
+          *dest++ = '|';
+          *dest++ = '|';
+          *dest++ = '\'';
+          *dest++ = '&';
+          *dest++ = '\'';
+          *dest++ = '|';
+          *dest++ = '|';
+          *dest++ = '\'';
+          src++;
+        }
+        else
+        {
+          result = -1;
+          break;
+        }
+      }
+      else if (strchr(QUOTE_STR, *src) != NULL)
       {
         if (dest + 2 < dest_end)
         {
           *dest++ = '\'';
-	  *dest++ = *src;
-	  src++;
+          *dest++ = *src;
+          src++;
         }
         else
         {
-	  result = -1;
-	  break;
+          result = -1;
+          break;
         }
       }
       else
@@ -144,7 +178,7 @@ int oracle_escape_string(char *dest, int dest_length, char *src, int src_length)
 
   return result;
 }
-      
+
 
 
 static int oracle_ping(st_driver_t drv)
@@ -307,7 +341,6 @@ static st_ret_t _st_oracle_add_type(st_driver_t drv, char *type)
 
 static st_ret_t _st_oracle_put_guts(st_driver_t drv, char *type, char *owner, os_t os)
 {
-  static const char STR_PREFIX[] = "STR";
   static const char NAD_PREFIX[] = "NAD";
   
   OracleDriverPointer data = (OracleDriverPointer) drv->private;
@@ -315,7 +348,7 @@ static st_ret_t _st_oracle_put_guts(st_driver_t drv, char *type, char *owner, os
   int lleft = 0, lright = 0, nleft, nright;
   os_object_t o;
   char *key = NULL, *cval = NULL;
-  int cval_len;
+  int vlen;
   dvoid *val = NULL;
   os_type_t ot;
   char *xml = NULL;
@@ -340,10 +373,10 @@ static st_ret_t _st_oracle_put_guts(st_driver_t drv, char *type, char *owner, os
     {
       ORACLE_SAFE(left, strlen(type) + 36, lleft);
       nleft = sprintf(left, "INSERT INTO \"%s\" ( \"collection-owner\"", type);
-  
+
       ORACLE_SAFE(right, strlen(owner) + 15, lright);
       nright = sprintf(right, " ) VALUES ( '%s'", owner);
-  
+
       o = os_iter_object(os);
 
       if(os_object_iter_first(o))
@@ -351,35 +384,33 @@ static st_ret_t _st_oracle_put_guts(st_driver_t drv, char *type, char *owner, os
         do 
         {
           os_object_iter_get(o, &key, &val, &ot);
-      
+
           switch(ot) 
           {
             case os_type_BOOLEAN:
               cval = val ? strdup("1") : strdup("0");
+              vlen = 1;
               break;
-      
+
             case os_type_INTEGER:
               cval = (char *) malloc(sizeof(char) * 20);
               sprintf(cval, "%d", (int) val);
-              strlen(cval);
+              vlen = strlen(cval);
               break;
-      
+
             case os_type_STRING:
 	      /* Ensure that we have enough space for an escaped string. */
-              cval_len = (strlen((char *) val) * 2) + 1;
-	      cval     = (char *) malloc(cval_len);
-              oracle_escape_string(cval , cval_len, (char *) val, strlen(val));
+              cval = (char *) malloc(sizeof(char) * ((strlen((char *) val) * 2 + count_chars((char *) val,'&') * 8) + 1));
+              vlen = oracle_escape_string(cval , (strlen((char *) val) * 2) + count_chars((char *) val,'&') * 8 + 1, (char *) val, strlen((char *) val));
               break;
-      
+
             /* !!! might not be a good idea to mark nads this way */
             case os_type_NAD:
               nad_print((nad_t) val, 0, &xml, &xlen);
 	      /* Ensure that we have enough space for an escaped string. */
-	      cval_len = (xlen * 2) + sizeof (NAD_PREFIX);
-              cval = (char *) malloc(cval_len);
-	      memcpy(cval, NAD_PREFIX, sizeof (NAD_PREFIX) - 1);
-              oracle_escape_string(cval + sizeof (NAD_PREFIX) - 1, 
-	                           cval_len - sizeof (NAD_PREFIX) + 1, (char *) xml, xlen);
+              cval = (char *) malloc(sizeof(char) * ((xlen * 2 + count_chars((char *) val,'&') * 8) + 4));
+              vlen = oracle_escape_string(&cval[3],(xlen * 2 + count_chars((char *) val,'&') * 8) + 4, (char *) xml, xlen) + 3;
+              strncpy(cval, "NAD", 3);
               break;
           }
       
@@ -539,11 +570,12 @@ static st_ret_t _st_oracle_get(st_driver_t drv, char *a_szType, char *owner, cha
     char arrszFieldName[nNumberOfFields][255];
     ub2 arrnFieldType[nNumberOfFields];
     sb2 arrnFieldIndicator[nNumberOfFields];
-    int arrnFieldSize[nNumberOfFields];
+    ub2 arrnFieldSize[nNumberOfFields];
     char *svFieldName;
     int nNameSize;
     int nIntValue;
     nad_t nad;
+    ub2 dummy[1];
 
 
     for (nIndex = 0; nIndex < nNumberOfFields; nIndex++)
@@ -565,8 +597,12 @@ static st_ret_t _st_oracle_get(st_driver_t drv, char *a_szType, char *owner, cha
                                                                            (ub4) OCI_ATTR_DATA_TYPE, data->ociError));
 
       checkOCIError(drv, "_st_oracle_get: Get Field Size", data->ociError, OCIAttrGet(arrFields[nIndex], OCI_DTYPE_PARAM,
-                                                                           (dvoid *) &arrnFieldSize[nIndex], (ub4 *) NULL,
+                                                                           (dvoid *) &dummy, (ub4 *) NULL,
                                                                            (ub4) OCI_ATTR_DATA_SIZE, data->ociError));
+
+      arrnFieldSize[nIndex] = dummy[0];
+      log_debug(ZONE, "Field %s of Size %d", arrszFieldName[nIndex], arrnFieldSize[nIndex]);
+
       if (arrnFieldSize[nIndex] > 4000 || arrnFieldSize[nIndex] < 1)
       {
       	arrnFieldSize[nIndex] = 4000;
@@ -655,6 +691,11 @@ static st_ret_t _st_oracle_get(st_driver_t drv, char *a_szType, char *owner, cha
             ot = os_type_INTEGER;
             break;
 
+          case SQLT_CLOB: /* CLOB for binary photo */
+            log_debug(ZONE, "Field %s is Field Type SQLT_CLOB of Size %d", arrszFieldName[nIndex], arrnFieldSize[nIndex]);
+            ot = os_type_STRING;
+            break;
+
           default:
             log_debug(ZONE, "Unknown field type %d, for column %s ignoring it", arrnFieldType[nIndex], arrszFieldName[nIndex]);
             continue;
@@ -673,44 +714,11 @@ static st_ret_t _st_oracle_get(st_driver_t drv, char *a_szType, char *owner, cha
             break;
 
           case os_type_STRING:
-            if(strlen(arrszFieldData[nIndex]) >= 3 && strncmp(arrszFieldData[nIndex], "NAD", 3) == 0)
-            {
-              if(strlen(arrszFieldData[nIndex]) == 3)
-              {
-                log_write(drv->st->sm->log, LOG_ERR, "Found XML cell with no XML content; table=%s, owner=%s", a_szType, owner);
-                os_free(*os);
-                return st_FAILED;
-              }
-
-              nad = nad_parse(drv->st->sm->router->nad_cache, &arrszFieldData[nIndex][3], strlen(arrszFieldData[nIndex]) - 3);
-              if(nad == NULL)
-              {
-                log_write(drv->st->sm->log, LOG_ERR, "Found XML cell with unparseable XML content; table=%s, owner=%s", a_szType, owner);
-		log_write(drv->st->sm->log, LOG_ERR, "Unparseable Content: %s", &arrszFieldData[nIndex][3]);
-                os_free(*os);
-                return st_FAILED;
-              }
-
-              os_object_put(o, arrszFieldName[nIndex], nad, os_type_NAD);
-            }
-            else 
-	    {
-              int offset;
-
-              if(strlen(arrszFieldData[nIndex]) >= 3 && strncmp(arrszFieldData[nIndex], "STR", 3) == 0) 
-	      {
-                offset = 3;
-              } 
-              else 
-              {
-                offset = 0;
-              }
-
-              os_object_put(o, arrszFieldName[nIndex], arrszFieldData[nIndex + offset], os_type_STRING);
-            } 
-            break;
+              os_object_put(o, arrszFieldName[nIndex], arrszFieldData[nIndex], os_type_STRING);
+              break;
 
             case os_type_NAD:
+            case os_type_UNKNOWN:
               break;
           }
         }
