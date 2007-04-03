@@ -1,5 +1,18 @@
 This file contains upgrade instructions between different versions of jabberd2.
 
+* 2.1 to 2.1.3 upgrade:
+
+What had change:
+- c2s.xml added <ssl-mechanisms/> section
+- c2s PAM authenticator now handles realm setting
+- libjabberd moved from /usr/lib to /usr/lib/jabberd
+- removed bootstrap script - use: autoreconf --install if you build from sources
+
+If you want to use new SSL aware auth mechanizms please merge <ssl-mechanisms/>
+section of c2s.xml.dist into your c2s.xml config file.
+Remove any realm setting for PAM authenticated domains or setup your PAM system
+to handle additional realms.
+
 
 * 2.0 to 2.1 upgrade:
 
