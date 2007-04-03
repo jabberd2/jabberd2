@@ -274,5 +274,7 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     mod->user_delete = _offline_user_delete;
     mod->free = _offline_free;
 
+    feature_register(mod->mm->sm, "msgoffline");
+
     return 0;
 }
