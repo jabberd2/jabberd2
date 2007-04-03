@@ -86,7 +86,7 @@ static void _st_mysql_convert_filter_recursive(st_driver_t drv, st_filter_t f, c
             cval = (char *) malloc(sizeof(char) * ((strlen((char *) f->val) * 2) + 1));
             vlen = mysql_real_escape_string(data->conn, cval, (char *) f->val, strlen((char *) f->val));
 
-            MYSQL_SAFE((*buf), *buflen + 12 + vlen - strlen(f->val), *buflen);
+            MYSQL_SAFE((*buf), *buflen + 12 + strlen(f->key) + vlen, *buflen);
             *nbuf += sprintf(&((*buf)[*nbuf]), "( `%s` = \'%s\' ) ", f->key, cval);
             free(cval);
 
@@ -147,13 +147,13 @@ static char *_st_mysql_convert_filter(st_driver_t drv, const char *owner, const 
     int buflen = 0, nbuf = 0, fbuf;
     st_filter_t f;
 
-    MYSQL_SAFE(buf, 24 + strlen(owner), buflen);
+    MYSQL_SAFE(buf, 23 + strlen(owner), buflen);
 
     nbuf = sprintf(buf, "`collection-owner` = '%s'", owner);
 
     sbuf = xhash_get(data->filters, filter);
     if(sbuf != NULL) {
-        MYSQL_SAFE(buf, buflen + strlen(sbuf) + 7, buflen);
+        MYSQL_SAFE(buf, buflen + strlen(sbuf) + 5, buflen);
         nbuf += sprintf(&buf[nbuf], " AND %s", sbuf);
         return buf;
     }
@@ -205,10 +205,10 @@ static st_ret_t _st_mysql_put_guts(st_driver_t drv, const char *type, const char
 
     if(os_iter_first(os))
         do {
-            MYSQL_SAFE(left, strlen(type) + 36, lleft);
+            MYSQL_SAFE(left, strlen(type) + 35, lleft);
             nleft = sprintf(left, "INSERT INTO `%s` ( `collection-owner`", type);
     
-            MYSQL_SAFE(right, strlen(owner) + 15, lright);
+            MYSQL_SAFE(right, strlen(owner) + 14, lright);
             nright = sprintf(right, " ) VALUES ( '%s'", owner);
     
             o = os_iter_object(os);
@@ -531,7 +531,7 @@ static st_ret_t _st_mysql_delete(st_driver_t drv, const char *type, const char *
     cond = _st_mysql_convert_filter(drv, owner, filter);
     log_debug(ZONE, "generated filter: %s", cond);
 
-    MYSQL_SAFE(buf, strlen(type) + strlen(cond) + 19, buflen);
+    MYSQL_SAFE(buf, strlen(type) + strlen(cond) + 21, buflen);
     sprintf(buf, "DELETE FROM `%s` WHERE %s", type, cond);
     free(cond);
 
