@@ -104,7 +104,6 @@ void amp_error_pkt(pkt_t pkt, amp_rule_t rule) {
 
 static mod_ret_t _amp_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     mod_amp_config_t config = (mod_amp_config_t) mi->mod->private;
-    int ns, elem, attr;
 
     /* only handle messages */
     if (pkt->type != pkt_MESSAGE)

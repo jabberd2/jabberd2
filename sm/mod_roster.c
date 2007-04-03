@@ -149,7 +149,7 @@ static void _roster_push(user_t user, pkt_t pkt, int mod_index)
     for(scan = user->sessions; scan != NULL; scan = scan->next)
     {
         /* don't push to us or to anyone who hasn't loaded the roster */
-        if((int) scan->module_data[mod_index] == 0)
+        if(scan->module_data[mod_index] == NULL)
             continue;
 
         push = pkt_dup(pkt, jid_full(scan->jid), NULL);

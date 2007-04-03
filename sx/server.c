@@ -227,7 +227,7 @@ static void _sx_server_ns_start(void *arg, const char *prefix, const char *uri) 
 void sx_server_init(sx_t s, unsigned int flags) {
     int i;
 
-    assert((int) s);
+    assert((int) (s != NULL));
 
     /* can't do anything if we're alive already */
     if(s->state != state_NONE)

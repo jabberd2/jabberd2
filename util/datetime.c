@@ -38,7 +38,7 @@ time_t datetime_in(char *date) {
     struct timeval tv;
     struct timezone tz;
 
-    assert((int) date);
+    assert((int) (date != NULL));
 
     /* !!! sucks having to call this each time */
     tzset();
@@ -115,7 +115,7 @@ void datetime_out(time_t t, datetime_t type, char *date, int datelen) {
     struct tm *gmt;
 
     assert((int) type);
-    assert((int) date);
+    assert((int) (date != NULL));
     assert((int) datelen);
 
     gmt = gmtime(&t);

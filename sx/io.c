@@ -96,7 +96,7 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
 
                     nad_print(nad, 0, &xml, &xlen);
                     errstring = (char *) malloc(sizeof(char) * (xlen + 1));
-                    sprintf(errstring, "%.*s", &xlen, &xml);
+                    sprintf(errstring, "%.*s", xlen, xml);
                 }
 
                 if(s->state < state_CLOSING) {
@@ -160,7 +160,7 @@ int sx_can_read(sx_t s) {
     sx_buf_t in, out;
     int read, ret;
 
-    assert((int) s);
+    assert((int) (s != NULL));
 
     /* do we care? */
     if(!s->want_read && s->state < state_CLOSING)
@@ -294,7 +294,7 @@ int sx_can_write(sx_t s) {
     sx_buf_t out;
     int ret, written;
     
-    assert((int) s);
+    assert((int) (s != NULL));
 
     /* do we care? */
     if(!s->want_write && s->state < state_CLOSING)
@@ -391,8 +391,8 @@ int _sx_nad_write(sx_t s, nad_t nad, int elem) {
 
 /** app version */
 void sx_nad_write_elem(sx_t s, nad_t nad, int elem) {
-    assert((int) s);
-    assert((int) nad);
+    assert((int) (s != NULL));
+    assert((int) (nad != NULL));
 
     if(_sx_nad_write(s, nad, elem) == 1)
         return;
@@ -425,8 +425,8 @@ int _sx_raw_write(sx_t s, char *buf, int len) {
 
 /** app version */
 void sx_raw_write(sx_t s, char *buf, int len) {
-    assert((int) s);
-    assert((int) buf);
+    assert((int) (s != NULL));
+    assert((int) (buf != NULL));
     assert(len);
 
     if(_sx_raw_write(s, buf, len) == 1)
@@ -451,7 +451,7 @@ void _sx_close(sx_t s) {
 }
 
 void sx_close(sx_t s) {
-    assert((int) s);
+    assert((int) (s != NULL));
 
     if(s->state >= state_CLOSING)
         return;
@@ -466,7 +466,7 @@ void sx_close(sx_t s) {
 }
 
 void sx_kill(sx_t s) {
-    assert((int) s);
+    assert((int) (s != NULL));
 
     _sx_state(s, state_CLOSED);
     _sx_event(s, event_CLOSED, NULL);

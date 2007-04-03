@@ -113,7 +113,7 @@ void sx_client_init(sx_t s, unsigned int flags, char *ns, char *to, char *from, 
     char *c;
     int i, len;
 
-    assert((int) s);
+    assert((int) (s != NULL));
 
     /* can't do anything if we're alive already */
     if(s->state != state_NONE)

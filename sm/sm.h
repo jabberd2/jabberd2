@@ -324,6 +324,7 @@ void            sess_route(sess_t sess, pkt_t pkt);
 sess_t          sess_start(sm_t sm, jid_t jid);
 void            sess_end(sess_t sess);
 sess_t          sess_match(user_t user, char *resource);
+sess_t          sess_match_exact(user_t user, char *resource);
 
 user_t          user_load(sm_t sm, jid_t jid);
 void            user_free(user_t user);

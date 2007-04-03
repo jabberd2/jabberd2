@@ -32,7 +32,7 @@ sx_env_t sx_env_new(void) {
 void sx_env_free(sx_env_t env) {
     int i;
 
-    assert((int) env);
+    assert((int) (env != NULL));
 
     /* !!! usage counts */
 
@@ -51,8 +51,8 @@ sx_plugin_t sx_env_plugin(sx_env_t env, sx_plugin_init_t init, ...) {
     int ret;
     va_list args;
 
-    assert((int) env);
-    assert((int) init);
+    assert((int) (env != NULL));
+    assert((int) (init != NULL));
 
     va_start(args, init);
 

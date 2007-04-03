@@ -128,7 +128,7 @@ static void _mio_accept(mio_t m, mio_fd_t fd)
 {
     struct sockaddr_storage serv_addr;
     socklen_t addrlen = (socklen_t) sizeof(serv_addr);
-    int newfd, dupfd;
+    int newfd;
     mio_fd_t mio_fd;
     char ip[INET6_ADDRSTRLEN];
 

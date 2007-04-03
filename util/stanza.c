@@ -24,7 +24,7 @@
 nad_t stanza_error(nad_t nad, int elem, int err) {
     int ns;
 
-    assert((int) nad);
+    assert((int) (nad != NULL));
     assert((int) (elem >= 0));
     assert((int) (err >= stanza_err_BAD_REQUEST && err < stanza_err_LAST));
 
@@ -51,7 +51,7 @@ nad_t stanza_tofrom(nad_t nad, int elem) {
     int attr;
     char to[3072], from[3072];
 
-    assert((int) nad);
+    assert((int) (nad != NULL));
 
     to[0] = '\0';
     from[0] = '\0';

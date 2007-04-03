@@ -23,7 +23,7 @@
 static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
     sess_t sess = (sess_t) arg;
     sx_buf_t buf = (sx_buf_t) data;
-    int rlen, len, ns, elem, attr, i, r;
+    int rlen, len, ns, elem, attr;
     sx_error_t *sxe;
     nad_t nad;
     char root[9];

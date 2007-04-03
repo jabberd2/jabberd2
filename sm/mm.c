@@ -44,7 +44,7 @@
 
 mm_t mm_new(sm_t sm) {
     mm_t mm;
-    int celem, melem, attr, i, *nlist = NULL;
+    int celem, melem, attr, *nlist = NULL;
     char id[13], name[32], mod_fullpath[512], arg[1024], *modules_path;
     mod_chain_t chain = (mod_chain_t) NULL;
     mod_instance_t **list = NULL, mi;

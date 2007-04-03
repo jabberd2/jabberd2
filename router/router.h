@@ -206,6 +206,10 @@ int     aci_check(xht acls, char *type, char *name);
 int     user_table_load(router_t r);
 void    user_table_unload(router_t r);
 
+int     filter_load(router_t r);
+void    filter_unload(router_t r);
+int     filter_packet(router_t r, nad_t nad);
+
 /* union for xhash_iter_get to comply with strict-alias rules for gcc3 */
 union xhashv
 {

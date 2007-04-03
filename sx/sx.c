@@ -24,7 +24,7 @@ sx_t sx_new(sx_env_t env, int tag, sx_callback_t cb, void *arg) {
     sx_t s;
     int i;
 
-    assert((int) cb);
+    assert((int) (cb != NULL));
 
     s = (sx_t) malloc(sizeof(struct _sx_st));
     memset(s, 0, sizeof(struct _sx_st));
@@ -129,7 +129,7 @@ void sx_free(sx_t s) {
 
 /** force advance into auth state */
 void sx_auth(sx_t s, const char *auth_method, const char *auth_id) {
-    assert((int) s);
+    assert((int) (s != NULL));
 
     _sx_debug(ZONE, "authenticating stream (method=%s; id=%s)", auth_method, auth_id);
 

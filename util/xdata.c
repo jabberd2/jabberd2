@@ -49,9 +49,9 @@ xdata_t xdata_new(xdata_type_t type, char *title, char *instructions) {
 xdata_field_t xdata_field_new(xdata_t xd, xdata_field_type_t type, char *var, char *label, char *desc, int required) {
     xdata_field_t xdf;
 
-    assert((int) xd);
+    assert((int) (xd != NULL));
     assert((int) type);
-    assert((int) var);
+    assert((int) (var != NULL));
 
     xdf = pmalloco(xd->p, sizeof(struct _xdata_field_st));
 
@@ -73,7 +73,7 @@ xdata_field_t xdata_field_new(xdata_t xd, xdata_field_type_t type, char *var, ch
 xdata_item_t xdata_item_new(xdata_t xd) {
     xdata_item_t xdi;
 
-    assert((int) xd);
+    assert((int) (xd != NULL));
 
     xdi = pmalloco(xd->p, sizeof(struct _xdata_item_st));
 
@@ -84,8 +84,8 @@ xdata_item_t xdata_item_new(xdata_t xd) {
 
 /** field insertion */
 void xdata_add_field(xdata_t xd, xdata_field_t xdf) {
-    assert((int) xd);
-    assert((int) xdf);
+    assert((int) (xd != NULL));
+    assert((int) (xdf != NULL));
 
     if(xd->fields == NULL)
         xd->fields = xd->flast = xdf;
@@ -96,8 +96,8 @@ void xdata_add_field(xdata_t xd, xdata_field_t xdf) {
 }
 
 void xdata_add_rfield(xdata_t xd, xdata_field_t xdf) {
-    assert((int) xd);
-    assert((int) xdf);
+    assert((int) (xd != NULL));
+    assert((int) (xdf != NULL));
 
     if(xd->rfields == NULL)
         xd->rfields = xd->rflast = xdf;
@@ -108,8 +108,8 @@ void xdata_add_rfield(xdata_t xd, xdata_field_t xdf) {
 }
 
 void xdata_add_field_item(xdata_item_t xdi, xdata_field_t xdf) {
-    assert((int) xdi);
-    assert((int) xdf);
+    assert((int) (xdi != NULL));
+    assert((int) (xdf != NULL));
 
     if(xdi->fields == NULL)
         xdi->fields = xdi->flast = xdf;
@@ -121,8 +121,8 @@ void xdata_add_field_item(xdata_item_t xdi, xdata_field_t xdf) {
 
 /** item insertion */
 void xdata_add_item(xdata_t xd, xdata_item_t xdi) {
-    assert((int) xd);
-    assert((int) xdi);
+    assert((int) (xd != NULL));
+    assert((int) (xdi != NULL));
 
     if(xd->items == NULL)
         xd->items = xd->ilast = xdi;
@@ -136,8 +136,8 @@ void xdata_add_item(xdata_t xd, xdata_item_t xdi) {
 void xdata_option_new(xdata_field_t xdf, char *value, int lvalue, char *label, int llabel) {
     xdata_option_t xdo;
 
-    assert((int) xdf);
-    assert((int) value);
+    assert((int) (xdf != NULL));
+    assert((int) (value != NULL));
 
     xdo = pmalloco(xdf->p, sizeof(struct _xdata_option_st));
 
@@ -160,8 +160,8 @@ void xdata_option_new(xdata_field_t xdf, char *value, int lvalue, char *label, i
 void xdata_add_value(xdata_field_t xdf, char *value, int vlen) {
     int first = 0;
 
-    assert((int) xdf);
-    assert((int) value);
+    assert((int) (xdf != NULL));
+    assert((int) (value != NULL));
 
     if(vlen <= 0) vlen = strlen(value);
 
@@ -271,7 +271,7 @@ xdata_t xdata_parse(nad_t nad, int root) {
     int atype, elem, field;
     xdata_field_t xdf;
 
-    assert((int) nad);
+    assert((int) (nad != NULL));
     assert((int) (root >= 0));
 
     log_debug(ZONE, "building xd from nad");

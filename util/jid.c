@@ -216,7 +216,7 @@ jid_t jid_reset(jid_t jid, const unsigned char *id, int len) {
     prep_cache_t pc;
     unsigned char *myid, *cur, *olddata=NULL;
 
-    assert((int) jid);
+    assert((int) (jid != NULL));
 
     pc = jid->pc;
     if (jid->jid_data != NULL) {
@@ -308,7 +308,7 @@ static jid_t jid_reset_components_internal(jid_t jid, const unsigned char *node,
     int dataStatic;
     jid_static_buf staticTmpBuf;
 
-    assert((int) jid);
+    assert((int) (jid != NULL));
 
     pc = jid->pc;
     if(jid->jid_data != NULL)

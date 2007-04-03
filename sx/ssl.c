@@ -154,7 +154,7 @@ static int _sx_ssl_process(sx_t s, sx_plugin_t p, nad_t nad) {
                 if( ((_sx_ssl_conn_t)s->plugin_data[p->index])->pemfile != NULL )
                     free(((_sx_ssl_conn_t)s->plugin_data[p->index])->pemfile);
                 free(s->plugin_data[p->index]);
-                s->plugin_data[p->index] == NULL;
+                s->plugin_data[p->index] = NULL;
             }
 
             _sx_debug(ZONE, "server can't handle ssl, business as usual");
@@ -621,7 +621,7 @@ static void _sx_ssl_free(sx_t s, sx_plugin_t p) {
 
     free(sc);
     
-    s->plugin_data[p->index] == NULL;
+    s->plugin_data[p->index] = NULL;
 }
 
 static void _sx_ssl_unload(sx_plugin_t p) {
@@ -716,8 +716,8 @@ int sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args) {
 }
 
 int sx_ssl_client_starttls(sx_plugin_t p, sx_t s, char *pemfile) {
-    assert((int) p);
-    assert((int) s);
+    assert((int) (p != NULL));
+    assert((int) (s != NULL));
 
     /* sanity */
     if(s->type != type_CLIENT || s->state != state_STREAM) {

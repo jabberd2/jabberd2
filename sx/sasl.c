@@ -66,7 +66,6 @@ static void _sx_auxprop_lookup(void *glob_context,
 			      unsigned ulen) {
     const char *realm  = NULL;
     char *c;
-    int ret;
     const struct propval *to_fetch, *current;
     char *user_buf = NULL;
     char *value;
@@ -1008,10 +1007,10 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, c
     sasl_security_properties_t sec_props;
     nad_t nad;
 
-    assert((int) p);
-    assert((int) s);
-    assert((int) appname);
-    assert((int) mech);
+    assert((int) (p != NULL));
+    assert((int) (s != NULL));
+    assert((int) (appname != NULL));
+    assert((int) (mech != NULL));
 
     if(s->type != type_CLIENT || s->state != state_STREAM) {
         _sx_debug(ZONE, "need client in stream state for sasl auth");

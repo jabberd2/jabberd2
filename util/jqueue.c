@@ -35,7 +35,7 @@ jqueue_t jqueue_new(void) {
 }
 
 void jqueue_free(jqueue_t q) {
-    assert((int) q);
+    assert((int) (q != NULL));
 
     pool_free(q->p);
 }
@@ -43,7 +43,7 @@ void jqueue_free(jqueue_t q) {
 void jqueue_push(jqueue_t q, void *data, int priority) {
     _jqueue_node_t qn, scan;
 
-    assert((int) q);
+    assert((int) (q != NULL));
 
     q->size++;
 
@@ -96,7 +96,7 @@ void *jqueue_pull(jqueue_t q) {
     void *data;
     _jqueue_node_t qn;
 
-    assert((int) q);
+    assert((int) (q != NULL));
 
     if(q->front == NULL)
         return NULL;
