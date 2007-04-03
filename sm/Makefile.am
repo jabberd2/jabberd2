@@ -1,28 +1,28 @@
 INCLUDES = -DCONFIG_DIR=\"$(sysconfdir)\"
 
 bin_PROGRAMS = sm
-lib_LTLIBRARIES = libmod_active.la \
-                  libmod_announce.la \
-                  libmod_amp.la \
-                  libmod_deliver.la \
-                  libmod_disco.la \
-                  libmod_disco-publish.la \
-                  libmod_echo.la \
-                  libmod_help.la \
-                  libmod_iq-last.la \
-                  libmod_iq-private.la \
-                  libmod_iq-time.la \
-                  libmod_iq-vcard.la \
-                  libmod_iq-version.la \
-                  libmod_offline.la \
-                  libmod_presence.la \
-                  libmod_privacy.la \
-                  libmod_roster.la \
-                  libmod_session.la \
-                  libmod_status.la \
-                  libmod_template-roster.la \
-                  libmod_vacation.la \
-                  libmod_validate.la
+pkglib_LTLIBRARIES = mod_active.la \
+                  mod_announce.la \
+                  mod_amp.la \
+                  mod_deliver.la \
+                  mod_disco.la \
+                  mod_disco-publish.la \
+                  mod_echo.la \
+                  mod_help.la \
+                  mod_iq-last.la \
+                  mod_iq-private.la \
+                  mod_iq-time.la \
+                  mod_iq-vcard.la \
+                  mod_iq-version.la \
+                  mod_offline.la \
+                  mod_presence.la \
+                  mod_privacy.la \
+                  mod_roster.la \
+                  mod_session.la \
+                  mod_status.la \
+                  mod_template-roster.la \
+                  mod_vacation.la \
+                  mod_validate.la
 
 noinst_HEADERS = sm.h
 sm_SOURCES = aci.c \
@@ -50,68 +50,68 @@ sm_LDADD = $(top_builddir)/sx/libsx.la \
            $(top_builddir)/util/libutil.la \
            $(top_builddir)/subst/libsubst.la
 
-libmod_active_la_SOURCES = mod_active.c
-libmod_active_la_LDFLAGS = -shared -E
+mod_active_la_SOURCES = mod_active.c
+mod_active_la_LDFLAGS = -module -avoid-version
 
-libmod_announce_la_SOURCES = mod_announce.c
-libmod_announce_la_LDFLAGS = -shared -E
+mod_announce_la_SOURCES = mod_announce.c
+mod_announce_la_LDFLAGS = -module -avoid-version
 
-libmod_amp_la_SOURCES = mod_amp.c
-libmod_amp_la_LDFLAGS = -shared -E
+mod_amp_la_SOURCES = mod_amp.c
+mod_amp_la_LDFLAGS = -module -avoid-version
 
-libmod_deliver_la_SOURCES = mod_deliver.c
-libmod_deliver_la_LDFLAGS = -shared -E
+mod_deliver_la_SOURCES = mod_deliver.c
+mod_deliver_la_LDFLAGS = -module -avoid-version
 
-libmod_disco_la_SOURCES = mod_disco.c
-libmod_disco_la_LDFLAGS = -shared -E
+mod_disco_la_SOURCES = mod_disco.c
+mod_disco_la_LDFLAGS = -module -avoid-version
 
-libmod_disco_publish_la_SOURCES = mod_disco_publish.c
-libmod_disco_publish_la_LDFLAGS = -shared -E
+mod_disco_publish_la_SOURCES = mod_disco_publish.c
+mod_disco_publish_la_LDFLAGS = -module -avoid-version
 
-libmod_echo_la_SOURCES = mod_echo.c
-libmod_echo_la_LDFLAGS = -shared -E
+mod_echo_la_SOURCES = mod_echo.c
+mod_echo_la_LDFLAGS = -module -avoid-version
 
-libmod_help_la_SOURCES = mod_help.c
-libmod_help_la_LDFLAGS = -shared -E
+mod_help_la_SOURCES = mod_help.c
+mod_help_la_LDFLAGS = -module -avoid-version
 
-libmod_iq_last_la_SOURCES = mod_iq_last.c
-libmod_iq_last_la_LDFLAGS = -shared -E
+mod_iq_last_la_SOURCES = mod_iq_last.c
+mod_iq_last_la_LDFLAGS = -module -avoid-version
 
-libmod_iq_private_la_SOURCES = mod_iq_private.c
-libmod_iq_private_la_LDFLAGS = -shared -E
+mod_iq_private_la_SOURCES = mod_iq_private.c
+mod_iq_private_la_LDFLAGS = -module -avoid-version
 
-libmod_iq_time_la_SOURCES = mod_iq_time.c
-libmod_iq_time_la_LDFLAGS = -shared -E
+mod_iq_time_la_SOURCES = mod_iq_time.c
+mod_iq_time_la_LDFLAGS = -module -avoid-version
 
-libmod_iq_vcard_la_SOURCES = mod_iq_vcard.c
-libmod_iq_vcard_la_LDFLAGS = -shared -E
+mod_iq_vcard_la_SOURCES = mod_iq_vcard.c
+mod_iq_vcard_la_LDFLAGS = -module -avoid-version
 
-libmod_iq_version_la_SOURCES = mod_iq_version.c
-libmod_iq_version_la_LDFLAGS = -shared -E
+mod_iq_version_la_SOURCES = mod_iq_version.c
+mod_iq_version_la_LDFLAGS = -module -avoid-version
 
-libmod_offline_la_SOURCES = mod_offline.c
-libmod_offline_la_LDFLAGS = -shared -E
+mod_offline_la_SOURCES = mod_offline.c
+mod_offline_la_LDFLAGS = -module -avoid-version
 
-libmod_presence_la_SOURCES = mod_presence.c
-libmod_presence_la_LDFLAGS = -shared -E
+mod_presence_la_SOURCES = mod_presence.c
+mod_presence_la_LDFLAGS = -module -avoid-version
 
-libmod_privacy_la_SOURCES = mod_privacy.c
-libmod_privacy_la_LDFLAGS = -shared -E
+mod_privacy_la_SOURCES = mod_privacy.c
+mod_privacy_la_LDFLAGS = -module -avoid-version
 
-libmod_roster_la_SOURCES = mod_roster.c
-libmod_roster_la_LDFLAGS = -shared -E
+mod_roster_la_SOURCES = mod_roster.c
+mod_roster_la_LDFLAGS = -module -avoid-version
 
-libmod_session_la_SOURCES = mod_session.c
-libmod_session_la_LDFLAGS = -shared -E
+mod_session_la_SOURCES = mod_session.c
+mod_session_la_LDFLAGS = -module -avoid-version
 
-libmod_status_la_SOURCES = mod_status.c
-libmod_status_la_LDFLAGS = -shared -E
+mod_status_la_SOURCES = mod_status.c
+mod_status_la_LDFLAGS = -module -avoid-version
 
-libmod_template_roster_la_SOURCES = mod_template_roster.c
-libmod_template_roster_la_LDFLAGS = -shared -E
+mod_template_roster_la_SOURCES = mod_template_roster.c
+mod_template_roster_la_LDFLAGS = -module -avoid-version
 
-libmod_vacation_la_SOURCES = mod_vacation.c
-libmod_vacation_la_LDFLAGS = -shared -E
+mod_vacation_la_SOURCES = mod_vacation.c
+mod_vacation_la_LDFLAGS = -module -avoid-version
 
-libmod_validate_la_SOURCES = mod_validate.c
-libmod_validate_la_LDFLAGS = -shared -E
+mod_validate_la_SOURCES = mod_validate.c
+mod_validate_la_LDFLAGS = -module -avoid-version

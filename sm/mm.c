@@ -172,9 +172,9 @@ mm_t mm_new(sm_t sm) {
                         mod->name = strdup(name);
                 #ifndef WIN32
                   if (modules_path != NULL)
-                      snprintf(mod_fullpath, 512, "%slibmod_%s.so", modules_path, name);
+                      snprintf(mod_fullpath, 512, "%smod_%s.so", modules_path, name);
                   else
-                      snprintf(mod_fullpath, 512, "libmod_%s.so", name);
+                      snprintf(mod_fullpath, 512, "mod_%s.so", name);
                   mod->handle = dlopen(mod_fullpath, RTLD_LAZY);
                   if (mod->handle != NULL)
                       mod->module_init_fn = dlsym(mod->handle, "module_init");
