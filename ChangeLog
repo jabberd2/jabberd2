@@ -1,3 +1,18 @@
+2007-04-03 Tomasz Sterna <tomek@xiaoka.com>
+	* Integrated auth depending on security patch by Simon Wilkinson. Closes #24
+	* mod_offline registers feature msgoffline. fixes #12
+	* Integrated remove handle change patch by Mark Doliner. Closes #20
+	* Integrated compile warnings patch by Mark Doliner. Fixes #19
+	* Integrated storage_oracle patch by Gonzalo Barrio. Closes #18
+	* Integrated libs.patch by Simon Wilkinson. Closes #16
+	* Integrated cyrus-sasl_configure_check by Priit Laes. Closes #8
+	* Fixed fd target for ioctls. Fixes #6
+	* Integrated mysql_buffer_size_fixes by Mark Doliner. Closes #2.
+	* removed bootstrap script - use autoreconf
+
+2007-01-31 Tomasz Sterna <tomek@xiaoka.com>
+	* 2.0 to 2.1 UPGRADE instructions
+
 2007-01-17 Tomasz Sterna <tomek@xiaoka.com>
 	* really fixed MD5_CTX compilation errors
 
