@@ -345,18 +345,21 @@ static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi
     else
         jid_free(jid);
 
-    /* free the old name */
-    if(item->name != NULL) {
-        free(item->name);
-        item->name = NULL;
-    }
-
     /* extract the name */
     attr = nad_find_attr(pkt->nad, elem, -1, "name", NULL);
     if(attr >= 0)
     {
-        item->name = (char *) malloc(sizeof(char) * (NAD_AVAL_L(pkt->nad, attr) + 1));
-        sprintf(item->name, "%.*s", NAD_AVAL_L(pkt->nad, attr), NAD_AVAL(pkt->nad, attr));
+        /* free the old name */
+        if(item->name != NULL) {
+            free(item->name);
+            item->name = NULL;
+        }
+
+        if (NAD_AVAL_L(pkt->nad, attr) > 0)
+        {
+            item->name = (char *) malloc(sizeof(char) * (NAD_AVAL_L(pkt->nad, attr) + 1));
+            sprintf(item->name, "%.*s", NAD_AVAL_L(pkt->nad, attr), NAD_AVAL(pkt->nad, attr));
+        }
     }
 
     /* free the old groups */
