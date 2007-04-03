@@ -2,7 +2,7 @@ README for Jabber Open Source Server (2.1)
 
 Thanks for downloading jabberd 2.1. Below are some basic instructions to
 get you started. Complete documentation is available at
-http://jabberd.jabberstudio.org/2/docs/
+http://jabberd2.xiaoka.com/
 
 -- the jabberd team
 
@@ -142,16 +142,9 @@ Upgrade:
 
 Support:
 
-Documentation: http://jabberd.jabberstudio.org/2/docs/
-Wiki: http://docs.xiaoka.com/jabberd2:start
-      http://j2.openaether.org/mediawiki
-
-    Bugs to: http://bugs.xiaoka.com/proj3
-Requests to: http://bugs.xiaoka.com/proj3
-
-Everything else: jabberd@jabberstudio.org
- (Subscribe at http://mail.jabber.org/mailman/listinfo/jabberd
-  Archives at http://mail.jabber.org/pipermail/jabberd/ )
+Webpage: http://jabberd2.xiaoka.com/
+Mailinglist: jabberd2@lists.xiaoka.com
+ (Subscribe by sending mail to jabberd2-subscribe@jabberd2.xiaoka.com)
 
 When requesting assistance, please note that the following things can
 provide useful information which may assist with finding your problem:
