@@ -12,6 +12,7 @@ If you want to use new SSL aware auth mechanizms please merge <ssl-mechanisms/>
 section of c2s.xml.dist into your c2s.xml config file.
 Remove any realm setting for PAM authenticated domains or setup your PAM system
 to handle additional realms.
+If you use modules.path in sm.xml, add .../jabberd/ at the end.
 
 
 * 2.0 to 2.1 upgrade:
