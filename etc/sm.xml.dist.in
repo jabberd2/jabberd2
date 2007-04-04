@@ -207,9 +207,7 @@
     <!-- Dynamic sm modules path
 
          Trailing slash is significant. -->
-    <!--
-    <path>@libdir@/</path>
-    -->
+    <path>@pkglibdir@/</path>
 
     <!-- sess-start. The modules in this chain are called when a session
          is first started (usually on request by c2s as part of the
