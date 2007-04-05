@@ -9,7 +9,8 @@ edit = sed \
 	-e 's,@sysconfdir\@,$(sysconfdir),g' \
 	-e 's,@localstatedir\@,$(localstatedir),g' \
 	-e 's,@bindir\@,$(bindir),g' \
-	-e 's,@libdir\@,$(libdir),g'
+	-e 's,@libdir\@,$(libdir),g' \
+	-e 's,@pkglibdir\@,$(pkglibdir),g'
 
 $(sysconf_DATA):
 	@echo "generating $@ from $@.in"; \
