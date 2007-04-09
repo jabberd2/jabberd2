@@ -56,6 +56,8 @@
 # endif
 #endif
 
+#define STORAGE_FS_READ_BLOCKSIZE 8192
+
 /** internal structure, holds our data */
 typedef struct drvdata_st {
     char *path;
@@ -200,10 +202,10 @@ static st_ret_t _st_fs_get(st_driver_t drv, const char *type, const char *owner,
     DIR *dir;
     struct dirent *dirent;
     FILE *f;
-    char buf[4096], *otc, *val, *c;
+    char buf[STORAGE_FS_READ_BLOCKSIZE], *otc, *val, *c;
     os_object_t o;
     os_type_t ot;
-    int i;
+    int i, size;
     nad_t nad;
     st_filter_t sf;
 
@@ -240,7 +242,9 @@ static st_ret_t _st_fs_get(st_driver_t drv, const char *type, const char *owner,
 
         o = os_object_new(*os);
 
-        while(fgets(buf, 4096, f) != NULL) {
+        while(fgets(buf, STORAGE_FS_READ_BLOCKSIZE, f) != NULL) {
+            size = strlen(buf);
+
             otc = strchr(buf, ' ');
             *otc = '\0'; otc++;
 
@@ -267,10 +271,17 @@ static st_ret_t _st_fs_get(st_driver_t drv, const char *type, const char *owner,
                 case os_type_NAD:
                     nad = nad_parse(drv->st->sm->router->nad_cache, val, 0);
                     if(nad == NULL) {
+                        while(fgets(buf + size, STORAGE_FS_READ_BLOCKSIZE - size, f) != NULL
+                              && nad == NULL && size < STORAGE_FS_READ_BLOCKSIZE) {
+                            size += strlen(buf + size);
+                            nad = nad_parse(drv->st->sm->router->nad_cache, val, 0);
+                        }
+                    }
+                    if(nad == NULL) {
                         log_write(drv->st->sm->log, LOG_ERR, "fs: unable to parse stored XML; type=%s, owner=%s", type, owner);
                         os_free(*os);
-			fclose(f);
-			closedir(dir);
+                        fclose(f);
+                        closedir(dir);
                         return st_FAILED;
                     }
                     os_object_put(o, buf, nad, ot);
@@ -328,10 +339,10 @@ static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *own
     os_t os;
     struct dirent *dirent;
     FILE *f;
-    char buf[4096], *otc, *val, *c;
+    char buf[STORAGE_FS_READ_BLOCKSIZE], *otc, *val, *c;
     os_object_t o;
     os_type_t ot;
-    int i;
+    int i, size;
     nad_t nad;
     st_filter_t sf;
 
@@ -370,7 +381,9 @@ static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *own
 
         o = os_object_new(os);
 
-        while(fgets(buf, 4096, f) != NULL) {
+        while(fgets(buf, STORAGE_FS_READ_BLOCKSIZE, f) != NULL) {
+            size = strlen(buf);
+
             otc = strchr(buf, ' ');
             *otc = '\0'; otc++;
 
@@ -396,6 +409,13 @@ static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *own
 
                 case os_type_NAD:
                     nad = nad_parse(drv->st->sm->router->nad_cache, val, 0);
+                    if(nad == NULL) {
+                        while(fgets(buf + size, STORAGE_FS_READ_BLOCKSIZE - size, f) != NULL
+                              && nad == NULL && size < STORAGE_FS_READ_BLOCKSIZE) {
+                            size += strlen(buf + size);
+                            nad = nad_parse(drv->st->sm->router->nad_cache, val, 0);
+                        }
+                    }
                     if(nad == NULL)
                         log_write(drv->st->sm->log, LOG_ERR, "fs: unable to parse stored XML; type=%s, owner=%s", type, owner);
                     else {
