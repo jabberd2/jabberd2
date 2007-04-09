@@ -42,7 +42,7 @@ static int ns_VCARD = 0;
  * necessary for vCard avatar support. 
  */
 
-static char *_iq_vcard_map[] = {
+static const char *_iq_vcard_map[] = {
     "FN",           "fn",
     "NICKNAME",     "nickname",
     "URL",          "url",
@@ -97,7 +97,8 @@ static os_t _iq_vcard_to_object(pkt_t pkt) {
     os_t os;
     os_object_t o;
     int i = 0, elem;
-    char *vkey, *dkey, *vskey, ekey[10], cdata[VCARD_MAX_FIELD_SIZE];
+    char ekey[10], cdata[VCARD_MAX_FIELD_SIZE];
+    const char *vkey, *dkey, *vskey;
 
     log_debug(ZONE, "building object from packet");
 
@@ -140,7 +141,8 @@ static pkt_t _iq_vcard_to_pkt(sm_t sm, os_t os) {
     pkt_t pkt;
     os_object_t o;
     int i = 0, elem;
-    char *vkey, *dkey, *vskey, ekey[10], *dval;
+    char ekey[10], *dval;
+    const char *vkey, *dkey, *vskey;
     
     log_debug(ZONE, "building packet from object");
 

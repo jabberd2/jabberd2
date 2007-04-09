@@ -91,7 +91,7 @@ int j_atoi(const char *a, int def)
         return atoi(a);
 }
 
-char *j_attr(const char** atts, char *attr)
+char *j_attr(const char** atts, const char *attr)
 {
     int i = 0;
 
@@ -127,7 +127,7 @@ spool spool_new(pool p)
     return s;
 }
 
-void _spool_add(spool s, char *goodstr)
+static void _spool_add(spool s, char *goodstr)
 {
     struct spool_node *sn;
 
@@ -353,7 +353,7 @@ char *strescape(pool p, char *buf, int len)
     return temp;
 }
 
-char *zonestr(char *file, int line)
+static char *zonestr(char *file, int line)
 {
     static char buff[64];
     int i;

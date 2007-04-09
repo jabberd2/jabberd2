@@ -199,7 +199,7 @@ void _sx_reset(sx_t s) {
    if len>0 but data is NULL, the buffer will contain that many bytes
    of garbage, to be overwritten by caller. otherwise, data pointed to
    by 'data' will be copied into buf */
-sx_buf_t _sx_buffer_new(char *data, int len, _sx_notify_t notify, void *notify_arg) {
+sx_buf_t _sx_buffer_new(const char *data, int len, _sx_notify_t notify, void *notify_arg) {
     sx_buf_t buf;
 
     buf = (sx_buf_t) malloc(sizeof(struct _sx_buf_st));
@@ -297,7 +297,7 @@ void _sx_buffer_set(sx_buf_t buf, char *newdata, int newlength, char *newheap)
 }
 
 /** debug macro helpers */
-void __sx_debug(char *file, int line, const char *msgfmt, ...) {
+void __sx_debug(const char *file, int line, const char *msgfmt, ...) {
     va_list ap;
     char *pos, message[MAX_DEBUG];
     int sz;
@@ -315,7 +315,7 @@ void __sx_debug(char *file, int line, const char *msgfmt, ...) {
     fflush(stderr);
 }
 
-int __sx_event(char *file, int line, sx_t s, sx_event_t e, void *data) {
+int __sx_event(const char *file, int line, sx_t s, sx_event_t e, void *data) {
     int ret;
 
     _sx_debug(file, line, "tag %d event %d data 0x%x", s->tag, e, data);

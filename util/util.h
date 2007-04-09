@@ -161,7 +161,7 @@ int j_strncmp(const char *a, const char *b, int i); /* provides NULL safe strncm
 int j_strncasecmp(const char *a, const char *b, int i); /* provides NULL safe strncasecmp wrapper */
 int j_strlen(const char *a); /* provides NULL safe strlen wrapper */
 int j_atoi(const char *a, int def); /* checks for NULL and uses default instead, convienence */
-char *j_attr(const char** atts, char *attr); /* decode attr's (from expat) */
+char *j_attr(const char** atts, const char *attr); /* decode attr's (from expat) */
 char *j_strnchr(const char *s, int c, int n); /* like strchr, but only searches n chars */
 
 /** old convenience function, now in str.c */
@@ -398,11 +398,11 @@ typedef struct log_st
 
 typedef struct log_facility_st
 {
-    char        *facility;
+    const char  *facility;
     int         number;
 } log_facility_t;
 
-extern log_t    log_new(log_type_t type, char *ident, char *facility);
+extern log_t    log_new(log_type_t type, const char *ident, const char *facility);
 extern void     log_write(log_t log, int level, const char *msgfmt, ...);
 extern void     log_free(log_t log);
 
@@ -571,11 +571,11 @@ struct config_elem_st
 };
 
 extern config_t         config_new(void);
-extern int              config_load(config_t c, char *file);
-extern config_elem_t    config_get(config_t c, char *key);
-extern char             *config_get_one(config_t c, char *key, int num);
-extern int              config_count(config_t c, char *key);
-extern char             *config_get_attr(config_t c, char *key, int num, char *attr);
+extern int              config_load(config_t c, const char *file);
+extern config_elem_t    config_get(config_t c, const char *key);
+extern char             *config_get_one(config_t c, const char *key, int num);
+extern int              config_count(config_t c, const char *key);
+extern char             *config_get_attr(config_t c, const char *key, int num, const char *attr);
 extern void             config_free(config_t);
 
 
@@ -730,9 +730,9 @@ extern nad_t stanza_error(nad_t nad, int elem, int err);
 extern nad_t stanza_tofrom(nad_t nad, int elem);
 
 typedef struct _stanza_error_st {
-    char        *name;
-    char        *type;
-    char        *code;
+    const char  *name;
+    const char  *type;
+    const char  *code;
 } *stanza_error_t;
 
 /** if you change these, reflect your changes in the defines above */
@@ -775,7 +775,7 @@ int hex_to_raw(char *in, int inlen, char *out);
 /* debug logging */
 int get_debug_flag(void);
 void set_debug_flag(int v);
-void debug_log(char *file, int line, const char *msgfmt, ...);
+void debug_log(const char *file, int line, const char *msgfmt, ...);
 #define ZONE __FILE__,__LINE__
 #define MAX_DEBUG 8192
 

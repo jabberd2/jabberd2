@@ -319,7 +319,7 @@ static void _ar_mysql_free(authreg_t ar) {
 }
 
 /** Provide a configuration parameter or default value. */
-char * _ar_mysql_param( config_t c, char * key, char * def ) {
+static char * _ar_mysql_param( config_t c, char * key, char * def ) {
     char * value = config_get_one( c, key, 0 );
     if( value == NULL )
       return def;
@@ -332,7 +332,7 @@ char * _ar_mysql_param( config_t c, char * key, char * def ) {
 /* one each, in order, of the one character sprintf types that are */
 /* expected to follow the escape characters '%' in the template. */
 /* Returns 0 on success, or an error message on failures. */
-char * _ar_mysql_check_template( char * template, char * types ) {
+static char * _ar_mysql_check_template( char * template, char * types ) {
     int pScan = 0;
     int pType = 0;
     char c;
@@ -368,7 +368,7 @@ char * _ar_mysql_check_template( char * template, char * types ) {
 /* required parameter placeholders.  If there is an error, it is   */
 /* written to the error log. */
 /* Returns 0 on success, or 1 on errors. */
-int _ar_mysql_check_sql( authreg_t ar, char * sql, char * types ) {
+static int _ar_mysql_check_sql( authreg_t ar, char * sql, char * types ) {
   char * error;
 
   error = _ar_mysql_check_template( sql, types );

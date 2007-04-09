@@ -65,7 +65,7 @@ static void _nad_ptr_check(const char *func, nad_t nad) {
 #define BLOCKSIZE 1024
 
 /** internal: do and return the math and ensure it gets realloc'd */
-int _nad_realloc(void **oblocks, int len)
+static int _nad_realloc(void **oblocks, int len)
 {
     void *nblocks;
     int nlen;
@@ -83,7 +83,7 @@ int _nad_realloc(void **oblocks, int len)
 #define NAD_SAFE(blocks, size, len) if((size) > len) len = _nad_realloc((void**)&(blocks),(size));
 
 /** internal: append some cdata and return the index to it */
-int _nad_cdata(nad_t nad, const char *cdata, int len)
+static int _nad_cdata(nad_t nad, const char *cdata, int len)
 {
     NAD_SAFE(nad->cdata, nad->ccur + len, nad->clen);
 
@@ -93,7 +93,7 @@ int _nad_cdata(nad_t nad, const char *cdata, int len)
 }
 
 /** internal: create a new attr on any given elem */
-int _nad_attr(nad_t nad, int elem, int ns, const char *name, const char *val, int vallen)
+static int _nad_attr(nad_t nad, int elem, int ns, const char *name, const char *val, int vallen)
 {
     int attr;
 
@@ -841,7 +841,7 @@ int nad_append_namespace(nad_t nad, int elem, const char *uri, const char *prefi
     return ns;
 }
 
-void _nad_escape(nad_t nad, int data, int len, int flag)
+static void _nad_escape(nad_t nad, int data, int len, int flag)
 {
     char *c;
     int ic;
@@ -929,7 +929,7 @@ void _nad_escape(nad_t nad, int data, int len, int flag)
 }
 
 /** internal recursive printing function */
-int _nad_lp0(nad_t nad, int elem)
+static int _nad_lp0(nad_t nad, int elem)
 {
     int attr;
     int ndepth;

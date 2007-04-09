@@ -53,7 +53,7 @@ extern int ar_anon_init(authreg_t);
 extern int ar_sqlite_init(authreg_t);
 #endif
 
-char *module_names[] = {
+static const char *module_names[] = {
 #ifdef STORAGE_MYSQL
     "mysql",
 #endif

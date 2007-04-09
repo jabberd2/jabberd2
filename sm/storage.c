@@ -52,7 +52,7 @@ extern st_ret_t st_oracle_init(st_driver_t);
 extern st_ret_t st_sqlite_init(st_driver_t);
 #endif
 
-static char *st_driver_names[] = {
+static const char *st_driver_names[] = {
 #ifdef STORAGE_DB
     "db",
 #endif
@@ -471,7 +471,7 @@ st_filter_t storage_filter(const char *filter) {
     return f;
 }
 
-int _storage_match(st_filter_t f, os_object_t o, os_t os) {
+static int _storage_match(st_filter_t f, os_object_t o, os_t os) {
     void *val;
     os_type_t ot;
     st_filter_t scan;

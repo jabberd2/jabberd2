@@ -21,7 +21,7 @@
 #include "sx.h"
 
 /** if you change these, reflect your changes in the defines in sx.h */
-static char *_stream_errors[] = {
+static const char *_stream_errors[] = {
     "bad-format",
     "bad-namespace-prefix",
     "conflict",
@@ -50,7 +50,7 @@ static char *_stream_errors[] = {
 };
 
 /** send an error */
-void _sx_error(sx_t s, int err, char *text) {
+void _sx_error(sx_t s, int err, const char *text) {
     int len = 0;
     sx_buf_t buf;
 
@@ -85,7 +85,7 @@ void _sx_error(sx_t s, int err, char *text) {
     s->want_write = 1;
 }
 
-void sx_error(sx_t s, int err, char *text) {
+void sx_error(sx_t s, int err, const char *text) {
     assert(s != NULL);
     assert(err >= 0 && err < stream_err_LAST);
 

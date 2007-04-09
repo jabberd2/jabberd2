@@ -25,6 +25,7 @@
 
 #ifdef HAVE_SSL
 
+#include <openssl/md5.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 

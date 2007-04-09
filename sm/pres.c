@@ -37,7 +37,7 @@
  */
 
 /** select a new top session based on current session presence */
-void _pres_top(user_t user) {
+static void _pres_top(user_t user) {
     sess_t scan;
 
     user->top = NULL;

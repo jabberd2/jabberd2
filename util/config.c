@@ -72,7 +72,7 @@ static void _config_charData(void *arg, const char *str, int len)
 }
 
 /** turn an xml file into a config hash */
-int config_load(config_t c, char *file)
+int config_load(config_t c, const char *file)
 {
     struct build_data bd;
     FILE *f;
@@ -232,13 +232,13 @@ int config_load(config_t c, char *file)
 }
 
 /** get the config element for this key */
-config_elem_t config_get(config_t c, char *key)
+config_elem_t config_get(config_t c, const char *key)
 {
     return xhash_get(c->hash, key);
 }
 
 /** get config value n for this key */
-char *config_get_one(config_t c, char *key, int num)
+char *config_get_one(config_t c, const char *key, int num)
 {
     config_elem_t elem = xhash_get(c->hash, key);
 
@@ -252,7 +252,7 @@ char *config_get_one(config_t c, char *key, int num)
 }
 
 /** how many values for this key? */
-int config_count(config_t c, char *key)
+int config_count(config_t c, const char *key)
 {
     config_elem_t elem = xhash_get(c->hash, key);
 
@@ -263,7 +263,7 @@ int config_count(config_t c, char *key)
 }
 
 /** get an attr for this value */
-char *config_get_attr(config_t c, char *key, int num, char *attr)
+char *config_get_attr(config_t c, const char *key, int num, const char *attr)
 {
     config_elem_t elem = xhash_get(c->hash, key);
 

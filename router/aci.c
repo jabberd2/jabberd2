@@ -91,7 +91,7 @@ xht aci_load(router_t r) {
 }
 
 /** see if a username is in an acl */
-int aci_check(xht aci, char *type, char *name) {
+int aci_check(xht aci, const char *type, const char *name) {
     aci_user_t list, scan;
 
     log_debug(ZONE, "checking for '%s' in acl 'all'", name);

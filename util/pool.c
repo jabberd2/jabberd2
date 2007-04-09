@@ -69,7 +69,7 @@ pool _pool_new(char *zone, int line)
 }
 
 /** free a heap */
-void _pool_heap_free(void *arg)
+static void _pool_heap_free(void *arg)
 {
     struct pheap *h = (struct pheap *)arg;
 
@@ -78,7 +78,7 @@ void _pool_heap_free(void *arg)
 }
 
 /** mem should always be freed last */
-void _pool_cleanup_append(pool p, struct pfree *pf)
+static void _pool_cleanup_append(pool p, struct pfree *pf)
 {
     struct pfree *cur;
 
@@ -96,7 +96,7 @@ void _pool_cleanup_append(pool p, struct pfree *pf)
 }
 
 /** create a cleanup tracker */
-struct pfree *_pool_free(pool p, pool_cleaner f, void *arg)
+static struct pfree *_pool_free(pool p, pool_cleaner f, void *arg)
 {
     struct pfree *ret;
 
@@ -110,7 +110,7 @@ struct pfree *_pool_free(pool p, pool_cleaner f, void *arg)
 }
 
 /** create a heap and make sure it get's cleaned up */
-struct pheap *_pool_heap(pool p, int size)
+static struct pheap *_pool_heap(pool p, int size)
 {
     struct pheap *ret;
     struct pfree *clean;

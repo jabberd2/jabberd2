@@ -133,7 +133,7 @@ void xdata_add_item(xdata_t xd, xdata_item_t xdi) {
 }
 
 /** option insertion */
-void xdata_option_new(xdata_field_t xdf, char *value, int lvalue, char *label, int llabel) {
+static void xdata_option_new(xdata_field_t xdf, char *value, int lvalue, char *label, int llabel) {
     xdata_option_t xdo;
 
     assert((int) (xdf != NULL));

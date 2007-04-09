@@ -50,7 +50,7 @@ static log_facility_t _log_facilities[] = {
     { NULL, -1 }
 };
 
-static int _log_facility(char *facility) {
+static int _log_facility(const char *facility) {
     log_facility_t *lp;
 
     if (facility == NULL) {
@@ -64,7 +64,7 @@ static int _log_facility(char *facility) {
     return lp->number;
 }
 
-log_t log_new(log_type_t type, char *ident, char *facility)
+log_t log_new(log_type_t type, const char *ident, const char *facility)
 {
     log_t log;
     int fnum = 0;
@@ -170,7 +170,7 @@ void log_free(log_t log) {
 
 #ifdef DEBUG
 /** debug logging */
-void debug_log(char *file, int line, const char *msgfmt, ...)
+void debug_log(const char *file, int line, const char *msgfmt, ...)
 {
     va_list ap;
     char *pos, message[MAX_DEBUG];

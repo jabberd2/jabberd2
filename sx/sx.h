@@ -166,7 +166,7 @@ void                        sx_env_free(sx_env_t env);
 sx_plugin_t                  sx_env_plugin(sx_env_t env, sx_plugin_init_t init, ...);
 
 /* send errors and close stuff */
-void                        sx_error(sx_t s, int err, char *text);
+void                        sx_error(sx_t s, int err, const char *text);
 void                        sx_close(sx_t s);
 void                        sx_kill(sx_t s);
 
@@ -197,7 +197,7 @@ int                         _sx_chain_nad_write(sx_t s, nad_t nad, int elem);
 int                         _sx_chain_nad_read(sx_t s, nad_t nad);
 
 /* buffer utilities */
-sx_buf_t                     _sx_buffer_new(char *data, int len, _sx_notify_t notify, void *notify_arg);
+sx_buf_t                     _sx_buffer_new(const char *data, int len, _sx_notify_t notify, void *notify_arg);
 void                        _sx_buffer_free(sx_buf_t buf);
 void                        _sx_buffer_clear(sx_buf_t buf);
 void                        _sx_buffer_alloc_margin(sx_buf_t buf, int before, int after);
@@ -213,7 +213,7 @@ void                        sx_raw_write(sx_t s, char *buf, int len);
 void                        _sx_reset(sx_t s);
 
 /* send errors and close stuff */
-void                        _sx_error(sx_t s, int err, char *text);
+void                        _sx_error(sx_t s, int err, const char *text);
 void                        _sx_close(sx_t s);
 
 /** read/write plugin chain */
@@ -347,10 +347,10 @@ struct _sx_env_st {
 #define ZONE __FILE__,__LINE__
 
 /** helper functions for macros when we're debugging */
-void        __sx_debug(char *file, int line, const char *msgfmt, ...);
+void        __sx_debug(const char *file, int line, const char *msgfmt, ...);
 
 /** helper and internal macro for firing the callback */
-int         __sx_event(char *file, int line, sx_t s, sx_event_t e, void *data);
+int         __sx_event(const char *file, int line, sx_t s, sx_event_t e, void *data);
 #define _sx_event(s,e,data) __sx_event(ZONE, s, e, data)
 
 #ifdef SX_DEBUG

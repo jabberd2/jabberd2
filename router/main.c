@@ -23,12 +23,12 @@
 static sig_atomic_t router_shutdown = 0;
 static sig_atomic_t router_logrotate = 0;
 
-void router_signal(int signum)
+static void router_signal(int signum)
 {
     router_shutdown = 1;
 }
 
-void router_signal_hup(int signum)
+static void router_signal_hup(int signum)
 {
     router_logrotate = 1;
 }

@@ -79,7 +79,7 @@ void prep_cache_resource_set(prep_cache_t pc, char *from, char *to) {
 }
 
 /** do stringprep on the pieces */
-int jid_prep_pieces(prep_cache_t pc, char *node, char *domain, char *resource) {
+static int jid_prep_pieces(prep_cache_t pc, char *node, char *domain, char *resource) {
 #ifdef HAVE_IDN
     char str[1024], *prep;
 
