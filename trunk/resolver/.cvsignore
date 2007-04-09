@@ -1,0 +1,5 @@
+resolver
+Makefile
+Makefile.in
+.deps
+.libs

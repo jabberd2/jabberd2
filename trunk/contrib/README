@@ -1,0 +1,17 @@
+This directory contains patches to the code which you may or may 
+not find useful. They are modifications to the main source which
+would have had a detrimental affect towards jabberd2's goal of
+100% xmpp compliance. Or they simply were not deemed appropriate
+to add into the main source dist. However, there are situations
+in which this code may be of use, so the patches are kept here.
+
+These patches are not maintained by jabberd2 team and may or may 
+not be out of date. You are have been warned. 
+
+Good Luck
+
+
+patch-flash-v2
+--------------
+This modifies c2s in order to allow macromedia's embrace and extend
+proprietary mark-up language to inter-operate with j2. 

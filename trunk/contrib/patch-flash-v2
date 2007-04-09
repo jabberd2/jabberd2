@@ -1,0 +1,173 @@
+diff -u /usr/local/src/jabberd-2.0s6/c2s/c2s.c c2s/c2s.c
+--- /usr/local/src/jabberd-2.0s6/c2s/c2s.c	Thu Dec 23 19:42:29 2004
++++ c2s/c2s.c	Thu Dec 23 19:41:20 2004
+@@ -20,6 +20,65 @@
+ 
+ #include "c2s.h"
+ 
++/*
++ * M.Bootsma, LogicaCMG Hoofddorp, Netherlands
++ * October 2004
++ *
++ * Added a patch for flash:stream support
++ *
++ * Flash is not 100% compatible with the XML stream standard:
++ * 1. it terminates every XML message with a '\0'
++ * 2. it terminates the stream header with a /
++ *    (this would close the stream)
++ * 3. it starts the stream with a flash:stream header instead of
++ *    a stream:stream header.
++ *
++ * The patch checks the first message of a starting session stream
++ * for any '\0'. If found it flags the session as a Flash session
++ * and replases the complete header with a Jabber compatible
++ * header.
++ * After that every incoming message is filtered and '\0' is 
++ * replaced with ' '.
++ * For every outgoing message, a '\0' is appended and the response
++ * of the header is replaced for a flash friendly version
++ *
++ * The whole flash patch can be switched off by undefining CP2005_FLASH_PATCH
++ * in config.h(.in)
++ */
++
++#ifdef CP2005_FLASH_PATCH
++
++#define FLASH_BUFFER_SIZE 256
++
++static const char caStreamHeader [] = "<?xml version='1.0'?><stream:stream xmlns:stream='http://etherx.jabber.org/streams' xmlns='jabber:client' to='%s' >";
++static const char caFlashHeader []  = "<?xml version='1.0'?><flash:stream xmlns:flash='http://www.jabber.com/streams/flash' xmlns:stream='http://etherx.jabber.org/streams' xmlns='jabber:client' from='%s' id='%s' />";
++
++static void ExtractValue(char *pMessage, char *pVariable, char *pValue) { 
++    int iLen; 
++    char *p;
++    char *pEnd;
++
++    /*
++     * extract the value of an attribute from a XML message
++     * eg: <.... id='1234567890' ....> returns 1234567890
++     */
++
++    p = strstr(pMessage, pVariable);
++    if (p != NULL) {
++        p += (strlen(pVariable) + 1);
++        /* find end of value, search for closing ' or " */
++        pEnd = strchr(p, p [-1]);
++        iLen = pEnd - p;
++        if (iLen < FLASH_BUFFER_SIZE) {
++            memcpy(pValue, p, iLen);
++            pValue[iLen] = '\0';
++            log_debug(ZONE, "++++ Extracted Var %s: [%s]\n", pVariable, pValue);
++        }
++    }
++}
++#endif
++
++
+ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
+     sess_t sess = (sess_t) arg;
+     sx_buf_t buf = (sx_buf_t) data;
+@@ -28,6 +93,12 @@
+     nad_t nad;
+     char root[9];
+ 
++#ifdef CP2005_FLASH_PATCH
++    char *p, *pEnd;
++    char caHost[FLASH_BUFFER_SIZE];
++    char caID[FLASH_BUFFER_SIZE];
++#endif
++
+     switch(e) {
+         case event_WANT_READ:
+             log_debug(ZONE, "want read");
+@@ -94,14 +165,74 @@
+                 return -1;
+             }
+ 
+-            log_debug(ZONE, "read %d bytes", len);
+-
+             buf->len = len;
+ 
++#ifdef CP2005_FLASH_PATCH
++            /* check for 0 bytes in the first packet
++             * if found it must be a flash client
++             * remove any 0 in the data and
++             * the / that ends the <?xml... header
++             */
++
++            pEnd = &buf->data[len];
++
++            if (sess->s->state == state_NONE) {
++                /* stream is new, look for 0 bytes */
++                p = memchr(buf->data, '\0', buf->len);
++                if ((p != NULL) && (p < pEnd)) {
++                    log_debug(ZONE, "++++ Flash Stream detected\n%.*s", buf->len, buf->data);
++                    sess->flash_client = 1;
++
++                    /* extract destination host */
++                    ExtractValue(buf->data, "to=", caHost);
++
++                    /* create normal stream:stream header, resize data buffer first */
++                    _sx_buffer_alloc_margin(buf, 0, sizeof(caStreamHeader) + strlen(caHost) + 8);
++                    sprintf(buf->data, caStreamHeader, caHost);
++                    buf->len = strlen(buf->data);
++
++                    log_debug(ZONE, "++++ Converted to\n%.*s", buf->len, buf->data);
++                }
++            }
++
++            /* Check all other messages in the stream to remove \0's etc */
++            if (sess->flash_client) 
++                /* remove 0's from flash packets */
++                for (p = buf->data; p < pEnd; p++)
++                    if (*p == '\0')
++                        *p = ' ';
++#endif
++            log_debug(ZONE, "read %d bytes", len);
++
+             return len;
+ 
+         case event_WRITE:
+             log_debug(ZONE, "writing to %d", sess->fd->fd);
++
++#ifdef CP2005_FLASH_PATCH
++            if (sess->flash_client) {
++                /* look for the header <? xml ...*/
++                if (strncmp(buf->data, "<?xml ", 6) == 0) {
++                    /* replace normal stream header with flash friendly header */
++                    log_debug(ZONE, "++++ Found <?xml..., \n%.*s", buf->len, buf->data);
++
++                    /* extract id from id="123456567778765" or id='45454545454' */
++                    ExtractValue(buf->data, "from=", caHost);
++                    ExtractValue(buf->data, "id=", caID);
++
++                    /* create flash:stream header, realloc buffer first */
++                    _sx_buffer_alloc_margin(buf, 0, sizeof(caFlashHeader) + strlen(caHost) + strlen(caID) + 8);
++                    sprintf(buf->data, caFlashHeader, caHost, caID);
++                    buf->len = strlen(buf->data);
++
++                    log_debug(ZONE, "++++ Converted to %s", buf->data);
++                }
++
++                /* add a 0 to flash packets */
++                buf->data[buf->len] = '\0';
++                buf->len++;
++            }
++#endif
+ 
+             len = send(sess->fd->fd, buf->data, buf->len, 0);
+             if(len >= 0) {
+diff -u /usr/local/src/jabberd-2.0s6/c2s/c2s.h c2s/c2s.h
+--- /usr/local/src/jabberd-2.0s6/c2s/c2s.h	Tue Dec  7 18:38:05 2004
++++ c2s/c2s.h	Thu Dec 23 19:23:47 2004
+@@ -62,6 +62,10 @@
+     int                 bound;
+     int                 active;
+ 
++#ifdef CP2005_FLASH_PATCH
++    int                 flash_client;
++#endif
++
+     nad_t               result;
+ 
+     int                 sasl_authd;     /* 1 = they did a sasl auth */

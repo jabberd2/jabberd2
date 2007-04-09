@@ -1,0 +1,23 @@
+Known BUGS:
+
+- assigning TLS certificates per c2s/s2s vHost does not work yet
+- SASL EXTERNAL authentication probably does not work (untested)
+
+- c2s dies on sm reconnection:
+May 26 21:40:50 seikken jabberd/router[25984]: [10.0.0.1, port=53211] disconnect
+May 26 21:40:50 seikken jabberd/router[25984]: [chrome.pl] offline
+May 26 21:40:50 seikken jabberd/router[25984]: [10.0.0.1, port=37824] connect
+May 26 21:40:50 seikken jabberd/router[25984]: [10.0.0.1, port=37824] authenticated as jabberd@jabberd-router
+May 26 21:40:50 seikken jabberd/router[25984]: [chrome.pl] online (bound to 10.0.0.1, port 37824)
+May 26 21:40:50 seikken jabberd/router[25984]: [10.0.0.1, port=50006] error: Stream error (session manager failed control action)
+May 26 21:40:50 seikken jabberd/router[25984]: [10.0.0.1, port=50006] disconnect
+May 26 21:40:50 seikken jabberd/router[25984]: [c2s] offline
+May 26 21:40:52 seikken jabberd/router[25984]: [10.0.0.1, port=37825] connect
+May 26 21:40:52 seikken jabberd/router[25984]: [10.0.0.1, port=37825] authenticated as jabberd@jabberd-router
+May 26 21:40:52 seikken jabberd/router[25984]: [c2s] online (bound to 10.0.0.1, port 37825)
+May 26 21:40:58 seikken jabberd/router[25984]: [10.0.0.1, port=37825] disconnect
+May 26 21:40:58 seikken jabberd/router[25984]: [c2s] offline
+May 26 21:41:00 seikken jabberd/router[25984]: [10.0.0.1, port=37827] connect
+May 26 21:41:01 seikken jabberd/router[25984]: [10.0.0.1, port=37827] error: SASL Stream decoding failed ((null))
+
+

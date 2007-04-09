@@ -1,0 +1,37 @@
+Simple authentication (iq:auth) flow:
+
+state: STREAM
+
+>>> iq:auth get
+<<< iq:auth result containing auth methods
+>>> iq:auth set
+    verify credentials
+    start session
+<<< iq:auth result
+
+Registration (iq:register) flow:
+
+state: STREAM
+
+>>> iq:register get
+<<< iq:register result containing required fields (username & password)
+>>> iq:register set
+    create user
+<<< iq:register 
+
+Registration remove flow:
+
+state: OPEN
+
+>>> iq:register set containing remove tag
+    stop session
+    destroy user
+<<< iq:register result
+<<< disconnect
+
+Password change flow:
+
+state: OPEN
+>>> iq:register set
+    save password
+<<< iq:register result
