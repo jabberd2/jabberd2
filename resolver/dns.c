@@ -72,7 +72,7 @@ static int _srv_compare(const void *a, const void *b) {
 
 
 /* unix implementation */
-#ifdef HAVE_RES_QUERY
+#if defined(HAVE_RES_QUERY) || defined(HAVE___RES_QUERY)
 
 /* older systems might not have these */
 #ifndef T_SRV

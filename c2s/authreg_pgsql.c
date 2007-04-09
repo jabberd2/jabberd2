@@ -500,11 +500,6 @@ int ar_pgsql_init(authreg_t ar) {
     user = config_get_one(ar->c2s->config, "authreg.pgsql.user", 0);
     pass = config_get_one(ar->c2s->config, "authreg.pgsql.pass", 0);
 
-    if(host == NULL || port == NULL || dbname == NULL || user == NULL || pass == NULL) {
-        log_write(ar->c2s->log, LOG_ERR, "pgsql: invalid module config");
-        return 1;
-    }
-
     log_debug( ZONE, "pgsql connecting as '%s' to database '%s' on %s:%s", user, dbname, host, port );
 
     conn = PQsetdbLogin(host, port, NULL, NULL, dbname, user, pass);

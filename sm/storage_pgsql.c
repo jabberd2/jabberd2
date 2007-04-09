@@ -665,11 +665,6 @@ st_ret_t st_pgsql_init(st_driver_t drv) {
     user = config_get_one(drv->st->sm->config, "storage.pgsql.user", 0);
     pass = config_get_one(drv->st->sm->config, "storage.pgsql.pass", 0);
 
-    if(host == NULL || port == NULL || dbname == NULL || user == NULL || pass == NULL) {
-        log_write(drv->st->sm->log, LOG_ERR, "pgsql: invalid driver config");
-        return st_FAILED;
-    }
-
     conn = PQsetdbLogin(host, port, NULL, NULL, dbname, user, pass);
     if(conn == NULL) {
         log_write(drv->st->sm->log, LOG_ERR, "pgsql: unable to allocate database connection state");
