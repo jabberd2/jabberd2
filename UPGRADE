@@ -1,5 +1,21 @@
 This file contains upgrade instructions between different versions of jabberd2.
 
+* 2.1.3 to 2.1.4 upgrade:
+
+What had change:
+- full SQLite support
+- PostgreSQL NULL parameters handling
+- more than one LDAP server support
+- new LDAP append-realm setting
+- correct CA chain handling
+
+Please refer to sm.xml.dist and c2s.xml.dist for new config sections and add
+them to your config files.
+Please read these example files to see how to setup your CA chain correctly.
+You may also remove cachain option from c2s.xml.
+You may remove hostname form PostgreSQL setup to access it via unix socket.
+
+
 * 2.1 to 2.1.3 upgrade:
 
 What had change:
