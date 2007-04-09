@@ -207,6 +207,6 @@ void set_debug_flag(int v)
     debug_flag = v;
 }
 #else /* DEBUG */
-void debug_log(char *file, int line, const char *msgfmt, ...)
+void debug_log(const char *file, int line, const char *msgfmt, ...)
 { }
 #endif
