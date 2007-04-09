@@ -450,9 +450,10 @@ mod_ret_t mm_in_router(mm_t mm, pkt_t pkt) {
 
     log_debug(ZONE, "dispatching in-router chain");
 
+    if (mm != NULL && pkt != NULL )
     for(n = 0; n < mm->nin_router; n++) {
         mi = mm->in_router[n];
-        if(mi == NULL || mi->mod->in_router == NULL) {
+        if(mi == NULL || mi->mod == NULL || mi->mod->in_router == NULL) {
             log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }

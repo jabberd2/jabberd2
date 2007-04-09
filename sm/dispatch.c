@@ -82,17 +82,19 @@ void dispatch(sm_t sm, pkt_t pkt) {
     }
 
     /* preprocessing */
-    ret = mm_in_router(pkt->sm->mm, pkt);
-    switch(ret) {
-        case mod_HANDLED:
-            return;
+    if (pkt != NULL && pkt->sm != NULL) {
+        ret = mm_in_router(pkt->sm->mm, pkt);
+        switch(ret) {
+            case mod_HANDLED:
+                return;
+ 
+            case mod_PASS:
+                break;
 
-        case mod_PASS:
-            break;
-
-        default:
-            pkt_router(pkt_error(pkt, -ret));
-            return;
+            default:
+                pkt_router(pkt_error(pkt, -ret));
+                return;
+        }
     }
 
     /* has to come from someone */
@@ -130,23 +132,25 @@ void dispatch(sm_t sm, pkt_t pkt) {
         pkt_router(pkt_error(pkt, stanza_err_ITEM_NOT_FOUND));
         return;
     }
-    
-    ret = mm_pkt_user(pkt->sm->mm, user, pkt);
-    switch(ret) {
-        case mod_HANDLED:
-            break;
-    
-        case mod_PASS:
-            /* ignore IQ result packets that haven't been handled - XMPP 9.2.3.4 */
-            if(pkt->type == pkt_IQ_RESULT)
+   
+    if (pkt != NULL && pkt->sm != NULL) {
+        ret = mm_pkt_user(pkt->sm->mm, user, pkt);
+        switch(ret) {
+            case mod_HANDLED:
                 break;
-             else
-                ret = -stanza_err_FEATURE_NOT_IMPLEMENTED;
+    
+            case mod_PASS:
+                /* ignore IQ result packets that haven't been handled - XMPP 9.2.3.4 */
+                if(pkt->type == pkt_IQ_RESULT)
+                    break;
+                 else
+                    ret = -stanza_err_FEATURE_NOT_IMPLEMENTED;
 
-        default:
-            pkt_router(pkt_error(pkt, -ret));
+            default:
+                pkt_router(pkt_error(pkt, -ret));
 
-            break;
+                break;
+        }
     }
 
     /* if they have no sessions, they were only loaded to do delivery, so free them */

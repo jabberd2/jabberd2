@@ -289,12 +289,14 @@ pkt_t pkt_new(sm_t sm, nad_t nad) {
 void pkt_free(pkt_t pkt) {
     log_debug(ZONE, "freeing pkt");
 
-    if(pkt->rto != NULL) jid_free(pkt->rto);
-    if(pkt->rfrom != NULL) jid_free(pkt->rfrom);
-    if(pkt->to != NULL) jid_free(pkt->to);
-    if(pkt->from != NULL) jid_free(pkt->from);
-    if(pkt->nad != NULL) nad_free(pkt->nad);
-    free(pkt);
+    if (pkt != NULL) {
+        if(pkt->rto != NULL) jid_free(pkt->rto);
+        if(pkt->rfrom != NULL) jid_free(pkt->rfrom);
+        if(pkt->to != NULL) jid_free(pkt->to);
+        if(pkt->from != NULL) jid_free(pkt->from);
+        if(pkt->nad != NULL) nad_free(pkt->nad);
+        free(pkt);
+    }
 }
 
 pkt_t pkt_create(sm_t sm, const char *elem, const char *type, const char *to, const char *from) {

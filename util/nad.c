@@ -459,7 +459,15 @@ void nad_set_attr(nad_t nad, int elem, int ns, const char *name, const char *val
 /** shove in a new child elem after the given one */
 int nad_insert_elem(nad_t nad, int parent, int ns, const char *name, const char *cdata)
 {
-    int elem = parent + 1;
+    int elem;
+
+    if (parent >= nad->ecur)
+        if (nad->ecur > 0)
+            parent = nad->ecur -1;
+        else
+            parent = 0;
+
+    elem = parent + 1;
 
     _nad_ptr_check(__func__, nad);
 
