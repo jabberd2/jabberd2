@@ -485,8 +485,7 @@ int main(int argc, char **argv) {
 #ifdef HAVE_SSL
     /* get the ssl context up and running */
     if(s2s->local_pemfile != NULL) {
-        s2s->sx_ssl = sx_env_plugin(s2s->sx_env, sx_ssl_init, s2s->local_pemfile, 
-            s2s->local_cachain, s2s->local_verify_mode);
+        s2s->sx_ssl = sx_env_plugin(s2s->sx_env, sx_ssl_init, s2s->local_pemfile, s2s->local_cachain, s2s->local_verify_mode);
 
         if(s2s->sx_ssl == NULL) {
             log_write(s2s->log, LOG_ERR, "failed to load local SSL pemfile, SSL will not be available to peers");
@@ -497,7 +496,7 @@ int main(int argc, char **argv) {
 
     /* try and get something online, so at least we can encrypt to the router */
     if(s2s->sx_ssl == NULL && s2s->router_pemfile != NULL) {
-        s2s->sx_ssl = sx_env_plugin(s2s->sx_env, sx_ssl_init, s2s->router_pemfile, NULL);
+        s2s->sx_ssl = sx_env_plugin(s2s->sx_env, sx_ssl_init, s2s->router_pemfile, NULL, NULL);
         if(s2s->sx_ssl == NULL) {
             log_write(s2s->log, LOG_ERR, "failed to load router SSL pemfile, channel to router will not be SSL encrypted");
             s2s->router_pemfile = NULL;

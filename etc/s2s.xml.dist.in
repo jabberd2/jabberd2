@@ -28,10 +28,15 @@
     <non-default/>
     -->
 
-    <!-- File containing a SSL certificate and private key to use when
-         setting up an encrypted channel with the router. If this is
-         commented out, or the file can't be read, no attempt will be
-         made to establish an encrypted channel with the router. -->
+    <!-- File containing an SSL certificate and private key to use when
+         setting up an encrypted channel with the router. From
+         SSL_CTX_use_certificate_chain_file(3): "The certificates must be
+         in PEM format and must be sorted starting with the subject's
+         certificate (actual client or server certificate), followed
+         by intermediate CA certificates if applicable, and ending
+         at the highest level (root) CA" (the latter one being optional).
+         If this is commented out, or the file can't be read, no attempt
+         will be made to establish an encrypted channel with the router. -->
     <!--
     <pemfile>@sysconfdir@/server.pem</pemfile>
     -->
@@ -90,8 +95,13 @@
     <secret>secret</secret>
     -->
 
-    <!-- File containing a SSL certificate and private key to use when setting 
+    <!-- File containing an SSL certificate and private key to use when setting 
          up encrypted s2s connections with other servers (STARTTLS + Dialback).
+         From SSL_CTX_use_certificate_chain_file(3): "The certificates must be
+         in PEM format and must be sorted starting with the subject's
+         certificate (actual client or server certificate), followed
+         by intermediate CA certificates if applicable, and ending
+         at the highest level (root) CA" (the latter one being optional).
          If this is commented out, or the file can't be read, no attempt will be
          made to establish encrypted connections with other servers. -->
     <!--

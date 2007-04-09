@@ -169,9 +169,6 @@ struct c2s_st {
     /** encrypted port pemfile */
     char                *local_pemfile;
 
-    /** certificate chain */
-    char                *local_cachain;
-
     /** verify-mode  */
     int                 local_verify_mode;
 

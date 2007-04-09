@@ -122,8 +122,6 @@ static void _c2s_config_expand(c2s_t c2s)
 
     c2s->local_pemfile = config_get_one(c2s->config, "local.pemfile", 0);
 
-    c2s->local_cachain = config_get_one(c2s->config, "local.cachain", 0);
-
     c2s->local_verify_mode = j_atoi(config_get_one(c2s->config, "local.verify-mode", 0), 0);
 
     c2s->local_ssl_port = j_atoi(config_get_one(c2s->config, "local.ssl-port", 0), 0);
@@ -542,7 +540,7 @@ int main(int argc, char **argv)
 #ifdef HAVE_SSL
     /* get the ssl context up and running */
     if(c2s->local_pemfile != NULL) {
-        c2s->sx_ssl = sx_env_plugin(c2s->sx_env, sx_ssl_init, c2s->local_pemfile, c2s->local_cachain, c2s->local_verify_mode);
+        c2s->sx_ssl = sx_env_plugin(c2s->sx_env, sx_ssl_init, c2s->local_pemfile, NULL, c2s->local_verify_mode);
         if(c2s->sx_ssl == NULL) {
             log_write(c2s->log, LOG_ERR, "failed to load local SSL pemfile, SSL will not be available to clients");
             c2s->local_pemfile = NULL;
@@ -551,7 +549,7 @@ int main(int argc, char **argv)
 
     /* try and get something online, so at least we can encrypt to the router */
     if(c2s->sx_ssl == NULL && c2s->router_pemfile != NULL) {
-        c2s->sx_ssl = sx_env_plugin(c2s->sx_env, sx_ssl_init, c2s->router_pemfile, NULL);
+        c2s->sx_ssl = sx_env_plugin(c2s->sx_env, sx_ssl_init, c2s->router_pemfile, NULL, NULL);
         if(c2s->sx_ssl == NULL) {
             log_write(c2s->log, LOG_ERR, "failed to load router SSL pemfile, channel to router will not be SSL encrypted");
             c2s->router_pemfile = NULL;
@@ -597,7 +595,7 @@ int main(int argc, char **argv)
         host->host_pemfile = j_attr((const char **) elem->attrs[i], "pemfile");
 
         if(c2s->sx_ssl == NULL && host->host_pemfile != NULL) {
-            c2s->sx_ssl = sx_env_plugin(c2s->sx_env, sx_ssl_init, host->host_pemfile, c2s->local_cachain, c2s->local_verify_mode);
+            c2s->sx_ssl = sx_env_plugin(c2s->sx_env, sx_ssl_init, host->host_pemfile, NULL, c2s->local_verify_mode);
             if(c2s->sx_ssl == NULL) {
                 log_write(c2s->log, LOG_ERR, "failed to load %s SSL pemfile", host->realm);
                 host->host_pemfile = NULL;

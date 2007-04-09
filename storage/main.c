@@ -437,7 +437,7 @@ int main(int argc, char **argv)
 
 #ifdef HAVE_SSL
     if(st->router_pemfile != NULL) {
-        st->sx_ssl = sx_env_plugin(st->sx_env, sx_ssl_init, st->router_pemfile);
+        st->sx_ssl = sx_env_plugin(st->sx_env, sx_ssl_init, st->router_pemfile, NULL, NULL);
         if(st->sx_ssl == NULL) {
             log_write(st->log, LOG_ERR, "failed to load SSL pemfile, SSL disabled");
             st->router_pemfile = NULL;

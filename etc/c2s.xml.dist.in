@@ -18,10 +18,15 @@
     <user>jabberd</user>          <!-- default: jabberd -->
     <pass>secret</pass>           <!-- default: secret -->
 
-    <!-- File containing a SSL certificate and private key to use when
-         setting up an encrypted channel with the router. If this is
-         commented out, or the file can't be read, no attempt will be
-         made to establish an encrypted channel with the router. -->
+    <!-- File containing an SSL certificate and private key to use when
+         setting up an encrypted channel with the router. From
+         SSL_CTX_use_certificate_chain_file(3): "The certificates must be
+         in PEM format and must be sorted starting with the subject's
+         certificate (actual client or server certificate), followed
+         by intermediate CA certificates if applicable, and ending
+         at the highest level (root) CA" (the latter one being optional).
+         If this is commented out, or the file can't be read, no attempt
+         will be made to establish an encrypted channel with the router. -->
     <!--
     <pemfile>@sysconfdir@/server.pem</pemfile>
     -->
@@ -127,9 +132,15 @@
     <ssl-port>5223</ssl-port>
     -->
 
-    <!-- File containing a SSL certificate and private key for client
-         connections. If this is commented out, clients will not be
-         offered the STARTTLS stream extension -->
+    <!-- File containing an SSL certificate and private key for client
+         connections. From SSL_CTX_use_certificate_chain_file(3):
+         "The certificates must be in PEM format and must be sorted
+         starting with the subject's certificate (actual client or server
+         certificate), followed by intermediate CA certificates if
+         applicable, and ending at the highest level (root) CA"
+         (the latter one being optional).
+         If this is commented out, clients will not be offered
+         the STARTTLS stream extension -->
     <!--
     <pemfile>@sysconfdir@/server.pem</pemfile>
     -->
@@ -137,12 +148,6 @@
     <!-- SSL verify mode - see SSL_CTX_set_verify(3), mode parameter -->
     <!--
     <verify-mode>7</verify-mode>
-    -->
-
-    <!-- File containing an optional SSL certificate chain file for client
-         SSL connections. -->
-    <!--
-    <cachain>@sysconfdir@/cachain.pem</cachain>
     -->
 
     <!-- Forward incoming HTTP clients to a real HTTP server -->
