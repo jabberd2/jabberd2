@@ -145,7 +145,7 @@
     <!-- SQLite driver configuration -->
     <sqlite>
       <!-- Database name -->
-      <dbname>/var/lib/jabberd/sm.db</dbname>
+      <dbname>@localstatedir@/jabberd/db/sqlite.db</dbname>
 
       <!-- Transacation support. If this is commented out, transactions
            will be disabled. This might make database accesses faster,

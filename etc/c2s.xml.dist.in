@@ -387,6 +387,20 @@
       <exec>@bindir@/pipe-auth.pl</exec>
     </pipe>
 
+    <!-- SQLite driver configuration -->
+    <sqlite>
+      <!-- Database name -->
+      <dbname>@localstatedir@/jabberd/db/sqlite.db</dbname>
+
+      <!-- Transacation support. If this is commented out, transactions
+           will be disabled. This might make database accesses faster,
+           but data may be lost if jabberd crashes. -->
+      <transactions/>
+
+      <!-- SQLite busy-timeout in milliseconds. -->
+      <busy-timeout>2000</busy-timeout>
+    </sqlite>
+
   </authreg>
 
 </c2s>

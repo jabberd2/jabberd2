@@ -49,6 +49,9 @@ extern int ar_pipe_init(authreg_t);
 #ifdef STORAGE_ANON
 extern int ar_anon_init(authreg_t);
 #endif
+#ifdef STORAGE_SQLITE
+extern int ar_sqlite_init(authreg_t);
+#endif
 
 char *module_names[] = {
 #ifdef STORAGE_MYSQL
@@ -71,6 +74,9 @@ char *module_names[] = {
 #endif
 #ifdef STORAGE_ANON
     "anon",
+#endif
+#ifdef STORAGE_SQLITE
+    "sqlite",
 #endif
     NULL
 };
@@ -96,6 +102,9 @@ ar_module_init_fn module_inits[] = {
 #endif
 #ifdef STORAGE_ANON
     ar_anon_init,
+#endif
+#ifdef STORAGE_SQLITE
+    ar_sqlite_init,
 #endif
     NULL
 };
