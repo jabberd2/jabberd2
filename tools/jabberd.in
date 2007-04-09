@@ -14,7 +14,6 @@ exec perl -w -x $0 "$@"
 
 use strict;
 use Getopt::Std;
-#use FindBin qw($Bin);
 use FileHandle;
 use IPC::Open3;
 use IO::Select;
@@ -109,11 +108,7 @@ else
         next if /^\#/;
         next if /^\s*$/;
         my ($job,$config) = /^\s*(\S+)\s*(\S*)\s*$/;
-        # Assume that all the commands are in the same directory
-        # as the jabberd script. The current configuration file
-        # format does not allow specification of pathnames for commands.
-        my $cmd = "$Bin/$job";
-        push(@programs,[$job,$config,$cmd]);
+        push(@programs,[$job,$config]);
     }
     close(CFG);
 }
@@ -137,7 +132,7 @@ if ($#programs == -1)
 
 foreach my $job (@programs)
 {
-    &LaunchJob($job->[0],$job->[1],$job->[2]);
+    &LaunchJob($job->[0],$job->[1]);
 }
 
 unless (!$daemon || $debug)
@@ -189,12 +184,9 @@ sub LaunchJob
 {
     my $job = shift;
     my $config = shift;
-    my $cmd = shift;
 
-    if (!defined($cmd))
-    {
-        $cmd = $jobs{$job}->{cmd};
-    }
+    my $cmd = $jobs{$job}->{cmd};
+
     if (defined($config))
     {
         $cmd .= " -c ".$config;
