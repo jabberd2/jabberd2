@@ -379,6 +379,11 @@
       <!-- LDAP attribute that holds the user ID (default: uid) -->
       <uidattr>uid</uidattr>
 
+      <!-- Enable the append-realm element if you want to append
+           realm value (usernam@realm) to the uidattr value
+      <append-realm/>
+      -->
+
       <!-- base DN of the tree. You should specify a DN for each
            authentication realm declared in the <local/> section above,
            by using the realm attribute. -->

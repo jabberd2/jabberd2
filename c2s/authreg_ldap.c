@@ -41,6 +41,7 @@
 #define AR_LDAP_FLAGS_V3        (0x4)
 #define AR_LDAP_FLAGS_RECONNECT (0x8)
 #define AR_LDAP_FLAGS_DISABLE_REFERRALS (0x10)
+#define AR_LDAP_FLAGS_APPEND_REALM (0x20)
 
 /** internal structure, holds our data */
 typedef struct moddata_st
@@ -198,7 +199,11 @@ static char *_ldap_search(moddata_t data, char *realm, char *username)
         return NULL;
     }
 
-    snprintf(filter, 1024, "(%s=%s)", data->uidattr, username);
+    if (data->flags & AR_LDAP_FLAGS_APPEND_REALM) {
+        snprintf(filter, 1024, "(%s=%s@%s)", data->uidattr, username, realm);
+    } else {
+        snprintf(filter, 1024, "(%s=%s)", data->uidattr, username);
+    }
 
     if(ldap_set_rebind_proc(data->ld, &rebindProc, data)) {
         log_write(data->ar->c2s->log, LOG_ERR, "ldap: set_rebind_proc failed: %s", ldap_err2string(_ldap_get_lderrno(data->ld)));
@@ -401,24 +406,34 @@ int ar_ldap_init(authreg_t ar)
         snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.v3");
     if(config_get(ar->c2s->config, ldap_entry) != NULL)
       data->flags |= AR_LDAP_FLAGS_V3;
+
     if (l>0)
         snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.startls", l );
     else
         snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.startls");
     if(config_get(ar->c2s->config, ldap_entry) != NULL)
       data->flags |= AR_LDAP_FLAGS_STARTTLS;
+
     if (l>0)
         snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.ssl", l );
     else
         snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.ssl");
     if(config_get(ar->c2s->config, ldap_entry) != NULL)
       data->flags |= AR_LDAP_FLAGS_SSL;
+
     if (l>0)
         snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.disablereferrals", l );
     else
         snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.disablereferrals");
     if(config_get(ar->c2s->config, ldap_entry) != NULL)
       data->flags |= AR_LDAP_FLAGS_DISABLE_REFERRALS;
+
+    if (l>0)
+        snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.append-realm", l );
+    else
+        snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.append-realm");
+    if(config_get(ar->c2s->config, ldap_entry) != NULL)
+      data->flags |= AR_LDAP_FLAGS_APPEND_REALM;
 
     if((data->flags & AR_LDAP_FLAGS_STARTTLS) && (data->flags & AR_LDAP_FLAGS_SSL)) {
 	log_write(ar->c2s->log, LOG_ERR, "ldap: not possible to use both SSL and starttls");
