@@ -380,6 +380,12 @@
       <basedn realm='company'>o=Company.com</basedn>
       <basedn>o=Example Corp.</basedn>
     </ldap>
+    <!-- if you want to configure more than one LDAP server
+         create ldap1, ldap2 etc. sections
+    <ldap1>
+      
+    </ldap1>
+    -->
 
     <!-- Pipe module configuration -->
     <pipe>

@@ -39,6 +39,8 @@
 #define AR_LDAP_FLAGS_STARTTLS  (0x1)
 #define AR_LDAP_FLAGS_SSL       (0x2)
 #define AR_LDAP_FLAGS_V3        (0x4)
+#define AR_LDAP_FLAGS_RECONNECT (0x8)
+#define AR_LDAP_FLAGS_DISABLE_REFERRALS (0x10)
 
 /** internal structure, holds our data */
 typedef struct moddata_st
@@ -51,6 +53,7 @@ typedef struct moddata_st
     long port;
 
     int flags;
+    int timeout;
 
     char *binddn;
     char *bindpw;
@@ -76,6 +79,7 @@ static int _ldap_connect(moddata_t data)
 {
     char url[1024];
     int version = (data->flags & AR_LDAP_FLAGS_V3) ? 3 : 2;
+    struct timeval timeout = {data->timeout,0};
     
     /* ssl "wrappermode" */
     if(data->flags & AR_LDAP_FLAGS_SSL) {
@@ -104,6 +108,27 @@ static int _ldap_connect(moddata_t data)
 	  return 1;
 	}
       }
+
+      /* referrals */
+      if(data->flags & AR_LDAP_FLAGS_DISABLE_REFERRALS) {
+        if( ldap_set_option( data->ld, LDAP_OPT_REFERRALS, LDAP_OPT_OFF ) != LDAP_OPT_SUCCESS )
+        {
+          log_write(data->ar->c2s->log, LOG_ERR, "ldap: couldn't set Referrals Off: %s", ldap_err2string(_ldap_get_lderrno(data->ld)));
+          ldap_unbind_s(data->ld);
+          data->ld = NULL;
+          return 1;
+        }
+      }
+
+      /* timeout */
+      if( ldap_set_option( data->ld, LDAP_OPT_NETWORK_TIMEOUT, &timeout ) != LDAP_OPT_SUCCESS || ldap_set_option( data->ld, LDAP_OPT_TIMEOUT, &timeout ) != LDAP_OPT_SUCCESS )
+      {
+        log_write(data->ar->c2s->log, LOG_ERR, "ldap: couldn't set Timeout: %s", ldap_err2string(_ldap_get_lderrno(data->ld)));
+        ldap_unbind_s(data->ld);
+        data->ld = NULL;
+        return 1;
+      }
+
     } else {
       log_write(data->ar->c2s->log, LOG_ERR, "ldap: connect to server at %s:%d failed", data->host, data->port);
       return 1;
@@ -111,6 +136,19 @@ static int _ldap_connect(moddata_t data)
 
     return 0;
 }
+
+/** Reconnect */
+static int _ldap_reconnect(moddata_t data)
+{
+
+    if (data->ld != NULL) {
+        ldap_unbind_s(data->ld);
+        data->ld = NULL;
+    }
+
+    return (_ldap_connect(data));
+}
+
 
 /** do a search, return the dn */
 static char *_ldap_search(moddata_t data, char *realm, char *username)
@@ -129,10 +167,17 @@ static char *_ldap_search(moddata_t data, char *realm, char *username)
         return NULL;
     }
 
+    if (data->flags & AR_LDAP_FLAGS_RECONNECT) {
+        if (_ldap_reconnect(data)) {
+	    log_write(data->ar->c2s->log, LOG_ERR, "ldap: reconnect failed: %s realm: %s basedn: %s binddn: %s pass: %s", ldap_err2string(_ldap_get_lderrno(data->ld)), realm, basedn, data->binddn, data->bindpw ); 
+	    return NULL;
+	}
+    }
+
     if(ldap_simple_bind_s(data->ld, data->binddn, data->bindpw)
         && (_ldap_connect(data) || ldap_simple_bind_s(data->ld, data->binddn, data->bindpw))) 
     {
-        log_write(data->ar->c2s->log, LOG_ERR, "ldap: bind failed: %s", ldap_err2string(_ldap_get_lderrno(data->ld)));
+        log_write(data->ar->c2s->log, LOG_ERR, "ldap: bind failed: %s realm: %s basedn: %s binddn: %s pass: %s", ldap_err2string(_ldap_get_lderrno(data->ld)), realm, basedn, data->binddn, data->bindpw );
         ldap_unbind_s(data->ld);
         data->ld = NULL;
         return NULL;
@@ -168,84 +213,119 @@ static char *_ldap_search(moddata_t data, char *realm, char *username)
 /** do we have this user? */
 static int _ldap_user_exists(authreg_t ar, char *username, char *realm)
 {
+
     char *dn;
-    int result;
-    
-    moddata_t data = (moddata_t) ar->private;
+    moddata_t data;
 
-    if(data->ld == NULL && _ldap_connect(data))
-        return 0;
-    
-    dn = _ldap_search(data, realm, username);
-    result = (int) dn;
-    ldap_memfree(dn);
+    if(xhash_iter_first((xht) ar->private))
+    do {
+        xhash_iter_get((xht) ar->private, NULL, (void *) &data);
+        if( ! (data->ld == NULL && _ldap_connect(data)) ) {
+            dn = _ldap_search(data, realm, username);
+            if (dn != NULL) {
+                ldap_memfree(dn);
+                return 1;
+            }
+        }
+    } while(xhash_iter_next((xht) ar->private));
 
-    return result;
+    return 0;
+
 }
 
 /** check the password */
 static int _ldap_check_password(authreg_t ar, char *username, char *realm, char password[257])
 {
-    moddata_t data = (moddata_t) ar->private;
+
+    moddata_t data;
     char *dn;
 
     if(password[0] == '\0')
         return 1;
 
-    if(data->ld == NULL && _ldap_connect(data))
-        return 1;
+    if(xhash_iter_first((xht) ar->private))
+    do {
+        xhash_iter_get((xht) ar->private, NULL, (void *) &data);
 
-    dn = _ldap_search(data, realm, username);
-    if(dn == NULL)
-        return 1;
+        if( ! (data->ld == NULL && _ldap_connect(data)) ) {
 
-    if(ldap_simple_bind_s(data->ld, dn, password))
-    {
-        if(_ldap_get_lderrno(data->ld) != LDAP_INVALID_CREDENTIALS)
-        {
-            log_write(data->ar->c2s->log, LOG_ERR, "ldap: bind as '%s' failed: %s", dn, ldap_err2string(_ldap_get_lderrno(data->ld)));
-            ldap_unbind_s(data->ld);
-            data->ld = NULL;
+            dn = _ldap_search(data, realm, username);
+            if (dn != NULL) {
+
+                if(ldap_simple_bind_s(data->ld, dn, password) ) {
+                    if(_ldap_get_lderrno(data->ld) != LDAP_INVALID_CREDENTIALS)
+                    {
+                        log_write(data->ar->c2s->log, LOG_ERR, "ldap: bind as '%s' on host '%s' failed: %s", dn,data->host, ldap_err2string(_ldap_get_lderrno(data->ld)));
+                        ldap_unbind_s(data->ld);
+                        data->ld = NULL;
+                    }
+                    ldap_memfree(dn);
+                } else {
+                    ldap_memfree(dn);
+                    return 0;
+                }
+            }
         }
+    } while(xhash_iter_next((xht) ar->private));
 
-        ldap_memfree(dn);
-        return 1;
-    }
 
-    ldap_memfree(dn);
-    return 0;
+    return 1;
+
 }
 
 /** shut me down */
 static void _ldap_free(authreg_t ar)
 {
-    moddata_t data = (moddata_t) ar->private;
+    moddata_t data;
 
-    if(data->ld != NULL)
-        ldap_unbind_s(data->ld);
+    if(xhash_iter_first((xht) ar->private))
+    do {
+        xhash_iter_get((xht) ar->private, NULL, (void *) &data);
+        if(data->ld != NULL)
+            ldap_unbind_s(data->ld);
+        xhash_free(data->basedn);
+        free(data);
+    } while(xhash_iter_next((xht) ar->private));
 
-    xhash_free(data->basedn);
-    free(data);
+
+    xhash_free((xht) ar->private);
 
     return;
 }
+
 
 /** start me up */
 int ar_ldap_init(authreg_t ar)
 {
     moddata_t data;
-    char *host, *realm;
+    char ldap_entry[128];
+    char *host, *realm,*priority;
     config_elem_t basedn;
-    int i;
+    int i,l=0;
+    xht domains;
 
-    host = config_get_one(ar->c2s->config, "authreg.ldap.host", 0);
+    domains = xhash_new(17);
+    ldap_entry[15]='\0';
+
+    /* while we have more ldap entries*/
+    do {
+
+    if (l>0)
+        snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.host", l );
+    else
+        snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.host");
+    host = config_get_one(ar->c2s->config, ldap_entry, 0);
     if(host == NULL)
     {
         log_write(ar->c2s->log, LOG_ERR, "ldap: no host specified in config file");
         return 1;
     }
 
-    basedn = config_get(ar->c2s->config, "authreg.ldap.basedn");
+    if (l>0)
+        snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.basedn", l );
+    else
+        snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.basedn");
+    basedn = config_get(ar->c2s->config, ldap_entry);
     if(basedn == NULL)
     {
         log_write(ar->c2s->log, LOG_ERR, "ldap: no basedns specified in config file");
@@ -272,27 +352,74 @@ int ar_ldap_init(authreg_t ar)
 
     data->host = host;
 
-    data->port = j_atoi(config_get_one(ar->c2s->config, "authreg.ldap.port", 0), 389);
+    if (l>0)
+        snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.port", l );
+    else
+        snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.port");
+    data->port = j_atoi(config_get_one(ar->c2s->config, ldap_entry, 0), 389);
+
+    if (l>0)
+        snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.timeout", l );
+    else
+        snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.timeout");
+    data->timeout = j_atoi(config_get_one(ar->c2s->config, ldap_entry, 0), 5);
 
     data->flags = AR_LDAP_FLAGS_NONE;
 
-    if(config_get(ar->c2s->config, "authreg.ldap.v3") != NULL)
+    if (l>0)
+        snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.reconnect", l );
+    else
+        snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.reconnect");
+    if(config_get(ar->c2s->config, ldap_entry) != NULL)
+      data->flags |= AR_LDAP_FLAGS_RECONNECT;
+    
+    if (l>0)
+        snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.v3", l );
+    else
+        snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.v3");
+    if(config_get(ar->c2s->config, ldap_entry) != NULL)
       data->flags |= AR_LDAP_FLAGS_V3;
-    if(config_get(ar->c2s->config, "authreg.ldap.starttls") != NULL)
+    if (l>0)
+        snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.startls", l );
+    else
+        snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.startls");
+    if(config_get(ar->c2s->config, ldap_entry) != NULL)
       data->flags |= AR_LDAP_FLAGS_STARTTLS;
-    if(config_get(ar->c2s->config, "authreg.ldap.ssl") != NULL)
+    if (l>0)
+        snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.ssl", l );
+    else
+        snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.ssl");
+    if(config_get(ar->c2s->config, ldap_entry) != NULL)
       data->flags |= AR_LDAP_FLAGS_SSL;
+    if (l>0)
+        snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.disablereferrals", l );
+    else
+        snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.disablereferrals");
+    if(config_get(ar->c2s->config, ldap_entry) != NULL)
+      data->flags |= AR_LDAP_FLAGS_DISABLE_REFERRALS;
 
     if((data->flags & AR_LDAP_FLAGS_STARTTLS) && (data->flags & AR_LDAP_FLAGS_SSL)) {
 	log_write(ar->c2s->log, LOG_ERR, "ldap: not possible to use both SSL and starttls");
 	return 1;
     }
 
-    data->binddn = config_get_one(ar->c2s->config, "authreg.ldap.binddn", 0);
-    if(data->binddn != NULL)
-        data->bindpw = config_get_one(ar->c2s->config, "authreg.ldap.bindpw", 0);
-
-    data->uidattr = config_get_one(ar->c2s->config, "authreg.ldap.uidattr", 0);
+    if (l>0)
+        snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.binddn", l );
+    else
+        snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.binddn");
+    data->binddn = config_get_one(ar->c2s->config, ldap_entry, 0);
+    if(data->binddn != NULL) {
+        if (l>0)
+            snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.bindpw", l );
+        else
+            snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.bindpw");
+        data->bindpw = config_get_one(ar->c2s->config, ldap_entry, 0);
+    }
+    if (l>0)
+        snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.uidattr", l );
+    else
+        snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.uidattr");
+    data->uidattr = config_get_one(ar->c2s->config, ldap_entry, 0);
     if(data->uidattr == NULL)
         data->uidattr = "uid";
 
@@ -305,7 +432,15 @@ int ar_ldap_init(authreg_t ar)
         return 1;
     }
 
-    ar->private = data;
+    xhash_put(domains, data->host, data);
+
+    l++;
+    snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d", l );
+
+    } while ( config_count(ar->c2s->config, ldap_entry) > 0 );
+    
+
+    ar->private = domains;
 
     ar->user_exists = _ldap_user_exists;
     ar->check_password = _ldap_check_password;
