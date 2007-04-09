@@ -1,4 +1,4 @@
-INCLUDES = -DCONFIG_DIR=\"$(sysconfdir)\"
+INCLUDES = -DCONFIG_DIR=\"$(sysconfdir)\" -DLIBRARY_DIR=\"$(pkglibdir)\"
 
 bin_PROGRAMS = sm
 pkglib_LTLIBRARIES = mod_active.la \

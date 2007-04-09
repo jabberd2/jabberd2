@@ -174,7 +174,7 @@ mm_t mm_new(sm_t sm) {
                   if (modules_path != NULL)
                       snprintf(mod_fullpath, 512, "%s/mod_%s.so", modules_path, name);
                   else
-                      snprintf(mod_fullpath, 512, "%s/mod_%s.so", PACKAGE_DIR, name);
+                      snprintf(mod_fullpath, 512, "%s/mod_%s.so", LIBRARY_DIR, name);
                   mod->handle = dlopen(mod_fullpath, RTLD_LAZY);
                   if (mod->handle != NULL)
                       mod->module_init_fn = dlsym(mod->handle, "module_init");
