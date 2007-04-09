@@ -304,9 +304,11 @@ int sx_can_write(sx_t s) {
 
     ret = _sx_get_pending_write(s);
     if (ret < 0) {
-    /* fatal error */
-    /* !!! shut down */
-    return 0;
+        /* fatal error */
+        _sx_debug(ZONE, "fatal error after attempt to write on fd %d", s->tag);
+        /* permanent error so inform the app it can kill us */
+        sx_kill(s);
+        return 0;
     }
 
     /* if there's nothing to write, then we're done */
