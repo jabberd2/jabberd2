@@ -204,10 +204,8 @@
        this may cause strange behaviour. Make sure you know what you're
        doing. -->
   <modules>
-    <!-- Dynamic sm modules path
-
-         Trailing slash is significant. -->
-    <path>@pkglibdir@/</path>
+    <!-- Dynamic sm modules path -->
+    <path>@pkglibdir@</path>
 
     <!-- sess-start. The modules in this chain are called when a session
          is first started (usually on request by c2s as part of the
