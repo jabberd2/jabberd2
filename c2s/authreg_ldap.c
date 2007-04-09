@@ -74,6 +74,21 @@ static int _ldap_get_lderrno(LDAP *ld)
     return ld_errno;
 }
 
+/** entry-point function for following referrals, required in some cases by Active Directory */
+static int rebindProc(LDAP *ld, LDAP_CONST char *url, ber_tag_t request, ber_int_t msgid, void *mdata)
+{
+    moddata_t data = mdata;
+    data->ld = ld;
+    if(ldap_simple_bind_s(data->ld, data->binddn, data->bindpw)) {
+        log_write(data->ar->c2s->log, LOG_ERR, "ldap: bind failed (to %s): %s", url, ldap_err2string(_ldap_get_lderrno(data->ld)));
+        ldap_unbind_s(data->ld);
+        data->ld = NULL;
+        return NULL;
+    }
+
+    return LDAP_SUCCESS;
+}
+
 /** connect to the ldap host */
 static int _ldap_connect(moddata_t data)
 {
@@ -184,6 +199,13 @@ static char *_ldap_search(moddata_t data, char *realm, char *username)
     }
 
     snprintf(filter, 1024, "(%s=%s)", data->uidattr, username);
+
+    if(ldap_set_rebind_proc(data->ld, &rebindProc, data)) {
+        log_write(data->ar->c2s->log, LOG_ERR, "ldap: set_rebind_proc failed: %s", ldap_err2string(_ldap_get_lderrno(data->ld)));
+        ldap_unbind_s(data->ld);
+        data->ld = NULL;
+        return NULL;
+    }
 
     if(ldap_search_s(data->ld, basedn, LDAP_SCOPE_SUBTREE, filter, no_attrs, 0, &result))
     {
