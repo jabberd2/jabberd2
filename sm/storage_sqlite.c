@@ -273,6 +273,8 @@ static st_ret_t _st_sqlite_put_guts (st_driver_t drv, const char *type,
 	    memcpy (&left[nleft], right, nright);
 	    nleft += nright;
 	    free (right);
+	    right = NULL;
+	    lright = 0;
 
 	    SQLITE_SAFE_CAT (left, nleft, lleft, " )");
 
@@ -280,6 +282,8 @@ static st_ret_t _st_sqlite_put_guts (st_driver_t drv, const char *type,
 
 	    res = sqlite3_prepare (data->db, left, strlen (left), &stmt, NULL);
 	    free (left);
+	    left = NULL;
+	    lleft = 0;
 	    if (res != SQLITE_OK) {
 		log_write (drv->st->sm->log, LOG_ERR,
 			   "sqlite: sql insert failed: %s",
