@@ -10,7 +10,7 @@
 	 * Integrated compilation fixes by Stefan Huehner. Closes #51
 	 * Integrated FS storage offline messages fix by Michael Moeller. Closes #50
 	 * Integrated SQLite fixes by Nicolas Pouillon. Closes #45
-	 * Integrated full SQLite3 support for SM by Reinhard Max. Closes #43
+	 * Integrated full SQLite (authreg) support by Reinhard Max. Closes #43
 	 * removed redundant setting in jabberd wrapper. Closes #34
 
 2007-04-03 Tomasz Sterna <tomek@xiaoka.com>
