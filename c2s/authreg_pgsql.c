@@ -22,8 +22,6 @@
 
 #include "c2s.h"
 
-#ifdef STORAGE_PGSQL
-
 #include <libpq-fe.h>
 
 #define PGSQL_LU  1024   /* maximum length of username - should correspond to field length */
@@ -523,5 +521,3 @@ int ar_pgsql_init(authreg_t ar) {
 
     return 0;
 }
-
-#endif

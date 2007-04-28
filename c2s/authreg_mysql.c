@@ -22,13 +22,12 @@
 
 #include "c2s.h"
 
-#ifdef STORAGE_MYSQL
+#include <mysql.h>
 
 #define MYSQL_LU  1024   /* maximum length of username - should correspond to field length */
 #define MYSQL_LR   256   /* maximum length of realm - should correspond to field length */
 #define MYSQL_LP   256   /* maximum length of password - should correspond to field length */
 
-#include <mysql.h>
 
 typedef struct mysqlcontext_st {
   MYSQL * conn;
@@ -539,5 +538,3 @@ int ar_mysql_init(authreg_t ar) {
 
     return 0;
 }
-
-#endif

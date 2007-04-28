@@ -31,8 +31,6 @@
 
 #include "c2s.h"
 
-#ifdef STORAGE_SQLITE
-
 #include <sqlite3.h>
 
 typedef struct moddata_st {
@@ -425,5 +423,3 @@ ar_sqlite_init(authreg_t ar)
 
     return 0;
 }
-
-#endif

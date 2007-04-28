@@ -29,8 +29,6 @@
 
 #include "sm.h"
 
-#ifdef STORAGE_SQLITE
-
 #include <sqlite3.h>
 
 /** internal structure, holds our data */
@@ -672,5 +670,3 @@ st_ret_t st_sqlite_init(st_driver_t drv) {
 
     return st_SUCCESS;
 }
-
-#endif

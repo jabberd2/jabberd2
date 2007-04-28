@@ -327,89 +327,111 @@ dnl optional libs
 dnl
 
 dnl mysql
-AC_ARG_ENABLE(mysql, AC_HELP_STRING([--enable-mysql], [enable MySQL auth/reg/storage support (no)]),
-              want_mysql=$enableval, want_mysql=no)
-if test "x-$want_mysql" = "x-yes" ; then
-    AC_CHECK_HEADERS(mysql.h)
-    if test "x-$ac_cv_header_mysql_h" != "x-yes" ; then
-        for incpath in /usr/include/mysql /usr/local/include/mysql; do
-            if test "x-$ac_cv_header_mysql_h" != "x-yes" ; then
-                AC_MSG_CHECKING([for mysql.h in $incpath])
-                save_cppflags="$CPPFLAGS"
-                CPPFLAGS="-I$incpath $CPPFLAGS"
-                AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <mysql.h>]])],
-                                  [AC_MSG_RESULT(yes)
-                                   AC_DEFINE(HAVE_MYSQL_H,,[Define if you have mysql.h])
-                                   ac_cv_header_mysql_h=yes],
-                                  AC_MSG_RESULT(no))
-                if test "x-$ac_cv_header_mysql_h" != "x-yes" ; then
-                    CPPFLAGS="$save_cppflags"
-                fi
-            fi
-        done
-    fi
-    if test "x-$ac_cv_header_mysql_h" = "x-yes" ; then
-        AC_CHECK_LIB(mysqlclient, mysql_init)
-    fi
-    if test "x-$ac_cv_lib_mysqlclient_mysql_init" != "x-yes" ; then
-        AC_MSG_ERROR([MySQL client libraries not found])
-    else
-        AC_DEFINE(STORAGE_MYSQL,1,[Define to 1 if you want to use MySQL for auth/reg/storage.])
-    fi
+AC_MSG_CHECKING([if user wants MySQL support])
+AC_ARG_ENABLE([mysql], 
+	AC_HELP_STRING([--enable-mysql], [enable MySQL authreg/storage support (no)]),
+	[enable_mysql=$enableval have_mysql=no],
+	[enable_mysql=no         have_mysql=no])
+AC_MSG_RESULT([$enable_mysql])
+
+if test "x-$enable_mysql" = "x-yes" ; then
+	for i in /usr /usr/local /usr/local/mysql ; do
+		for j in include include/mysql "" ; do
+			if test -r "$i/$j/mysql.h" ; then
+				MYSQL_INCLUDE=$i/$j
+			fi
+		done
+		for j in lib lib/mysql lib64 lib64/mysql "" ; do
+			if test -f "$i/$j/libmysqlclient.so" || test -f "$i/$j/libmysqlclient.a" ; then
+				MYSQL_LIBDIR=$i/$j
+			fi
+		done
+	done
+	AC_CHECK_LIB([mysqlclient], [mysql_init], [
+		have_mysql=yes
+		if test "x-$MYSQL_INCLUDE" != "x-" ; then
+			MYSQL_CFLAGS="-I $MYSQL_INCLUDE"
+		fi
+		if test "x-$MYSQL_LIBDIR" != "x-" ; then
+			MYSQL_LIBS="-L$MYSQL_LIBDIR -lmysqlclient"
+		fi
+		AC_DEFINE(STORAGE_MYSQL, 1, [Define to 1 if you want to use MySQL for storage.])	
+	])
+	if test "x-$have_mysql" != "x-yes" ; then
+		AC_MSG_ERROR([MySQL support requested, but headers/libraries not found.])
+	fi
 fi
+AC_SUBST(MYSQL_CFLAGS)
+AC_SUBST(MYSQL_LIBS)
+AM_CONDITIONAL(STORAGE_MYSQL, [test "x-$have_mysql" = "x-yes"])
 
 
 dnl postgresql
-AC_ARG_ENABLE(pgsql, AC_HELP_STRING([--enable-pgsql], [enable PostgreSQL auth/reg/storage support (no)]),
-              want_pgsql=$enableval, want_pgsql=no)
-if test "x-$want_pgsql" = "x-yes" ; then
-    AC_CHECK_HEADERS(libpq-fe.h)
-    if test "x-$ac_cv_header_libpq_fe_h" != "x-yes" ; then
-        for incpath in /usr/include/postgresql /usr/local/include/postgresql; do
-            if test "x-$ac_cv_header_libpq_fe_h" != "x-yes" ; then
-                AC_MSG_CHECKING([for libpq-fe.h in $incpath])
-                save_cppflags="$CPPFLAGS"
-                CPPFLAGS="-I$incpath $CPPFLAGS"
-                AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <libpq-fe.h>]])],
-                                  [AC_MSG_RESULT(yes)
-                                   AC_DEFINE(HAVE_LIBPQ_FE_H,,[Define if you have libpq_fe.h])
-                                   ac_cv_header_libpq_fe_h=yes],
-                                  AC_MSG_RESULT(no))
-                if test "x-$ac_cv_header_libpq_fe_h" != "x-yes" ; then
-                    CPPFLAGS="$save_cppflags"
-                fi
-            fi
-        done
-    fi
-    if test "x-$ac_cv_header_libpq_fe_h" = "x-yes" ; then
-        AC_CHECK_LIB(pq, PQsetdbLogin)
-    fi
-    if test "x-$ac_cv_lib_pq_PQsetdbLogin" != "x-yes" ; then
-        AC_MSG_ERROR([PostgreSQL client libraries not found])
-    else
-        AC_DEFINE(STORAGE_PGSQL,1,[Define to 1 if you want to use PostgreSQL for auth/reg/storage.])
-    fi
-fi
+AC_MSG_CHECKING([if user wants PostgreSQL support])
+AC_ARG_ENABLE([pgsql], 
+	AC_HELP_STRING([--enable-pgsql], [enable PostgreSQL authreg/storage support (no)]),
+	[enable_pgsql=$enableval have_pgsql=no],
+	[enable_pgsql=no         have_pgsql=no])
+AC_MSG_RESULT([$enable_pgsql])
 
+if test "x-$enable_pgsql" = "x-yes" ; then
+	for i in /usr /usr/local /usr/local/pgsql ; do
+		for j in include include/pgsql include/postgres include/postgresql "" ; do
+			if test -r "$i/$j/libpq-fe.h" ; then
+				PGSQL_INCLUDE=$i/$j
+			fi
+		done
+		for lib in lib lib64 ; do
+			for j in $lib $lib/pgsql $lib/postgres $lib/postgresql "" ; do
+				if test -f "$i/$j/libpq.so" || test -f "$i/$j/libpq.a" ; then
+					PGSQL_LIBDIR=$i/$j
+				fi
+			done
+		done
+	done
+	AC_CHECK_LIB([pq], [PQsetdbLogin], [
+		have_pgsql=yes
+		if test "x-$PGSQL_INCLUDE" != "x-"; then
+			PGSQL_CFLAGS="-I $PGSQL_INCLUDE"
+		fi
+		if test "x-$PGSQL_LIBDIR" != "x-"; then
+			PGSQL_LIBS="-L$PGSQL_LIBDIR -lpq"
+		fi
+		AC_DEFINE(STORAGE_POSTGRES, 1, [Define to 1 if you want to use PostgreSQL for storage.])	
+	])
+	if test "x-$have_pgsql" != "x-yes" ; then
+		AC_MSG_ERROR([PostgreSQL support requested, but headers/libraries not found.])
+	fi
+fi
+AC_SUBST(PGSQL_CFLAGS)
+AC_SUBST(PGSQL_LIBS)
+AM_CONDITIONAL(STORAGE_PGSQL, [test "x-$have_pgsql" = "x-yes"])
 
 dnl SQLite 3
-AC_ARG_ENABLE(sqlite, AC_HELP_STRING([--enable-sqlite], [enable SQLite 3 storage support (no)]),
-              want_sqlite=$enableval, want_sqlite=no)
-if test "x-$want_sqlite" = "x-yes" ; then
-    AC_CHECK_HEADERS(sqlite3.h)
-    if test "x-$ac_cv_header_sqlite3_h" = "x-yes" ; then
-        AC_CHECK_LIB(sqlite3, sqlite3_open)
-    fi
-    if test "x-$ac_cv_lib_sqlite3_sqlite3_open" != "x-yes" ; then
-        AC_MSG_ERROR([SQLite 3 library not found])
-    else
-        AC_DEFINE(STORAGE_SQLITE,1,[Define to 1 if you want to use SQLite 3 for storage.])
-    fi
+AC_MSG_CHECKING([if user wants SQLite3 support])
+AC_ARG_ENABLE([sqlite],
+	AS_HELP_STRING([--enable-sqlite], [enable SQLite3 authreg/storage support (no)]),
+	[enable_sqlite=$enableval have_sqlite=no],
+	[enable_sqlite=no         have_sqlite=no])
+AC_MSG_RESULT([$enable_sqlite])
+
+if test "x-$enable_sqlite" = "x-yes" ; then
+    AC_CHECK_HEADERS([sqlite3.h], [
+		AC_CHECK_LIB([sqlite3], [sqlite3_open], [
+			have_sqlite=yes
+			SQLITE_LIBS="-lsqlite3"
+			AC_DEFINE(STORAGE_SQLITE, 1, [Define to 1 if you want to use SQLite 3 for storage.])	
+		])
+	])
+	if test "x-$have_sqlite" != "x-yes" ; then
+		AC_MSG_ERROR([SQLite3 support requested, but headers/libraries not found.])
+	fi
 fi
-
-
+AC_SUBST(SQLITE_LIBS)
+AM_CONDITIONAL(STORAGE_SQLITE, [test "x-$have_sqlite" = "x-yes"])
+		
 dnl berkeley db
-AC_ARG_ENABLE(db, AC_HELP_STRING([--enable-db], [enable Berkeley DB auth/reg/storage support (no)]),
+AC_ARG_ENABLE(db, AC_HELP_STRING([--enable-db], [enable Berkeley DB authreg/storage support (no)]),
               want_db=$enableval, want_db=no)
 if test "x-$want_db" = "x-yes" ; then
     AC_CHECK_HEADERS(db.h)
@@ -445,7 +467,7 @@ if test "x-$want_db" = "x-yes" ; then
     if test "x-$have_db_version" != "x-yes" ; then
         AC_MSG_ERROR([Berkeley DB >= 4.1.24 not found])
     else
-        AC_DEFINE(STORAGE_DB,1,[Define to 1 if you want to use Berkeley DB for auth/reg/storage.])
+        AC_DEFINE(STORAGE_DB,1,[Define to 1 if you want to use Berkeley DB for authreg/storage.])
     fi
 fi
 
@@ -536,7 +558,7 @@ AC_ARG_WITH(oracle-home,
 	[ --with-oracle-home=DIR   the Oracle home directory, for includes and libs. ],
 	[ ac_oracle_home="$withval" ])
 
-AC_ARG_ENABLE(oracle, AC_HELP_STRING([--enable-oracle], [enable Oracle auth/reg/storage support (no)]),
+AC_ARG_ENABLE(oracle, AC_HELP_STRING([--enable-oracle], [enable Oracle authreg/storage support (no)]),
               want_oracle=$enableval, want_oracle=no)
 if test "x-$want_oracle" = "x-yes" ; then
     AC_CHECK_HEADERS(oci.h)
@@ -567,7 +589,7 @@ if test "x-$want_oracle" = "x-yes" ; then
     if test "x-$ac_cv_lib_clntsh_OCIInitialize" != "x-yes" ; then
         AC_MSG_ERROR([Oracle client libraries not found])
     else
-        AC_DEFINE(STORAGE_ORACLE,1,[Define to 1 if you want to use Oracle for auth/reg/storage.])
+        AC_DEFINE(STORAGE_ORACLE,1,[Define to 1 if you want to use Oracle for authreg/storage.])
     fi
 fi
 

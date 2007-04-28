@@ -27,8 +27,6 @@
 
 #include "sm.h"
 
-#ifdef STORAGE_MYSQL
-
 #include <mysql.h>
 
 /** internal structure, holds our data */
@@ -662,5 +660,3 @@ st_ret_t st_mysql_init(st_driver_t drv) {
 
     return st_SUCCESS;
 }
-
-#endif
