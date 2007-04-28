@@ -97,7 +97,7 @@ int rate_check(rate_t rt)
     }
 
     /* rate expired */
-    if(time(NULL) - rt->time >= rt->seconds)
+    if(now - rt->time >= rt->seconds)
     {
         rate_reset(rt);
         return 1;
