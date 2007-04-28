@@ -516,14 +516,22 @@ int main(int argc, char **argv)
 
     _c2s_pidfile(c2s);
 
-    if(c2s->ar_module_name == NULL)
-    {
+    if(c2s->ar_module_name == NULL) {
         log_write(c2s->log, LOG_ERR, "no authreg module specified in config file");
+        access_free(c2s->access);
+        config_free(c2s->config);
+        log_free(c2s->log);
+        free(c2s);
         exit(1);
     }
 
-    if((c2s->ar = authreg_init(c2s, c2s->ar_module_name)) == NULL)
+    if((c2s->ar = authreg_init(c2s, c2s->ar_module_name)) == NULL) {
+        access_free(c2s->access);
+        config_free(c2s->config);
+        log_free(c2s->log);
+        free(c2s);
         exit(1);
+	}
 
     c2s->pc = prep_cache_new();
 
