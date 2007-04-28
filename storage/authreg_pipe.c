@@ -35,9 +35,6 @@
  */
 
 #include "c2s.h"
-
-#ifdef STORAGE_PIPE
-
 #include <sys/wait.h>
 
 /** internal structure, holds our data */
@@ -328,7 +325,7 @@ static void _ar_pipe_signal(int signum)
 }
 
 /** start me up */
-int ar_pipe_init(authreg_t ar)
+int ar_init(authreg_t ar)
 {
     moddata_t data;
     int to[2], from[2], ret;
@@ -473,5 +470,3 @@ int ar_pipe_init(authreg_t ar)
 
     return 0;
 }
-
-#endif

@@ -45,7 +45,7 @@
 mm_t mm_new(sm_t sm) {
     mm_t mm;
     int celem, melem, attr, *nlist = NULL;
-    char id[13], name[32], mod_fullpath[512], arg[1024], *modules_path;
+    char id[13], name[32], mod_fullpath[PATH_MAX], arg[1024], *modules_path;
     mod_chain_t chain = (mod_chain_t) NULL;
     mod_instance_t **list = NULL, mi;
     module_t mod;
@@ -63,7 +63,7 @@ mm_t mm_new(sm_t sm) {
     if (modules_path != NULL)
         log_write(sm->log, LOG_NOTICE, "modules search path: %s", modules_path);
     else
-        log_write(sm->log, LOG_WARNING, "modules search path undefined !");
+        log_write(sm->log, LOG_NOTICE, "modules search path undefined, using deafult: "LIBRARY_DIR);
 
     celem = nad_find_elem(sm->config->nad, celem, -1, "chain", 1);
     while(celem >= 0) {
@@ -172,17 +172,17 @@ mm_t mm_new(sm_t sm) {
                         mod->name = strdup(name);
                 #ifndef WIN32
                   if (modules_path != NULL)
-                      snprintf(mod_fullpath, 512, "%s/mod_%s.so", modules_path, name);
+                      snprintf(mod_fullpath, PATH_MAX, "%s/mod_%s.so", modules_path, name);
                   else
-                      snprintf(mod_fullpath, 512, "%s/mod_%s.so", LIBRARY_DIR, name);
+                      snprintf(mod_fullpath, PATH_MAX, "%s/mod_%s.so", LIBRARY_DIR, name);
                   mod->handle = dlopen(mod_fullpath, RTLD_LAZY);
                   if (mod->handle != NULL)
                       mod->module_init_fn = dlsym(mod->handle, "module_init");
                 #else
                   if (modules_path != NULL)
-                      snprintf(mod_fullpath, 512, "%smod_%s.dll", modules_path, name);
+                      snprintf(mod_fullpath, PATH_MAX, "%s\\mod_%s.dll", modules_path, name);
                   else
-                      snprintf(mod_fullpath, 512, "mod_%s.dll", name);
+                      snprintf(mod_fullpath, PATH_MAX, "mod_%s.dll", name);
                   mod->handle = (void*) LoadLibrary(mod_fullpath);
                   if (mod->handle != NULL)
                       mod->module_init_fn = GetProcAddress((HMODULE) mod->handle, "module_init");

@@ -30,7 +30,6 @@
  */
 
 #include "c2s.h"
-
 #include <sqlite3.h>
 
 typedef struct moddata_st {
@@ -356,7 +355,7 @@ _ar_sqlite_free(authreg_t ar)
 }
 
 int
-ar_sqlite_init(authreg_t ar)
+ar_init(authreg_t ar)
 {
 
     int ret;

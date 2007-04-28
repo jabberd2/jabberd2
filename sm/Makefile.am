@@ -1,9 +1,5 @@
-INCLUDES = -DCONFIG_DIR=\"$(sysconfdir)\" \
-           -DLIBRARY_DIR=\"$(pkglibdir)\" \
-		   $(MYSQL_CFLAGS)
-		   $(PGSQL_CFLAGS)
-
 bin_PROGRAMS = sm
+
 pkglib_LTLIBRARIES = mod_active.la \
                   mod_announce.la \
                   mod_amp.la \
@@ -28,6 +24,7 @@ pkglib_LTLIBRARIES = mod_active.la \
                   mod_validate.la
 
 noinst_HEADERS = sm.h
+
 sm_SOURCES = aci.c \
              dispatch.c \
              feature.c \
@@ -39,31 +36,14 @@ sm_SOURCES = aci.c \
              sess.c \
              sm.c \
              user.c \
-             storage.c \
-             storage_db.c \
-             storage_fs.c \
-             storage_oracle.c
+             storage.c 
 
+sm_CPPFLAGS = -DCONFIG_DIR=\"$(sysconfdir)\" -DLIBRARY_DIR=\"$(pkglibdir)\"
 sm_LDFLAGS = -Wl,-export-dynamic
 sm_LDADD = $(top_builddir)/sx/libsx.la \
            $(top_builddir)/mio/libmio.la \
            $(top_builddir)/util/libutil.la \
-           $(top_builddir)/subst/libsubst.la \
-           $(MYSQL_LIBS)    \
-           $(PGSQL_LIBS)    \
-           $(SQLITE_LIBS)
-
-if STORAGE_MYSQL
-sm_SOURCES += storage_mysql.c
-endif
-
-if STORAGE_PGSQL
-sm_SOURCES += storage_pgsql.c
-endif
-
-if STORAGE_SQLITE
-sm_SOURCES += storage_sqlite.c
-endif
+           $(top_builddir)/subst/libsubst.la 
 
 mod_active_la_SOURCES = mod_active.c
 mod_active_la_LDFLAGS = -module -avoid-version

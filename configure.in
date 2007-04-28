@@ -28,6 +28,7 @@ AC_ARG_ENABLE(developer, AC_HELP_STRING([--enable-developer], [Compile with warn
 
 dnl basic tools
 AC_PROG_CC
+AM_PROG_CC_C_O
 AC_PROG_MAKE_SET
 
 dnl need libtool for internal linking
@@ -327,7 +328,7 @@ dnl
 dnl mysql
 AC_MSG_CHECKING([if user wants MySQL support])
 AC_ARG_ENABLE([mysql], 
-	AC_HELP_STRING([--enable-mysql], [enable MySQL authreg/storage support (no)]),
+	AC_HELP_STRING([--enable-mysql], [enable MySQL auth/reg/storage support (no)]),
 	[enable_mysql=$enableval have_mysql=no],
 	[enable_mysql=no         have_mysql=no])
 AC_MSG_RESULT([$enable_mysql])
@@ -367,7 +368,7 @@ AM_CONDITIONAL(STORAGE_MYSQL, [test "x-$have_mysql" = "x-yes"])
 dnl postgresql
 AC_MSG_CHECKING([if user wants PostgreSQL support])
 AC_ARG_ENABLE([pgsql], 
-	AC_HELP_STRING([--enable-pgsql], [enable PostgreSQL authreg/storage support (no)]),
+	AC_HELP_STRING([--enable-pgsql], [enable PostgreSQL auth/reg/storage support (no)]),
 	[enable_pgsql=$enableval have_pgsql=no],
 	[enable_pgsql=no         have_pgsql=no])
 AC_MSG_RESULT([$enable_pgsql])
@@ -408,7 +409,7 @@ AM_CONDITIONAL(STORAGE_PGSQL, [test "x-$have_pgsql" = "x-yes"])
 dnl SQLite 3
 AC_MSG_CHECKING([if user wants SQLite3 support])
 AC_ARG_ENABLE([sqlite],
-	AS_HELP_STRING([--enable-sqlite], [enable SQLite3 authreg/storage support (no)]),
+	AS_HELP_STRING([--enable-sqlite], [enable SQLite3 auth/reg/storage support (no)]),
 	[enable_sqlite=$enableval have_sqlite=no],
 	[enable_sqlite=no         have_sqlite=no])
 AC_MSG_RESULT([$enable_sqlite])
@@ -429,7 +430,7 @@ AC_SUBST(SQLITE_LIBS)
 AM_CONDITIONAL(STORAGE_SQLITE, [test "x-$have_sqlite" = "x-yes"])
 		
 dnl berkeley db
-AC_ARG_ENABLE(db, AC_HELP_STRING([--enable-db], [enable Berkeley DB authreg/storage support (no)]),
+AC_ARG_ENABLE(db, AC_HELP_STRING([--enable-db], [enable Berkeley DB auth/reg/storage support (no)]),
               want_db=$enableval, want_db=no)
 if test "x-$want_db" = "x-yes" ; then
     AC_CHECK_HEADERS(db.h)
@@ -465,9 +466,12 @@ if test "x-$want_db" = "x-yes" ; then
     if test "x-$have_db_version" != "x-yes" ; then
         AC_MSG_ERROR([Berkeley DB >= 4.1.24 not found])
     else
-        AC_DEFINE(STORAGE_DB,1,[Define to 1 if you want to use Berkeley DB for authreg/storage.])
+	DB_LIBS="-l$lib"
+        AC_DEFINE(STORAGE_DB,1,[Define to 1 if you want to use Berkeley DB for auth/reg/storage.])
     fi
 fi
+AC_SUBST(DB_LIBS)
+AM_CONDITIONAL(STORAGE_DB, [test "x-$have_db_version" = "x-yes"])
 
 
 dnl openldap
@@ -494,12 +498,15 @@ if test "x-$want_ldap" = "x-yes" ; then
                                         have_ldap_version=yes],
                                        AC_MSG_RESULT(no))
     fi
-    if test "x-$want_ldap" = "x-yes" -a "x-$have_ldap_version" = "x-" ; then
+    if test "x-$have_ldap_version" = "x-" ; then
         AC_MSG_ERROR([OpenLDAP client libraries >= 2.1.0 not found])
     else
+	LDAP_LIBS="-llber -lldap"
         AC_DEFINE(STORAGE_LDAP,1,[Define to 1 if you want to use OpenLDAP for auth/reg.])
     fi
 fi
+AC_SUBST(LDAP_LIBS)
+AM_CONDITIONAL(STORAGE_LDAP, [test "x-$have_ldap_version" = "x-yes"])
 
 
 dnl pam
@@ -513,9 +520,13 @@ if test "x-$want_pam" = "x-yes" ; then
     if test "x-$ac_cv_lib_pam_pam_start" != "x-yes" ; then
         AC_MSG_ERROR([PAM application libraries not found])
     else
+	have_pam="yes"
+	PAM_LIBS="-lpam"
         AC_DEFINE(STORAGE_PAM,1,[Define to 1 if you want to use PAM for auth/reg.])
     fi
 fi
+AC_SUBST(PAM_LIBS)
+AM_CONDITIONAL(STORAGE_PAM, [test "x-$have_pam" = "x-yes"])
 
 
 dnl pipe (not really an external package, but does need some checks)
@@ -531,9 +542,11 @@ if test "x-$want_pipe" = "x-yes" ; then
             "x-$ac_cv_func_wait" != "x-yes" ; then
         AC_MSG_ERROR([Pipe auth/reg requirements (sys/wait.h, fork(), pipe(), wait()) not found])
     else
+	have_pipe="yes"
         AC_DEFINE(STORAGE_PIPE,1,[Define to 1 if you want to use pipes for auth/reg.])
     fi
 fi
+AM_CONDITIONAL(STORAGE_PIPE, [test "x-$have_pipe" = "x-yes"])
 
 
 dnl anon
@@ -542,6 +555,7 @@ AC_ARG_ENABLE(anon, AC_HELP_STRING([--enable-anon], [enable anonymous auth/reg s
 if test "x-$want_anon" = "x-yes" ; then
     AC_DEFINE(STORAGE_ANON,1,[Define to 1 if you want anonymous auth.])
 fi
+AM_CONDITIONAL(STORAGE_ANON, [test "x-$want_anon" = "x-yes"])
 
 
 dnl filesystem storage
@@ -550,13 +564,15 @@ AC_ARG_ENABLE(fs, AC_HELP_STRING([--enable-fs], [enable filesystem storage suppo
 if test "x-$want_fs" = "x-yes" ; then
     AC_DEFINE(STORAGE_FS,1,[Define to 1 if you want to use the filesystem for storage.])
 fi
+AM_CONDITIONAL(STORAGE_FS, [test "x-$want_fs" = "x-yes"])
+
 
 dnl Oracle
 AC_ARG_WITH(oracle-home,
 	[ --with-oracle-home=DIR   the Oracle home directory, for includes and libs. ],
 	[ ac_oracle_home="$withval" ])
 
-AC_ARG_ENABLE(oracle, AC_HELP_STRING([--enable-oracle], [enable Oracle authreg/storage support (no)]),
+AC_ARG_ENABLE(oracle, AC_HELP_STRING([--enable-oracle], [enable Oracle auth/reg/storage support (no)]),
               want_oracle=$enableval, want_oracle=no)
 if test "x-$want_oracle" = "x-yes" ; then
     AC_CHECK_HEADERS(oci.h)
@@ -577,7 +593,7 @@ if test "x-$want_oracle" = "x-yes" ; then
                 if test "x-$ac_cv_header_oci_h" != "x-yes" ; then
                     CPPFLAGS="$save_cppflags"
                     LIBS="$save_libs"
-		     LDFLAGS="$save_ldflags"
+		    LDFLAGS="$save_ldflags"
                 fi
        fi
     fi
@@ -587,9 +603,17 @@ if test "x-$want_oracle" = "x-yes" ; then
     if test "x-$ac_cv_lib_clntsh_OCIInitialize" != "x-yes" ; then
         AC_MSG_ERROR([Oracle client libraries not found])
     else
-        AC_DEFINE(STORAGE_ORACLE,1,[Define to 1 if you want to use Oracle for authreg/storage.])
+	have_oracle="yes"
+	ORACLE_CPPFLAGS="-I$ac_oracle_home/rdbms/demo -I$ac_oracle_home/rdbms/public"
+	ORACLE_LIBS="-L$ac_oracle_home/lib"
+	ORACLE_LDFLAGS="-Wl,-rpath,$ac_oracle_home/lib"
+        AC_DEFINE(STORAGE_ORACLE,1,[Define to 1 if you want to use Oracle for auth/reg/storage.])
     fi
 fi
+AC_SUBST(ORACLE_CPPFLAGS)
+AC_SUBST(ORACLE_LIBS)
+AC_SUBST(ORACLE_LDFLAGS)
+AM_CONDITIONAL(STORAGE_ORACLE, [test "x-$have_pam" = "x-yes"])
 
 
 
@@ -820,4 +844,5 @@ AC_OUTPUT(Makefile \
           router/Makefile \
           s2s/Makefile \
           sm/Makefile \
+          storage/Makefile \
           Doxyfile)

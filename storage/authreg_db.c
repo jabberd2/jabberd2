@@ -31,9 +31,6 @@
  */
 
 #include "c2s.h"
-
-#ifdef STORAGE_DB
-
 #include <db.h>
 
 /** internal structure, holds auth credentials for one user */
@@ -321,7 +318,7 @@ static void _ar_db_panic(DB_ENV *env, int errval)
 }
 
 /** start me up */
-int ar_db_init(authreg_t ar)
+int ar_init(authreg_t ar)
 {
     char *path;
     int err;
@@ -392,5 +389,3 @@ int ar_db_init(authreg_t ar)
 
     return 0;
 }
-
-#endif

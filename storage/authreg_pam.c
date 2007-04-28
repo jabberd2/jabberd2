@@ -21,9 +21,6 @@
 /* this plugin uses PAM for authentication */
 
 #include "c2s.h"
-
-#ifdef STORAGE_PAM
-
 #include <security/pam_appl.h>
 
 static int _ar_pam_user_exists(authreg_t ar, char *username, char *realm) {
@@ -123,11 +120,9 @@ static int _ar_pam_check_password(authreg_t ar, char *username, char *realm, cha
 }
 
 /** start me up */
-int ar_pam_init(authreg_t ar) {
+int ar_init(authreg_t ar) {
     ar->user_exists = _ar_pam_user_exists;
     ar->check_password = _ar_pam_check_password;
 
     return 0;
 }
-
-#endif

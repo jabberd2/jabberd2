@@ -28,7 +28,6 @@
  */
 
 #include "sm.h"
-
 #include <sqlite3.h>
 
 /** internal structure, holds our data */
@@ -615,7 +614,7 @@ static void _st_sqlite_free (st_driver_t drv) {
     free (data);
 }
 
-st_ret_t st_sqlite_init(st_driver_t drv) {
+st_ret_t st_init(st_driver_t drv) {
 
     char *dbname;
     sqlite3 *db;

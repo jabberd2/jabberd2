@@ -21,7 +21,6 @@
 /* this module talks to a PostgreSQL server via libpq */
 
 #include "c2s.h"
-
 #include <libpq-fe.h>
 
 #define PGSQL_LU  1024   /* maximum length of username - should correspond to field length */
@@ -377,7 +376,7 @@ int _ar_pgsql_check_sql( authreg_t ar, char * sql, char * types ) {
 }
 
 /** start me up */
-int ar_pgsql_init(authreg_t ar) {
+int ar_init(authreg_t ar) {
     char *host, *port, *dbname, *user, *pass;
     char *create, *select, *setpassword, *setzerok, *delete;
     char *table, *username, *realm;

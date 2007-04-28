@@ -254,6 +254,9 @@
 
   <!-- Authentication/registration database configuration -->
   <authreg>
+    <!-- Dynamic authreg modules path -->
+    <path>@pkglibdir@</path>
+
     <!-- Backend module to use -->
     <module>mysql</module>
 

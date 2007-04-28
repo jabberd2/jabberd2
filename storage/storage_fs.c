@@ -34,9 +34,6 @@
  */
 
 #include "sm.h"
-
-#ifdef STORAGE_FS
-
 #include <ctype.h>
 
 #ifdef HAVE_DIRENT_H
@@ -486,7 +483,7 @@ static void _st_fs_free(st_driver_t drv) {
     free(data);
 }
 
-st_ret_t st_fs_init(st_driver_t drv) {
+st_ret_t st_init(st_driver_t drv) {
     char *path;
     struct stat sbuf;
     int ret;
@@ -522,5 +519,3 @@ st_ret_t st_fs_init(st_driver_t drv) {
 
     return st_SUCCESS;
 }
-
-#endif

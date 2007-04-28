@@ -25,81 +25,14 @@
   * $Revision: 1.21 $
   */
 
-/* these functions implement a multiplexor to get calls to the correct driver
- * for the given type */
-
 #include "sm.h"
-
 #include <ctype.h>
-
-/* if you add a driver, you'll need to update these arrays */
-#ifdef STORAGE_DB
-extern st_ret_t st_db_init(st_driver_t);
-#endif
-#ifdef STORAGE_FS
-extern st_ret_t st_fs_init(st_driver_t);
-#endif
-#ifdef STORAGE_MYSQL
-extern st_ret_t st_mysql_init(st_driver_t);
-#endif
-#ifdef STORAGE_PGSQL
-extern st_ret_t st_pgsql_init(st_driver_t);
-#endif
-#ifdef STORAGE_ORACLE
-extern st_ret_t st_oracle_init(st_driver_t);
-#endif
-#ifdef STORAGE_SQLITE
-extern st_ret_t st_sqlite_init(st_driver_t);
-#endif
-
-static const char *st_driver_names[] = {
-#ifdef STORAGE_DB
-    "db",
-#endif
-#ifdef STORAGE_FS
-    "fs",
-#endif
-#ifdef STORAGE_MYSQL
-    "mysql",
-#endif
-#ifdef STORAGE_PGSQL
-    "pgsql",
-#endif
-#ifdef STORAGE_ORACLE
-    "oracle",
-#endif
-#ifdef STORAGE_SQLITE
-    "sqlite",
-#endif
-    NULL
-};
-
-static st_driver_init_fn st_driver_inits[] = {
-#ifdef STORAGE_DB
-    st_db_init,
-#endif
-#ifdef STORAGE_FS
-    st_fs_init,
-#endif
-#ifdef STORAGE_MYSQL
-    st_mysql_init,
-#endif
-#ifdef STORAGE_PGSQL
-    st_pgsql_init,
-#endif
-#ifdef STORAGE_ORACLE
-    st_oracle_init,
-#endif
-#ifdef STORAGE_SQLITE
-    st_sqlite_init,
-#endif
-    NULL
-};
+#include <dlfcn.h>
 
 
 storage_t storage_new(sm_t sm) {
     storage_t st;
-    int i, j;
+    int i;
     config_elem_t elem;
     char *type;
     st_ret_t ret;
@@ -116,18 +49,11 @@ storage_t storage_new(sm_t sm) {
     if(elem != NULL) {
         for(i = 0; i < elem->nvalues; i++) {
             type = j_attr((const char **) elem->attrs[i], "type"); 
-            for(j = 0; st_driver_names[j] != NULL; j++) {
-                if(strcmp(elem->values[i], st_driver_names[j]) == 0) {
-                    if(type == NULL)
-                        ret = storage_add_type(st, st_driver_names[j], NULL);
-                    else
-                        ret = storage_add_type(st, st_driver_names[j], type);
-                    /* Initialisation of storage type failed */
-                    if (ret != st_SUCCESS) {
-                      free(st);
-                      return NULL;
-                    }
-                }
+            ret = storage_add_type(st, elem->values[i], type);
+            /* Initialisation of storage type failed */
+            if (ret != st_SUCCESS) {
+              free(st);
+              return NULL;
             }
         }
     }
@@ -154,9 +80,11 @@ void storage_free(storage_t st) {
 
 st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
     st_driver_t drv;
-    st_driver_init_fn init = NULL;
+    st_driver_init_fn init_fn = NULL;
+    char mod_fullpath[PATH_MAX], *modules_path;
     int i;
     st_ret_t ret;
+    void *handle;
 
     /* startup, see if we've already registered this type */
     if(type == NULL) {
@@ -177,23 +105,45 @@ st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
         }
     }
 
+    /* set modules path */
+    modules_path = config_get_one(st->sm->config, "storage.path", 0);
+
     /* get the driver */
     drv = xhash_get(st->drivers, driver);
     if(drv == NULL) {
         log_debug(ZONE, "driver not loaded, trying to init");
 
-        /* find the init function */
-        for(i = 0; st_driver_names[i] != NULL; i++) {
-            if(strcmp(driver, st_driver_names[i]) == 0) {
-                init = st_driver_inits[i];
-                break;
-            }
-        }
-
-        /* d'oh */
-        if(init == NULL) {
-            log_debug(ZONE, "no init function for driver '%s'", driver);
-
+        log_write(st->sm->log, LOG_INFO, "loading '%s' storage module", driver);
+#ifndef WIN32
+        if (modules_path != NULL)
+            snprintf(mod_fullpath, PATH_MAX, "%s/storage_%s.so", modules_path, driver);
+        else
+            snprintf(mod_fullpath, PATH_MAX, "%s/storage_%s.so", LIBRARY_DIR, driver);
+        handle = dlopen(mod_fullpath, RTLD_LAZY);
+        if (handle != NULL)
+            init_fn = dlsym(handle, "st_init");
+#else
+        if (modules_path != NULL)
+            snprintf(mod_fullpath, PATH_MAX, "%s\\storage_%s.dll", modules_path, driver);
+        else
+            snprintf(mod_fullpath, PATH_MAX, "storage_%s.dll", driver);
+        handle = (void*) LoadLibrary(mod_fullpath);
+        if (handle != NULL)
+            init_fn = GetProcAddress((HMODULE) handle, "st_init");
+#endif
+    
+        if (handle != NULL && init_fn != NULL) {
+            log_debug(ZONE, "preloaded module '%s' (not initialized yet)", driver);
+        } else {
+#ifndef WIN32
+            log_write(st->sm->log, LOG_ERR, "failed loading storage module '%s' (%s)", driver, dlerror());
+            if (handle != NULL)
+                dlclose(handle);
+#else
+            log_write(st->sm->log, LOG_ERR, "failed loading storage module '%s' (errcode: %x)", driver, GetLastError());
+            if (handle != NULL)
+                FreeLibrary((HMODULE) handle);
+#endif
             return st_FAILED;
         }
 
@@ -206,7 +156,7 @@ st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
         log_debug(ZONE, "calling driver initializer");
 
         /* init */
-        if((init)(drv) == st_FAILED) {
+        if((init_fn)(drv) == st_FAILED) {
             log_write(st->sm->log, LOG_NOTICE, "initialisation of storage driver '%s' failed", driver);
             free(drv);
             return st_FAILED;

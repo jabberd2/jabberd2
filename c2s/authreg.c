@@ -19,93 +19,10 @@
  */
 
 #include "c2s.h"
-
 #include <stringprep.h>
+#include <dlfcn.h>
 
 /* authreg module manager */
-
-/* if you add a module, you'll need to update these arrays */
-
-#ifdef STORAGE_MYSQL
-extern int ar_mysql_init(authreg_t);
-#endif
-#ifdef STORAGE_PGSQL
-extern int ar_pgsql_init(authreg_t);
-#endif
-#ifdef STORAGE_DB
-extern int ar_db_init(authreg_t);
-#endif
-#ifdef STORAGE_LDAP
-extern int ar_ldap_init(authreg_t);
-#endif
-#ifdef STORAGE_PAM
-extern int ar_pam_init(authreg_t);
-#endif
-#ifdef STORAGE_PIPE
-extern int ar_pipe_init(authreg_t);
-#endif
-#ifdef STORAGE_ANON
-extern int ar_anon_init(authreg_t);
-#endif
-#ifdef STORAGE_SQLITE
-extern int ar_sqlite_init(authreg_t);
-#endif
-
-static const char *module_names[] = {
-#ifdef STORAGE_MYSQL
-    "mysql",
-#endif
-#ifdef STORAGE_PGSQL
-    "pgsql",
-#endif
-#ifdef STORAGE_DB
-    "db",
-#endif
-#ifdef STORAGE_LDAP
-    "ldap",
-#endif
-#ifdef STORAGE_PAM
-    "pam",
-#endif
-#ifdef STORAGE_PIPE
-    "pipe",
-#endif
-#ifdef STORAGE_ANON
-    "anon",
-#endif
-#ifdef STORAGE_SQLITE
-    "sqlite",
-#endif
-    NULL
-};
-
-ar_module_init_fn module_inits[] = {
-#ifdef STORAGE_MYSQL
-    ar_mysql_init,
-#endif
-#ifdef STORAGE_PGSQL
-    ar_pgsql_init,
-#endif
-#ifdef STORAGE_DB
-    ar_db_init,
-#endif
-#ifdef STORAGE_LDAP
-    ar_ldap_init,
-#endif
-#ifdef STORAGE_PAM
-    ar_pam_init,
-#endif
-#ifdef STORAGE_PIPE
-    ar_pipe_init,
-#endif
-#ifdef STORAGE_ANON
-    ar_anon_init,
-#endif
-#ifdef STORAGE_SQLITE
-    ar_sqlite_init,
-#endif
-    NULL
-};
 
 typedef struct _authreg_error_st {
     char        *class;
@@ -116,25 +33,49 @@ typedef struct _authreg_error_st {
 
 /** get a handle for the named module */
 authreg_t authreg_init(c2s_t c2s, char *name) {
-    int n;
-    ar_module_init_fn init = NULL;
+    char mod_fullpath[PATH_MAX], *modules_path;
+    ar_module_init_fn init_fn = NULL;
     authreg_t ar;
+    void *handle;
 
-    /* hunt it down */
-    n = 0;
-    while(module_names[n] != NULL)
-    {
-        if(strcmp(module_names[n], name) == 0)
-        {
-            init = module_inits[n];
-            break;
-        }
-        n++;
-    }
+    /* load authreg module */
+    modules_path = config_get_one(c2s->config, "authreg.path", 0);
+    if (modules_path != NULL)
+        log_write(c2s->log, LOG_NOTICE, "modules search path: %s", modules_path);
+    else
+        log_write(c2s->log, LOG_NOTICE, "modules search path undefined, using default: "LIBRARY_DIR);
 
-    if(init == NULL)
-    {
-        log_write(c2s->log, LOG_ERR, "no such auth module '%s'", name);
+    log_write(c2s->log, LOG_INFO, "loading '%s' authreg module", name);
+#ifndef WIN32
+    if (modules_path != NULL)
+        snprintf(mod_fullpath, PATH_MAX, "%s/authreg_%s.so", modules_path, name);
+    else
+        snprintf(mod_fullpath, PATH_MAX, "%s/authreg_%s.so", LIBRARY_DIR, name);
+    handle = dlopen(mod_fullpath, RTLD_LAZY);
+    if (handle != NULL)
+        init_fn = dlsym(handle, "ar_init");
+#else
+    if (modules_path != NULL)
+        snprintf(mod_fullpath, PATH_MAX, "%s\\authreg_%s.dll", modules_path, name);
+    else
+        snprintf(mod_fullpath, PATH_MAX, "authreg_%s.dll", name);
+    handle = (void*) LoadLibrary(mod_fullpath);
+    if (handle != NULL)
+        init_fn = GetProcAddress((HMODULE) handle, "ar_init");
+#endif
+
+    if (handle != NULL && init_fn != NULL) {
+        log_debug(ZONE, "preloaded module '%s' (not initialized yet)", name);
+    } else {
+#ifndef WIN32
+        log_write(c2s->log, LOG_ERR, "failed loading authreg module '%s' (%s)", name, dlerror());
+        if (handle != NULL)
+            dlclose(handle);
+#else
+        log_write(c2s->log, LOG_ERR, "failed loading authreg module '%s' (errcode: %x)", name, GetLastError());
+        if (handle != NULL)
+            FreeLibrary((HMODULE) handle);
+#endif
         return NULL;
     }
 
@@ -145,9 +86,9 @@ authreg_t authreg_init(c2s_t c2s, char *name) {
     ar->c2s = c2s;
 
     /* call the initialiser */
-    if((init)(ar) != 0)
+    if((init_fn)(ar) != 0)
     {
-        log_write(c2s->log, LOG_ERR, "failed to initialise auth module '%s'", name);
+        log_write(c2s->log, LOG_ERR, "failed to initialize auth module '%s'", name);
         authreg_free(ar);
         return NULL;
     }
@@ -161,7 +102,7 @@ authreg_t authreg_init(c2s_t c2s, char *name) {
     }
     
     /* its good */
-    log_write(c2s->log, LOG_NOTICE, "initialised auth module '%s'", name);
+    log_write(c2s->log, LOG_NOTICE, "initialized auth module '%s'", name);
 
     return ar;
 }

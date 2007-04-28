@@ -36,9 +36,6 @@
  */
 
 #include "sm.h"
-
-#ifdef STORAGE_DB
-
 #include <db.h>
 
 /** internal structure, holds our data */
@@ -521,7 +518,7 @@ static void _st_db_panic(DB_ENV *env, int errval) {
     exit(2);
 }
 
-st_ret_t st_db_init(st_driver_t drv) {
+st_ret_t st_init(st_driver_t drv) {
     char *path;
     int err;
     DB_ENV *env;
@@ -576,5 +573,3 @@ st_ret_t st_db_init(st_driver_t drv) {
 
     return st_SUCCESS;
 }
-
-#endif

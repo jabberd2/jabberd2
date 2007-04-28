@@ -29,9 +29,6 @@
  */
 
 #include "c2s.h"
-
-#ifdef STORAGE_LDAP
-
 #include <lber.h>
 #include <ldap.h>
 
@@ -322,7 +319,7 @@ static void _ldap_free(authreg_t ar)
 
 
 /** start me up */
-int ar_ldap_init(authreg_t ar)
+int ar_init(authreg_t ar)
 {
     moddata_t data;
     char ldap_entry[128];
@@ -485,5 +482,3 @@ int ar_ldap_init(authreg_t ar)
 
     return 0;
 }
-
-#endif

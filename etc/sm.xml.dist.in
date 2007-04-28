@@ -70,6 +70,9 @@
 
   <!-- Storage database configuration -->
   <storage>
+    <!-- Dynamic storage modules path -->
+    <path>@pkglibdir@</path>
+
     <!-- By default, we use the MySQL driver for all storage -->
     <driver>mysql</driver>
 

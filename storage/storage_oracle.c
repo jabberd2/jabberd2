@@ -19,9 +19,6 @@
  */
 
 #include "sm.h"
-
-#ifdef STORAGE_ORACLE
-
 #include <string.h>
 #include <oci.h>
 
@@ -840,8 +837,7 @@ static void _st_oracle_free(st_driver_t drv) {
     free(data);
 }
 
-st_ret_t st_oracle_init(st_driver_t drv)
-  {
+st_ret_t st_init(st_driver_t drv) {
     int nResultCode;
     char *svHost, *svUser, *svPass;
     OCIEnv     *ociEnvironment;
@@ -952,8 +948,4 @@ st_ret_t st_oracle_init(st_driver_t drv)
     drv->free = _st_oracle_free;
 
     return st_SUCCESS;
-  }
-
-#endif
-
-
+}
