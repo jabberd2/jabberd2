@@ -20,9 +20,7 @@
 
 #include "c2s.h"
 
-#ifdef HAVE_IDN
 #include <stringprep.h>
-#endif
 
 /* authreg module manager */
 
@@ -199,13 +197,11 @@ static void _authreg_auth_get(c2s_t c2s, sess_t sess, nad_t nad) {
     }
 
     snprintf(username, 1024, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
-#ifdef HAVE_IDN
     if(stringprep_xmpp_nodeprep(username, 1024) != 0) {
         log_debug(ZONE, "auth get username failed nodeprep, bouncing it");
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_JID_MALFORMED), 0));
         return;
     }
-#endif
 
     ar_mechs = c2s->ar_mechanisms;
     if (sess->s->ssf>0) 
@@ -299,13 +295,11 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
     }
 
     snprintf(username, 1024, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
-#ifdef HAVE_IDN
     if(stringprep_xmpp_nodeprep(username, 1024) != 0) {
         log_debug(ZONE, "auth set username failed nodeprep, bouncing it");
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_JID_MALFORMED), 0));
         return;
     }
-#endif
 
     /* make sure we have the resource */
     elem = nad_find_elem(nad, 1, ns, "resource", 1);
@@ -319,13 +313,11 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
     }
 
     snprintf(resource, 1024, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
-#ifdef HAVE_IDN
     if(stringprep_xmpp_resourceprep(resource, 1024) != 0) {
         log_debug(ZONE, "auth set resource failed resourceprep, bouncing it");
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_JID_MALFORMED), 0));
         return;
     }
-#endif
 
     ar_mechs = c2s->ar_mechanisms;
     if (sess->s->ssf > 0)
@@ -579,13 +571,11 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
     }
 
     snprintf(username, 1024, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
-#ifdef HAVE_IDN
     if(stringprep_xmpp_nodeprep(username, 1024) != 0) {
         log_debug(ZONE, "register set username failed nodeprep, bouncing it");
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_JID_MALFORMED), 0));
         return;
     }
-#endif
 
     elem = nad_find_elem(nad, 1, ns, "password", 1);
     if(elem < 0)

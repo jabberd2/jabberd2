@@ -273,8 +273,6 @@ if test "x-$want_idn" = "x-yes" ; then
     if test "x-$have_idn" = "x-" ; then
         AC_MSG_ERROR([Libidn >= 0.3.0 not found])
     fi
-
-    AC_DEFINE(HAVE_IDN,1,[Define to 1 if Libidn is available.])
 fi
 
 dnl

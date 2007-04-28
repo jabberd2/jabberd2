@@ -22,9 +22,7 @@
 #include <string.h>
 #include "sm.h"
 #include "util/util.h"
-#ifdef HAVE_IDN
 #include <stringprep.h>
-#endif
 
 /** @file sm/mod_amp.c
   * @brief Advanced Message Processing (JEP-0079) module

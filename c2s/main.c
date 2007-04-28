@@ -20,9 +20,7 @@
 
 #include "c2s.h"
 
-#ifdef HAVE_IDN
 #include <stringprep.h>
-#endif
 
 static sig_atomic_t c2s_shutdown = 0;
 sig_atomic_t c2s_lost_router = 0;
@@ -591,12 +589,10 @@ int main(int argc, char **argv)
         /* stringprep ids (domain names) so that they are in canonical form */
         strncpy(id, elem->values[i], 1024);
         id[1023] = '\0';
-#ifdef HAVE_IDN
         if (stringprep_nameprep(id, 1024) != 0) {
             log_write(c2s->log, LOG_ERR, "cannot stringprep id %s, aborting", id);
             exit(1);
         }
-#endif
 
         host->realm = (realm != NULL) ? realm : pstrdup(xhash_pool(c2s->hosts), id);
 

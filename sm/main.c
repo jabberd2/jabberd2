@@ -19,10 +19,7 @@
  */
 
 #include "sm.h"
-
-#ifdef HAVE_IDN
-  #include <stringprep.h>
-#endif
+#include <stringprep.h>
 
 /** @file sm/main.c
   * @brief initialisation
@@ -251,12 +248,10 @@ int main(int argc, char **argv) {
     /* stringprep id (domain name) so that it's in canonical form */
     strncpy(id, sm->id, 1024);
     id[sizeof(id)-1] = '\0';
-#ifdef HAVE_IDN
     if (stringprep_nameprep(id, 1024) != 0) {
         log_write(sm->log, LOG_ERR, "cannot stringprep id %s, aborting", sm->id);
         exit(1);
     }
-#endif
     sm->id = id;
 
     log_write(sm->log, LOG_NOTICE, "id: %s", sm->id);

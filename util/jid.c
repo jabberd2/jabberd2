@@ -19,17 +19,13 @@
  */
 
 #include "util.h"
-
-#ifdef HAVE_IDN
 #include <stringprep.h>
-#endif
 
 /** Forward declaration **/
 static jid_t jid_reset_components_internal(jid_t jid, const unsigned char *node, const unsigned char *domain, const unsigned char *resource, int prepare);
 
 /** preparation cache */
 prep_cache_t prep_cache_new(void) {
-#ifdef HAVE_IDN
     prep_cache_t pc;
 
     pc = (prep_cache_t) malloc(sizeof(struct prep_cache_st));
@@ -40,18 +36,13 @@ prep_cache_t prep_cache_new(void) {
     pc->resource = xhash_new(301);
 
     return pc;
-#else
-    return NULL;
-#endif
 }
 
 void prep_cache_free(prep_cache_t pc) {
-#ifdef HAVE_IDN
     xhash_free(pc->node);
     xhash_free(pc->domain);
     xhash_free(pc->resource);
     free(pc);
-#endif
 }
 
 char *prep_cache_node_get(prep_cache_t pc, char *from) {
@@ -80,7 +71,6 @@ void prep_cache_resource_set(prep_cache_t pc, char *from, char *to) {
 
 /** do stringprep on the pieces */
 static int jid_prep_pieces(prep_cache_t pc, char *node, char *domain, char *resource) {
-#ifdef HAVE_IDN
     char str[1024], *prep;
 
     /* no cache, so do a real prep */
@@ -137,7 +127,6 @@ static int jid_prep_pieces(prep_cache_t pc, char *node, char *domain, char *reso
         }
     }
 
-#endif
     return 0;
 }
 
