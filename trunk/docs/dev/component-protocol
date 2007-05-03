@@ -1,0 +1,60 @@
+C == component, R == router.
+This all happens in state_OPEN (ie after auth).
+These elements are scoped by the 'http://jabberd.jabberstudio.org/ns/component/1.0' namespace.
+
+Joining the network
+-------------------
+
+Bind a name to this component:
+
+C: <bind name='conference.jabber.org'>[options]</bind>
+R: <bind/>
+  or
+R: <bind error='xxx'/>
+
+Options:
+
+   <default/>       Sets this component as the default route
+   <log/>           Make this component a log sink (receives copies of all packets)
+
+Unbind a name:
+
+C: <unbind name='conference.jabber.org'/>
+R: <unbind/>
+
+
+Domain advertisement
+-------------------
+
+Domain online:
+
+R: <presence from='conference.jabber.org'/>
+
+Domain offline:
+
+R: <presence from='conference.jabber.org' type='unavailable'/>
+
+
+Sending packets
+---------------
+
+Send a unicast packet:
+
+C: <route from='jabber.org' to='conference.jabber.org'>
+     <payload xmlns='payload-namespace'/>
+   </route>
+
+Send a broadcast packet:
+
+C: <route from='jabber.org' type='broadcast'>
+     <payload xmlns='payload-namespace'/>
+   </route>
+
+
+Throttling packets
+------------------
+
+(Un)throttle packets (toggle):
+
+C: <throttle/>
+R: <throttle/>

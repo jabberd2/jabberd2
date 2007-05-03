@@ -1,0 +1,111 @@
+Protocol support
+----------------
+
+jabberd 2.0 is a server implementation of the eXtensible Messaging and
+Presence Protocol (XMPP), as published by the IETF. It also implements
+several XMPP extensions documented by the Jabber Software Foundation
+(JSF), and some legacy extensions that were implemented by its
+predecessor, jabberd 1.4.
+
+This document lists the protocols supported by the server, and any notes
+relating to the implementation.
+
+This is current as of 2005-04-04 (jabberd 2.0s8).
+
+
+XMPP
+----
+
+XMPP Core (RFC 3920)
+
+ Implemented, except for:
+  - SASL for s2s streams
+  - Language support via xml:lang
+
+XMPP IM (RFC 3921)
+
+ Implemented.
+
+
+JSF Extensions
+--------------
+
+Jabber Browsing (JEP-0011)
+
+ Implemented by the session manager (mod_disco) as a wrapper around the
+ service list used for Service Discovery. The configuration required to
+ enable browsing is undocumented as browse is considered to be
+ deprecated.
+
+Last Activity (JEP-0012)
+
+ Implemented by the session manager (mod_iq_last).
+
+Message Events (JEP-0022)
+
+ Offline event implemented by the session manager (mod_offline).
+
+Message Expiration (JEP-0023)
+
+ Implemented by the session manager (mod_offline).
+
+Service Discovery (JEP-0030)
+
+ Implemented by the session manager (mod_disco). Administrative users
+ will see extra nodes when doing a #items query - these nodes provide
+ information about active users and sessions. New components becoming
+ available are probed automatically, and if they are disco-aware, their
+ information is added to the service list. Sub-entity item publishing is
+ implemented seperately by mod_disco_publish.
+
+Private XML Storage (JEP-0049)
+
+ Implemented by the session manager (mod_iq_private).
+
+vcard-temp (JEP-0054)
+
+ Implemented by the session manager (mod_iq_vcard).
+
+In-band Registration (JEP-0077)
+
+ Implemented by c2s.
+
+Non-SASL Authentication (JEP-0078)
+
+ Implemented by c2s.
+
+Legacy Errors (JEP-0086)
+
+ Implemented.
+
+Entity Time (JEP-0090)
+
+ Implemented by the session manager (mod_iq_time).
+
+Delayed Delivery (JEP-0091)
+
+ Implemented by the session manager.
+
+Software Version (JEP-0092)
+
+ Implemented by the session manager (mod_iq_version).
+
+Agent Information (JEP-0094)
+
+ Implemented by the session manager (mod_disco) as a wrapper around the
+ service list used for Service Discovery.
+
+External Component Protocol (JEP-0114)
+
+ Implemented by the router as a wrapper around the more featureful
+ jabberd 2.0 component protocol.
+
+
+Legacy extensions (jabberd 1.4)
+-------------------------------
+
+Invisible presence
+
+ Implemented by the session manager. Note that the JSF version of this
+ as documented in JEP-0018 is substantially different to the traditional
+ implementation.

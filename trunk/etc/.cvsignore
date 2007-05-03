@@ -1,0 +1,9 @@
+Makefile
+Makefile.in
+c2s.xml.dist
+jabberd.cfg.dist
+resolver.xml.dist
+router.xml.dist
+router-users.xml.dist
+s2s.xml.dist
+sm.xml.dist

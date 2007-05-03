@@ -1,0 +1,665 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
+          "/usr/local/share/xml/docbook/4.2/docbookx.dtd">
+<?xml-stylesheet type='text/xsl' href='/usr/share/sgml/docbook/stylesheet/xsl/nwalsh/xhtml/docbook.xsl'?>
+
+<article id='progguide'>
+
+<articleinfo>
+  <title>jabberd2 Programmers Guide</title>
+  <subtitle>v0.01 for jabberd 2.0.0 alpha3</subtitle>
+  <copyright>
+    <year>2002</year>
+    <holder>Robert Norris</holder>
+  </copyright>
+  <legalnotice><para>This material may be distributed only subject to the terms and conditions set forth in the Open Publications License, v1.0 or later (the latest version is presently available at <ulink url='http://www.opencontent.org/openpub/'>http://www.opencontent.org/openpub/</ulink>).</para></legalnotice>
+  <abstract><para>This document describes the various programming interfaces available in the jabberd2 system.</para></abstract>
+</articleinfo>
+
+<section id='expat'>
+  <title>expat - XML parsing library</title>
+  <para>The XML parsing requirements of the jabberd system are handled by the ubiquitous Expat library. Since we need a parser that is namespace aware, v1.95 is the version in use.</para>
+  <para>Expat is widely used and understood, and it doesn't make sense to repeat a long description of the library here. More information can be found on the <ulink url='http://expat.sourceforge.net'>Expat homepage</ulink>.</para>
+</section>
+
+<section id='mio'>
+  <title>mio - Managed I/O</title>
+  <para>MIO is an event wrapper around UNIX file descriptors. The application can associate a callback function with each file descriptor it is interested in monitoring. When some kind of activity occurs on the file descriptor, the callback is fired. For network-driven applications such as jabberd, this is very useful, as it allows the main loop of the application to be reduced to a simple call into the MIO subsystem.</para>
+
+  <section id='mio-types'>
+    <title>Data types</title>
+    <itemizedlist>
+
+      <listitem>
+        <para>MIO context - <command>mio_t</command></para>
+        <para><command>mio_t</command> is an opaque type that holds all the state information for the file descriptors being handled by the context. It is created by <command>mio_new()</command>, freed by <command>mio_free()</command>, and passed as the first argument to every other MIO function.</para>
+      </listitem>
+
+      <listitem>
+        <para>MIO action (event) - <command>mio_action_t</command></para>
+        <para><command>mio_action_t</command> is an enumeration which is passed as the second argument to a callback, to inform the application of which event occured. It can take one of four values:</para>
+        <itemizedlist>
+          <listitem><command>action_ACCEPT</command> - someone has connected to this (listening) file descriptor.</listitem>
+          <listitem><command>action_READ</command> - this file descriptor has data waiting to be read.</listitem>
+          <listitem><command>action_WRITE</command> - this file descriptor is able to be written to.</listitem>
+          <listitem><command>action_CLOSE</command> - this file descriptor has been closed.</listitem>
+        </itemizedlist>
+      </listitem>
+
+      <listitem>
+        <para>MIO handler (callback) - <command>mio_handler_t</command></para>
+        <para><command>mio_handler_t</command> is a prototype for a callback. A callback function should be of the following type:</para>
+        <para><command>typedef int (*mio_handler_t)(mio_t m, mio_action_t a, int fd, void *data, void *arg)</command></para>
+        <para>When called, the arguments passed to the callback are as follows:</para>
+        <itemizedlist>
+          <listitem><command>mio_t m</command> - the MIO context that is managing the file descriptor.</listitem>
+          <listitem><command>mio_action_t a</command> - the action that occured.</listitem>
+          <listitem><command>int fd</command> - the file descriptor that this action occured on. Note that for <command>action_ACCEPT</command>, this argument will be hold the file descriptor of the new connection.</listitem>
+          <listitem><command>void *data</command> - action-specific data. This is currently only used for <command>action_ACCEPT</command> - when this action occurs, <command>data</command> should be casted to <command>char *</command>, where it will contain a string representation of the remote IP address.</listitem>
+          <listitem><command>void *arg</command> - this is the application-specific data that was registered at the same time the callback was registered with <link linkend='mio-callback'><command>mio_fd()</command></link> or <link linkend='mio-callback'><command>mio_app()</command></link>.</listitem>
+        </itemizedlist>
+        <para>The return type of the callback function is different depending on the action:</para>
+        <itemizedlist>
+          <listitem><command>action_ACCEPT</command> - if the callback returns 0, the newly-accepted file descriptor will be tracked in the MIO context. If it returns non-zero, the connection will be closed.</listitem>
+          <listitem><command>action_READ</command> - if the callback returns 0, no further read events will be fired to the callback until <link linkend='mio-check'><command>mio_read()</command></link> is called on this file descriptor. If it returns non-zero, events will continue to be processed.</listitem>
+          <listitem><command>action_WRITE</command> - if the callback returns 0, no further write events will be fired to the callback until <link linkend='mio-check'><command>mio_write()</command></link> is called on this file descriptor. If it returns non-zero, events will continue to be processed.</listitem>
+          <listitem><command>action_CLOSE</command> - the return value is ignored for this action.</listitem>
+        </itemizedlist>
+      </listitem>
+
+    </itemizedlist>
+  </section>
+
+  <section id='mio-create'>
+    <title>Creating/freeing a MIO context - mio_new(), mio_free()</title>
+    <itemizedlist>
+
+      <listitem>
+        <para><command>mio_t mio_new(int maxfd)</command></para>
+        <para><command>mio_new()</command> creates a new MIO context.</para>
+        <para>This function takes the following arguments:</para>
+        <itemizedlist>
+          <listitem><command>int maxfd</command> - the highest file descriptor (+1) that can be managed by this MIO context.</listitem>
+        </itemizedlist>
+        <para>This function returns the following values:</para>
+        <itemizedlist>
+          <listitem><command>NULL</command> - creation of the MIO context failed for some reason. This is typically caused by a failure to allocate resources.</listitem>
+          <listitem>non-<command>NULL</command> - creation of the MIO context succeeded. The returned context is ready for use.</listitem>
+        </itemizedlist>
+      </listitem>
+
+      <listitem>
+        <para><command>void mio_free(mio_t m)</command></para>
+        <para><command>mio_free()</command> frees a MIO context. It does not close any file descriptors that are being managed by the MIO context.</para>
+        <para>This function takes the following arguments:</para>
+        <itemizedlist>
+          <listitem><command>mio_t m</command> - pointer to the MIO context to free.</listitem>
+        </itemizedlist>
+        <para>This function returns nothing.</para>
+      </listitem>
+
+    </itemizedlist>
+  </section>
+
+  <section id='mio-callback'>
+    <title>Setting the callback for a file descriptor - mio_fd(), mio_app()</title>
+    <itemizedlist>
+
+      <listitem>
+        <para><command>int mio_fd(mio_t m, int fd, mio_handler_t app, void *arg)</command></para>
+        <para><command>mio_fd()</command> instructs MIO to begin tracking the given file descriptor. Note that the file descriptor will be set to non-blocking mode as a result of this call.</para>
+        <para>This function takes the following arguments:</para>
+        <itemizedlist>
+          <listitem><command>mio_t m</command> - the MIO context to associate this file descriptor with.</listitem>
+          <listitem><command>int fd</command> - the file descriptor to track.</listitem>
+          <listitem><command>mio_handler_t app</command> - the callback to invoke when an event occurs.</listitem>
+          <listitem><command>void *arg</command> - application-specific data to be passed to the callback.</listitem>
+        </itemizedlist>
+        <para>This function returns the following values:</para>
+        <itemizedlist>
+          <listitem><command>&lt; 0</command> - the file descriptor number is too large for this MIO context to track. The maximum is set by <link linkend='mio-create'><command>mio_new()</command></link>.</listitem>
+          <listitem><command>>= 0</command> - the file descriptor is being tracked.</listitem>
+        </itemizedlist>
+      </listitem>
+
+      <listitem>
+        <para><command>void mio_app(mio_t m, int fd, mio_handler_t app, void *arg)</command></para>
+        <para><command>mio_app()</command> resets the callback on the given file descriptor. This can only be called on a file descriptor that is being tracked by the MIO context.</para>
+        <para>This function takes the following arguments:</para>
+        <itemizedlist>
+          <listitem><command>mio_t m</command> - the MIO context this file descriptor is associated with.</listitem>
+          <listitem><command>int fd</command> - the file descriptor to reset the callback for.</listitem>
+          <listitem><command>mio_handler_t app</command> - the callback to invoke when an event occurs.</listitem>
+          <listitem><command>void *arg</command> - application-specific data to be passed to the callback.</listitem>
+        </itemizedlist>
+        <para>This function returns nothing.</para>
+      </listitem>
+
+    </itemizedlist>
+  </section>
+
+  <section id='mio-check'>
+    <title>Requesting notification about file descriptor events - mio_read(), mio_write()</title>
+    <itemizedlist>
+
+      <listitem>
+        <para><command>void mio_read(mio_t m, int fd)</command></para>
+        <para><command>mio_read()</command> instructs MIO to process read events for the given file descriptor. When such an event occurs, the application callback for the file descriptor will be called with the <command>action_READ</command> event.</para>
+        <para>This function takes the following arguments:</para>
+        <itemizedlist>
+          <listitem><command>mio_t m</command> - the MIO context this file descriptor is associated with.</listitem>
+          <listitem><command>int fd</command> - the file descriptor to process read events for.</listitem>
+        </itemizedlist>
+        <para>This function returns nothing.</para>
+      </listitem>
+
+      <listitem>
+        <para><command>void mio_write(mio_t m, int fd)</command></para>
+        <para><command>mio_write()</command> instructs MIO to process write events for the given file descriptor. When such an event occurs, the application callback for the file descriptor will be called with the <command>action_WRITE</command> event.</para>
+        <para>This function takes the following arguments:</para>
+        <itemizedlist>
+          <listitem><command>mio_t m</command> - the MIO context this file descriptor is associated with.</listitem>
+          <listitem><command>int fd</command> - the file descriptor to process write events for.</listitem>
+        </itemizedlist>
+        <para>This function returns nothing.</para>
+      </listitem>
+
+    </itemizedlist>
+  </section>
+
+  <section id='mio-close'>
+    <title>Closing a file descriptor - mio_close()</title>
+    <itemizedlist>
+
+      <listitem>
+        <para><command>void mio_close(mio_t m, int fd)</command></para>
+        <para><command>mio_close()</command> is a wrapper around <command>close()</command> that also stops the file descriptor from being tracked by the MIO context. You should use this in place of <command>close()</command> for a MIO-managed file descriptor.</para>
+        <para>This function takes the following arguments:</para>
+        <itemizedlist>
+          <listitem><command>mio_t m</command> - the MIO context this file descriptor is associated with.</listitem>
+          <listitem><command>int fd</command> - the file descriptor to close.</listitem>
+        </itemizedlist>
+        <para>This function returns nothing.</para>
+      </listitem>
+
+    </itemizedlist>
+  </section>
+
+  <section id='mio-fd'>
+    <title>Creating a new file descriptor - mio_connect(), mio_listen()</title>
+    <itemizedlist>
+
+      <listitem>
+        <para><command>int mio_connect(mio_t m, int port, char *hostip, mio_handler_t app, void *arg)</command></para>
+        <para><command>mio_connect()</command> initiates a connection to the given ip/port. This function returns immediately, and the connect continues in the background (in non-blocking mode). The application should call <link linkend='mio-check'><command>mio_read()</command></link> and/or <link linkend='mio-check'><command>mio_write()</command></link> after calling <command>mio_connect()</command> in order to receive events after the connection has completed.</para>
+        <para>If the connect fails, the callback will be called with the <command>action_CLOSE</command> event.</para>
+        <para>This function takes the following arguments:</para>
+        <itemizedlist>
+          <listitem><command>mio_t m</command> - the MIO context that will track this connection.</listitem>
+          <listitem><command>int port</command> - the remote port to connect to.</listitem>
+          <listitem><command>char *hostip</command> - string representation of the remote IP address to connect to.</listitem>
+          <listitem><command>mio_handler_t app</command> - the callback to invoke when an event occurs.</listitem>
+          <listitem><command>void *arg</command> - application-specific data to be passed to the callback.</listitem>
+        </itemizedlist>
+        <para>This function returns the following values:</para>
+        <itemizedlist>
+          <listitem><command>&lt; 0</command> - the file descriptor creation or the connect init failed for some reason. <command>errno</command> may have more information.</listitem>
+          <listitem><command>>= 0</command> - the new file descriptor.</listitem>
+        </itemizedlist>
+      </listitem>
+
+      <listitem>
+        <para><command>int mio_listen(mio_t m, int port, char *sourceip, mio_handler_t app, void *arg)</command></para>
+        <para><command>mio_listen()</command> starts a listening socket on the given ip/port. The callback will be called with the <command>action_ACCEPT</command> action when a new connection is initiated.</para>
+        <para>This function takes the following arguments:</para>
+        <itemizedlist>
+          <listitem><command>mio_t m</command> - the MIO context that will track this socket, and newly-accepted connections.</listitem>
+          <listitem><command>int port</command> - the local port to listen on.</listitem>
+          <listitem><command>char *sourceip</command> - string representation of the local IP address to listen on.</listitem>
+          <listitem><command>mio_handler_t app</command> - the callback to invoke when an event occurs.</listitem>
+          <listitem><command>void *arg</command> - application-specific data to be passed to the callback.</listitem>
+        </itemizedlist>
+        <para>This function returns the following values:</para>
+        <itemizedlist>
+          <listitem><command>&lt; 0</command> - the file descriptor creation or the listen init failed for some reason. <command>errno</command> may have more information.</listitem>
+          <listitem><command>>= 0</command> - the file descriptor of the listening socket.</listitem>
+        </itemizedlist>
+      </listitem>
+
+    </itemizedlist>
+  </section>
+
+  <section id='mio-run'>
+    <title>Process pending events on file descriptors - mio_run()</title>
+    <itemizedlist>
+
+      <listitem>
+        <para><command>void mio_run(mio_t m, int timeout)</command></para>
+        <para><command>mio_run()</command> processes pending events on file descriptors being tracked by the given MIO context. It will fire the associated callback if anything interesting has happened to a file descriptor.</para>
+        <para>This function takes the following arguments:</para>
+        <itemizedlist>
+          <listitem><command>mio_t m</command> - the MIO context to process.</listitem>
+          <listitem><command>int timeout</command> - Number of seconds to wait for events for. The call will block for at least this long. To do one check, then return (ie non-blocking behaviour), set this to 0.</listitem>
+        </itemizedlist>
+        <para>This function returns nothing.</para>
+      </listitem>
+    
+    </itemizedlist>
+  </section>
+
+  <section id='mio-extend'>
+    <title>Extending MIO - backends for event-readiness APIs</title>
+    <para>TODO</para>
+  </section>
+
+</section>
+
+<section id='util'>
+  <title>util - Support utilities</title>
+  <para>jabberd2 provides a variety of special-purpose utility libraries to aid the programmer with common functions. Some of them contain dependencies on other utilities and in one case (<link linkend='config'>config</link>), also a dependency on <link linkend='expat'>Expat</link>. These dependencies are noted.</para>
+
+  <section id='access'>
+    <title>access - IP-based access controls</title>
+
+    <section id='access-types'>
+      <title>Data types</title>
+      <itemizedlist>
+
+        <listitem>
+          <para>access context - <command>access_t</command></para>
+        </listitem>
+
+      </itemizedlist>
+    </section>
+
+    <section id='access-create'>
+      <title>Creating/freeing an access context - access_new(), access_free()</title>
+      <itemizedlist>
+
+        <listitem>
+          <para><command>access_t access_new(int order)</command></para>
+        </listitem>
+
+        <listitem>
+          <para><command>void access_free(access_t access)</command></para>
+        </listitem>
+      
+      </itemizedlist>
+    </section>
+
+    <section id='access-rule'>
+      <title>Adding an access control rule - access_allow(), access_deny()</title>
+      <itemizedlist>
+
+        <listitem>
+          <para><command>int access_allow(access_t access, char *ip, char *mask)</command></para>
+        </listitem>
+
+        <listitem>
+          <para><command>int access_deny(access_t access, char *ip, char *mask)</command></para>
+        </listitem>
+      
+      </itemizedlist>
+    </section>
+
+    <section id='access-check'>
+      <title>Checking whether are not an IP address matches a rule - access_check()</title>
+      
+      <itemizedlist>
+
+        <listitem>
+          <para><command>int access_check(access_t access, char *ip)</command></para>
+        </listitem>
+
+      </itemizedlist>
+    </section>
+
+  </section>
+  
+  <section id='config'>
+    <title>config - XML config files</title>
+    <para>TODO</para>
+  </section>
+  
+  <section id='jid'>
+    <title>jid - Jabber ID manipulation</title>
+    <para>TODO</para>
+  </section>
+  
+  <section id='log'>
+    <title>log - Logging (file/syslog)</title>
+
+    <section id='log-types'>
+      <title>Data types</title>
+      <itemizedlist>
+
+        <listitem>
+          <para>log context - <command>log_t</command></para>
+        </listitem>
+
+      </itemizedlist>
+    </section>
+
+    <section id='log-create'>
+      <title>Creating/freeing a log context - log_new(), log_free()</title>
+      <itemizedlist>
+
+        <listitem>
+          <para><command>log_t log_new(int syslog, char *ident, int facility)</command></para>
+        </listitem>
+
+        <listitem>
+          <para><command>void log_free(log_t log)</command></para>
+        </listitem>
+      
+      </itemizedlist>
+    </section>
+
+    <section id='log-write'>
+      <title>Writing data to a log - log_write()</title>
+      <itemizedlist>
+
+        <listitem>
+          <para><command>log_t log_write(log_t log, int level, const char *msgfmt, ...)</command></para>
+        </listitem>
+
+      </itemizedlist>
+    </section>
+
+  </section>
+  
+  <section id='nad'>
+    <title>nad - Lightweight XML DOM</title>
+    <para>TODO</para>
+  </section>
+  
+  <section id='pool'>
+    <title>pool - Memory pools</title>
+    <para>TODO</para>
+  </section>
+  
+  <section id='rate'>
+    <title>rate - Rate controls</title>
+
+    <section id='rate-types'>
+      <title>Data types</title>
+      <itemizedlist>
+
+        <listitem>
+          <para>rate context - <command>rate_t</command></para>
+        </listitem>
+
+      </itemizedlist>
+    </section>
+
+    <section id='rate-create'>
+      <title>Creating/freeing a rate context - rate_new(), rate_free()</title>
+      <itemizedlist>
+
+        <listitem>
+          <para><command>rate_t rate_new(int total, int seconds, int wait)</command></para>
+        </listitem>
+
+        <listitem>
+          <para><command>void rate_free(rate_t rt)</command></para>
+        </listitem>
+      
+      </itemizedlist>
+    </section>
+
+    <section id='rate-update'>
+      <title>Updated rate counts - rate_add(), rate_reset()</title>
+      <itemizedlist>
+
+        <listitem>
+          <para><command>void rate_add(rate_t rt, int count)</command></para>
+        </listitem>
+
+        <listitem>
+          <para><command>void rate_reset(rate_t rt)</command></para>
+        </listitem>
+      
+      </itemizedlist>
+    </section>
+
+    <section id='rate-check'>
+      <title>Checking rate limits - rate_check(), rate_left()</title>
+      <itemizedlist>
+
+        <listitem>
+          <para><command>int rate_check(rate_t rt)</command></para>
+        </listitem>
+
+        <listitem>
+          <para><command>int rate_left(rate_t rt)</command></para>
+        </listitem>
+      
+      </itemizedlist>
+    </section>
+
+  </section>
+  
+  <section id='serial'>
+    <title>serial - Data serialisation</title>
+
+    <section id='serial-get'>
+      <title>Retrieving values from a buffer - ser_string_get(), ser_int_get()</title>
+      <itemizedlist>
+
+        <listitem>
+          <para><command>int ser_string_get(char **dest, int *source, char *buf, int len)</command></para>
+        </listitem>
+
+        <listitem>
+          <para><command>int ser_int_get(int *dest, int *source, char *buf, int len)</command></para>
+        </listitem>
+      
+      </itemizedlist>
+    </section>
+
+    <section id='serial-set'>
+      <title>Adding values to a buffer - ser_string_set(), ser_int_set()</title>
+      <itemizedlist>
+
+        <listitem>
+          <para><command>void ser_string_set(char *source, int *dest, char **buf, int *len)</command></para>
+        </listitem>
+
+        <listitem>
+          <para><command>void ser_int_set(int source, int *dest, char **buf, int *len)</command></para>
+        </listitem>
+      
+      </itemizedlist>
+    </section>
+
+  </section>
+  
+  <section id='sha'>
+    <title>sha - SHA1 hash generation</title>
+
+    <section id='sha-hash'>
+      <title>Generating a SHA1 hash - shahash(), shahash_r()</title>
+      <itemizedlist>
+
+        <listitem>
+          <para><command>char *shahash(char *str)</command></para>
+        </listitem>
+
+        <listitem>
+          <para><command>void shahash_r(const char *str, char hashbuf[41]</command></para>
+        </listitem>
+      
+      </itemizedlist>
+    </section>
+  </section>
+  
+  <section id='str'>
+    <title>str - String manipulation</title>
+  </section>
+  
+  <section id='spool'>
+    <title>spool - String pools</title>
+
+    <section id='spool-types'>
+      <title>Data types</title>
+      <itemizedlist>
+
+        <listitem>
+          <para>spool context - <command>spool</command></para>
+        </listitem>
+
+      </itemizedlist>
+    </section>
+
+    <section id='spool-create'>
+      <title>Creating a spool context - spool_new()</title>
+      <itemizedlist>
+
+        <listitem>
+          <para><command>spool spool_new(pool p)</command></para>
+        </listitem>
+      
+      </itemizedlist>
+    </section>
+
+    <section id='spool-add'>
+      <title>Adding strings to a spool context - spool_add(), spooler()</title>
+      <itemizedlist>
+
+        <listitem>
+          <para><command>void spool_add(spool s, char *str)</command></para>
+        </listitem>
+
+        <listitem>
+          <para><command>void spooler(spool s, ...)</command></para>
+        </listitem>
+
+      </itemizedlist>
+    </section>
+
+    <section id='spool-print'>
+      <title>Getting the contents of a spool context - spool_print()</title>
+      <itemizedlist>
+
+        <listitem>
+          <para><command>char *spool_print(spool s)</command></para>
+        </listitem>
+
+      </itemizedlist>
+    </section>
+
+    <section id='spool-wrapper'>
+      <title>Concatenating strings on the fly - spools()</title>
+      <itemizedlist>
+
+        <listitem>
+          <para><command>void spools(pool p, ...)</command></para>
+        </listitem>
+
+      </itemizedlist>
+    </section>
+
+  </section>
+  
+  <section id='xhash'>
+    <title>xhash - Hash tables</title>
+    <para>TODO</para>
+  </section>
+  
+</section>
+
+<section id='sx'>
+  <title>sx - XML streams abstraction</title>
+
+  <section id='sx-types'>
+    <title>Data types</title>
+    <para>TODO</para>
+  </section>
+
+  <section id='sx-create'>
+	<title>Creating/freeing an XML stream - sx_new(), sx_free(), sx_env_new(), sx_env_free()</title>
+	<para>TODO</para>
+  </section>
+
+  <section id='sx-sess'>
+  	<title>Beginning and ending an XML stream - sx_client_init(), sx_server_init(), sx_auth(), sx_close()</title>
+	<para>TODO</para>
+  </section>
+
+  <section id='sx-use'>
+    <title>Using an XML stream</title>
+    <para>TODO.
+        Creating a stream.
+	Connecting it and performing any needed authorizations or negotiations.
+	Writing nads to the stream. Processing nads parsed by the stream.
+	Shutting down a stream.
+	Handling I/O for the stream. Dealing with network or protocol errors.
+    </para>
+  </section>
+
+  <section id='sx-callback'>
+    <title>Providing an <type>sx_callback_t</type> function</title>
+    <para>An XML stream communicates events and data to the rest of the program by invoking the callback function which was given as an argument to <function>sx_new()</function>. The first two arguments of the callback function are the <type>sx_t</type> which is invoking the callback, and an enumerated value (<type>sx_event_t</type>) which indicates the reason the callback was invoked. The interpretation of the third argument (a <type>void *</type>) and the return value (an integer) depends on the value of the event argument.</para> 
+    <para>The event_WANT_READ and event_WANT_WRITE events indicate that the xml stream is expecting input from the underlying octet-stream or has data it wishes to write to that stream. The callback should invoke either <function>sx_can_read()</function> or <function>sx_can_write()</function> as appropriate. If the read or write can be performed immediately without blocking, it can be invoked directly from the callback; otherwise, the callback should schedule the function to be called when data (or buffer space) is available. The <parameter>data</parameter> argument and the return value are not used for these event types.</para>
+    <para>event_READ and event_WRITE are requests for the callback to perform IO on behalf of the xml stream. The <parameter>data</parameter> argument is a pointer to an <type>sx_buf_t</type>. For event_READ, the callback should read into the specified buffer, adjust the buffer's <structfield>len</structfield> to indicate the number of bytes read, and return a nonnegative number to indicate success. For event_WRITE, the callback should return the number of bytes written from the buffer. A negative return value indicates that an error (including end-of-file) has occurred and the stream must be shut down.</para>
+    <para>TODO: nonblocking IO and event loops; use of mio_* functions. </para>
+    <para>event_STREAM, event_OPEN, event_CLOSED, event_ERROR: TODO. Being notified of changes in the stream's state.</para>
+    <para>event_PACKET: TODO. Processing a packet received by the stream.</para>
+  </section>
+  <section id='sx-plugin'>    
+    <title>Implementing a stream plugin</title>
+    <para>TODO: What a plugin is for and what it can do. Existing stream plugins. How to create a new stream plugin. Processing sent and received bytes. Processing sent and received nads.</para>
+  </section>
+  <section id='sx-buf'>
+    <title>Buffer management functions used with XML streams</title>
+    <para>TODO: sx_buf_t functions and memory management.</para>
+  </section>
+</section>
+
+<section id='sm'>
+  <title>Extending the session manager</title>
+
+  <section id='sm-storage'>
+    <title>Storage drivers</title>
+    <para>TODO</para>
+  </section>
+
+  <section id='sm-module'>
+    <title>Protocol modules</title>
+    <para>TODO</para>
+  </section>
+
+</section>
+
+<section id='c2s'>
+  <title>Extending the client-to-server connector</title>
+
+  <section id='c2s-authreg'>
+    <title>Authenticator modules</title>
+    <para>TODO</para>
+  </section>
+
+  <section id='c2s-pipe'>
+    <title>Using the pipe authenticator</title>
+    <para>TODO</para>
+  </section>
+
+</section>
+
+<section id='protocol'>
+  <title>Internal protocols</title>
+  
+  <section id='protocol-session'>
+    <title>Session control protocol</title>
+    <para>TODO</para>
+  </section>
+
+  <section id='protocol-resolver'>
+    <title>DNS resolution protocol</title>
+    <para>TODO</para>
+  </section>
+
+</section>
+
+</article>
+

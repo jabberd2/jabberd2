@@ -1,0 +1,108 @@
+This is the logic employed by the presence tracker. The business rules
+are implemented in the SM core (sm/pres.c). The triggers (protocol
+specifics) are implemented in the Presence module (sm/mod_presence.c).
+
+XMPP version (no "invisible" presence)
+--------------------------------------
+
+There are three sets of JIDs:
+ T: trusted     - these may see our presence ("from" or "both" in roster)
+ A: available   - these have been sent directed available presence
+ E: error       - these bounced presence updates
+
+Business rules:
+
+ B1. Broadcasting available presence:
+       forward to all in T, unless or E
+
+ B2. Broadcasting unavailable presence:
+       forward to all in T and A, unless in E
+       clear A and E
+ 
+ B3. Remote presence probe:
+       respond if in T
+       remove from E
+
+ B4. Remote presence update:
+       forward to all sessions with priority >= 0
+    
+ B5. Remote presence error:
+       add to E
+       remove from A
+
+ B6. Directed available presence:
+       forward
+       add to A (unless in T)
+       remove from E
+ 
+ B7. Directed unavailable presence:
+       forward
+       remove from A and E
+
+Triggers:
+
+ T1. <presence/>
+ T2. <presence type='unavailable'/>
+ T3. <presence from='foo' to='bar' type='probe'/>
+ T4. <presence from='foo' to='bar'> or <presence from='foo' to='bar' type='unavailable'/>
+ T5. <presence from='foo' to='bar' type='error'/>
+ T6. <presence to='foo'/>
+ T7. <presence to='foo' type='unavailable'/>
+
+
+Jabber version (XMPP + "invisible" presence)
+--------------------------------------------
+
+There are three sets of JIDs:
+ T: trusted     - these may see our presence ("from" or "both" in roster)
+ A: available   - these have been sent directed available presence
+ E: error       - these bounced presence updates
+
+There is also an "invisible" flag, I.
+
+Business rules:
+
+ B1. Broadcasting available presence:
+       forward to all in T, unless in E
+       clear I
+
+ B2. Broadcasting unavailable presence:
+       forward to all in T and A, unless in E
+       clear A and E
+       clear I
+ 
+ B3. Broadcasting invisible presence:
+       send unavailable to all in T, unless in A or E
+       set I
+    
+ B4. Remote presence probe:
+       respond if in T and I clear
+       respond if in T and in A and I set
+       remove from E
+       
+ B5. Remote presence update:
+       forward to all sessions with priority >= 0
+ 
+ B6. Remote presence error:
+       add to E
+       remove from A
+
+ B7. Directed available presence:
+       forward
+       add to A (unless in T)
+       remove from E
+ 
+ B8. Directed unavailable presence:
+       forward
+       remove from A and E
+
+Triggers:
+
+ T1. <presence/>
+ T2. <presence type='unavailable'/>
+ T3. <presence type='invisible'/>   (<presence><invisible xmlns='http://jabber.org/protocol/invisible'/></presence>)
+ T4. <presence from='foo' to='bar' type='probe'/>
+ T5. <presence from='foo' to='bar'> or <presence from='foo' to='bar' type='unavailable'/>
+ T6. <presence from='foo' to='bar' type='error'/>
+ T7. <presence to='foo'/>
+ T8. <presence to='foo' type='unavailable'/>

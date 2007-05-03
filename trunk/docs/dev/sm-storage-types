@@ -1,0 +1,99 @@
+This is a list of the DB collections types that the SM uses, and their fields.
+
+type: active
+user: core
+fields: time            os_type_INTEGER
+
+If a user has a stored value for "active" then they "exist" for the purposes
+of routing and delivery. The value is the time (in seconds since the epoch)
+that they were first "created". This value is stored in user->active, which
+is used by mod_offline and mod_roster to determine if it should bother
+processing messages and subscription requests.
+
+
+type: logout
+user: mod_iq_last
+fields: time            os_type_INTEGER
+
+This stores the time (in seconds since the epoch) of the last session that
+logged out. This is used to provide an iq:last response when there are no
+sessions online.
+
+
+type: roster-items
+user: mod_roster
+fields: jid             os_type_STRING
+        name            os_type_STRING
+        to              os_type_BOOLEAN
+        from            os_type_BOOLEAN
+        ask             os_type_BOOLEAN
+
+This stores the roster items that make a user's roster.
+        
+
+type: roster-groups
+user: mod_roster
+fields: jid             os_type_STRING
+        group           os_type_STRING
+
+This stores the groups associated with each of a user's roster items.
+
+
+type: vcard
+user: mod_iq_vcard
+fields:
+        fn              os_type_STRING
+        nickname        os_type_STRING
+        url             os_type_STRING
+        tel             os_type_STRING
+        email           os_type_STRING
+        title           os_type_STRING
+        role            os_type_STRING
+        bday            os_type_STRING
+        desc            os_type_STRING
+        n-given         os_type_STRING
+        n-family        os_type_STRING
+        adr-street      os_type_STRING
+        adr-extadd      os_type_STRING
+        adr-locality    os_type_STRING
+        adr-region      os_type_STRING
+        adr-pcode       os_type_STRING
+        adr-country     os_type_STRING
+        org-orgname     os_type_STRING
+        org-orgunit     os_type_STRING
+
+Stores the various fields the make up the user's vcard.
+
+
+type: queue
+user: mod_offline
+fields: xml             os_type_NAD
+
+This stores messages and s10n requests that are waiting to be delivered
+to the user. Each DB row contains a single complete packet.
+
+
+type: private
+user: mod_iq_private
+fields: ns              os_type_STRING
+        xml             os_type_NAD
+
+This stores user private data (iq:private). ns holds the namespace (for
+fast lookup), and xml holds the complete packet (actually a copy of the
+original IQ set that stored the packet).
+
+
+type: motd-messages
+user: mod_announce
+fields: xml             os_type_NAD
+
+This stores the current "message of the day" message. There is only one
+motd at any one time.
+
+
+type: motd-times
+user: mod_announce
+fields: time            os_type_INTEGER
+
+This stores the time of the last motd message that a user received. It
+is used to determine whether to send the current motd to the user.
