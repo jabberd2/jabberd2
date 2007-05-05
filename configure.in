@@ -613,7 +613,7 @@ fi
 AC_SUBST(ORACLE_CPPFLAGS)
 AC_SUBST(ORACLE_LIBS)
 AC_SUBST(ORACLE_LDFLAGS)
-AM_CONDITIONAL(STORAGE_ORACLE, [test "x-$have_pam" = "x-yes"])
+AM_CONDITIONAL(STORAGE_ORACLE, [test "x-$have_oracle" = "x-yes"])
 
 
 
