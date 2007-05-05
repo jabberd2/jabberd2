@@ -1,5 +1,18 @@
 This file contains upgrade instructions between different versions of jabberd2.
 
+* 2.1.4 to 2.1.5 upgrade:
+
+What had change:
+- auth/reg/storage modules are now loaded dynamically at runtime
+- MySQL storage backend is not enabled by default
+
+Dynamic modules should run out of box once installed (make install).
+If you need to configure other than the compiled-in path for it, please refer
+to the c2s.xml.dist and sm.xml.dist for a proper <path/> option.
+You will need to explicitly --enable-mysql during ./configure if you want to
+use MySQL backends.
+
+
 * 2.1.3 to 2.1.4 upgrade:
 
 What had change:

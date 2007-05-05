@@ -1,3 +1,14 @@
+2007-04-28 Tomasz Sterna <tomek@xiaoka.com>
+	 * Dynamically loading auth/reg/storage modules. Closes #52
+	 * Removed storage component skeleton
+	 * Removed HAVE_IDN checks. libidn is required. Closes #27
+	 * Exit memleak in c2s patch by amd//store20.com. Fixes #67
+	 * Build changes for conditional DB backends compilation by amd//hotmail.com. Closes #66
+	 * MySQL storage backend is not enabled by defult anymore
+
+2007-04-12 Tomasz Sterna <tomek@xiaoka.com>
+	 * fixed SQLite schema
+
 2007-04-09 Tomasz Sterna <tomek@xiaoka.com>
 	 * Integrated LDAP append-realm patch by Andrew Klang. Closes #60
 	 * Integrated LDAP rebind patch by Stephen Marquard. Fixes #28
