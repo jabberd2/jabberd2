@@ -1,9 +1,0 @@
-USE jabberd2;
-
-CREATE TABLE `status` (
-    `collection-owner` TEXT NOT NULL,
-    `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, KEY(`object-sequence`),
-    `status` TEXT NOT NULL,
-    `show` TEXT NOT NULL,
-    `last-login` INT DEFAULT '0',
-    `last-logout` INT DEFAULT '0');
