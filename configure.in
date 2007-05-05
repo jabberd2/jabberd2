@@ -826,9 +826,6 @@ dnl
 dnl finishing up
 dnl
 
-dnl put our config in its own subdir
-sysconfdir="$sysconfdir/jabberd"
-
 dnl done!
 AC_OUTPUT(Makefile \
           etc/Makefile \
