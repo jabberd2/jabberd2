@@ -22,21 +22,7 @@
 
 #include "sx.h"
 #include "ssl.h"
-/* Gack - need this otherwise SASL's MD5 definitions conflict with OpenSSLs */
-#ifdef HEADER_MD5_H
-#  define MD5_H
-#endif
 #include "sasl.h"
-#include <sasl/saslplug.h>
-
-/* RFC 3290 defines a number of failure messages */
-#define _sasl_err_ABORTED               "aborted"
-#define _sasl_err_INCORRECT_ENCODING    "incorrect-encoding"
-#define _sasl_err_INVALID_AUTHZID       "invalid-authzid"
-#define _sasl_err_INVALID_MECHANISM     "invalid-mechanism"
-#define _sasl_err_MECH_TOO_WEAK         "mechanism-too-weak"
-#define _sasl_err_NOT_AUTHORIZED        "not-authorized"
-#define _sasl_err_TEMPORARY_FAILURE     "temporary-auth-failure"
 
 /* Forward definitions */
 static void _sx_sasl_free(sx_t, sx_plugin_t);

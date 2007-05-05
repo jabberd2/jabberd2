@@ -23,9 +23,14 @@
 
 #include "sx.h"
 
-#include <sasl/sasl.h>
-#include <sasl/saslutil.h>
-#include <sasl/saslplug.h>
+/* RFC 3290 defines a number of failure messages */
+#define _sasl_err_ABORTED               "aborted"
+#define _sasl_err_INCORRECT_ENCODING    "incorrect-encoding"
+#define _sasl_err_INVALID_AUTHZID       "invalid-authzid"
+#define _sasl_err_INVALID_MECHANISM     "invalid-mechanism"
+#define _sasl_err_MECH_TOO_WEAK         "mechanism-too-weak"
+#define _sasl_err_NOT_AUTHORIZED        "not-authorized"
+#define _sasl_err_TEMPORARY_FAILURE     "temporary-auth-failure"
 
 #ifdef __cplusplus
 extern "C" {
@@ -52,32 +57,14 @@ typedef int                 (*sx_sasl_callback_t)(int cb, void *arg, void **res,
 #define sx_sasl_ret_OK		    0
 #define sx_sasl_ret_FAIL	    1
 
-/** trigger for client auth */
-int                         sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, char *pass);
+#ifdef SASL_GSASL
+#include "sasl_gsasl.h"
+#endif
+#ifdef SASL_CYRUS
+#include "sasl_cyrus.h"
+#endif
 
-/** our context */
-typedef struct _sx_sasl_st {
-    char                        *appname;
-    sasl_security_properties_t  sec_props;
-
-    sx_sasl_callback_t          cb;
-    void                        *cbarg;
-
-    sasl_callback_t		*saslcallbacks;
-} *_sx_sasl_t;
-
-/* data for per-conncetion sasl handshakes */
-typedef struct _sx_sasl_data_st {
-    char                        *user;
-    sasl_secret_t               *psecret;
-
-    sasl_callback_t             *callbacks;
-
-    _sx_sasl_t	                ctx;
-    sasl_conn_t                 *sasl;
-    sx_t                        stream;
-} *_sx_sasl_data_t;
-
+/* for passing auth data to callback */
 typedef struct sx_sasl_creds_st {
     const char                  *authnid;
     const char                  *realm;

@@ -45,6 +45,13 @@ sm_LDADD = $(top_builddir)/sx/libsx.la \
            $(top_builddir)/util/libutil.la \
            $(top_builddir)/subst/libsubst.la 
 
+if SASL_GSASL
+sm_CPPFLAGS += -DSASL_GSASL
+endif
+if SASL_CYRUS
+sm_CPPFLAGS += -DSASL_CYRUS
+endif
+
 mod_active_la_SOURCES = mod_active.c
 mod_active_la_LDFLAGS = -module -avoid-version
 
@@ -110,3 +117,4 @@ mod_vacation_la_LDFLAGS = -module -avoid-version
 
 mod_validate_la_SOURCES = mod_validate.c
 mod_validate_la_LDFLAGS = -module -avoid-version
+
