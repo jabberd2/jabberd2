@@ -504,6 +504,9 @@ void nad_set_attr(nad_t nad, int elem, int ns, const char *name, const char *val
 /** insert and return a new element as a child of this one */
 int nad_insert_elem(nad_t nad, int elem, int ns, const char *name, const char *cdata);
 
+/** remove an element (and its subelements) */
+void nad_drop_elem(nad_t nad, int elem);
+
 /** wrap an element with another element */
 void nad_wrap_elem(nad_t nad, int elem, int ns, const char *name);
 
