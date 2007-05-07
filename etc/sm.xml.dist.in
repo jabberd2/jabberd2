@@ -241,6 +241,7 @@
       <module>roster</module>           <!-- handle roster get/sets and s10ns -->
       <module>vacation</module>         <!-- manage vacation settings -->
       <module>iq-vcard</module>         <!-- store and retrieve the user's vcard -->
+      <module>iq-ping</module>          <!-- return the server ping -->
       <module>iq-private</module>       <!-- manage the user's private data store -->
       <module>disco</module>            <!-- respond to agents requests from sessions -->
       <module>amp</module>              <!-- advanced message processing -->
@@ -279,6 +280,7 @@
          session-manager-wide services (like service discovery). -->
     <chain id='pkt-sm'>
       <module>iq-last</module>          <!-- return the server uptime -->
+      <module>iq-ping</module>          <!-- return the server ping -->
       <module>iq-time</module>          <!-- return the current server time -->
       <module>iq-version</module>       <!-- return the server name and version -->
       <module>amp</module>              <!-- advanced message processing -->

@@ -9,6 +9,7 @@ pkglib_LTLIBRARIES = mod_active.la \
                   mod_echo.la \
                   mod_help.la \
                   mod_iq-last.la \
+                  mod_iq-ping.la \
                   mod_iq-private.la \
                   mod_iq-time.la \
                   mod_iq-vcard.la \
@@ -78,6 +79,9 @@ mod_help_la_LDFLAGS = -module -avoid-version
 
 mod_iq_last_la_SOURCES = mod_iq_last.c
 mod_iq_last_la_LDFLAGS = -module -avoid-version
+
+mod_iq_ping_la_SOURCES = mod_iq_ping.c
+mod_iq_ping_la_LDFLAGS = -module -avoid-version
 
 mod_iq_private_la_SOURCES = mod_iq_private.c
 mod_iq_private_la_LDFLAGS = -module -avoid-version
