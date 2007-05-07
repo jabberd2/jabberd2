@@ -20,7 +20,6 @@
 
 #include "sm.h"
 #include <time.h>
-#include <stdlib.h>
 
 /** @file sm/mod_announce.c
   * @brief announce (broadcast) messages
@@ -103,15 +102,7 @@ static void _announce_load(module_t mod, moddata_t data) {
                 telem[1] = timestamp[16];
                 tm.tm_sec = atoi(telem);
             
-	        tz = getenv("TZ");
-                setenv("TZ", "", 1);
-                tzset();
-                data->t = mktime(&tm);
-                if (tz)
-                    setenv("TZ", tz, 1);
-                else
-                    unsetenv("TZ");
-                tzset();
+                data->t = timegm(&tm);
             }
         }
 
