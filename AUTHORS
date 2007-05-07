@@ -84,6 +84,9 @@ Other people who chipped in:
   Albert Chin           <china@thewrittenword.com>
     - Various fixes to get things running on Solaris, AIX & Tru64
 
+  Tomasz Sieprawski     <tsieprawski@gmail.com>
+    - XMPP Ping module
+
 Thanks also go to the testers and bug reporters out there - you know who
 you are. Special thanks in this capacity to Justin Kirby, whose many
 failed efforts to compile j2 helped get much of the build system to
