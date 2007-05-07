@@ -1,50 +1,28 @@
-dnl jabberd2 configure script
-dnl $Id: configure.in,v 1.95 2005/08/21 10:06:06 zion Exp $
+# jabberd2 configure script
+# Process this file with autoconf to produce a configure script.
 
-dnl
-dnl autoconf setup
-dnl
-
-AC_PREREQ(2.57)
-
-dnl startup
-AC_INIT(jabberd, 2.1)
+AC_PREREQ(2.61)
+AC_INIT(jabberd, 2.1, jabberd2@xiaoka.com)
+AC_CONFIG_SRCDIR([sx/sx.h])
+AC_CONFIG_HEADER([config.h])
 AM_INIT_AUTOMAKE
 
-dnl identify the source tree
-AC_CONFIG_SRCDIR(sx/sx.h)
-
-dnl output config header
-AM_CONFIG_HEADER(config.h)
-
-
-dnl
-dnl build environment setup
-dnl
-
-dnl developer flags
-AC_ARG_ENABLE(developer, AC_HELP_STRING([--enable-developer], [Compile with warnings and debugging symbols]),
-              CFLAGS="-Wall -g $CFLAGS")
-
-dnl basic tools
+# Checks for programs.
+AC_PROG_CXX
 AC_PROG_CC
 AM_PROG_CC_C_O
+AC_PROG_CPP
+AC_PROG_INSTALL
+AC_PROG_LN_S
 AC_PROG_MAKE_SET
-
-dnl need libtool for internal linking
+AC_PROG_RANLIB
+# libtool for internal linking
 AC_DISABLE_STATIC
 AC_LIBTOOL_DLOPEN
 AC_PROG_LIBTOOL
 
-dnl use libtool to compile checks
-ac_link="${SHELL} ${srcdir}/libtool --mode=link $ac_link"
-
-
-dnl
-dnl extra paths
-dnl
-
-AC_ARG_WITH(extra_include_path, AC_HELP_STRING([--with-extra-include-path],
+# extra paths
+AC_ARG_WITH([extra_include_path], AC_HELP_STRING([--with-extra-include-path],
                                            [use additional include paths]),
             extra_include_path=$withval)
 split_includes="`echo $extra_include_path | sed -e 's/:/ /g'`"
@@ -52,7 +30,7 @@ for incpath in $split_includes ; do
     CPPFLAGS="-I$incpath $CPPFLAGS"
 done
 
-AC_ARG_WITH(extra_library_path, AC_HELP_STRING([--with-extra-library-path],
+AC_ARG_WITH([extra_library_path], AC_HELP_STRING([--with-extra-library-path],
                                                [use additional library paths]),
             extra_library_path=$withval)
 split_libs="`echo $extra_library_path | sed -e 's/:/ /g'`"
@@ -60,38 +38,67 @@ for libpath in $split_libs ; do
     LDFLAGS="-L$libpath $LDFLAGS"
 done
 
-dnl
-dnl header checks
-dnl
-AC_HEADER_DIRENT
-AC_HEADER_STDC
-AC_HEADER_SYS_WAIT
-AC_HEADER_TIME
+# developer flags
+AC_ARG_ENABLE([developer], AC_HELP_STRING([--enable-developer], [Compile with warnings and debugging symbols]),
+              CFLAGS="-Wall -g $CFLAGS")
+# debugging
+AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug], [enable debug messages]),
+              want_debug=$enableval, want_debug=no)
+if test "x-$want_debug" = "x-yes" ; then
+    AC_DEFINE(DEBUG,1,[Define to 1 if you want to get debug output with -D.])
+    AC_DEFINE(SX_DEBUG,1,[Define to 1 if you want to get SX debug output with -D.])
+fi
+
+AC_ARG_ENABLE(nad_debug, AC_HELP_STRING([--enable-nad-debug], [enable NAD pointer tracking]),
+              want_nad_debug=$enableval, want_nad_debug=no)
+if test "x-$want_nad_debug" = "x-yes" ; then
+    AC_DEFINE(NAD_DEBUG,1,[Define to 1 if you want to enable NAD pointer tracking.])
+fi
+
+AC_ARG_ENABLE(pool_debug, AC_HELP_STRING([--enable-pool-debug], [enable memory pool statistics]),
+              want_pool_debug=$enableval, want_pool_debug=no)
+if test "x-$want_pool_debug" = "x-yes" ; then
+    AC_DEFINE(POOL_DEBUG,1,[Define to 1 if you want to enable memory pool statistics.])
+fi
+
+AC_ARG_ENABLE(mio_debug, AC_HELP_STRING([--enable-mio-debug], [enable managed IO debug output]),
+              want_mio_debug=$enableval, want_mio_debug=no)
+if test "x-$want_mio_debug" = "x-yes" ; then
+    AC_DEFINE(MIO_DEBUG,1,[Define to 1 if you want to enable managed IO debug output.])
+fi
 
 # Two-step header checking.  First check for headers which don't
 # require any other headers.
-AC_CHECK_HEADERS( \
-    arpa/inet.h \
-    arpa/nameser.h \
-    fcntl.h \
-    netinet/in.h \
-    signal.h \
-    sys/filio.h \
-    sys/ioctl.h \
-    sys/types.h \
-    sys/socket.h \
-    sys/stat.h \
-    sys/time.h \
-    sys/timeb.h \
-    sys/utsname.h \
-    syslog.h \
-    unistd.h \
-    windows.h \
-    winsock2.h)
-
+AC_HEADER_DIRENT
+AC_HEADER_RESOLV
+AC_HEADER_STDC
+AC_HEADER_SYS_WAIT
+AC_HEADER_TIME
+AC_CHECK_HEADERS([arpa/inet.h \
+                  arpa/nameser.h \
+                  fcntl.h \
+                  netinet/in.h \
+                  signal.h \
+                  stdint.h \
+                  stdlib.h \
+                  string.h \
+                  sys/filio.h \
+                  sys/ioctl.h \
+                  sys/socket.h \
+                  sys/time.h \
+                  sys/timeb.h \
+                  sys/types.h \
+                  sys/stat.h \
+                  sys/utsname.h \
+                  syslog.h \
+                  unistd.h \
+                  windows.h \
+                  winsock2.h \
+])
+ 
 # Now check for those headers that do, including all the required
 # headers.
-AC_CHECK_HEADERS(resolv.h windns.h,,,
+AC_CHECK_HEADERS([resolv.h windns.h],,,
 [#ifdef HAVE_SYS_TYPES_H
 # include <sys/types.h>
 #endif
@@ -102,20 +109,81 @@ AC_CHECK_HEADERS(resolv.h windns.h,,,
 # include <netinet/in.h>
 #endif])
 
+# Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_TYPE_MODE_T
+AC_TYPE_OFF_T
+AC_TYPE_PID_T
+AC_TYPE_SIZE_T
+AC_HEADER_TIME
+AC_STRUCT_TM
+AC_STRUCT_TIMEZONE
+AC_TYPE_UINT16_T
+AC_TYPE_UINT32_T
+AC_TYPE_UINT8_T
 
-dnl
-dnl quirky functions
-dnl
+# generic system types 
+AC_CREATE_STDINT_H(ac-stdint.h) 
 
-AC_CHECK_FUNC(connect, ,[AC_CHECK_LIB(socket, connect)])
-AC_CHECK_LIB(ws2_32, _head_libws2_32_a)
-AC_CHECK_FUNC(gethostbyname, ,[AC_CHECK_LIB(resolv, gethostbyname)])
-AC_CHECK_FUNC(gethostbyname, ,[AC_CHECK_LIB(nsl, gethostbyname)])
+# Checks for library functions.
+AC_FUNC_CLOSEDIR_VOID
+AC_REPLACE_FNMATCH
+AC_FUNC_FORK
+AC_PROG_GCC_TRADITIONAL
+AC_FUNC_MALLOC
+AC_FUNC_MEMCMP
+AC_FUNC_MKTIME
+AC_FUNC_REALLOC
+AC_FUNC_SELECT_ARGTYPES
+AC_TYPE_SIGNAL
+AC_FUNC_STAT
+AC_FUNC_VPRINTF
+AC_FUNC_SELECT_ARGTYPES
+AC_CHECK_FUNCS([close \
+                dup2 \
+                fcntl \
+                _findfirst \
+                gethostname \
+                getopt \
+                getpagesize \
+                getpid \
+                gettimeofday \
+                inet_aton \
+                inet_ntoa \
+                ioctl \
+                isascii \
+                memchr \
+                memmove \
+                memset \
+                mkdir \
+                _mkdir \
+                modf \
+                select \
+                setenv \
+                sleep \
+                Sleep \
+                socket \
+                strcasecmp \
+                strchr \
+                strdup \
+                strerror \
+                stricmp \
+                strncasecmp \
+                strndup \
+                strnicmp \
+                strstr \
+                tzset \
+                uname \
+])
 
+AC_CHECK_FUNC([connect], ,[AC_CHECK_LIB([socket], [connect])])
+AC_CHECK_LIB([ws2_32], [_head_libws2_32_a])
+
+AC_CHECK_FUNC(gethostbyname, ,[AC_CHECK_LIB([resolv], [gethostbyname])])
+AC_CHECK_FUNC(gethostbyname, ,[AC_CHECK_LIB([nsl], [gethostbyname])])
 if test "x$ac_cv_lib_nsl_gethostbyname" != "xyes" && test "x$ac_cv_func_gethostbyname" != "xyes" ; then
-  AC_CHECK_FUNC(gethostbyname, , [AC_CHECK_LIB(socket, gethostbyname)])
+  AC_CHECK_FUNC([gethostbyname], , [AC_CHECK_LIB([socket], [gethostbyname])])
 fi
-
 if test "$ac_cv_lib_nsl_gethostbyname" = "$ac_cv_func_gethostbyname" ; then
   AC_MSG_CHECKING([if we can include libnsl + libsocket])
   LIBS="-lnsl -lsocket $LIBS"
@@ -128,7 +196,45 @@ if test "$ac_cv_lib_nsl_gethostbyname" = "$ac_cv_func_gethostbyname" ; then
   fi
 fi
 
-dnl res_query has been seen in libc, libbind and libresolv
+# windows has different names for a few basic things
+if test "x-$ac_cv_func_getpid" != "x-yes" -a "x-$ac_cv_func__getpid" = "x-yes" ; then
+    AC_DEFINE(getpid,_getpid,[Define to a function than can provide getpid(2) functionality.])
+fi
+
+if test "x-$ac_cv_func_sleep" != "x-yes" -a "x-$ac_cv_func_Sleep" = "x-yes" ; then
+    AC_DEFINE(sleep,Sleep,[Define to a function than can provide sleep(2) functionality.])
+fi
+
+if test "x-$ac_cv_func_strcasecmp" != "x-yes" -a "x-$ac_cv_func_stricmp" = "x-yes" ; then
+    AC_DEFINE(strcasecmp,stricmp,[Define to a function than can provide strcasecmp(3) functionality.])
+fi
+
+if test "x-$ac_cv_func_strncasecmp" != "x-yes" -a "x-$ac_cv_func_strnicmp" = "x-yes" ; then
+    AC_DEFINE(strncasecmp,strnicmp,[Define to a function than can provide strncasecmp(3) functionality.])
+fi
+
+# winsock substitutions
+if test "x-$ac_cv_func_close" != "x-yes" ; then
+    AC_MSG_CHECKING(for closesocket)
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <winsock2.h>]],
+                                    [[closesocket(0)]])],
+                   [AC_MSG_RESULT(yes)
+                    AC_DEFINE(close,closesocket,[Define to a function than can provide close(2) functionality.])],
+                    AC_DEFINE(HAVE_CLOSE,1,[Define to 1 if you have the 'close' function.])
+                   AC_MSG_RESULT(no))
+fi
+
+if test "x-$ac_cv_func_ioctl" != "x-yes" ; then
+    AC_MSG_CHECKING(for ioctlsocket)
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <winsock2.h>]],
+                                    [[ioctlsocket(0,0,0)]])],
+                   [AC_MSG_RESULT(yes)
+                    AC_DEFINE(ioctl,ioctlsocket,[Define to a function than can provide ioctl(2) functionality.])],
+                    AC_DEFINE(HAVE_IOCTL,1,[Define to 1 if you have the 'ioctl' function.])
+                   AC_MSG_RESULT(no))
+fi
+
+# res_query has been seen in libc, libbind and libresolv
 if test "x-$ac_cv_header_resolv_h" = "x-yes" ; then
     AC_CHECK_FUNCS(res_query)
     if test "x-$ac_cv_func_res_query" = "x-yes" ; then
@@ -156,8 +262,7 @@ if test "x-$ac_cv_header_resolv_h" = "x-yes" ; then
         fi
     fi
 fi
-
-dnl windows calls it DnsQuery
+# windows calls it DnsQuery
 if test "x-$ac_cv_header_windns_h" = "x-yes" ; then
     AC_MSG_CHECKING([for DnsQuery in -ldnsapi])
     save_libs="$LIBS"
@@ -170,7 +275,6 @@ if test "x-$ac_cv_header_windns_h" = "x-yes" ; then
                    [AC_MSG_RESULT(no)
                     LIBS="$save_libs"])
 fi
-
 if test "x-$have_res_query" = "x-yes" ; then
     AC_DEFINE(HAVE_RES_QUERY,1,[Define to 1 if you have the 'res_query' function.])
 elif test "x-$have_dnsquery" = "x-yes" ; then
@@ -179,12 +283,12 @@ else
     AC_MSG_ERROR([no DNS resolver interface (res_query or DnsQuery) found])
 fi
 
-dnl inet_ntop/inet_pton have been seen in -lnsl, and sometimes not at all
+# inet_ntop/inet_pton have been seen in -lnsl, and sometimes not at all
 AC_CHECK_FUNC(inet_ntop, ,[AC_CHECK_LIB(nsl, inet_ntop)])
 unset ac_cv_func_inet_ntop
 AC_CHECK_FUNCS(inet_ntop inet_pton)
 
-dnl some glibcs have broken sockaddr_storage members
+# some glibcs have broken sockaddr_storage members
 if test "x-$ac_cv_type_struct_sockaddr_storage" = "x-yes" ; then
     AC_MSG_CHECKING(for broken __ss_family member in struct sockaddr_storage)
     AC_COMPILE_IFELSE([AC_LANG_PROGRAM(_IP6_INCLUDES,
@@ -210,7 +314,7 @@ if test "x-$ac_cv_type_struct_sockaddr_storage" = "x-yes" ; then
 fi
 
 
-dnl syslog
+# syslog
 if test "x-$ac_cv_header_syslog_h" = "x-yes" ; then
     AC_CHECK_FUNCS(syslog vsyslog)
 fi
@@ -224,9 +328,8 @@ if test "x-$ac_cv_header_windows_h" = "x-yes" ; then
                    AC_MSG_RESULT(no))
 fi
 
-
-dnl snprintf/vsnprintf don't exist everywhere. additionally, we require
-dnl them to gracefully accept NULLs, which is non-standard
+# snprintf/vsnprintf don't exist everywhere. additionally, we require
+# them to gracefully accept NULLs, which is non-standard
 AC_CHECK_FUNCS(snprintf vsnprintf)
 if test "x-$ac_cv_func_snprintf" = "x-yes" ; then
     AC_MSG_CHECKING([if snprintf can handle NULL arguments])
@@ -251,32 +354,30 @@ if test "x-$ac_cv_func_vsnprintf" = "x-yes" ; then
                    AC_DEFINE(HAVE_BROKEN_VSNPRINTF,1,[Define to 1 if 'vsnprintf' cannot handle NULL arguments.])])
 fi
 
+#
+# Checks for libraries.
 
-dnl
-dnl external packages
-dnl
-
-dnl find libidn >= 0.3.0
-AC_ARG_ENABLE(idn, AC_HELP_STRING([--enable-idn], [enable IDN support (yes)]), want_idn=$enableval, want_idn=yes)
-if test "x-$want_idn" = "x-yes" ; then
-    AC_CHECK_HEADERS(stringprep.h)
-    if test "x-$ac_cv_header_stringprep_h" = "x-yes" ; then
-        AC_CHECK_LIB(idn, stringprep_check_version)
-    fi
-    if test "x-$ac_cv_lib_idn_stringprep_check_version" = "x-yes" ; then
-        AC_MSG_CHECKING(for Libidn version >= 0.3.0)
-        AC_RUN_IFELSE([AC_LANG_PROGRAM([[#include <stringprep.h>]],
-                                       [[return !(stringprep_check_version("0.3.0"))]])],
-                      [AC_MSG_RESULT(yes)
-                        have_idn=yes],
-                      AC_MSG_RESULT(no))
-    fi
-    if test "x-$have_idn" = "x-" ; then
-        AC_MSG_ERROR([Libidn >= 0.3.0 not found])
-    fi
+# Expat
+AC_CHECK_LIB([expat], [XML_ParserCreate])
+if test "x-$ac_cv_lib_expat_XML_ParserCreate" = "x-" ; then
+    AC_MSG_ERROR([Expat not found])
 fi
 
-dnl find GnuSASL or Cyrus-SASL
+# libidn >= 0.3.0
+AC_CHECK_LIB(idn, stringprep_check_version)
+if test "x-$ac_cv_lib_idn_stringprep_check_version" = "x-yes" ; then
+    AC_MSG_CHECKING(for Libidn version >= 0.3.0)
+    AC_RUN_IFELSE([AC_LANG_PROGRAM([[#include <stringprep.h>]],
+                                   [[return !(stringprep_check_version("0.3.0"))]])],
+                  [AC_MSG_RESULT(yes)
+                    have_idn=yes],
+                  AC_MSG_RESULT(no))
+fi
+if test "x-$have_idn" = "x-" ; then
+    AC_MSG_ERROR([Libidn >= 0.3.0 not found])
+fi
+
+# GnuSASL or Cyrus-SASL
 AC_ARG_ENABLE(gsasl, AC_HELP_STRING([--enable-gsasl], [enable GnuSASL support (yes)]), want_gsasl=$enableval, want_gsasl=yes)
 AC_ARG_ENABLE(cyrus, AC_HELP_STRING([--enable-cyrus], [enable Cyrus-SASL support (no)]), want_cyrus=$enableval, want_cyrus=no)
 if test "x-$want_gsasl" != "x-yes" -a "x-$want_cyrus" != "x-yes" ; then
@@ -320,7 +421,10 @@ fi
 AM_CONDITIONAL(SASL_GSASL, [test "x-$have_gsasl" = "x-yes"])
 AM_CONDITIONAL(SASL_CYRUS, [test "x-$have_cyrus" = "x-yes"])
 
-dnl find openssl >= 0.9.6b
+#
+# optional libs
+
+# OpenSSL >= 0.9.6b
 AC_ARG_ENABLE(ssl, AC_HELP_STRING([--enable-ssl], [enable SSL/TLS support (yes)]), want_ssl=$enableval, want_ssl=yes)
 if test "x-$want_ssl" = "x-yes" ; then
     AC_CHECK_HEADERS(openssl/crypto.h)
@@ -348,123 +452,101 @@ if test "x-$want_ssl" = "x-yes" ; then
     AC_DEFINE(HAVE_SSL,1,[Define to 1 if OpenSSL is available.])
 fi
 
-dnl find expat
-AC_ARG_ENABLE(expat, AC_HELP_STRING([--enable-expat], [enable expat (yes)]), want_expat=$enableval, want_expat=yes)
-if test "x-$want_expat" = "x-yes" ; then
-    AC_CHECK_HEADERS(expat.h)
-    LIBS="-lexpat $LIBS"
-fi
-
-
-dnl
-dnl optional libs
-dnl
-
-dnl mysql
-AC_MSG_CHECKING([if user wants MySQL support])
+# MySQL
 AC_ARG_ENABLE([mysql], 
-	AC_HELP_STRING([--enable-mysql], [enable MySQL auth/reg/storage support (no)]),
-	[enable_mysql=$enableval have_mysql=no],
-	[enable_mysql=no         have_mysql=no])
-AC_MSG_RESULT([$enable_mysql])
-
+        AC_HELP_STRING([--enable-mysql], [enable MySQL auth/reg/storage support (no)]),
+        [enable_mysql=$enableval have_mysql=no],
+        [enable_mysql=no         have_mysql=no])
 if test "x-$enable_mysql" = "x-yes" ; then
-	for i in /usr /usr/local /usr/local/mysql ; do
-		for j in include include/mysql "" ; do
-			if test -r "$i/$j/mysql.h" ; then
-				MYSQL_INCLUDE=$i/$j
-			fi
-		done
-		for j in lib lib/mysql lib64 lib64/mysql "" ; do
-			if test -f "$i/$j/libmysqlclient.so" || test -f "$i/$j/libmysqlclient.a" ; then
-				MYSQL_LIBDIR=$i/$j
-			fi
-		done
-	done
-	AC_CHECK_LIB([mysqlclient], [mysql_init], [
-		have_mysql=yes
-		if test "x-$MYSQL_INCLUDE" != "x-" ; then
-			MYSQL_CFLAGS="-I $MYSQL_INCLUDE"
-		fi
-		if test "x-$MYSQL_LIBDIR" != "x-" ; then
-			MYSQL_LIBS="-L$MYSQL_LIBDIR -lmysqlclient"
-		fi
-		AC_DEFINE(STORAGE_MYSQL, 1, [Define to 1 if you want to use MySQL for storage.])	
-	])
-	if test "x-$have_mysql" != "x-yes" ; then
-		AC_MSG_ERROR([MySQL support requested, but headers/libraries not found.])
-	fi
+        for i in /usr /usr/local /usr/local/mysql ; do
+                for j in include include/mysql "" ; do
+                        if test -r "$i/$j/mysql.h" ; then
+                                MYSQL_INCLUDE=$i/$j
+                        fi
+                done
+                for j in lib lib/mysql lib64 lib64/mysql "" ; do
+                        if test -f "$i/$j/libmysqlclient.so" || test -f "$i/$j/libmysqlclient.a" ; then
+                                MYSQL_LIBDIR=$i/$j
+                        fi
+                done
+        done
+        AC_CHECK_LIB([mysqlclient], [mysql_init], [
+                have_mysql=yes
+                if test "x-$MYSQL_INCLUDE" != "x-" ; then
+                        MYSQL_CFLAGS="-I $MYSQL_INCLUDE"
+                fi
+                if test "x-$MYSQL_LIBDIR" != "x-" ; then
+                        MYSQL_LIBS="-L$MYSQL_LIBDIR -lmysqlclient"
+                fi
+                AC_DEFINE(STORAGE_MYSQL, 1, [Define to 1 if you want to use MySQL for storage.])
+        ])
+        if test "x-$have_mysql" != "x-yes" ; then
+                AC_MSG_ERROR([MySQL support requested, but headers/libraries not found.])
+        fi
 fi
 AC_SUBST(MYSQL_CFLAGS)
 AC_SUBST(MYSQL_LIBS)
 AM_CONDITIONAL(STORAGE_MYSQL, [test "x-$have_mysql" = "x-yes"])
 
-
-dnl postgresql
-AC_MSG_CHECKING([if user wants PostgreSQL support])
-AC_ARG_ENABLE([pgsql], 
-	AC_HELP_STRING([--enable-pgsql], [enable PostgreSQL auth/reg/storage support (no)]),
-	[enable_pgsql=$enableval have_pgsql=no],
-	[enable_pgsql=no         have_pgsql=no])
-AC_MSG_RESULT([$enable_pgsql])
-
+# PostgreSQL
+AC_ARG_ENABLE([pgsql],
+        AC_HELP_STRING([--enable-pgsql], [enable PostgreSQL auth/reg/storage support (no)]),
+        [enable_pgsql=$enableval have_pgsql=no],
+        [enable_pgsql=no         have_pgsql=no])
 if test "x-$enable_pgsql" = "x-yes" ; then
-	for i in /usr /usr/local /usr/local/pgsql ; do
-		for j in include include/pgsql include/postgres include/postgresql "" ; do
-			if test -r "$i/$j/libpq-fe.h" ; then
-				PGSQL_INCLUDE=$i/$j
-			fi
-		done
-		for lib in lib lib64 ; do
-			for j in $lib $lib/pgsql $lib/postgres $lib/postgresql "" ; do
-				if test -f "$i/$j/libpq.so" || test -f "$i/$j/libpq.a" ; then
-					PGSQL_LIBDIR=$i/$j
-				fi
-			done
-		done
-	done
-	AC_CHECK_LIB([pq], [PQsetdbLogin], [
-		have_pgsql=yes
-		if test "x-$PGSQL_INCLUDE" != "x-"; then
-			PGSQL_CFLAGS="-I $PGSQL_INCLUDE"
-		fi
-		if test "x-$PGSQL_LIBDIR" != "x-"; then
-			PGSQL_LIBS="-L$PGSQL_LIBDIR -lpq"
-		fi
-		AC_DEFINE(STORAGE_POSTGRES, 1, [Define to 1 if you want to use PostgreSQL for storage.])	
-	])
-	if test "x-$have_pgsql" != "x-yes" ; then
-		AC_MSG_ERROR([PostgreSQL support requested, but headers/libraries not found.])
-	fi
+        for i in /usr /usr/local /usr/local/pgsql ; do
+                for j in include include/pgsql include/postgres include/postgresql "" ; do
+                        if test -r "$i/$j/libpq-fe.h" ; then
+                                PGSQL_INCLUDE=$i/$j
+                        fi
+                done
+                for lib in lib lib64 ; do
+                        for j in $lib $lib/pgsql $lib/postgres $lib/postgresql "" ; do
+                                if test -f "$i/$j/libpq.so" || test -f "$i/$j/libpq.a" ; then
+                                        PGSQL_LIBDIR=$i/$j
+                                fi
+                        done
+                done
+        done
+        AC_CHECK_LIB([pq], [PQsetdbLogin], [
+                have_pgsql=yes
+                if test "x-$PGSQL_INCLUDE" != "x-"; then
+                        PGSQL_CFLAGS="-I $PGSQL_INCLUDE"
+                fi
+                if test "x-$PGSQL_LIBDIR" != "x-"; then
+                        PGSQL_LIBS="-L$PGSQL_LIBDIR -lpq"
+                fi
+                AC_DEFINE(STORAGE_POSTGRES, 1, [Define to 1 if you want to use PostgreSQL for storage.])
+        ])
+        if test "x-$have_pgsql" != "x-yes" ; then
+                AC_MSG_ERROR([PostgreSQL support requested, but headers/libraries not found.])
+        fi
 fi
 AC_SUBST(PGSQL_CFLAGS)
 AC_SUBST(PGSQL_LIBS)
 AM_CONDITIONAL(STORAGE_PGSQL, [test "x-$have_pgsql" = "x-yes"])
 
-dnl SQLite 3
-AC_MSG_CHECKING([if user wants SQLite3 support])
+# SQLite 3
 AC_ARG_ENABLE([sqlite],
-	AS_HELP_STRING([--enable-sqlite], [enable SQLite3 auth/reg/storage support (no)]),
-	[enable_sqlite=$enableval have_sqlite=no],
-	[enable_sqlite=no         have_sqlite=no])
-AC_MSG_RESULT([$enable_sqlite])
-
+        AS_HELP_STRING([--enable-sqlite], [enable SQLite3 auth/reg/storage support (no)]),
+        [enable_sqlite=$enableval have_sqlite=no],
+        [enable_sqlite=no         have_sqlite=no])
 if test "x-$enable_sqlite" = "x-yes" ; then
     AC_CHECK_HEADERS([sqlite3.h], [
-		AC_CHECK_LIB([sqlite3], [sqlite3_open], [
-			have_sqlite=yes
-			SQLITE_LIBS="-lsqlite3"
-			AC_DEFINE(STORAGE_SQLITE, 1, [Define to 1 if you want to use SQLite 3 for storage.])	
-		])
-	])
-	if test "x-$have_sqlite" != "x-yes" ; then
-		AC_MSG_ERROR([SQLite3 support requested, but headers/libraries not found.])
-	fi
+                AC_CHECK_LIB([sqlite3], [sqlite3_open], [
+                        have_sqlite=yes
+                        SQLITE_LIBS="-lsqlite3"
+                        AC_DEFINE(STORAGE_SQLITE, 1, [Define to 1 if you want to use SQLite 3 for storage.])
+                ])
+        ])
+        if test "x-$have_sqlite" != "x-yes" ; then
+                AC_MSG_ERROR([SQLite3 support requested, but headers/libraries not found.])
+        fi
 fi
 AC_SUBST(SQLITE_LIBS)
 AM_CONDITIONAL(STORAGE_SQLITE, [test "x-$have_sqlite" = "x-yes"])
-		
-dnl berkeley db
+
+# Berkeley DB
 AC_ARG_ENABLE(db, AC_HELP_STRING([--enable-db], [enable Berkeley DB auth/reg/storage support (no)]),
               want_db=$enableval, want_db=no)
 if test "x-$want_db" = "x-yes" ; then
@@ -501,15 +583,62 @@ if test "x-$want_db" = "x-yes" ; then
     if test "x-$have_db_version" != "x-yes" ; then
         AC_MSG_ERROR([Berkeley DB >= 4.1.24 not found])
     else
-	DB_LIBS="-l$lib"
+        DB_LIBS="-l$lib"
         AC_DEFINE(STORAGE_DB,1,[Define to 1 if you want to use Berkeley DB for auth/reg/storage.])
     fi
 fi
 AC_SUBST(DB_LIBS)
 AM_CONDITIONAL(STORAGE_DB, [test "x-$have_db_version" = "x-yes"])
 
+# Oracle
+AC_ARG_WITH(oracle-home,
+        [ --with-oracle-home=DIR   the Oracle home directory, for includes and libs. ],
+        [ ac_oracle_home="$withval" ])
 
-dnl openldap
+AC_ARG_ENABLE(oracle, AC_HELP_STRING([--enable-oracle], [enable Oracle auth/reg/storage support (no)]),
+              want_oracle=$enableval, want_oracle=no)
+if test "x-$want_oracle" = "x-yes" ; then
+    AC_CHECK_HEADERS(oci.h)
+    if test "x-$ac_cv_header_oci_h" != "x-yes" ; then
+       if test -n $ac_oracle_home ; then
+          AC_MSG_CHECKING([for oci.h in $ac_oracle_home])
+                save_cppflags="$CPPFLAGS"
+                CPPFLAGS="-I$ac_oracle_home/rdbms/demo -I$ac_oracle_home/rdbms/public $CPPFLAGS"
+                save_libs="$LIBS"
+                LIBS="-L$ac_oracle_home/lib $LIBS"
+                save_ldflags="$LDFLAGS"
+                LDFLAGS="-Wl,-rpath,$ac_oracle_home/lib $LDFLAGS"
+                AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <oci.h>]])],
+                                  [AC_MSG_RESULT(yes)
+                                   AC_DEFINE(HAVE_OCI_H,,[Define if you have oci.h])
+                                   ac_cv_header_oci_h=yes],
+                                  AC_MSG_RESULT(no))
+                if test "x-$ac_cv_header_oci_h" != "x-yes" ; then
+                    CPPFLAGS="$save_cppflags"
+                    LIBS="$save_libs"
+                    LDFLAGS="$save_ldflags"
+                fi
+       fi
+    fi
+    if test "x-$ac_cv_header_oci_h" = "x-yes" ; then
+        AC_CHECK_LIB(clntsh, OCIInitialize)
+    fi
+    if test "x-$ac_cv_lib_clntsh_OCIInitialize" != "x-yes" ; then
+        AC_MSG_ERROR([Oracle client libraries not found])
+    else
+        have_oracle="yes"
+        ORACLE_CPPFLAGS="-I$ac_oracle_home/rdbms/demo -I$ac_oracle_home/rdbms/public"
+        ORACLE_LIBS="-L$ac_oracle_home/lib"
+        ORACLE_LDFLAGS="-Wl,-rpath,$ac_oracle_home/lib"
+        AC_DEFINE(STORAGE_ORACLE,1,[Define to 1 if you want to use Oracle for auth/reg/storage.])
+    fi
+fi
+AC_SUBST(ORACLE_CPPFLAGS)
+AC_SUBST(ORACLE_LIBS)
+AC_SUBST(ORACLE_LDFLAGS)
+AM_CONDITIONAL(STORAGE_ORACLE, [test "x-$have_oracle" = "x-yes"])
+
+# OpenLDAP
 AC_ARG_ENABLE(ldap, AC_HELP_STRING([--enable-ldap], [enable OpenLDAP auth/reg support (no)]),
               want_ldap=$enableval, want_ldap=no)
 if test "x-$want_ldap" = "x-yes" ; then
@@ -536,15 +665,14 @@ if test "x-$want_ldap" = "x-yes" ; then
     if test "x-$have_ldap_version" = "x-" ; then
         AC_MSG_ERROR([OpenLDAP client libraries >= 2.1.0 not found])
     else
-	LDAP_LIBS="-llber -lldap"
+        LDAP_LIBS="-llber -lldap"
         AC_DEFINE(STORAGE_LDAP,1,[Define to 1 if you want to use OpenLDAP for auth/reg.])
     fi
 fi
 AC_SUBST(LDAP_LIBS)
 AM_CONDITIONAL(STORAGE_LDAP, [test "x-$have_ldap_version" = "x-yes"])
 
-
-dnl pam
+# Plugabble Authentication Modules (PAM)
 AC_ARG_ENABLE(pam, AC_HELP_STRING([--enable-pam], [enable PAM auth/reg support (no)]),
               want_pam=$enableval, want_pam=no)
 if test "x-$want_pam" = "x-yes" ; then
@@ -555,16 +683,15 @@ if test "x-$want_pam" = "x-yes" ; then
     if test "x-$ac_cv_lib_pam_pam_start" != "x-yes" ; then
         AC_MSG_ERROR([PAM application libraries not found])
     else
-	have_pam="yes"
-	PAM_LIBS="-lpam"
+        have_pam="yes"
+        PAM_LIBS="-lpam"
         AC_DEFINE(STORAGE_PAM,1,[Define to 1 if you want to use PAM for auth/reg.])
     fi
 fi
 AC_SUBST(PAM_LIBS)
 AM_CONDITIONAL(STORAGE_PAM, [test "x-$have_pam" = "x-yes"])
 
-
-dnl pipe (not really an external package, but does need some checks)
+# pipe (not really an external package, but does need some checks)
 AC_ARG_ENABLE(pipe, AC_HELP_STRING([--enable-pipe], [enable pipe auth/reg support (no)]),
               want_pipe=$enableval, want_pipe=no)
 if test "x-$want_pipe" = "x-yes" ; then
@@ -577,14 +704,13 @@ if test "x-$want_pipe" = "x-yes" ; then
             "x-$ac_cv_func_wait" != "x-yes" ; then
         AC_MSG_ERROR([Pipe auth/reg requirements (sys/wait.h, fork(), pipe(), wait()) not found])
     else
-	have_pipe="yes"
+        have_pipe="yes"
         AC_DEFINE(STORAGE_PIPE,1,[Define to 1 if you want to use pipes for auth/reg.])
     fi
 fi
 AM_CONDITIONAL(STORAGE_PIPE, [test "x-$have_pipe" = "x-yes"])
 
-
-dnl anon
+# Anonymous
 AC_ARG_ENABLE(anon, AC_HELP_STRING([--enable-anon], [enable anonymous auth/reg support (no)]),
               want_anon=$enableval, want_anon=no)
 if test "x-$want_anon" = "x-yes" ; then
@@ -593,7 +719,7 @@ fi
 AM_CONDITIONAL(STORAGE_ANON, [test "x-$want_anon" = "x-yes"])
 
 
-dnl filesystem storage
+# Filesystem storage
 AC_ARG_ENABLE(fs, AC_HELP_STRING([--enable-fs], [enable filesystem storage support (no)]),
               want_fs=$enableval, want_fs=no)
 if test "x-$want_fs" = "x-yes" ; then
@@ -601,79 +727,8 @@ if test "x-$want_fs" = "x-yes" ; then
 fi
 AM_CONDITIONAL(STORAGE_FS, [test "x-$want_fs" = "x-yes"])
 
-
-dnl Oracle
-AC_ARG_WITH(oracle-home,
-	[ --with-oracle-home=DIR   the Oracle home directory, for includes and libs. ],
-	[ ac_oracle_home="$withval" ])
-
-AC_ARG_ENABLE(oracle, AC_HELP_STRING([--enable-oracle], [enable Oracle auth/reg/storage support (no)]),
-              want_oracle=$enableval, want_oracle=no)
-if test "x-$want_oracle" = "x-yes" ; then
-    AC_CHECK_HEADERS(oci.h)
-    if test "x-$ac_cv_header_oci_h" != "x-yes" ; then
-       if test -n $ac_oracle_home ; then
-	  AC_MSG_CHECKING([for oci.h in $ac_oracle_home])
-                save_cppflags="$CPPFLAGS"
-                CPPFLAGS="-I$ac_oracle_home/rdbms/demo -I$ac_oracle_home/rdbms/public $CPPFLAGS"
-                save_libs="$LIBS"
-                LIBS="-L$ac_oracle_home/lib $LIBS"
-                save_ldflags="$LDFLAGS"
-                LDFLAGS="-Wl,-rpath,$ac_oracle_home/lib $LDFLAGS"
-                AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <oci.h>]])],
-                                  [AC_MSG_RESULT(yes)
-                                   AC_DEFINE(HAVE_OCI_H,,[Define if you have oci.h])
-                                   ac_cv_header_oci_h=yes],
-                                  AC_MSG_RESULT(no))
-                if test "x-$ac_cv_header_oci_h" != "x-yes" ; then
-                    CPPFLAGS="$save_cppflags"
-                    LIBS="$save_libs"
-		    LDFLAGS="$save_ldflags"
-                fi
-       fi
-    fi
-    if test "x-$ac_cv_header_oci_h" = "x-yes" ; then
-        AC_CHECK_LIB(clntsh, OCIInitialize)
-    fi
-    if test "x-$ac_cv_lib_clntsh_OCIInitialize" != "x-yes" ; then
-        AC_MSG_ERROR([Oracle client libraries not found])
-    else
-	have_oracle="yes"
-	ORACLE_CPPFLAGS="-I$ac_oracle_home/rdbms/demo -I$ac_oracle_home/rdbms/public"
-	ORACLE_LIBS="-L$ac_oracle_home/lib"
-	ORACLE_LDFLAGS="-Wl,-rpath,$ac_oracle_home/lib"
-        AC_DEFINE(STORAGE_ORACLE,1,[Define to 1 if you want to use Oracle for auth/reg/storage.])
-    fi
-fi
-AC_SUBST(ORACLE_CPPFLAGS)
-AC_SUBST(ORACLE_LIBS)
-AC_SUBST(ORACLE_LDFLAGS)
-AM_CONDITIONAL(STORAGE_ORACLE, [test "x-$have_oracle" = "x-yes"])
-
-
-
-dnl
-dnl generic system types
-dnl
-AC_CREATE_STDINT_H(ac-stdint.h)
-
-
-
-
-dnl
-dnl typedefs, structs, compiler quirks
-dnl
-AC_TYPE_MODE_T
-AC_TYPE_OFF_T
-AC_TYPE_PID_T
-AC_TYPE_SIZE_T
-AC_STRUCT_TM
-AC_STRUCT_TIMEZONE
-
-
-dnl
-dnl ipv6 stuff
-dnl
+#
+# IPv6 checks
 AC_DEFUN([_IP6_INCLUDES],[[
 #include "ac-stdint.h"
 #ifdef HAVE_SYS_TYPES_H
@@ -690,14 +745,13 @@ AC_DEFUN([_IP6_INCLUDES],[[
 #endif
 ]])
 
-dnl these types are missing in places
+# these types are sometimes missing
 AC_CHECK_TYPES([in_port_t, sa_family_t, struct sockaddr_storage, struct sockaddr_in6, struct in6_addr],,, _IP6_INCLUDES)
 
+#
+# mio backend selection
 
-dnl
-dnl mio backend checks
-dnl
-AC_ARG_ENABLE(mio, AC_HELP_STRING([--enable-mio=BACKEND], [use BACKEND to drive MIO]), 
+AC_ARG_ENABLE(mio, AC_HELP_STRING([--enable-mio=BACKEND], [use BACKEND to drive MIO]),
               mio_check=$enableval, mio_check='epoll poll select')
 
 mio_backend=''
@@ -750,131 +804,21 @@ if test "x-$mio_backend" = "x-" ; then
 fi
 
 
-dnl functions we need
-AC_FUNC_MALLOC
-AC_FUNC_MEMCMP
-AC_FUNC_MKTIME
-AC_FUNC_REALLOC
-AC_FUNC_STAT
-AC_FUNC_VPRINTF
-AC_CHECK_FUNCS( \
-    close \
-    dup2 \
-    fcntl \
-    inet_aton \
-    ioctl \
-    isascii \
-    _findfirst \
-    getopt \
-    gettimeofday \
-    getpid \
-    _getpid \
-    memchr \
-    memmove \
-    memset \
-    mkdir \
-    _mkdir \
-    modf \
-    sleep \
-    Sleep \
-    strcasecmp \
-    stricmp \
-    strchr \
-    strdup \
-    strerror \
-    strncasecmp \
-    strnicmp \
-    strstr \
-    tzset \
-    uname \
-    getpagesize )
-
-dnl windows has different names for a few basic things
-if test "x-$ac_cv_func_getpid" != "x-yes" -a "x-$ac_cv_func__getpid" = "x-yes" ; then
-    AC_DEFINE(getpid,_getpid,[Define to a function than can provide getpid(2) functionality.])
-fi
-
-if test "x-$ac_cv_func_sleep" != "x-yes" -a "x-$ac_cv_func_Sleep" = "x-yes" ; then
-    AC_DEFINE(sleep,Sleep,[Define to a function than can provide sleep(2) functionality.])
-fi
-
-if test "x-$ac_cv_func_strcasecmp" != "x-yes" -a "x-$ac_cv_func_stricmp" = "x-yes" ; then
-    AC_DEFINE(strcasecmp,stricmp,[Define to a function than can provide strcasecmp(3) functionality.])
-fi
-
-if test "x-$ac_cv_func_strncasecmp" != "x-yes" -a "x-$ac_cv_func_strnicmp" = "x-yes" ; then
-    AC_DEFINE(strncasecmp,strnicmp,[Define to a function than can provide strncasecmp(3) functionality.])
-fi
-
-dnl winsock substitutions
-if test "x-$ac_cv_func_close" != "x-yes" ; then
-    AC_MSG_CHECKING(for closesocket)
-    AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <winsock2.h>]],
-                                    [[closesocket(0)]])],
-                   [AC_MSG_RESULT(yes)
-                    AC_DEFINE(close,closesocket,[Define to a function than can provide close(2) functionality.])],
-                    AC_DEFINE(HAVE_CLOSE,1,[Define to 1 if you have the 'close' function.])
-                   AC_MSG_RESULT(no))
-fi
-
-if test "x-$ac_cv_func_ioctl" != "x-yes" ; then
-    AC_MSG_CHECKING(for ioctlsocket)
-    AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <winsock2.h>]],
-                                    [[ioctlsocket(0,0,0)]])],
-                   [AC_MSG_RESULT(yes)
-                    AC_DEFINE(ioctl,ioctlsocket,[Define to a function than can provide ioctl(2) functionality.])],
-                    AC_DEFINE(HAVE_IOCTL,1,[Define to 1 if you have the 'ioctl' function.])
-                   AC_MSG_RESULT(no))
-fi
-
-
-dnl
-dnl debugging
-dnl
-AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug], [enable debug messages]),
-              want_debug=$enableval, want_debug=no)
-if test "x-$want_debug" = "x-yes" ; then
-    AC_DEFINE(DEBUG,1,[Define to 1 if you want to get debug output with -D.])
-    AC_DEFINE(SX_DEBUG,1,[Define to 1 if you want to get SX debug output with -D.])
-fi
-
-AC_ARG_ENABLE(nad_debug, AC_HELP_STRING([--enable-nad-debug], [enable NAD pointer tracking]),
-              want_nad_debug=$enableval, want_nad_debug=no)
-if test "x-$want_nad_debug" = "x-yes" ; then
-    AC_DEFINE(NAD_DEBUG,1,[Define to 1 if you want to enable NAD pointer tracking.])
-fi
-
-AC_ARG_ENABLE(pool_debug, AC_HELP_STRING([--enable-pool-debug], [enable memory pool statistics]),
-              want_pool_debug=$enableval, want_pool_debug=no)
-if test "x-$want_pool_debug" = "x-yes" ; then
-    AC_DEFINE(POOL_DEBUG,1,[Define to 1 if you want to enable memory pool statistics.])
-fi
-
-AC_ARG_ENABLE(mio_debug, AC_HELP_STRING([--enable-mio-debug], [enable managed IO debug output]),
-              want_mio_debug=$enableval, want_mio_debug=no)
-if test "x-$want_mio_debug" = "x-yes" ; then
-    AC_DEFINE(MIO_DEBUG,1,[Define to 1 if you want to enable managed IO debug output.])
-fi
-
-
-dnl
-dnl finishing up
-dnl
-
-dnl done!
-AC_OUTPUT(Makefile \
-          etc/Makefile \
-          etc/templates/Makefile \
-          tools/Makefile \
-          man/Makefile \
-          mio/Makefile \
-          subst/Makefile \
-          sx/Makefile \
-          util/Makefile \
-          c2s/Makefile \
-          resolver/Makefile \
-          router/Makefile \
-          s2s/Makefile \
-          sm/Makefile \
-          storage/Makefile \
-          Doxyfile)
+# Generate Makefiles
+AC_CONFIG_FILES([Doxyfile
+                 Makefile
+                 etc/Makefile
+                 etc/templates/Makefile
+                 man/Makefile
+                 subst/Makefile
+                 util/Makefile
+                 mio/Makefile
+                 sx/Makefile
+                 storage/Makefile
+                 c2s/Makefile
+                 resolver/Makefile
+                 router/Makefile
+                 s2s/Makefile
+                 sm/Makefile
+                 tools/Makefile])
+AC_OUTPUT
