@@ -1,4 +1,4 @@
-EXTRA_DIST = PROTOCOL Doxyfile.in README.win32 contrib
+EXTRA_DIST = PROTOCOL Doxyfile.in README.win32 contrib UPGRADE
 
 SUBDIRS = etc tools man mio subst sx util c2s resolver router s2s sm storage
 
