@@ -57,12 +57,8 @@ typedef int                 (*sx_sasl_callback_t)(int cb, void *arg, void **res,
 #define sx_sasl_ret_OK		    0
 #define sx_sasl_ret_FAIL	    1
 
-#ifdef SASL_GSASL
-#include "sasl_gsasl.h"
-#endif
-#ifdef SASL_CYRUS
-#include "sasl_cyrus.h"
-#endif
+/** trigger for client auth */
+int                         sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, char *pass);
 
 /* for passing auth data to callback */
 typedef struct sx_sasl_creds_st {

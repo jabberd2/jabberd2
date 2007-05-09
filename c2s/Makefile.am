@@ -11,10 +11,3 @@ c2s_LDADD = $(top_builddir)/sx/libsx.la \
             $(top_builddir)/util/libutil.la \
             $(top_builddir)/subst/libsubst.la 
 
-if SASL_GSASL
-AM_CPPFLAGS = -DSASL_GSASL
-endif
-if SASL_CYRUS
-AM_CPPFLAGS = -DSASL_CYRUS
-endif
-

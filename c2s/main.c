@@ -273,7 +273,7 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
             if(c2s->ar->get_password && (c2s->ar->get_password)(c2s->ar, (char *)creds->authnid, (creds->realm != NULL) ? (char *)creds->realm: "", buf) == 0) {
                 *res = buf;
                 return sx_sasl_ret_OK;
-	    }
+            }
 
             return sx_sasl_ret_FAIL;
 
@@ -299,15 +299,13 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
 
             return sx_sasl_ret_FAIL;
             break;
-	
+        
         case sx_sasl_cb_CHECK_AUTHZID:
             creds = (sx_sasl_creds_t) arg;
 
-            /* no authzid, we should build one */
-            if(creds->authzid == NULL || creds->authzid[0] == '\0') {
-                snprintf(buf, 3072, "%s@%s", creds->authnid, s->req_to);
-                creds->authzid = (void *)buf;
-            }
+            /* we need authzid to validate */
+            if(creds->authzid == NULL || creds->authzid[0] == '\0')
+                return sx_sasl_ret_FAIL;
 
             /* authzid must be a valid jid */
             jid.pc = c2s->pc;
@@ -315,30 +313,31 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
                 return sx_sasl_ret_FAIL;
 
             /* and have domain == stream to addr */
-            if(strcmp(jid.domain, s->req_to) != 0)
+            if(!s->req_to || (strcmp(jid.domain, s->req_to) != 0))
                 return sx_sasl_ret_FAIL;
 
             /* and have no resource */
             if(jid.resource[0] != '\0')
                 return sx_sasl_ret_FAIL;
 
-            /* and exist ! */
-
-            if((c2s->ar->user_exists)(c2s->ar, (char *)creds->authnid, (char *)creds->realm))
+            /* and user has right to authorize as * /
+            if((c2s->ar->user_authz_allowed)(c2s->ar, (char *)creds->authnid, (char *)creds->realm, (char *)creds->authzid))
+             * but since we do not support it yet, we check wether the user exists */
+            if((c2s->ar->user_exists)(c2s->ar, jid.node, jid.domain))
                 return sx_sasl_ret_OK;
 
             return sx_sasl_ret_FAIL;
 
         case sx_sasl_cb_GEN_AUTHZID:
-	  /* generate a jid for SASL ANONYMOUS */
+            /* generate a jid for SASL ANONYMOUS */
             jid.pc = c2s->pc;
             jid_reset(&jid, s->req_to, -1);
 
-            /* make resource a random string */
+            /* make node a random string */
             jid_random_part(&jid, jid_NODE);
 
             strcpy(buf, jid_full(&jid));
-	
+        
             *res = (void *)buf;
 
             return sx_sasl_ret_OK;
@@ -419,7 +418,7 @@ int main(int argc, char **argv)
     c2s_t c2s;
     char *config_file, *realm;
     char id[1024];
-    int i, sd_flags, optchar;
+    int i, optchar;
     config_elem_t elem;
     sess_t sess;
     union xhashv xhv;
@@ -435,19 +434,19 @@ int main(int argc, char **argv)
 
 #ifdef HAVE_WINSOCK2_H
 /* get winsock running */
-	{
-		WORD wVersionRequested;
-		WSADATA wsaData;
-		int err;
-		
-		wVersionRequested = MAKEWORD( 2, 2 );
-		
-		err = WSAStartup( wVersionRequested, &wsaData );
-		if ( err != 0 ) {
+    {
+        WORD wVersionRequested;
+        WSADATA wsaData;
+        int err;
+        
+        wVersionRequested = MAKEWORD( 2, 2 );
+        
+        err = WSAStartup( wVersionRequested, &wsaData );
+        if ( err != 0 ) {
             /* !!! tell user that we couldn't find a usable winsock dll */
-			return 0;
-		}
-	}
+            return 0;
+        }
+    }
 #endif
 
     jabber_signal(SIGINT, _c2s_signal);
@@ -529,7 +528,7 @@ int main(int argc, char **argv)
         log_free(c2s->log);
         free(c2s);
         exit(1);
-	}
+        }
 
     c2s->pc = prep_cache_new();
 
@@ -564,9 +563,7 @@ int main(int argc, char **argv)
 #endif
             
     /* get sasl online */
-    sd_flags = 0;
-
-    c2s->sx_sasl = sx_env_plugin(c2s->sx_env, sx_sasl_init, "xmpp", sd_flags, _c2s_sx_sasl_callback, (void *) c2s, sd_flags);
+    c2s->sx_sasl = sx_env_plugin(c2s->sx_env, sx_sasl_init, "xmpp", _c2s_sx_sasl_callback, (void *) c2s);
     if(c2s->sx_sasl == NULL) {
         log_write(c2s->log, LOG_ERR, "failed to initialise SASL context, aborting");
         exit(1);

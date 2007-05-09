@@ -6,10 +6,8 @@ libsx_la_LIBADD = @LDFLAGS@
 
 if SASL_GSASL
 libsx_la_SOURCES += sasl_gsasl.c
-libsx_la_CPPFLAGS = -DSASL_GSASL
 endif
 
 if SASL_CYRUS
 libsx_la_SOURCES += sasl_cyrus.c
-libsx_la_CPPFLAGS = -DSASL_CYRUS
 endif

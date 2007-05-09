@@ -247,7 +247,7 @@ static int _router_sx_sasl_callback(int cb, void *arg, void ** res, sx_t s, void
             break;
     }
 
-    return 0;
+    return sx_sasl_ret_FAIL;
 }
 
 static void _router_time_checks(router_t r) {
@@ -400,7 +400,7 @@ int main(int argc, char **argv)
 #endif
 
     /* get sasl online */
-    r->sx_sasl = sx_env_plugin(r->sx_env, sx_sasl_init, "jabberd-router", SASL_SEC_NOANONYMOUS, _router_sx_sasl_callback, (void *) r, 0);
+    r->sx_sasl = sx_env_plugin(r->sx_env, sx_sasl_init, "jabberd-router", _router_sx_sasl_callback, (void *) r);
     if(r->sx_sasl == NULL) {
         log_write(r->log, LOG_ERR, "failed to initialise SASL context, aborting");
         exit(1);

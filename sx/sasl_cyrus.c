@@ -24,6 +24,38 @@
 #include "ssl.h"
 #include "sasl.h"
 
+/* Gack - need this otherwise SASL's MD5 definitions conflict with OpenSSLs */
+#ifdef HEADER_MD5_H
+#  define MD5_H
+#endif
+#include <sasl/sasl.h>
+#include <sasl/saslutil.h>
+#include <sasl/saslplug.h>
+
+/** our context */
+typedef struct _sx_sasl_st {
+    char                        *appname;
+    sasl_security_properties_t  sec_props;
+
+    sx_sasl_callback_t          cb;
+    void                        *cbarg;
+
+    sasl_callback_t		*saslcallbacks;
+} *_sx_sasl_t;
+
+/* data for per-conncetion sasl handshakes */
+typedef struct _sx_sasl_data_st {
+    char                        *user;
+    sasl_secret_t               *psecret;
+
+    sasl_callback_t             *callbacks;
+
+    _sx_sasl_t	                ctx;
+    sasl_conn_t                 *sasl;
+    sx_t                        stream;
+} *_sx_sasl_data_t;
+
+
 /* Forward definitions */
 static void _sx_sasl_free(sx_t, sx_plugin_t);
 
@@ -880,10 +912,9 @@ static void _sx_sasl_unload(sx_plugin_t p) {
     if (p->private != NULL) free(p->private);
 }
 
-/** args: appname, flags, callback, cb arg */
+/** args: appname, callback, cb arg */
 int sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args) {
     char *appname;
-    int flags;
     sx_sasl_callback_t cb;
     void *cbarg;
     int ret;
@@ -897,8 +928,6 @@ int sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args) {
         return 1;
     }
 
-    flags = va_arg(args, int);
-
     cb = va_arg(args, sx_sasl_callback_t);
     cbarg = va_arg(args, void *);
 
@@ -910,13 +939,12 @@ int sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args) {
     ctx = (_sx_sasl_t) malloc(sizeof(struct _sx_sasl_st));
     memset(ctx, 0, sizeof(struct _sx_sasl_st));
 
-    ctx->appname = strdup(appname);
-
     ctx->sec_props.min_ssf = 0;
     ctx->sec_props.max_ssf = -1;    /* sasl_ssf_t is typedef'd to unsigned, so -1 gets us the max possible ssf */
     ctx->sec_props.maxbufsize = 1024;
-    ctx->sec_props.security_flags = flags;
+    ctx->sec_props.security_flags = 0;
 
+    ctx->appname = strdup(appname);
     ctx->cb = cb;
     ctx->cbarg = cbarg;
   

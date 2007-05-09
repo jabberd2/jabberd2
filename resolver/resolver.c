@@ -607,7 +607,7 @@ int main(int argc, char **argv)
 #endif
 
     /* get sasl online */
-    r->sx_sasl = sx_env_plugin(r->sx_env, sx_sasl_init, "jabberd-router", NULL, NULL, 0);
+    r->sx_sasl = sx_env_plugin(r->sx_env, sx_sasl_init, "xmpp", NULL, NULL);
     if(r->sx_sasl == NULL) {
         log_write(r->log, LOG_ERR, "failed to initialise SASL context, aborting");
         exit(1);

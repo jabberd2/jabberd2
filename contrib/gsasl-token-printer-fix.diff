@@ -1,0 +1,60 @@
+--- lib/digest-md5/printer.c.org	2007-03-29 21:33:59.000000000 +0200
++++ lib/digest-md5/printer.c	2007-03-29 21:43:18.000000000 +0200
+@@ -36,8 +36,38 @@
+ /* Get token validator. */
+ #include "validate.h"
+ 
+-/* FIXME: The challenge/response functions may print "empty" fields,
++/* The challenge/response functions may print "empty" fields,
+    such as "foo=bar, , , bar=foo".  It is valid, but look ugly. */
++char *
++digest_md5_compact_tokenstring (char * out)
++{
++  char *tmp;
++
++  if (out == NULL)
++    return out;
++
++  for (tmp = out; *tmp != '\0';)
++    {
++      /* begining ", " or ", ," and ", "" in string */
++      if (*tmp == ',' && (tmp == out || (*(tmp + 1) == ' ' && (*(tmp + 2) == ',' || *(tmp + 2) == '"'))))
++        {
++          char *mv = tmp + 1;
++	  do {
++	    mv++;
++            *(mv - 2) = *mv;
++	  } while (*mv != '\0');
++        }
++      else
++        tmp++;
++    }
++
++  /* leading "," or ", " */
++  if (tmp > out + 1 && *(--tmp) == ',' || *tmp == ' ' && *(--tmp) == ',')
++    *tmp = '\0';
++
++  return out;
++
++}
+ 
+ char *
+ digest_md5_print_challenge (digest_md5_challenge * c)
+@@ -94,7 +124,7 @@
+   if (maxbuf)
+     free (maxbuf);
+ 
+-  return out;
++  return digest_md5_compact_tokenstring(out);
+ 
+ }
+ 
+@@ -165,7 +195,7 @@
+   if (maxbuf)
+     free (maxbuf);
+ 
+-  return out;
++  return digest_md5_compact_tokenstring(out);
+ }
+ 
+ char *

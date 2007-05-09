@@ -505,7 +505,7 @@ int main(int argc, char **argv) {
 #endif
 
     /* get sasl online */
-    s2s->sx_sasl = sx_env_plugin(s2s->sx_env, sx_sasl_init, "xmpp", SASL_SEC_NOANONYMOUS | SASL_SEC_NOPLAINTEXT, NULL, NULL, 0);
+    s2s->sx_sasl = sx_env_plugin(s2s->sx_env, sx_sasl_init, "xmpp", NULL, NULL);
     if(s2s->sx_sasl == NULL) {
         log_write(s2s->log, LOG_ERR, "failed to initialise SASL context, aborting");
         exit(1);
