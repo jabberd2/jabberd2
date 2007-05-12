@@ -64,6 +64,14 @@
 # include <arpa/inet.h>
 #endif
 
+#ifndef PATH_MAX
+#ifndef MAXPATHLEN
+# define PATH_MAX 512
+#else
+# define PATH_MAX MAXPATHLEN
+#endif
+#endif
+
 #include "subst/subst.h"
 
 #include "util/util_compat.h"
