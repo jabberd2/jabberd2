@@ -25,6 +25,7 @@
 static sig_atomic_t c2s_shutdown = 0;
 sig_atomic_t c2s_lost_router = 0;
 static sig_atomic_t c2s_logrotate = 0;
+static sig_atomic_t c2s_reloadhosts = 0;
 
 static void _c2s_signal(int signum)
 {
@@ -35,6 +36,7 @@ static void _c2s_signal(int signum)
 static void _c2s_signal_hup(int signum)
 {
     c2s_logrotate = 1;
+    c2s_reloadhosts = 1;
 }
 
 /** store the process id */
@@ -204,6 +206,58 @@ static void _c2s_config_expand(c2s_t c2s)
 
             access_deny(c2s->access, ip, mask);
         }
+    }
+}
+
+static void _c2s_hosts_expand(c2s_t c2s)
+{
+    char *realm;
+    config_elem_t elem;
+    char id[1024];
+    int i;
+
+    elem = config_get(c2s->config, "local.id");
+    for(i = 0; i < elem->nvalues; i++) {
+        host_t host = (host_t) pmalloco(xhash_pool(c2s->hosts), sizeof(struct host_st));
+
+        realm = j_attr((const char **) elem->attrs[i], "realm");
+
+        /* stringprep ids (domain names) so that they are in canonical form */
+        strncpy(id, elem->values[i], 1024);
+        id[1023] = '\0';
+        if (stringprep_nameprep(id, 1024) != 0) {
+            log_write(c2s->log, LOG_ERR, "cannot stringprep id %s, aborting", id);
+            exit(1);
+        }
+
+        host->realm = (realm != NULL) ? realm : pstrdup(xhash_pool(c2s->hosts), id);
+
+        host->host_pemfile = j_attr((const char **) elem->attrs[i], "pemfile");
+
+        if(c2s->sx_ssl == NULL && host->host_pemfile != NULL) {
+            c2s->sx_ssl = sx_env_plugin(c2s->sx_env, sx_ssl_init, host->host_pemfile, NULL, c2s->local_verify_mode);
+            if(c2s->sx_ssl == NULL) {
+                log_write(c2s->log, LOG_ERR, "failed to load %s SSL pemfile", host->realm);
+                host->host_pemfile = NULL;
+            }
+        }
+
+        host->host_require_starttls = (j_attr((const char **) elem->attrs[i], "require-starttls") != NULL);
+
+        host->host_verify_mode = j_atoi(j_attr((const char **) elem->attrs[i], "verify-mode"), 0);
+
+        host->ar_register_enable = (j_attr((const char **) elem->attrs[i], "register-enable") != NULL);
+        if(host->ar_register_enable) {
+            host->ar_register_instructions = j_attr((const char **) elem->attrs[i], "instructions");
+            if(host->ar_register_instructions == NULL)
+                host->ar_register_instructions = "Enter a username and password to register with this server.";
+        } else
+            host->ar_register_password = (j_attr((const char **) elem->attrs[i], "password-change") != NULL);
+
+        xhash_put(c2s->hosts, pstrdup(xhash_pool(c2s->hosts), id), host);
+
+        log_write(c2s->log, LOG_NOTICE, "[%s] configured; realm=%s, registration %s",
+                  id, realm, (host->ar_register_enable ? "enabled" : "disabled"));
     }
 }
 
@@ -416,10 +470,8 @@ static void _c2s_time_checks(c2s_t c2s) {
 int main(int argc, char **argv)
 {
     c2s_t c2s;
-    char *config_file, *realm;
-    char id[1024];
-    int i, optchar;
-    config_elem_t elem;
+    char *config_file;
+    int optchar;
     sess_t sess;
     union xhashv xhv;
 #ifdef POOL_DEBUG
@@ -574,54 +626,9 @@ int main(int argc, char **argv)
     c2s->mio = mio_new(c2s->io_max_fds);
 
     /* hosts mapping */
-    c2s->hosts = xhash_new(1023);
-
-    elem = config_get(c2s->config, "local.id");
-    for(i = 0; i < elem->nvalues; i++) {
-        host_t host = (host_t) malloc(sizeof(struct host_st));
-        memset(host, 0, sizeof(struct host_st));
-
-        realm = j_attr((const char **) elem->attrs[i], "realm");
-
-        /* stringprep ids (domain names) so that they are in canonical form */
-        strncpy(id, elem->values[i], 1024);
-        id[1023] = '\0';
-        if (stringprep_nameprep(id, 1024) != 0) {
-            log_write(c2s->log, LOG_ERR, "cannot stringprep id %s, aborting", id);
-            exit(1);
-        }
-
-        host->realm = (realm != NULL) ? realm : pstrdup(xhash_pool(c2s->hosts), id);
-
-        host->host_pemfile = j_attr((const char **) elem->attrs[i], "pemfile");
-
-        if(c2s->sx_ssl == NULL && host->host_pemfile != NULL) {
-            c2s->sx_ssl = sx_env_plugin(c2s->sx_env, sx_ssl_init, host->host_pemfile, NULL, c2s->local_verify_mode);
-            if(c2s->sx_ssl == NULL) {
-                log_write(c2s->log, LOG_ERR, "failed to load %s SSL pemfile", host->realm);
-                host->host_pemfile = NULL;
-            }
-        }
-
-        host->host_require_starttls = (j_attr((const char **) elem->attrs[i], "require-starttls") != NULL);
-
-        host->host_verify_mode = j_atoi(j_attr((const char **) elem->attrs[i], "verify-mode"), 0);
-
-        host->ar_register_enable = (j_attr((const char **) elem->attrs[i], "register-enable") != NULL);
-        if(host->ar_register_enable) {
-            host->ar_register_instructions = j_attr((const char **) elem->attrs[i], "instructions");
-            if(host->ar_register_instructions == NULL)
-                host->ar_register_instructions = "Enter a username and password to register with this server.";
-        } else
-            host->ar_register_password = (j_attr((const char **) elem->attrs[i], "password-change") != NULL);
-
-        xhash_put(c2s->hosts, pstrdup(xhash_pool(c2s->hosts), id), host);
-
-        log_write(c2s->log, LOG_NOTICE, "[%s] configured; realm=%s, registration %s",
-                  id, realm, (host->ar_register_enable ? "enabled" : "disabled"));
-    }
-
-    c2s->sm_avail = xhash_new(51);
+    c2s->hosts = xhash_new(1021);
+    _c2s_hosts_expand(c2s);
+    c2s->sm_avail = xhash_new(1021);
 
     c2s->retry_left = c2s->retry_init;
     _c2s_router_connect(c2s);
@@ -636,6 +643,24 @@ int main(int argc, char **argv)
             log_write(c2s->log, LOG_NOTICE, "log started");
 
             c2s_logrotate = 0;
+        }
+
+        if(c2s_reloadhosts) {
+            log_write(c2s->log, LOG_NOTICE, "reloading serviced hosts list ...");
+            config_free(c2s->config);
+            c2s->config = config_new();
+            if(config_load(c2s->config, config_file) != 0)
+            {
+                log_write(c2s->log, LOG_ERR, "couldn't reload config, aborting");
+                exit(2);
+            }
+            _c2s_config_expand(c2s);
+            xhash_free(c2s->hosts);
+            c2s->hosts = xhash_new(1021);
+            _c2s_hosts_expand(c2s);
+            log_write(c2s->log, LOG_NOTICE, "serviced hosts list reloaded");
+
+            c2s_reloadhosts = 0;
         }
 
         if(c2s_lost_router) {
