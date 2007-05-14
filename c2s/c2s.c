@@ -518,11 +518,9 @@ static void _c2s_component_presence(c2s_t c2s, nad_t nad) {
     if(nad_find_attr(nad, 0, -1, "type", NULL) < 0) {
         log_debug(ZONE, "component available from '%s'", from);
 
-        if(xhash_get(c2s->hosts, from) != NULL) {
-            log_debug(ZONE, "sm for serviced domain '%s' online", from);
+        log_debug(ZONE, "sm for serviced domain '%s' online", from);
 
-            xhash_put(c2s->sm_avail, pstrdup(xhash_pool(c2s->sm_avail), from), (void *) 1);
-        }
+        xhash_put(c2s->sm_avail, pstrdup(xhash_pool(c2s->sm_avail), from), (void *) 1);
 
         nad_free(nad);
         return;
