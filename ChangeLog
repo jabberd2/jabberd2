@@ -1,28 +1,62 @@
+2007-05-14 Tomasz Sterna <tomek@xiaoka.com>
+	* Another fix for lack of strndup() on *BSD
+	* Added support for reloading c2s serviced hosts on SIGHUP
+
+2007-05-12 Tomasz Sterna <tomek@xiaoka.com>
+	* added define for PATH_MAX that do not exist on *BSD
+
+2007-05-09 Tomasz Sterna <tomek@xiaoka.com>
+	* updated mkrelease script
+	* configure cosmetics
+	* Merged GSASL sx SASL plugin. Integrated as a default SASL backend with Cyrus as an alternative.
+
+2007-05-08 Tomasz Sterna <tomek@xiaoka.com>
+	* Added UPGRADE to extra distfiles
+	* Added substitution implementations of strndup() and timegm().
+	* Revamped ./configure script creation
+
+2007-05-07 Tomasz Sterna <tomek@xiaoka.com>
+	* Renamed configure.in to configure.ac
+	* Made UTC time counting more portable
+	* Added Tomasz Sieprawski to AUTHORS
+	* Added missing nad_drop_elem() declaration
+
+2007-05-07 Tomasz Sieprawski <tsieprawski@gmail.com>
+	* Implemented XEP-0199: XMPP Ping. Closes #23
+
+2007-05-06 Tomasz Sterna <tomek@xiaoka.com>
+	* Support for different SASL library backends
+
+2007-05-05 Tomasz Sterna <tomek@xiaoka.com>
+	* Removed scod module
+	* Removed sysconfdir modification during ./configure
+	* Fixed oracle configure bug. Fixes #69
+
 2007-04-28 Tomasz Sterna <tomek@xiaoka.com>
-	 * Dynamically loading auth/reg/storage modules. Closes #52
-	 * Removed storage component skeleton
-	 * Removed HAVE_IDN checks. libidn is required. Closes #27
-	 * Exit memleak in c2s patch by amd//store20.com. Fixes #67
-	 * Build changes for conditional DB backends compilation by amd//hotmail.com. Closes #66
-	 * MySQL storage backend is not enabled by defult anymore
+	* Dynamically loading auth/reg/storage modules. Closes #52
+	* Removed storage component skeleton
+	* Removed HAVE_IDN checks. libidn is required. Closes #27
+	* Exit memleak in c2s patch by amd//store20.com. Fixes #67
+	* Build changes for conditional DB backends compilation by amd//hotmail.com. Closes #66
+	* MySQL storage backend is not enabled by defult anymore
 
 2007-04-12 Tomasz Sterna <tomek@xiaoka.com>
-	 * fixed SQLite schema
+	* fixed SQLite schema
 
 2007-04-09 Tomasz Sterna <tomek@xiaoka.com>
-	 * Integrated LDAP append-realm patch by Andrew Klang. Closes #60
-	 * Integrated LDAP rebind patch by Stephen Marquard. Fixes #28
-	 * Integrated SSL handshake patch by Klara Mall. Fixes #59
-	 * Integrated CA-chain handling patch by Kaspar Brand. Fixes #58
-	 * Fixed module loading path. Closes #62
-	 * Integrated more NULL checks patch by Gonzalo Barrio
-	 * Integrated support for more than one LDAP server patch by Gonzalo Barrio
-	 * Integrated patch to allow setting PgSQL parameters to NULL by Reinhard Max.
-	 * Integrated compilation fixes by Stefan Huehner. Closes #51
-	 * Integrated FS storage offline messages fix by Michael Moeller. Closes #50
-	 * Integrated SQLite fixes by Nicolas Pouillon. Closes #45
-	 * Integrated full SQLite (authreg) support by Reinhard Max. Closes #43
-	 * removed redundant setting in jabberd wrapper. Closes #34
+	* Integrated LDAP append-realm patch by Andrew Klang. Closes #60
+	* Integrated LDAP rebind patch by Stephen Marquard. Fixes #28
+	* Integrated SSL handshake patch by Klara Mall. Fixes #59
+	* Integrated CA-chain handling patch by Kaspar Brand. Fixes #58
+	* Fixed module loading path. Closes #62
+	* Integrated more NULL checks patch by Gonzalo Barrio
+	* Integrated support for more than one LDAP server patch by Gonzalo Barrio
+	* Integrated patch to allow setting PgSQL parameters to NULL by Reinhard Max.
+	* Integrated compilation fixes by Stefan Huehner. Closes #51
+	* Integrated FS storage offline messages fix by Michael Moeller. Closes #50
+	* Integrated SQLite fixes by Nicolas Pouillon. Closes #45
+	* Integrated full SQLite (authreg) support by Reinhard Max. Closes #43
+	* removed redundant setting in jabberd wrapper. Closes #34
 
 2007-04-03 Tomasz Sterna <tomek@xiaoka.com>
 	* Integrated auth depending on security patch by Simon Wilkinson. Closes #24

@@ -11,8 +11,13 @@ Required packages:
 
  - expat - XML parsing libraries
      http://expat.sourceforge.net/
- - Cyrus SASL - Simple Authentication and Security Layer library
-     http://asg.web.cmu.edu/sasl/
+ - Simple Authentication and Security Layer library
+   * GnuSASL (0.2.14 or higher)
+       http://www.gnu.org/software/gsasl/
+       please see contrib/ subdir for patches
+   or
+   * Cyrus SASL - 
+       http://asg.web.cmu.edu/sasl/
 
 Optional packages:
 
