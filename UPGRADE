@@ -3,12 +3,14 @@ This file contains upgrade instructions between different versions of jabberd2.
 * 2.1.5 to 2.1.6 upgrade:
 
 What had change:
+- implemented XEP-0199: XMPP ping
 - sysconfdir isn't changed to .../etc/jabberd anymore
 - SASL backend is now GnuSASL by default with Cyrus as an alternative
 - configure.in was renamed to configure.ac
 - strndup() and timegm() implementations in subst/
 - PATH_MAX definition added when necessary
 
+Add <module>iq-ping</module> to in-sess and pkt-sm chains in sm.xml.
 You need to explicitly set --sysconfdir with jabberd subdir if you want to.
 You need to --disable-gsasl and --enable-cyrus if you need to use Cyrus SASL.
 Remove all source dependant patches for missing functions if you have ones.
