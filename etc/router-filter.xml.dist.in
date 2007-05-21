@@ -2,8 +2,11 @@
      It allows for finegrained routing control.
 
      to, from - wildmat patterns
+                absent attribute matches absence of attribute
+                "*" matches any value of attribute
      what     - XPath like query
      error    - none given means allow, if given means deny
+                this is an XMPP RFC defined error condition
 -->
 
 <filter>
