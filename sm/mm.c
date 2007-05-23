@@ -19,11 +19,13 @@
  */
 
 #include "sm.h"
-#ifdef WIN32
-  #include <windows.h>
+
+#ifdef _WIN32
+# define LIBRARY_DIR "."
+# include <windows.h>
 #else
-  #include <dlfcn.h>
-#endif
+# include <dlfcn.h>
+#endif /* _WIN32 */
 
 /** @file sm/mm.c
   * @brief module manager
@@ -170,7 +172,7 @@ mm_t mm_new(sm_t sm) {
                         mod->mm = mm;
                         mod->index = mm->nindex;
                         mod->name = strdup(name);
-                #ifndef WIN32
+                #ifndef _WIN32
                   if (modules_path != NULL)
                       snprintf(mod_fullpath, PATH_MAX, "%s/mod_%s.so", modules_path, name);
                   else
@@ -185,7 +187,7 @@ mm_t mm_new(sm_t sm) {
                       snprintf(mod_fullpath, PATH_MAX, "mod_%s.dll", name);
                   mod->handle = (void*) LoadLibrary(mod_fullpath);
                   if (mod->handle != NULL)
-                      mod->module_init_fn = GetProcAddress((HMODULE) mod->handle, "module_init");
+                      mod->module_init_fn = (int (*)(mod_instance_t))GetProcAddress((HMODULE) mod->handle, "module_init");
                 #endif
 
                 if (mod->handle != NULL && mod->module_init_fn != NULL) {
@@ -193,7 +195,7 @@ mm_t mm_new(sm_t sm) {
                         xhash_put(mm->modules, mod->name, (void *) mod);
                         mm->nindex++;
                 } else {
-                    #ifndef WIN32
+                    #ifndef _WIN32
                       log_write(sm->log, LOG_ERR, "failed loading module '%s' to chain '%s' (%s)", name, id, dlerror());
                       if (mod->handle != NULL)
                           dlclose(mod->handle);
@@ -224,7 +226,7 @@ mm_t mm_new(sm_t sm) {
                         if(mod->init == 0) {
                             xhash_zap(mm->modules, mod->name);
 
-                    #ifndef WIN32
+                    #ifndef _WIN32
                       if (mod->handle != NULL)
                           dlclose(mod->handle);
                     #else
@@ -266,7 +268,7 @@ static void _mm_reaper(xht modules, const char *module, void *val, void *arg) {
     if(mod->free != NULL)
         (mod->free)(mod);
 
-    #ifndef WIN32
+    #ifndef _WIN32
         if (mod->handle != NULL)
             dlclose(mod->handle);
     #else

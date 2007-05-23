@@ -27,7 +27,12 @@
 
 #include "sm.h"
 #include <ctype.h>
-#include <dlfcn.h>
+#ifdef _WIN32
+  #include <windows.h>
+  #define LIBRARY_DIR "."
+#else
+  #include <dlfcn.h>
+#endif
 
 
 storage_t storage_new(sm_t sm) {
@@ -114,7 +119,7 @@ st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
         log_debug(ZONE, "driver not loaded, trying to init");
 
         log_write(st->sm->log, LOG_INFO, "loading '%s' storage module", driver);
-#ifndef WIN32
+#ifndef _WIN32
         if (modules_path != NULL)
             snprintf(mod_fullpath, PATH_MAX, "%s/storage_%s.so", modules_path, driver);
         else
@@ -129,13 +134,13 @@ st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
             snprintf(mod_fullpath, PATH_MAX, "storage_%s.dll", driver);
         handle = (void*) LoadLibrary(mod_fullpath);
         if (handle != NULL)
-            init_fn = GetProcAddress((HMODULE) handle, "st_init");
+            init_fn = (st_driver_init_fn)GetProcAddress((HMODULE) handle, "st_init");
 #endif
     
         if (handle != NULL && init_fn != NULL) {
             log_debug(ZONE, "preloaded module '%s' (not initialized yet)", driver);
         } else {
-#ifndef WIN32
+#ifndef _WIN32
             log_write(st->sm->log, LOG_ERR, "failed loading storage module '%s' (%s)", driver, dlerror());
             if (handle != NULL)
                 dlclose(handle);
