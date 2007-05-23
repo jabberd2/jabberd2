@@ -75,10 +75,11 @@ pkt_t amp_build_response_pkt(pkt_t pkt, amp_rule_t rule) {
     if (!pkt || !rule) return NULL;
     
     if (rule->result == AMP_TRIGGERED) {
+        int ns;
         pkt_t res = pkt_create(pkt->sm, "message", NULL, jid_full(pkt->from), jid_full(pkt->to));
         pkt_id(pkt, res);
     
-        int ns = nad_add_namespace(res->nad, uri_AMP, NULL);
+        ns = nad_add_namespace(res->nad, uri_AMP, NULL);
         nad_append_elem(res->nad, ns, "amp", 2);
         nad_append_attr(res->nad, -1, "status", rule->action);
         nad_append_attr(res->nad, -1, "from", jid_full(pkt->from));
@@ -117,6 +118,8 @@ static mod_ret_t _amp_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 static mod_ret_t _amp_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     mod_amp_config_t config = (mod_amp_config_t) mi->mod->private;
     int ns, elem, attr;
+    amp_rule_t rule, rule_c;
+	int errormode = 0;
 
     /* only handle messages */
     if (pkt->type != pkt_MESSAGE)
@@ -131,8 +134,6 @@ static mod_ret_t _amp_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
         return mod_PASS;
 
     /* loop for rules */
-    amp_rule_t rule, rule_c;
-	int errormode = 0;
     rule = malloc(sizeof(struct amp_rule_st));
 	memset(rule, 0, sizeof(struct amp_rule_st));
     rule_c = rule;
@@ -234,8 +235,9 @@ static mod_ret_t _amp_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
             if ((attr = nad_find_attr(pkt->nad, elem, -1, "value", NULL)) < 0)
 				rule_c->result = AMP_INVALID_VALUE;
 			else {
+				time_t stamp;
 				rule_c->value = strndup(NAD_AVAL(pkt->nad, attr), NAD_AVAL_L(pkt->nad, attr));
-				time_t stamp = datetime_in(rule_c->value);
+				stamp = datetime_in(rule_c->value);
 				if (stamp < 0)
 					rule_c->result = AMP_INVALID_VALUE;
 				else if (stamp < time(NULL)) /* expired! */

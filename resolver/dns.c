@@ -329,7 +329,11 @@ static void *_aaaa_rr(DNS_AAAA_DATA *data) {
 #endif
 
     for(i = 0; i < 4; i++)
+#ifdef _WIN32
+        ((DWORD *)&sa6.sin6_addr)[i] = data->Ip6Address.IP6Dword[i];
+#else
         sa6.sin6_addr.s6_addr32[i] = data->Ip6Address.IP6Dword[i];
+#endif
 
     j_inet_ntop((struct sockaddr_storage *) &sa6, addr, sizeof(addr));
 

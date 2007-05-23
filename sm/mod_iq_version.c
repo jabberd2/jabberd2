@@ -40,7 +40,7 @@ static mod_ret_t _iq_version_pkt_sm(mod_instance_t mi, pkt_t pkt) {
 #if defined(HAVE_UNAME)
     struct utsname un;
 
-#elif defined(WIN32)
+#elif defined(_WIN32)
     char sysname[64];
     char release[64];
     char version[64];
@@ -67,7 +67,7 @@ static mod_ret_t _iq_version_pkt_sm(mod_instance_t mi, pkt_t pkt) {
         snprintf(buf, 256, "%s %s", un.sysname, un.machine);
         nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "os", buf);
     }
-#elif defined(WIN32)
+#elif defined(_WIN32)
     ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
     osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
     if( !(bOsVersionInfoEx = GetVersionEx ((OSVERSIONINFO *) &osvi)) )
