@@ -596,7 +596,7 @@ static void _st_mysql_free(st_driver_t drv) {
     free(data);
 }
 
-st_ret_t st_init(st_driver_t drv) {
+DLLEXPORT st_ret_t st_init(st_driver_t drv) {
     char *host, *port, *dbname, *user, *pass;
     MYSQL *conn;
     drvdata_t data;

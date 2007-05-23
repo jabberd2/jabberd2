@@ -614,7 +614,7 @@ static void _st_sqlite_free (st_driver_t drv) {
     free (data);
 }
 
-st_ret_t st_init(st_driver_t drv) {
+DLLEXPORT st_ret_t st_init(st_driver_t drv) {
 
     char *dbname;
     sqlite3 *db;

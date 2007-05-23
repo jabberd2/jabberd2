@@ -336,9 +336,9 @@ _ar_sqlite_delete_user(authreg_t ar, char *username, char *realm)
 static void
 _ar_sqlite_free(authreg_t ar)
 {
-    log_debug(ZONE, "sqlite (authreg): free");
-    
     moddata_t data = (moddata_t) ar->private;
+
+    log_debug(ZONE, "sqlite (authreg): free");
 
     sqlite3_finalize(data->user_exists_stmt);
     sqlite3_finalize(data->get_password_stmt);
@@ -354,7 +354,7 @@ _ar_sqlite_free(authreg_t ar)
     free(data);
 }
 
-int
+DLLEXPORT int
 ar_init(authreg_t ar)
 {
 
@@ -362,11 +362,10 @@ ar_init(authreg_t ar)
     sqlite3 *db;
     moddata_t data;
     char *busy_timeout;
+    char *dbname = config_get_one(ar->c2s->config, "authreg.sqlite.dbname", 0);
 
     log_debug(ZONE, "sqlite (authreg): start init");
 
-    char *dbname =
-	config_get_one(ar->c2s->config, "authreg.sqlite.dbname", 0);
     if (dbname == NULL) {
 	log_write(ar->c2s->log, LOG_ERR,
 		  "sqlite (authreg): invalid driver config.");

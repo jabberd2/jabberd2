@@ -38,7 +38,7 @@ static int _ar_anon_check_password(authreg_t ar, char *username, char *realm, ch
 }
 
 /** start me up */
-int ar_init(authreg_t ar)
+DLLEXPORT int ar_init(authreg_t ar)
 {
     ar->user_exists = _ar_anon_user_exists;
     ar->check_password = _ar_anon_check_password;
