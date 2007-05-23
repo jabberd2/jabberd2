@@ -46,10 +46,17 @@
   #include <sys/stat.h>
 #endif
 
-#ifdef _MSC_VER
-  #define DLLEXPORT    __declspec(dllexport)
+#ifdef _WIN32
+  #ifdef _USRDLL
+    #define DLLEXPORT  __declspec(dllexport)
+    #define SM_API     __declspec(dllimport)
+  #else
+    #define DLLEXPORT  __declspec(dllimport)
+    #define SM_API     __declspec(dllexport)
+  #endif
 #else
   #define DLLEXPORT
+  #define SM_API
 #endif
 
 /* forward declarations */
@@ -283,56 +290,56 @@ struct sess_st {
 extern sig_atomic_t sm_lost_router;
 
 /* functions */
-xht             aci_load(sm_t sm);
-int             aci_check(xht acls, char *type, jid_t jid);
-void            aci_unload(xht acls);
+SM_API xht             aci_load(sm_t sm);
+SM_API int             aci_check(xht acls, char *type, jid_t jid);
+SM_API void            aci_unload(xht acls);
 
-int             sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg);
-int             sm_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
-void            sm_timestamp(time_t t, char timestamp[18]);
-void            sm_c2s_action(sess_t dest, char *action, char *target);
-void            sm_signature(sm_t sm, char *str);
+SM_API int             sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg);
+SM_API int             sm_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
+SM_API void            sm_timestamp(time_t t, char timestamp[18]);
+SM_API void            sm_c2s_action(sess_t dest, char *action, char *target);
+SM_API void            sm_signature(sm_t sm, char *str);
 
-int             sm_register_ns(sm_t sm, char *uri);
-void            sm_unregister_ns(sm_t sm, char *uri);
-int             sm_get_ns(sm_t sm, char *uri);
+SM_API int             sm_register_ns(sm_t sm, char *uri);
+SM_API void            sm_unregister_ns(sm_t sm, char *uri);
+SM_API int             sm_get_ns(sm_t sm, char *uri);
 
-void            dispatch(sm_t sm, pkt_t pkt);
+SM_API void            dispatch(sm_t sm, pkt_t pkt);
 
-pkt_t           pkt_error(pkt_t pkt, int err);
-pkt_t           pkt_tofrom(pkt_t pkt);
-pkt_t           pkt_dup(pkt_t pkt, const char *to, const char *from);
-pkt_t           pkt_new(sm_t sm, nad_t nad);
-void            pkt_free(pkt_t pkt);
-pkt_t           pkt_create(sm_t sm, const char *elem, const char *type, const char *to, const char *from);
-void            pkt_id(pkt_t src, pkt_t dest);
-void            pkt_id_new(pkt_t pkt);
-void            pkt_delay(pkt_t pkt, time_t t, const char *from);
+SM_API pkt_t           pkt_error(pkt_t pkt, int err);
+SM_API pkt_t           pkt_tofrom(pkt_t pkt);
+SM_API pkt_t           pkt_dup(pkt_t pkt, const char *to, const char *from);
+SM_API pkt_t           pkt_new(sm_t sm, nad_t nad);
+SM_API void            pkt_free(pkt_t pkt);
+SM_API pkt_t           pkt_create(sm_t sm, const char *elem, const char *type, const char *to, const char *from);
+SM_API void            pkt_id(pkt_t src, pkt_t dest);
+SM_API void            pkt_id_new(pkt_t pkt);
+SM_API void            pkt_delay(pkt_t pkt, time_t t, const char *from);
 
-void            pkt_router(pkt_t pkt);
-void            pkt_sess(pkt_t pkt, sess_t sess);
+SM_API void            pkt_router(pkt_t pkt);
+SM_API void            pkt_sess(pkt_t pkt, sess_t sess);
 
-int             pres_trust(user_t user, jid_t jid);
-void            pres_roster(sess_t sess, item_t item);
-void            pres_update(sess_t sess, pkt_t pres);
-void            pres_error(sess_t sess, jid_t jid);
-void            pres_deliver(sess_t sess, pkt_t pres);
-void            pres_in(user_t user, pkt_t pres);
-void            pres_probe(user_t user);
+SM_API int             pres_trust(user_t user, jid_t jid);
+SM_API void            pres_roster(sess_t sess, item_t item);
+SM_API void            pres_update(sess_t sess, pkt_t pres);
+SM_API void            pres_error(sess_t sess, jid_t jid);
+SM_API void            pres_deliver(sess_t sess, pkt_t pres);
+SM_API void            pres_in(user_t user, pkt_t pres);
+SM_API void            pres_probe(user_t user);
 
-void            sess_route(sess_t sess, pkt_t pkt);
-sess_t          sess_start(sm_t sm, jid_t jid);
-void            sess_end(sess_t sess);
-sess_t          sess_match(user_t user, char *resource);
-sess_t          sess_match_exact(user_t user, char *resource);
+SM_API void            sess_route(sess_t sess, pkt_t pkt);
+SM_API sess_t          sess_start(sm_t sm, jid_t jid);
+SM_API void            sess_end(sess_t sess);
+SM_API sess_t          sess_match(user_t user, char *resource);
+SM_API sess_t          sess_match_exact(user_t user, char *resource);
 
-user_t          user_load(sm_t sm, jid_t jid);
-void            user_free(user_t user);
-int             user_create(sm_t sm, jid_t jid);
-void            user_delete(sm_t sm, jid_t jid);
+SM_API user_t          user_load(sm_t sm, jid_t jid);
+SM_API void            user_free(user_t user);
+SM_API int             user_create(sm_t sm, jid_t jid);
+SM_API void            user_delete(sm_t sm, jid_t jid);
 
-void            feature_register(sm_t sm, char *feature);
-void            feature_unregister(sm_t sm, char *feature);
+SM_API void            feature_register(sm_t sm, char *feature);
+SM_API void            feature_unregister(sm_t sm, char *feature);
 
 
 /* driver module manager */
@@ -450,40 +457,40 @@ struct mod_instance_st {
 };
 
 /** allocate a module manager instance, and loads the modules */
-mm_t                    mm_new(sm_t sm);
+SM_API mm_t                    mm_new(sm_t sm);
 /** free a mm instance */
-void                    mm_free(mm_t mm);
+SM_API void                    mm_free(mm_t mm);
 
 /** fire sess-start chain */
-int                     mm_sess_start(mm_t mm, sess_t sess);
+SM_API int                     mm_sess_start(mm_t mm, sess_t sess);
 /** fire sess-end chain */
-void                    mm_sess_end(mm_t mm, sess_t sess);
+SM_API void                    mm_sess_end(mm_t mm, sess_t sess);
 
 /** fire in-sess chain */
-mod_ret_t               mm_in_sess(mm_t mm, sess_t sess, pkt_t pkt);
+SM_API mod_ret_t               mm_in_sess(mm_t mm, sess_t sess, pkt_t pkt);
 /** fire in-router chain */
-mod_ret_t               mm_in_router(mm_t mm, pkt_t pkt);
+SM_API mod_ret_t               mm_in_router(mm_t mm, pkt_t pkt);
 
 /** fire out-sess chain */
-mod_ret_t               mm_out_sess(mm_t mm, sess_t sess, pkt_t pkt);
+SM_API mod_ret_t               mm_out_sess(mm_t mm, sess_t sess, pkt_t pkt);
 /** fire out-router chain */
-mod_ret_t               mm_out_router(mm_t mm, pkt_t pkt);
+SM_API mod_ret_t               mm_out_router(mm_t mm, pkt_t pkt);
 
 /** fire pkt-sm chain */
-mod_ret_t               mm_pkt_sm(mm_t mm, pkt_t pkt);
+SM_API mod_ret_t               mm_pkt_sm(mm_t mm, pkt_t pkt);
 /** fire pkt-user chain */
-mod_ret_t               mm_pkt_user(mm_t mm, user_t user, pkt_t pkt);
+SM_API mod_ret_t               mm_pkt_user(mm_t mm, user_t user, pkt_t pkt);
 
 /** fire pkt-router chain */
-mod_ret_t               mm_pkt_router(mm_t mm, pkt_t pkt);
+SM_API mod_ret_t               mm_pkt_router(mm_t mm, pkt_t pkt);
 
 /** fire user-load chain */
-int                     mm_user_load(mm_t mm, user_t user);
+SM_API int                     mm_user_load(mm_t mm, user_t user);
 
 /** fire user-create chain */
-int                     mm_user_create(mm_t mm, jid_t jid);
+SM_API int                     mm_user_create(mm_t mm, jid_t jid);
 /** fire user-delete chain */
-void                    mm_user_delete(mm_t mm, jid_t jid);
+SM_API void                    mm_user_delete(mm_t mm, jid_t jid);
 
 
 /* object sets */
@@ -532,49 +539,49 @@ struct os_object_st {
 };
 
 /** create a new object set */
-os_t        os_new(void);
+SM_API os_t        os_new(void);
 /** free an object set */
-void        os_free(os_t os);
+SM_API void        os_free(os_t os);
 
 /** number of objects in a set */
-int         os_count(os_t os);
+SM_API int         os_count(os_t os);
 
 /** set iterator to first object (1 = exists, 0 = doesn't exist) */
-int         os_iter_first(os_t os);
+SM_API int         os_iter_first(os_t os);
 
 /** set iterator to next object (1 = exists, 0 = doesn't exist) */
-int         os_iter_next(os_t os);
+SM_API int         os_iter_next(os_t os);
 
 /** get the object currently under the iterator */
-os_object_t os_iter_object(os_t os);
+SM_API os_object_t os_iter_object(os_t os);
 
 /** create a new object in this set */
-os_object_t os_object_new(os_t os);
+SM_API os_object_t os_object_new(os_t os);
 /** free an object (remove it from its set) */
-void        os_object_free(os_object_t o);
+SM_API void        os_object_free(os_object_t o);
 
 /** add a field to the object */
-void        os_object_put(os_object_t o, const char *key, const void *val, os_type_t type);
+SM_API void        os_object_put(os_object_t o, const char *key, const void *val, os_type_t type);
 
 /** get a field from the object of type type (result in val), ret 0 == not found */
-int         os_object_get(os_t os, os_object_t o, const char *key, void **val, os_type_t type, os_type_t *ot);
+SM_API int         os_object_get(os_t os, os_object_t o, const char *key, void **val, os_type_t type, os_type_t *ot);
 
 /** wrappers for os_object_get to avoid breaking strict-aliasing rules in gcc3 */
-int         os_object_get_nad(os_t os, os_object_t o, const char *key, nad_t *val);
-int         os_object_get_str(os_t os, os_object_t o, const char *key, char **val);
-int         os_object_get_int(os_t os, os_object_t o, const char *key, int *val);
-int         os_object_get_bool(os_t os, os_object_t o, const char *key, int *val);
-int         os_object_get_time(os_t os, os_object_t o, const char *key, time_t *val);
+SM_API int         os_object_get_nad(os_t os, os_object_t o, const char *key, nad_t *val);
+SM_API int         os_object_get_str(os_t os, os_object_t o, const char *key, char **val);
+SM_API int         os_object_get_int(os_t os, os_object_t o, const char *key, int *val);
+SM_API int         os_object_get_bool(os_t os, os_object_t o, const char *key, int *val);
+SM_API int         os_object_get_time(os_t os, os_object_t o, const char *key, time_t *val);
 
 /** wrappers for os_object_put to avoid breaking strict-aliasing rules in gcc3 */
-void        os_object_put_time(os_object_t o, const char *key, const time_t *val);
+SM_API void        os_object_put_time(os_object_t o, const char *key, const time_t *val);
 
 /** set field iterator to first field (1 = exists, 0 = doesn't exist) */
-int         os_object_iter_first(os_object_t o);
+SM_API int         os_object_iter_first(os_object_t o);
 /** set field iterator to next field (1 = exists, 0 = doesn't exist) */
-int         os_object_iter_next(os_object_t o);
+SM_API int         os_object_iter_next(os_object_t o);
 /** extract field values from field currently under the iterator */
-void        os_object_iter_get(os_object_t o, char **key, void **val, os_type_t *type);
+SM_API void        os_object_iter_get(os_object_t o, char **key, void **val, os_type_t *type);
 
 
 /* storage manager */
@@ -627,23 +634,23 @@ struct st_driver_st {
 };
 
 /** allocate a storage manager instance */
-storage_t       storage_new(sm_t sm);
+SM_API storage_t       storage_new(sm_t sm);
 /** free a storage manager instance */
-void            storage_free(storage_t st);
+SM_API void            storage_free(storage_t st);
 
 /** associate this data type with this driver */
-st_ret_t        storage_add_type(storage_t st, const char *driver, const char *type);
+SM_API st_ret_t        storage_add_type(storage_t st, const char *driver, const char *type);
 
 /** store objects in this set */
-st_ret_t        storage_put(storage_t st, const char *type, const char *owner, os_t os);
+SM_API st_ret_t        storage_put(storage_t st, const char *type, const char *owner, os_t os);
 /** get objects matching this filter */
-st_ret_t        storage_get(storage_t st, const char *type, const char *owner, const char *filter, os_t *os);
+SM_API st_ret_t        storage_get(storage_t st, const char *type, const char *owner, const char *filter, os_t *os);
 /** count objects matching this filter */
-st_ret_t        storage_count(storage_t st, const char *type, const char *owner, const char *filter, int *count);
+SM_API st_ret_t        storage_count(storage_t st, const char *type, const char *owner, const char *filter, int *count);
 /** delete objects matching this filter */
-st_ret_t        storage_delete(storage_t st, const char *type, const char *owner, const char *filter);
+SM_API st_ret_t        storage_delete(storage_t st, const char *type, const char *owner, const char *filter);
 /** replace objects matching this filter with objects in this set (atomic delete + get) */
-st_ret_t        storage_replace(storage_t st, const char *type, const char *owner, const char *filter, os_t os);
+SM_API st_ret_t        storage_replace(storage_t st, const char *type, const char *owner, const char *filter, os_t os);
 
 /** type for the driver init function */
 typedef st_ret_t (*st_driver_init_fn)(st_driver_t);
@@ -673,7 +680,7 @@ struct st_filter_st {
 };
 
 /** create a filter abstraction from a LDAP-like filter string */
-st_filter_t     storage_filter(const char *filter);
+SM_API st_filter_t     storage_filter(const char *filter);
 
 /** see if the object matches the filter */
-int             storage_match(st_filter_t filter, os_object_t o, os_t os);
+SM_API int             storage_match(st_filter_t filter, os_object_t o, os_t os);
