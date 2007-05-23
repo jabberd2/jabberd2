@@ -394,7 +394,7 @@ if test "x-$want_gsasl" = "x-yes" ; then
     if test "x-$ac_cv_lib_gsasl_gsasl_check_version" = "x-yes" ; then
         AC_MSG_CHECKING(for GnuSASL version >= 0.2.14)
         AC_RUN_IFELSE([AC_LANG_PROGRAM([[#include <gsasl.h>]],
-                                       [[return !(stringprep_check_version("0.2.14"))]])],
+                                       [[return !(gsasl_check_version("0.2.14"))]])],
                       [AC_MSG_RESULT(yes)
                         have_gsasl=yes],
                       AC_MSG_RESULT(no))
