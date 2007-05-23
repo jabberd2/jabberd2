@@ -27,13 +27,26 @@
 # include <config.h>
 #endif
 
+/* jabberd2 Windows DLL */
+#ifndef JABBERD2_API
+# ifdef _WIN32
+#  ifdef JABBERD2_EXPORTS
+#   define JABBERD2_API  __declspec(dllexport)
+#  else /* JABBERD2_EXPORTS */
+#   define JABBERD2_API  __declspec(dllimport)
+#  endif /* JABBERD2_EXPORTS */
+# else /* _WIN32 */
+#  define JABBERD2_API extern
+# endif /* _WIN32 */
+#endif /* JABBERD2_API */
+
 #if !defined(HAVE_SNPRINTF) || defined(HAVE_BROKEN_SNPRINTF)
-  extern int ap_snprintf(char *, size_t, const char *, ...);
+  JABBERD2_API int ap_snprintf(char *, size_t, const char *, ...);
 # define snprintf ap_snprintf
 #endif
 
 #if !defined(HAVE_VSNPRINTF) || defined(HAVE_BROKEN_VSNPRINTF)
-  extern int ap_vsnprintf(char *, size_t, const char *, va_list ap);
+  JABBERD2_API int ap_vsnprintf(char *, size_t, const char *, va_list ap);
 # define vsnprintf ap_vsnprintf
 #endif
 
@@ -58,7 +71,7 @@ struct timezone {
     int tz_dsttime;
 };
 
-extern int gettimeofday(struct timeval *tp, struct timezone *tz);
+JABBERD2_API int gettimeofday(struct timeval *tp, struct timezone *tz);
 #endif
 
 #ifdef HAVE_WINSOCK2_H
@@ -71,13 +84,13 @@ extern int gettimeofday(struct timeval *tp, struct timezone *tz);
 #endif
 
 #ifndef HAVE_INET_ATON
-extern int inet_aton(const char *cp, struct in_addr *addr);
+JABBERD2_API int inet_aton(const char *cp, struct in_addr *addr);
 #endif
 #ifndef HAVE_INET_NTOP
-extern const char *inet_ntop(int af, const void *src, char *dst, size_t size);
+JABBERD2_API const char *inet_ntop(int af, const void *src, char *dst, size_t size);
 #endif
 #ifndef HAVE_INET_PTON
-extern int inet_pton(int af, const char *src, void *dst);
+JABBERD2_API int inet_pton(int af, const char *src, void *dst);
 #endif
 
 #ifndef HAVE_IN_PORT_T
@@ -86,6 +99,14 @@ typedef uint16_t in_port_t;
 
 #ifdef HAVE__MKDIR
 # define mkdir(a,b) _mkdir(a)
+#endif
+
+#ifndef HAVE_STRNDUP
+JABBERD2_API char *strndup(char *str, size_t len);
+#endif
+
+#ifndef HAVE_TIMEGM
+JABBERD2_API time_t timegm (struct tm *tm);
 #endif
 
 #endif

@@ -21,6 +21,19 @@
 # include "config.h"
 #endif
 
+/* jabberd2 Windows DLL */
+#ifndef JABBERD2_API
+# ifdef _WIN32
+#  ifdef JABBERD2_EXPORTS
+#   define JABBERD2_API  __declspec(dllexport)
+#  else /* JABBERD2_EXPORTS */
+#   define JABBERD2_API  __declspec(dllimport)
+#  endif /* JABBERD2_EXPORTS */
+# else /* _WIN32 */
+#  define JABBERD2_API extern
+# endif /* _WIN32 */
+#endif /* JABBERD2_API */
+
 #ifndef HAVE_SYSLOG_H
 
 #ifndef _SYSLOG_H
@@ -57,13 +70,13 @@
 #define LOG_INFO        6       /* informational */
 #define LOG_DEBUG       7       /* debug-level messages */
 
-void
+JABBERD2_API void
 syslog(int level, const char *fmt, ...);
 
-void
+JABBERD2_API void
 openlog(const char *, int, ...);
 
-void
+JABBERD2_API void
 closelog(void);
 
 #endif

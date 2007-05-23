@@ -42,7 +42,12 @@
 # include "config.h"
 #endif
 
-#if !defined(HAVE_INET_ATON) && defined(WIN32)
+#if !defined(HAVE_INET_ATON) && defined(_WIN32)
+#ifdef JABBERD2_EXPORTS
+# define JABBERD2_API  __declspec(dllexport)
+#else /* JABBERD2_EXPORTS */
+# define JABBERD2_API  __declspec(dllimport)
+#endif /* JABBERD2_EXPORTS */
 
 #include "ac-stdint.h"
 
@@ -55,7 +60,7 @@
 #define INADDR_NONE 0xffffffff
 #endif
 
-int
+JABBERD2_API int
 inet_aton(const char *cp, struct in_addr *addr)
 {
   addr->s_addr = inet_addr(cp);

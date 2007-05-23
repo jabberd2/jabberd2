@@ -5,6 +5,19 @@
 # include "config.h"
 #endif
 
+/* jabberd2 Windows DLL */
+#ifndef JABBERD2_API
+# ifdef _WIN32
+#  ifdef JABBERD2_EXPORTS
+#   define JABBERD2_API  __declspec(dllexport)
+#  else /* JABBERD2_EXPORTS */
+#   define JABBERD2_API  __declspec(dllimport)
+#  endif /* JABBERD2_EXPORTS */
+# else /* _WIN32 */
+#  define JABBERD2_API extern
+# endif /* _WIN32 */
+#endif /* JABBERD2_API */
+
 #if !defined(HAVE_DIRENT_H) && !defined(HAVE_NDIR_H) && !defined(HAVE_SYS_DIR_H) && !defined(HAVE_SYS_NDIR_H)
 #ifdef HAVE__FINDFIRST
 
@@ -32,10 +45,10 @@ struct dirent
     char *d_name;
 };
 
-DIR           *opendir(const char *);
-int           closedir(DIR *);
-struct dirent *readdir(DIR *);
-void          rewinddir(DIR *);
+JABBERD2_API DIR           *opendir(const char *);
+JABBERD2_API int           closedir(DIR *);
+JABBERD2_API struct dirent *readdir(DIR *);
+JABBERD2_API void          rewinddir(DIR *);
 
 /*
 

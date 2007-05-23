@@ -57,6 +57,19 @@
 
 #if !defined(HAVE_SNPRINTF) || defined(HAVE_BROKEN_SNPRINTF) || !defined(HAVE_VSNPRINTF) || defined(HAVE_BROKEN_VSNPRINTF)
 
+/* jabberd2 Windows DLL */
+#ifndef JABBERD2_API
+# ifdef _WIN32
+#  ifdef JABBERD2_EXPORTS
+#   define JABBERD2_API  __declspec(dllexport)
+#  else /* JABBERD2_EXPORTS */
+#   define JABBERD2_API  __declspec(dllimport)
+#  endif /* JABBERD2_EXPORTS */
+# else /* _WIN32 */
+#  define JABBERD2_API extern
+# endif /* _WIN32 */
+#endif /* JABBERD2_API */
+
 #include <stdio.h>
 #include <ctype.h>
 #include <sys/types.h>
@@ -938,7 +951,7 @@ static void strx_printv(int *ccp, char *buf, size_t len, const char *format,
 }
 
 
-int ap_snprintf(char *buf, size_t len, const char *format,...)
+JABBERD2_API int ap_snprintf(char *buf, size_t len, const char *format,...)
 {
     int cc;
     va_list ap;
@@ -950,7 +963,7 @@ int ap_snprintf(char *buf, size_t len, const char *format,...)
 }
 
 
-int ap_vsnprintf(char *buf, size_t len, const char *format, va_list ap)
+JABBERD2_API int ap_vsnprintf(char *buf, size_t len, const char *format, va_list ap)
 {
     int cc;
 

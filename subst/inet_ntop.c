@@ -2,7 +2,12 @@
 # include "config.h"
 #endif
 
-#if !defined(HAVE_INET_NTOP) && defined(WIN32)
+#if !defined(HAVE_INET_NTOP) && defined(_WIN32)
+#ifdef JABBERD2_EXPORTS
+# define JABBERD2_API  __declspec(dllexport)
+#else /* JABBERD2_EXPORTS */
+# define JABBERD2_API  __declspec(dllimport)
+#endif /* JABBERD2_EXPORTS */
 
 #include "ac-stdint.h"
 
@@ -50,7 +55,7 @@ inet_ntop_v4 (const void *src, char *dst, size_t size)
     return orig_dst;
 }
 
-const char *
+JABBERD2_API const char *
 inet_ntop(int af, const void *src, char *dst, size_t size)
 {
     switch (af) {

@@ -50,7 +50,7 @@
    program understand `configure --with-gnu-libc' and omit the object files,
    it is simpler to just do this in the source for each such file.  */
 
-#if defined (_LIBC) || !defined (__GNU_LIBRARY__)
+#if defined (_LIBC) || !defined (__GNU_LIBRARY__) || defined(_WIN32)
 
 
 /* This needs to come after some library #include
@@ -625,7 +625,7 @@ int getopt(int argc, char *const *argv, const char *optstring)
 
 int getopt_long(int argc, char *const *argv, const char *options, const struct option long_options, int *opt_index)
 {
-	return _getopt_internal(argc, argv, options, long_options, opt_index, 0);
+	return _getopt_internal(argc, argv, options, &long_options, opt_index, 0);
 }
 
 #endif				/* _LIBC or not __GNU_LIBRARY__.  */
