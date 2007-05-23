@@ -25,6 +25,24 @@
 
 #include "util/inaddr.h"
 
+/* win32 wrappers around strerror */
+#ifdef _WIN32
+#define close(x) closesocket(x)
+#ifdef MIO_DEBUG
+char *ws_strerror(int code)
+{
+    static char buff[128];
+    int len;
+    if(FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
+                NULL, WSAGetLastError(), 0, buff,
+                sizeof(buff), NULL))
+        return buff;
+    return strerror(code);
+}
+#define strerror(x) ws_strerror(x)
+#endif
+#endif /* _WIN32 */
+
 /** our internal wrapper around a fd */
 typedef enum { 
     type_CLOSED = 0x00, 
@@ -391,7 +409,11 @@ static mio_fd_t _mio_connect(mio_t m, int port, char *hostip, mio_handler_t app,
     }
 
     /* gotta wait till later */
+#ifdef _WIN32
+    if(flag == -1 && WSAGetLastError() == WSAEWOULDBLOCK)
+#else
     if(flag == -1 && errno == EINPROGRESS)
+#endif
     {
         mio_fd = _mio_setup_fd(m,fd,app,arg);
         if(mio_fd != NULL)
@@ -430,6 +452,13 @@ static mio_t _mio_new(int maxfd)
         _mio_run
     };
     mio_t m;
+
+    /* init winsock if we are in Windows */
+#ifdef _WIN32
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD( 1, 1 ), &wsaData))
+        return NULL;
+#endif
 
     /* allocate and zero out main memory */
     if((m = malloc(sizeof(struct mio_priv_st))) == NULL) return NULL;

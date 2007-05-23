@@ -33,11 +33,13 @@
             m->fds[fd].mio_fd.fd = fd;                                  \
         }                                                               \
         m->highfd = 0;                                                  \
+        m->lowfd = m->maxfd;                                            \
     }                                                                   \
                                                                         \
     static mio_fd_t _mio_alloc_fd(mio_priv_t m, int fd)                 \
     {                                                                   \
         if(fd > m->highfd) m->highfd = fd;                              \
+        if(fd < m->lowfd) m->lowfd = fd;                                \
         return &m->fds[fd].mio_fd;                                      \
     }                                                                   \
                                                                         \
@@ -50,13 +52,14 @@
                                                                         \
         tv.tv_sec = t;                                                  \
         tv.tv_usec = 0;                                                 \
-        return select(m->highfd + 1, &m->rfds_out, &m->wfds_out, NULL, &tv); \
+        return select(m->highfd + 1, &m->rfds_out, &m->wfds_out, &m->wfds_out, &tv); \
     }
 
 #define MIO_FD_VARS
 
 #define MIO_VARS \
     struct mio_priv_fd_st *fds;                                         \
+    int lowfd;                                                          \
     int highfd;                                                         \
     fd_set rfds_in, wfds_in, rfds_out, wfds_out;
 
@@ -105,7 +108,7 @@
     int iter
 
 #define MIO_ITERATE_RESULTS(m, retval, iter) \
-    for(iter = 0; iter <= MIO(m)->highfd; iter++)
+    for(iter = MIO(m)->lowfd; iter <= MIO(m)->highfd; iter++)
 
 #define MIO_ITERATOR_FD(m, iter) \
     (&MIO(m)->fds[iter].mio_fd)
