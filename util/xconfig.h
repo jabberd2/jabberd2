@@ -49,11 +49,11 @@ struct xconfig_elem_st {
     char                ***attrs;
 };
 
-extern xconfig_t        xconfig_new(pool_t p);
-extern int              xconfig_load(xconfig_t c, char *file);
-extern xconfig_elem_t   xconfig_get(xconfig_t c, char *key);
-extern char             *xconfig_get_one(xconfig_t c, char *key, int num);
-extern int              xconfig_count(xconfig_t c, char *key);
-extern char             *xconfig_get_attr(xconfig_t c, char *key, int num, char *attr);
+JABBERD2_API xconfig_t        xconfig_new(pool_t p);
+JABBERD2_API int              xconfig_load(xconfig_t c, char *file);
+JABBERD2_API xconfig_elem_t   xconfig_get(xconfig_t c, char *key);
+JABBERD2_API char             *xconfig_get_one(xconfig_t c, char *key, int num);
+JABBERD2_API int              xconfig_count(xconfig_t c, char *key);
+JABBERD2_API char             *xconfig_get_attr(xconfig_t c, char *key, int num, char *attr);
 
 #endif

@@ -47,12 +47,12 @@ typedef enum {
 /* opaque decl */
 typedef struct _log_st *log_t;
 
-extern log_t    log_new(pool_t p, log_type_t type, char *ident, char *facility);
-extern void     log_write(log_t log, int level, const char *msgfmt, ...);
+JABBERD2_API log_t    log_new(pool_t p, log_type_t type, char *ident, char *facility);
+JABBERD2_API void     log_write(log_t log, int level, const char *msgfmt, ...);
 
 /* debug logging */
 #ifdef DEBUG
-extern int      log_debug_flag;
+JABBERD2_API int      log_debug_flag;
 void            __log_debug(char *file, int line, char *subsys, const char *msgfmt, ...);
 
 # define        log_debug_get_flag()    log_debug_flag

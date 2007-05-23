@@ -20,6 +20,8 @@
 
 /* simple hex conversion functions */
 
+#include "util.h"
+
 /** turn raw into hex - out must be (inlen*2)+1 */
 void hex_from_raw(char *in, int inlen, char *out) {
     int i, h, l;

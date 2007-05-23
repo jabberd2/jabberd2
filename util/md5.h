@@ -52,6 +52,19 @@
 
 #include "util.h"
 
+/* jabberd2 Windows DLL */
+#ifndef JABBERD2_API
+# ifdef _WIN32
+#  ifdef JABBERD2_EXPORTS
+#   define JABBERD2_API  __declspec(dllexport)
+#  else /* JABBERD2_EXPORTS */
+#   define JABBERD2_API  __declspec(dllimport)
+#  endif /* JABBERD2_EXPORTS */
+# else /* _WIN32 */
+#  define JABBERD2_API extern
+# endif /* _WIN32 */
+#endif /* JABBERD2_API */
+
 /*
  * This package supports both compile-time and run-time determination of CPU
  * byte order.  If ARCH_IS_BIG_ENDIAN is defined as 0, the code will be
@@ -78,13 +91,13 @@ extern "C"
 #endif
 
 /* Initialize the algorithm. */
-void md5_init(md5_state_t *pms);
+JABBERD2_API void md5_init(md5_state_t *pms);
 
 /* Append a string to the message. */
-void md5_append(md5_state_t *pms, const md5_byte_t *data, int nbytes);
+JABBERD2_API void md5_append(md5_state_t *pms, const md5_byte_t *data, int nbytes);
 
 /* Finish the message and return the digest. */
-void md5_finish(md5_state_t *pms, md5_byte_t digest[16]);
+JABBERD2_API void md5_finish(md5_state_t *pms, md5_byte_t digest[16]);
 
 #ifdef __cplusplus
 }  /* end extern "C" */

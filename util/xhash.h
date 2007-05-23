@@ -38,21 +38,21 @@ typedef struct _xhash_st *xhash_t;
 
 typedef void (*xhash_walker_t)(xhash_t h, const char *key, void *val, void *arg);
 
-xhash_t xhash_new(pool_t p, int prime);
-void    xhash_free(xhash_t h);
-pool_t  xhash_pool(xhash_t h);
-void    xhash_put(xhash_t h, const char *key, void *val);
-void    xhash_putx(xhash_t h, const char *key, int len, void *val);
-void    *xhash_get(xhash_t h, const char *key);
-void    *xhash_getx(xhash_t h, const char *key, int len);
-void    xhash_zap(xhash_t h, const char *key);
-void    xhash_zapx(xhash_t h, const char *key, int len);
-void    xhash_walk(xhash_t h, xhash_walker_t fn, void *arg);
-int     xhash_dirty(xhash_t h);
-int     xhash_count(xhash_t h);
-int     xhash_iter_first(xhash_t h);
-int     xhash_iter_next(xhash_t h);
-void    xhash_iter_zap(xhash_t h);
-void    xhash_iter_get(xhash_t h, const char **key, void **val);
+JABBERD2_API xhash_t xhash_new(pool_t p, int prime);
+JABBERD2_API void    xhash_free(xhash_t h);
+JABBERD2_API pool_t  xhash_pool(xhash_t h);
+JABBERD2_API void    xhash_put(xhash_t h, const char *key, void *val);
+JABBERD2_API void    xhash_putx(xhash_t h, const char *key, int len, void *val);
+JABBERD2_API void    *xhash_get(xhash_t h, const char *key);
+JABBERD2_API void    *xhash_getx(xhash_t h, const char *key, int len);
+JABBERD2_API void    xhash_zap(xhash_t h, const char *key);
+JABBERD2_API void    xhash_zapx(xhash_t h, const char *key, int len);
+JABBERD2_API void    xhash_walk(xhash_t h, xhash_walker_t fn, void *arg);
+JABBERD2_API int     xhash_dirty(xhash_t h);
+JABBERD2_API int     xhash_count(xhash_t h);
+JABBERD2_API int     xhash_iter_first(xhash_t h);
+JABBERD2_API int     xhash_iter_next(xhash_t h);
+JABBERD2_API void    xhash_iter_zap(xhash_t h);
+JABBERD2_API void    xhash_iter_get(xhash_t h, const char **key, void **val);
 
 #endif

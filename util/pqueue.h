@@ -33,9 +33,9 @@
 /* opaque decl */
 typedef struct _pqueue_st   *pqueue_t;
 
-pqueue_t    pqueue_new(pool_t p);
-void        pqueue_push(pqueue_t q, void *data, int pri);
-void        *pqueue_pull(pqueue_t q);
-int         pqueue_size(pqueue_t q);
+JABBERD2_API pqueue_t    pqueue_new(pool_t p);
+JABBERD2_API void        pqueue_push(pqueue_t q, void *data, int pri);
+JABBERD2_API void        *pqueue_pull(pqueue_t q);
+JABBERD2_API int         pqueue_size(pqueue_t q);
 
 #endif

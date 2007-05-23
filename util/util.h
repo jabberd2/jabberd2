@@ -79,6 +79,19 @@
 #ifndef INCL_UTIL_H
 #define INCL_UTIL_H
 
+/* jabberd2 Windows DLL */
+#ifndef JABBERD2_API
+# ifdef _WIN32
+#  ifdef JABBERD2_EXPORTS
+#   define JABBERD2_API  __declspec(dllexport)
+#  else /* JABBERD2_EXPORTS */
+#   define JABBERD2_API  __declspec(dllimport)
+#  endif /* JABBERD2_EXPORTS */
+# else /* _WIN32 */
+#  define JABBERD2_API extern
+# endif /* _WIN32 */
+#endif /* JABBERD2_API */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -141,17 +154,17 @@ typedef struct pool_struct
 #define pool_new() _pool_new(NULL,0)
 #endif
 
-pool _pool_new(char *zone, int line); /* new pool :) */
-pool _pool_new_heap(int size, char *zone, int line); /* creates a new memory pool with an initial heap size */
-void *pmalloc(pool p, int size); /* wrapper around malloc, takes from the pool, cleaned up automatically */
-void *pmalloc_x(pool p, int size, char c); /* Wrapper around pmalloc which prefils buffer with c */
-void *pmalloco(pool p, int size); /* YAPW for zeroing the block */
-char *pstrdup(pool p, const char *src); /* wrapper around strdup, gains mem from pool */
-void pool_stat(int full); /* print to stderr the changed pools and reset */
-char *pstrdupx(pool p, const char *src, int len); /* use given len */
-void pool_cleanup(pool p, pool_cleaner f, void *arg); /* calls f(arg) before the pool is freed during cleanup */
-void pool_free(pool p); /* calls the cleanup functions, frees all the data on the pool, and deletes the pool itself */
-int pool_size(pool p); /* returns total bytes allocated in this pool */
+JABBERD2_API pool _pool_new(char *zone, int line); /* new pool :) */
+JABBERD2_API pool _pool_new_heap(int size, char *zone, int line); /* creates a new memory pool with an initial heap size */
+JABBERD2_API void *pmalloc(pool p, int size); /* wrapper around malloc, takes from the pool, cleaned up automatically */
+JABBERD2_API void *pmalloc_x(pool p, int size, char c); /* Wrapper around pmalloc which prefils buffer with c */
+JABBERD2_API void *pmalloco(pool p, int size); /* YAPW for zeroing the block */
+JABBERD2_API char *pstrdup(pool p, const char *src); /* wrapper around strdup, gains mem from pool */
+JABBERD2_API void pool_stat(int full); /* print to stderr the changed pools and reset */
+JABBERD2_API char *pstrdupx(pool p, const char *src, int len); /* use given len */
+JABBERD2_API void pool_cleanup(pool p, pool_cleaner f, void *arg); /* calls f(arg) before the pool is freed during cleanup */
+JABBERD2_API void pool_free(pool p); /* calls the cleanup functions, frees all the data on the pool, and deletes the pool itself */
+JABBERD2_API int pool_size(pool p); /* returns total bytes allocated in this pool */
 
 
 
@@ -161,19 +174,19 @@ int pool_size(pool p); /* returns total bytes allocated in this pool */
 /* String management routines                                */
 /*                                                           */
 /** --------------------------------------------------------- */
-char *j_strdup(const char *str); /* provides NULL safe strdup wrapper */
-char *j_strcat(char *dest, char *txt); /* strcpy() clone */
-int j_strcmp(const char *a, const char *b); /* provides NULL safe strcmp wrapper */
-int j_strcasecmp(const char *a, const char *b); /* provides NULL safe strcasecmp wrapper */
-int j_strncmp(const char *a, const char *b, int i); /* provides NULL safe strncmp wrapper */
-int j_strncasecmp(const char *a, const char *b, int i); /* provides NULL safe strncasecmp wrapper */
-int j_strlen(const char *a); /* provides NULL safe strlen wrapper */
-int j_atoi(const char *a, int def); /* checks for NULL and uses default instead, convienence */
-char *j_attr(const char** atts, const char *attr); /* decode attr's (from expat) */
-char *j_strnchr(const char *s, int c, int n); /* like strchr, but only searches n chars */
+JABBERD2_API char *j_strdup(const char *str); /* provides NULL safe strdup wrapper */
+JABBERD2_API char *j_strcat(char *dest, char *txt); /* strcpy() clone */
+JABBERD2_API int j_strcmp(const char *a, const char *b); /* provides NULL safe strcmp wrapper */
+JABBERD2_API int j_strcasecmp(const char *a, const char *b); /* provides NULL safe strcasecmp wrapper */
+JABBERD2_API int j_strncmp(const char *a, const char *b, int i); /* provides NULL safe strncmp wrapper */
+JABBERD2_API int j_strncasecmp(const char *a, const char *b, int i); /* provides NULL safe strncasecmp wrapper */
+JABBERD2_API int j_strlen(const char *a); /* provides NULL safe strlen wrapper */
+JABBERD2_API int j_atoi(const char *a, int def); /* checks for NULL and uses default instead, convienence */
+JABBERD2_API char *j_attr(const char** atts, const char *attr); /* decode attr's (from expat) */
+JABBERD2_API char *j_strnchr(const char *s, int c, int n); /* like strchr, but only searches n chars */
 
 /** old convenience function, now in str.c */
-void shahash_r(const char* str, char hashbuf[41]);
+JABBERD2_API void shahash_r(const char* str, char hashbuf[41]);
 
 /* --------------------------------------------------------- */
 /*                                                           */
@@ -198,33 +211,33 @@ typedef struct xht_struct
     xhn iter_node;
 } *xht, _xht;
 
-xht xhash_new(int prime);
-void xhash_put(xht h, const char *key, void *val);
-void xhash_putx(xht h, const char *key, int len, void *val);
-void *xhash_get(xht h, const char *key);
-void *xhash_getx(xht h, const char *key, int len);
-void xhash_zap(xht h, const char *key);
-void xhash_zapx(xht h, const char *key, int len);
-void xhash_free(xht h);
+JABBERD2_API xht xhash_new(int prime);
+JABBERD2_API void xhash_put(xht h, const char *key, void *val);
+JABBERD2_API void xhash_putx(xht h, const char *key, int len, void *val);
+JABBERD2_API void *xhash_get(xht h, const char *key);
+JABBERD2_API void *xhash_getx(xht h, const char *key, int len);
+JABBERD2_API void xhash_zap(xht h, const char *key);
+JABBERD2_API void xhash_zapx(xht h, const char *key, int len);
+JABBERD2_API void xhash_free(xht h);
 typedef void (*xhash_walker)(xht h, const char *key, void *val, void *arg);
-void xhash_walk(xht h, xhash_walker w, void *arg);
-int xhash_dirty(xht h);
-int xhash_count(xht h);
-pool xhash_pool(xht h);
+JABBERD2_API void xhash_walk(xht h, xhash_walker w, void *arg);
+JABBERD2_API int xhash_dirty(xht h);
+JABBERD2_API int xhash_count(xht h);
+JABBERD2_API pool xhash_pool(xht h);
 
 /* iteration functions */
-int xhash_iter_first(xht h);
-int xhash_iter_next(xht h);
-void xhash_iter_zap(xht h);
-int xhash_iter_get(xht h, const char **key, void **val);
+JABBERD2_API int xhash_iter_first(xht h);
+JABBERD2_API int xhash_iter_next(xht h);
+JABBERD2_API void xhash_iter_zap(xht h);
+JABBERD2_API int xhash_iter_get(xht h, const char **key, void **val);
 
 /* --------------------------------------------------------- */
 /*                                                           */
 /* XML escaping utils                                        */
 /*                                                           */
 /* --------------------------------------------------------- */
-char *strescape(pool p, char *buf, int len); /* Escape <>&'" chars */
-char *strunescape(pool p, char *buf);
+JABBERD2_API char *strescape(pool p, char *buf, int len); /* Escape <>&'" chars */
+JABBERD2_API char *strunescape(pool p, char *buf);
 
 
 /* --------------------------------------------------------- */
@@ -246,12 +259,12 @@ typedef struct spool_struct
     struct spool_node *first;
 } *spool;
 
-spool spool_new(pool p); /* create a string pool */
-void spooler(spool s, ...); /* append all the char * args to the pool, terminate args with s again */
-char *spool_print(spool s); /* return a big string */
-void spool_add(spool s, char *str); /* add a single string to the pool */
-void spool_escape(spool s, char *raw, int len); /* add and xml escape a single string to the pool */
-char *spools(pool p, ...); /* wrap all the spooler stuff in one function, the happy fun ball! */
+JABBERD2_API spool spool_new(pool p); /* create a string pool */
+JABBERD2_API void spooler(spool s, ...); /* append all the char * args to the pool, terminate args with s again */
+JABBERD2_API char *spool_print(spool s); /* return a big string */
+JABBERD2_API void spool_add(spool s, char *str); /* add a single string to the pool */
+JABBERD2_API void spool_escape(spool s, char *raw, int len); /* add and xml escape a single string to the pool */
+JABBERD2_API char *spools(pool p, ...); /* wrap all the spooler stuff in one function, the happy fun ball! */
 
 
 /* known namespace uri */
@@ -289,14 +302,14 @@ typedef struct prep_cache_st {
     xht             resource;
 } *prep_cache_t;
 
-prep_cache_t    prep_cache_new(void);
-void            prep_cache_free(prep_cache_t pc);
-char            *prep_cache_node_get(prep_cache_t pc, char *from);
-void            prep_cache_node_set(prep_cache_t pc, char *from, char *to);
-char            *prep_cache_domain_get(prep_cache_t pc, char *from);
-void            prep_cache_domain_set(prep_cache_t pc, char *from, char *to);
-char            *prep_cache_resource_get(prep_cache_t pc, char *from);
-void            prep_cache_resource_set(prep_cache_t pc, char *from, char *to);
+JABBERD2_API prep_cache_t    prep_cache_new(void);
+JABBERD2_API void            prep_cache_free(prep_cache_t pc);
+JABBERD2_API char            *prep_cache_node_get(prep_cache_t pc, char *from);
+JABBERD2_API void            prep_cache_node_set(prep_cache_t pc, char *from, char *to);
+JABBERD2_API char            *prep_cache_domain_get(prep_cache_t pc, char *from);
+JABBERD2_API void            prep_cache_domain_set(prep_cache_t pc, char *from, char *to);
+JABBERD2_API char            *prep_cache_resource_get(prep_cache_t pc, char *from);
+JABBERD2_API void            prep_cache_resource_set(prep_cache_t pc, char *from, char *to);
 
 /** these sizings come from xmpp-core */
 #define MAXLEN_JID_COMP  1023    /* XMPP (RFC3920) 3.1 */
@@ -343,51 +356,51 @@ typedef enum {
 typedef char jid_static_buf[3*1025];
 
 /** make a new jid, and call jid_reset() to populate it */
-jid_t               jid_new(prep_cache_t pc, const unsigned char *id, int len);
+JABBERD2_API jid_t               jid_new(prep_cache_t pc, const unsigned char *id, int len);
 
 /** Make jid to use static buffer (jid data won't be allocated dynamically, but
  * given buffer will be always used. */
-void                jid_static(jid_t jid, jid_static_buf *buf);
+JABBERD2_API void                jid_static(jid_t jid, jid_static_buf *buf);
 
 /** clear and populate the jid with the given id. if id == NULL, just clears the jid to 0 */
-jid_t               jid_reset(jid_t jid, const unsigned char *id, int len);
-jid_t               jid_reset_components(jid_t jid, const unsigned char *node, const unsigned char *domain, const unsigned char *resource);
+JABBERD2_API jid_t               jid_reset(jid_t jid, const unsigned char *id, int len);
+JABBERD2_API jid_t               jid_reset_components(jid_t jid, const unsigned char *node, const unsigned char *domain, const unsigned char *resource);
 
 /** free the jid */
-void                jid_free(jid_t jid);
+JABBERD2_API void                jid_free(jid_t jid);
 
 /** do string preparation on a jid */
-int                 jid_prep(jid_t jid);
+JABBERD2_API int                 jid_prep(jid_t jid);
 
 /** fill jid's resource with a random string **/
-void                jid_random_part(jid_t jid, jid_part_t part);
+JABBERD2_API void                jid_random_part(jid_t jid, jid_part_t part);
 
 /** expands user and full if the dirty flag is set */
-void                jid_expand(jid_t jid);
+JABBERD2_API void                jid_expand(jid_t jid);
 
 /** return the user or full jid. these call jid_expand to make sure the user and
  * full jid are up to date */
-const unsigned char *jid_user(jid_t jid);
-const unsigned char *jid_full(jid_t jid);
+JABBERD2_API const unsigned char *jid_user(jid_t jid);
+JABBERD2_API const unsigned char *jid_full(jid_t jid);
 
 /** compare two user or full jids. these call jid_expand, then strcmp. returns
  * 0 if they're the same, < 0 if a < b, > 0 if a > b */
-int                 jid_compare_user(jid_t a, jid_t b);
-int                 jid_compare_full(jid_t a, jid_t b);
+JABBERD2_API int                 jid_compare_user(jid_t a, jid_t b);
+JABBERD2_API int                 jid_compare_full(jid_t a, jid_t b);
 
 /** duplicate a jid */
-jid_t               jid_dup(jid_t jid);
+JABBERD2_API jid_t               jid_dup(jid_t jid);
 
 /** list helpers */
 
 /** see if a jid is present in a list */
-int                 jid_search(jid_t list, jid_t jid);
+JABBERD2_API int                 jid_search(jid_t list, jid_t jid);
 
 /** remove a jid from a list, and return the new list */
-jid_t               jid_zap(jid_t list, jid_t jid);
+JABBERD2_API jid_t               jid_zap(jid_t list, jid_t jid);
 
 /** insert of a copy of jid into list, avoiding dups */
-jid_t               jid_append(jid_t list, jid_t jid);
+JABBERD2_API jid_t               jid_append(jid_t list, jid_t jid);
 
 
 /* logging */
@@ -410,9 +423,9 @@ typedef struct log_facility_st
     int         number;
 } log_facility_t;
 
-extern log_t    log_new(log_type_t type, const char *ident, const char *facility);
-extern void     log_write(log_t log, int level, const char *msgfmt, ...);
-extern void     log_free(log_t log);
+JABBERD2_API log_t    log_new(log_type_t type, const char *ident, const char *facility);
+JABBERD2_API void     log_write(log_t log, int level, const char *msgfmt, ...);
+JABBERD2_API void     log_free(log_t log);
 
 
 /* Not A DOM */
@@ -479,69 +492,71 @@ typedef struct nad_st
 } *nad_t;
 
 /** create a new cache for nads */
-nad_cache_t nad_cache_new(void);
+JABBERD2_API nad_cache_t nad_cache_new(void);
 
 /** free the cache */
-void nad_cache_free(nad_cache_t cache);
+JABBERD2_API void nad_cache_free(nad_cache_t cache);
 
 /** create a new nad */
-nad_t nad_new(nad_cache_t cache);
+JABBERD2_API nad_t nad_new(nad_cache_t cache);
 
 /** copy a nad */
-nad_t nad_copy(nad_t nad);
+JABBERD2_API nad_t nad_copy(nad_t nad);
 
 /** free that nad */
-void nad_free(nad_t nad);
+JABBERD2_API void nad_free(nad_t nad);
 
 /** find the next element with this name/depth */
 /** 0 for siblings, 1 for children and so on */
-int nad_find_elem(nad_t nad, int elem, int ns, const char *name, int depth);
+JABBERD2_API int nad_find_elem(nad_t nad, int elem, int ns, const char *name, int depth);
 
 /** find the first matching attribute (and optionally value) */
-int nad_find_attr(nad_t nad, int elem, int ns, const char *name, const char *val);
+JABBERD2_API int nad_find_attr(nad_t nad, int elem, int ns, const char *name, const char *val);
 
 /** find the first matching namespace (and optionally prefix) */
-int nad_find_namespace(nad_t nad, int elem, const char *uri, const char *prefix);
+JABBERD2_API int nad_find_namespace(nad_t nad, int elem, const char *uri, const char *prefix);
 
 /** find a namespace in scope (and optionally prefix) */
-int nad_find_scoped_namespace(nad_t nad, const char *uri, const char *prefix);
+JABBERD2_API int nad_find_scoped_namespace(nad_t nad, const char *uri, const char *prefix);
 
 /** reset or store the given attribute */
-void nad_set_attr(nad_t nad, int elem, int ns, const char *name, const char *val, int vallen);
+JABBERD2_API void nad_set_attr(nad_t nad, int elem, int ns, const char *name, const char *val, int vallen);
 
 /** insert and return a new element as a child of this one */
-int nad_insert_elem(nad_t nad, int elem, int ns, const char *name, const char *cdata);
+JABBERD2_API int nad_insert_elem(nad_t nad, int elem, int ns, const char *name, const char *cdata);
 
 /** remove an element (and its subelements) */
-void nad_drop_elem(nad_t nad, int elem);
+JABBERD2_API void nad_drop_elem(nad_t nad, int elem);
 
 /** wrap an element with another element */
-void nad_wrap_elem(nad_t nad, int elem, int ns, const char *name);
+JABBERD2_API void nad_wrap_elem(nad_t nad, int elem, int ns, const char *name);
 
 /** append and return a new element */
-int nad_append_elem(nad_t nad, int ns, const char *name, int depth);
+JABBERD2_API int nad_append_elem(nad_t nad, int ns, const char *name, int depth);
 
 /** append attribs to the last element */
-int nad_append_attr(nad_t nad, int ns, const char *name, const char *val);
+JABBERD2_API int nad_append_attr(nad_t nad, int ns, const char *name, const char *val);
 
 /** append more cdata to the last element */
-void nad_append_cdata(nad_t nad, const char *cdata, int len, int depth);
+JABBERD2_API void nad_append_cdata(nad_t nad, const char *cdata, int len, int depth);
 
 /** add a namespace to the next element (ie, called when the namespace comes into scope) */
-int nad_add_namespace(nad_t nad, const char *uri, const char *prefix);
+JABBERD2_API int nad_add_namespace(nad_t nad, const char *uri, const char *prefix);
 
 /** declare a namespace on an already existing element */
-int nad_append_namespace(nad_t nad, int elem, const char *uri, const char *prefix);
+JABBERD2_API int nad_append_namespace(nad_t nad, int elem, const char *uri, const char *prefix);
 
 /** create a string representation of the given element (and children), point references to it */
-void nad_print(nad_t nad, int elem, char **xml, int *len);
+JABBERD2_API void nad_print(nad_t nad, int elem, char **xml, int *len);
 
 /** serialize and deserialize a nad */
-void nad_serialize(nad_t nad, char **buf, int *len);
-nad_t nad_deserialize(nad_cache_t cache, const char *buf);
+JABBERD2_API void nad_serialize(nad_t nad, char **buf, int *len);
+JABBERD2_API nad_t nad_deserialize(nad_cache_t cache, const char *buf);
 
 /** create a nad from raw xml */
-nad_t nad_parse(nad_cache_t cache, const char *buf, int len);
+JABBERD2_API nad_t nad_parse(nad_cache_t cache, const char *buf, int len);
+
+JABBERD2_API int nad_find_elem_path(nad_t nad, int elem, int ns, const char *name);
 
 /* these are some helpful macros */
 #define NAD_ENAME(N,E) (N->cdata + N->elems[E].iname)
@@ -581,13 +596,13 @@ struct config_elem_st
     char                ***attrs;
 };
 
-extern config_t         config_new(void);
-extern int              config_load(config_t c, const char *file);
-extern config_elem_t    config_get(config_t c, const char *key);
-extern char             *config_get_one(config_t c, const char *key, int num);
-extern int              config_count(config_t c, const char *key);
-extern char             *config_get_attr(config_t c, const char *key, int num, const char *attr);
-extern void             config_free(config_t);
+JABBERD2_API config_t         config_new(void);
+JABBERD2_API int              config_load(config_t c, const char *file);
+JABBERD2_API config_elem_t    config_get(config_t c, const char *key);
+JABBERD2_API char             *config_get_one(config_t c, const char *key, int num);
+JABBERD2_API int              config_count(config_t c, const char *key);
+JABBERD2_API char             *config_get_attr(config_t c, const char *key, int num, const char *attr);
+JABBERD2_API void             config_free(config_t);
 
 
 /*
@@ -611,11 +626,11 @@ typedef struct access_st
     int             ndeny;
 } *access_t;
 
-access_t    access_new(int order);
-void        access_free(access_t access);
-int         access_allow(access_t access, char *ip, char *mask);
-int         access_deny(access_t access, char *ip, char *mask);
-int         access_check(access_t access, char *ip);
+JABBERD2_API access_t    access_new(int order);
+JABBERD2_API void        access_free(access_t access);
+JABBERD2_API int         access_allow(access_t access, char *ip, char *mask);
+JABBERD2_API int         access_deny(access_t access, char *ip, char *mask);
+JABBERD2_API int         access_check(access_t access, char *ip);
 
 
 /*
@@ -634,12 +649,12 @@ typedef struct rate_st
     time_t          bad;        /* time we went bad, or 0 if we're not */
 } *rate_t;
 
-rate_t      rate_new(int total, int seconds, int wait);
-void        rate_free(rate_t rt);
-void        rate_reset(rate_t rt);
-void        rate_add(rate_t rt, int count);
-int         rate_left(rate_t rt);
-int         rate_check(rate_t rt);          /* 1 == good, 0 == bad */
+JABBERD2_API rate_t      rate_new(int total, int seconds, int wait);
+JABBERD2_API void        rate_free(rate_t rt);
+JABBERD2_API void        rate_reset(rate_t rt);
+JABBERD2_API void        rate_add(rate_t rt, int count);
+JABBERD2_API int         rate_left(rate_t rt);
+JABBERD2_API int         rate_check(rate_t rt);          /* 1 == good, 0 == bad */
 
 /*
  * helpers for ip addresses
@@ -651,10 +666,10 @@ int         rate_check(rate_t rt);          /* 1 == good, 0 == bad */
  * serialisation helper functions
  */
 
-int         ser_string_get(char **dest, int *source, const char *buf, int len);
-int         ser_int_get(int *dest, int *source, const char *buf, int len);
-void        ser_string_set(char *source, int *dest, char **buf, int *len);
-void        ser_int_set(int source, int *dest, char **buf, int *len);
+JABBERD2_API int         ser_string_get(char **dest, int *source, const char *buf, int len);
+JABBERD2_API int         ser_int_get(int *dest, int *source, const char *buf, int len);
+JABBERD2_API void        ser_string_set(char *source, int *dest, char **buf, int *len);
+JABBERD2_API void        ser_int_set(int source, int *dest, char **buf, int *len);
 
 /*
  * priority queues
@@ -680,11 +695,11 @@ typedef struct _jqueue_st {
     int             size;
 } *jqueue_t;
 
-jqueue_t    jqueue_new(void);
-void        jqueue_free(jqueue_t q);
-void        jqueue_push(jqueue_t q, void *data, int pri);
-void        *jqueue_pull(jqueue_t q);
-int         jqueue_size(jqueue_t q);
+JABBERD2_API jqueue_t    jqueue_new(void);
+JABBERD2_API void        jqueue_free(jqueue_t q);
+JABBERD2_API void        jqueue_push(jqueue_t q, void *data, int pri);
+JABBERD2_API void        *jqueue_pull(jqueue_t q);
+JABBERD2_API int         jqueue_size(jqueue_t q);
 
 
 /* ISO 8601 / JEP-0082 date/time manipulation */
@@ -695,21 +710,21 @@ typedef enum {
     dt_LEGACY   = 4
 } datetime_t;
 
-time_t  datetime_in(char *date);
-void    datetime_out(time_t t, datetime_t type, char *date, int datelen);
+JABBERD2_API time_t  datetime_in(char *date);
+JABBERD2_API void    datetime_out(time_t t, datetime_t type, char *date, int datelen);
 
 
 /* base64 functions */
-extern int ap_base64decode_len(const char *bufcoded, int buflen);
-extern int ap_base64decode(char *bufplain, const char *bufcoded, int buflen);
-extern int ap_base64decode_binary(unsigned char *bufplain, const char *bufcoded, int buflen);
-extern int ap_base64encode_len(int len);
-extern int ap_base64encode(char *encoded, const char *string, int len);
-extern int ap_base64encode_binary(char *encoded, const unsigned char *string, int len);
+JABBERD2_API int ap_base64decode_len(const char *bufcoded, int buflen);
+JABBERD2_API int ap_base64decode(char *bufplain, const char *bufcoded, int buflen);
+JABBERD2_API int ap_base64decode_binary(unsigned char *bufplain, const char *bufcoded, int buflen);
+JABBERD2_API int ap_base64encode_len(int len);
+JABBERD2_API int ap_base64encode(char *encoded, const char *string, int len);
+JABBERD2_API int ap_base64encode_binary(char *encoded, const unsigned char *string, int len);
 
 /* convenience, result string must be free()'d by caller */
-extern char *b64_encode(char *buf, int len);
-extern char *b64_decode(char *buf);
+JABBERD2_API char *b64_encode(char *buf, int len);
+JABBERD2_API char *b64_decode(char *buf);
 
 
 /* stanza manipulation */
@@ -737,8 +752,8 @@ extern char *b64_decode(char *buf);
 #define stanza_err_OLD_UNAUTH               (121)
 #define stanza_err_LAST                     (122)
 
-extern nad_t stanza_error(nad_t nad, int elem, int err);
-extern nad_t stanza_tofrom(nad_t nad, int elem);
+JABBERD2_API nad_t stanza_error(nad_t nad, int elem, int err);
+JABBERD2_API nad_t stanza_tofrom(nad_t nad, int elem);
 
 typedef struct _stanza_error_st {
     const char  *name;
@@ -775,8 +790,8 @@ static struct _stanza_error_st _stanza_errors[] = {
 
 
 /* hex conversion utils */
-void hex_from_raw(char *in, int inlen, char *out);
-int hex_to_raw(char *in, int inlen, char *out);
+JABBERD2_API void hex_from_raw(char *in, int inlen, char *out);
+JABBERD2_API int hex_to_raw(char *in, int inlen, char *out);
 
 
 /* xdata in a seperate file */
@@ -784,9 +799,9 @@ int hex_to_raw(char *in, int inlen, char *out);
 
 
 /* debug logging */
-int get_debug_flag(void);
-void set_debug_flag(int v);
-void debug_log(const char *file, int line, const char *msgfmt, ...);
+JABBERD2_API int get_debug_flag(void);
+JABBERD2_API void set_debug_flag(int v);
+JABBERD2_API void debug_log(const char *file, int line, const char *msgfmt, ...);
 #define ZONE __FILE__,__LINE__
 #define MAX_DEBUG 8192
 
@@ -799,7 +814,18 @@ void debug_log(const char *file, int line, const char *msgfmt, ...);
 
 /* Portable signal function */
 typedef void jsighandler_t(int);
-jsighandler_t* jabber_signal(int signo,  jsighandler_t *func);
+JABBERD2_API jsighandler_t* jabber_signal(int signo,  jsighandler_t *func);
+
+#ifdef _WIN32
+/* Windows service wrapper function */
+typedef int (jmainhandler_t)(int argc, char** argv);
+JABBERD2_API int jabber_wrap_service(int argc, char** argv, jmainhandler_t *wrapper, LPCTSTR name, LPCTSTR display);
+#define JABBER_MAIN(name, display) jabber_main(int argc, char** argv); \
+                    main(int argc, char** argv) { return jabber_wrap_service(argc, argv, jabber_main, name, display); } \
+                    jabber_main(int argc, char** argv)
+#else /* _WIN32 */
+#define JABBER_MAIN(name, display) main(int argc, char** argv)
+#endif /* _WIN32 */
 
 #ifdef __cplusplus
 }

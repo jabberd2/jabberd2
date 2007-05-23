@@ -40,7 +40,7 @@
 /* opaque decl */
 typedef struct _prep_cache_st   *prep_cache_t;
 
-prep_cache_t    prep_cache_new(pool_t p);
+JABBERD2_API prep_cache_t    prep_cache_new(pool_t p);
 
 /** these sizings come from xmpp-core */
 typedef struct _jid_st {
@@ -70,16 +70,16 @@ typedef struct _jid_st {
 } *jid_t;
 
 /** make a new jid, and call jid_reset() to populate it */
-jid_t               jid_new(pool_t p, prep_cache_t pc, const unsigned char *id, int len);
+JABBERD2_API jid_t               jid_new(pool_t p, prep_cache_t pc, const unsigned char *id, int len);
 
 /** clear and populate the jid with the given id. if id == NULL, just clears the jid to 0 */
-jid_t               jid_reset(jid_t jid, const unsigned char *id, int len);
+JABBERD2_API jid_t               jid_reset(jid_t jid, const unsigned char *id, int len);
 
 /** do string preparation on a jid */
-int                 jid_prep(jid_t jid);
+JABBERD2_API int                 jid_prep(jid_t jid);
 
 /** expands user and full if the dirty flag is set */
-void                jid_expand(jid_t jid);
+JABBERD2_API void                jid_expand(jid_t jid);
 
 /** return the user or full jid. these call jid_expand to make sure the user and
  * full jid are up to date */
@@ -88,22 +88,22 @@ const unsigned char *jid_full(jid_t jid);
 
 /** compare two user or full jids. these call jid_expand, then strcmp. returns
  * 0 if they're the same, < 0 if a < b, > 0 if a > b */
-int                 jid_compare_user(jid_t a, jid_t b);
-int                 jid_compare_full(jid_t a, jid_t b);
+JABBERD2_API int                 jid_compare_user(jid_t a, jid_t b);
+JABBERD2_API int                 jid_compare_full(jid_t a, jid_t b);
 
 /** duplicate a jid */
-jid_t               jid_dup(jid_t jid, pool_t p);
+JABBERD2_API jid_t               jid_dup(jid_t jid, pool_t p);
 
 /** list helpers */
 
 /** see if a jid is present in a list */
-int                 jid_search(jid_t list, jid_t jid);
+JABBERD2_API int                 jid_search(jid_t list, jid_t jid);
 
 /** remove a jid from a list, and return the new list */
-jid_t               jid_zap(jid_t list, jid_t jid);
+JABBERD2_API jid_t               jid_zap(jid_t list, jid_t jid);
 
 /** insert of a copy of jid into list, avoiding dups */
-jid_t               jid_append(jid_t list, jid_t jid);
+JABBERD2_API jid_t               jid_append(jid_t list, jid_t jid);
 
 
 #endif
