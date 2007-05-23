@@ -37,7 +37,7 @@ extern "C" {
 #define SX_SSL_MAGIC        (0x01)
 
 /** init function */
-int                         sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args);
+JABBERD2_API int                         sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args);
 
 /* flags for client/server init */
 #define SX_SSL_WRAPPER          (1<<0)
@@ -45,7 +45,7 @@ int                         sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list arg
 #define SX_SSL_STARTTLS_REQUIRE (1<<2)
 
 /** trigger for client starttls */
-int                         sx_ssl_client_starttls(sx_plugin_t p, sx_t s, char *pemfile);
+JABBERD2_API int                         sx_ssl_client_starttls(sx_plugin_t p, sx_t s, char *pemfile);
 
 /** error code */
 #define SX_ERR_SSL              (0x010)

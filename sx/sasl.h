@@ -37,7 +37,7 @@ extern "C" {
 #endif
 
 /** init function */
-int                         sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args);
+JABBERD2_API int                         sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args);
 
 /** server init flag, don't offer sasl without this */
 #define SX_SASL_OFFER       (1<<3)
@@ -58,7 +58,7 @@ typedef int                 (*sx_sasl_callback_t)(int cb, void *arg, void **res,
 #define sx_sasl_ret_FAIL	    1
 
 /** trigger for client auth */
-int                         sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, char *pass);
+JABBERD2_API int                         sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, char *pass);
 
 /* for passing auth data to callback */
 typedef struct sx_sasl_creds_st {
