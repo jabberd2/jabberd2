@@ -28,9 +28,15 @@
 #ifdef HEADER_MD5_H
 #  define MD5_H
 #endif
-#include <sasl/sasl.h>
-#include <sasl/saslutil.h>
-#include <sasl/saslplug.h>
+#ifdef _WIN32
+# include <sasl.h>
+# include <saslutil.h>
+# include <saslplug.h>
+#else /* _WIN32 */
+# include <sasl/sasl.h>
+# include <sasl/saslutil.h>
+# include <sasl/saslplug.h>
+#endif /* _WIN32 */
 
 /** our context */
 typedef struct _sx_sasl_st {
@@ -73,6 +79,30 @@ static int _sx_sasl_getopt(void * glob_context,
     }
     return SASL_FAIL;
 }
+
+#ifdef _WIN32
+/* This handles returning library path on Windows to current directory.
+ */
+#include <windows.h>
+static int _sx_sasl_getpath(void *glob_context, const char **path_dest) {
+    static char win32_path[MAX_PATH] = "\0";
+
+    if(!path_dest) {
+        return SASL_BADPARAM;
+    }
+
+    if(!*win32_path) {
+        char *r;
+        GetModuleFileName(NULL, win32_path, MAX_PATH - 5);
+        if(!*win32_path || !(r = strrchr(win32_path, '\\')))
+            return SASL_NOMEM;
+        strcpy(r + 1, "sasl");
+    }
+
+    *path_dest = win32_path;
+    return SASL_OK;
+}
+#endif /* _WIN32 */
 
 /* Support auxprop so that we can use the standard Jabber authreg plugins
  * with SASL mechanisms requiring passwords 
@@ -952,11 +982,23 @@ int sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args) {
     
     _sx_auxprop_plugin.glob_context = (void *) ctx;
 
+#ifdef _WIN32
+    ctx->saslcallbacks = calloc(sizeof(sasl_callback_t), 3);
+#else
     ctx->saslcallbacks = calloc(sizeof(sasl_callback_t), 2);
+#endif
     ctx->saslcallbacks[0].id = SASL_CB_GETOPT;
     ctx->saslcallbacks[0].proc = &_sx_sasl_getopt;
     ctx->saslcallbacks[0].context = NULL;
+#ifdef _WIN32
+	ctx->saslcallbacks[1].id = SASL_CB_GETPATH;
+    ctx->saslcallbacks[1].proc = &_sx_sasl_getpath;
+    ctx->saslcallbacks[1].context = NULL;
+
+    ctx->saslcallbacks[2].id = SASL_CB_LIST_END;
+#else
     ctx->saslcallbacks[1].id = SASL_CB_LIST_END;
+#endif
 
     ret = sasl_server_init(ctx->saslcallbacks, appname);
     if(ret != SASL_OK) {
@@ -1020,6 +1062,11 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, c
     int i, ret, buflen, outlen, ns;
     sasl_security_properties_t sec_props;
     nad_t nad;
+#ifdef _WIN32
+    static sasl_callback_t win32_callbacks[2] = {
+        {SASL_CB_GETPATH, &_sx_sasl_getpath, NULL},
+        {SASL_CB_LIST_END, NULL, NULL}};
+#endif
 
     assert((int) (p != NULL));
     assert((int) (s != NULL));
@@ -1032,7 +1079,11 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, c
      }
     
     /* startup */
+#ifdef _WIN32
+    ret = sasl_client_init(win32_callbacks);
+#else
     ret = sasl_client_init(NULL);
+#endif
     if(ret != SASL_OK) {
         _sx_debug(ZONE, "sasl_client_init() failed (%s), not authing", sasl_errstring(ret, NULL, NULL));
         return 1;
