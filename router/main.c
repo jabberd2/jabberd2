@@ -427,6 +427,7 @@ int main(int argc, char **argv)
             r->log = log_new(r->log_type, r->log_ident, r->log_facility);
             log_write(r->log, LOG_NOTICE, "log started");
 
+            log_write(r->log, LOG_NOTICE, "reloading filter ...");
 	    filter_unload(r);
 	    filter_load(r);
 
