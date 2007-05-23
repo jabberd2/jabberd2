@@ -371,7 +371,8 @@ static void _s2s_time_checks(s2s_t s2s) {
     return;
 }
 
-int main(int argc, char **argv) {
+JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S")
+{
     s2s_t s2s;
     char *config_file;
     int optchar;
@@ -513,7 +514,7 @@ int main(int argc, char **argv) {
             
     s2s->sx_db = sx_env_plugin(s2s->sx_env, s2s_db_init);
 
-    s2s->mio = mio_new(1024);
+    s2s->mio = mio_new(MIO_MAXFD);
 
     s2s->retry_left = s2s->retry_init;
     _s2s_router_connect(s2s);

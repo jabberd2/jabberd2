@@ -498,7 +498,7 @@ static int _resolver_router_connect(resolver_t r) {
     return 0;
 }
 
-int main(int argc, char **argv)
+JABBER_MAIN("jabberd2resolver", "Jabber 2 Resolver")
 {
     resolver_t r;
     char *config_file;
@@ -613,7 +613,7 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    r->mio = mio_new(1023);
+    r->mio = mio_new(MIO_MAXFD);
 
     r->retry_left = r->retry_init;
     _resolver_router_connect(r);

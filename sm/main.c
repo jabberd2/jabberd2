@@ -41,12 +41,13 @@ static void _sm_signal(int signum)
 
 static void _sm_signal_hup(int signum)
 {
+    config_t conf;
+
     log_write(sm->log, LOG_NOTICE, "HUP handled. reloading modules...");
 
     sm_logrotate = 1;
 
     /* reload dynamic modules */
-    config_t conf;
     conf = config_new();
     if (conf && config_load(conf, config_file) == 0) {
         config_free(sm->config);
@@ -152,7 +153,8 @@ static int _sm_router_connect(sm_t sm) {
     return 0;
 }
 
-int main(int argc, char **argv) {
+JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager")
+{
     int optchar;
     sess_t sess;
     char id[1024];
@@ -323,7 +325,7 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    sm->mio = mio_new(1024);
+    sm->mio = mio_new(MIO_MAXFD);
 
     sm->retry_left = sm->retry_init;
     _sm_router_connect(sm);

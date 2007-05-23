@@ -272,7 +272,7 @@ static void _router_time_checks(router_t r) {
 }
 
 
-int main(int argc, char **argv)
+JABBER_MAIN("jabberd2router", "Jabber 2 Router")
 {
     router_t r;
     char *config_file;
