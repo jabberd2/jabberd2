@@ -32,7 +32,6 @@
 char *ws_strerror(int code)
 {
     static char buff[128];
-    int len;
     if(FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
                 NULL, WSAGetLastError(), 0, buff,
                 sizeof(buff), NULL))
