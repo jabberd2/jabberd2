@@ -178,7 +178,7 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     return 0;
                 }
 
-                log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] read error: %s (%d)", in->fd->fd, in->ip, in->port, strerror(errno), errno);
+                log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] read error: %s (%d)", in->fd->fd, in->ip, in->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
                 sx_kill(s);
                 
@@ -210,7 +210,7 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)
                 return 0;
 
-            log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] write error: %s (%d)", in->fd->fd, in->ip, in->port, strerror(errno), errno);
+            log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] write error: %s (%d)", in->fd->fd, in->ip, in->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
             sx_kill(s);
 

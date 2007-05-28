@@ -61,7 +61,7 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     return 0;
                 }
 
-                log_write(sm->log, LOG_NOTICE, "[%d] [router] read error: %s (%d)", sm->fd->fd, strerror(errno), errno);
+                log_write(sm->log, LOG_NOTICE, "[%d] [router] read error: %s (%d)", sm->fd->fd, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
                 sx_kill(s);
                 
@@ -93,7 +93,7 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             if (errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)
                 return 0;
 
-            log_write(sm->log, LOG_NOTICE, "[%d] [router] write error: %s (%d)", sm->fd->fd, strerror(errno), errno);
+            log_write(sm->log, LOG_NOTICE, "[%d] [router] write error: %s (%d)", sm->fd->fd, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
             sx_kill(s);
 

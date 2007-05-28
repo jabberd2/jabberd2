@@ -155,7 +155,7 @@ static int _s2s_router_connect(s2s_t s2s) {
     if(s2s->fd == NULL) {
         if(errno == ECONNREFUSED)
             s2s_lost_router = 1;
-        log_write(s2s->log, LOG_NOTICE, "connection attempt to router failed: %s (%d)", strerror(errno), errno);
+        log_write(s2s->log, LOG_NOTICE, "connection attempt to router failed: %s (%d)", MIO_STRERROR(MIO_ERROR), MIO_ERROR);
         return 1;
     }
 

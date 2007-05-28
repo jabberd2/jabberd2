@@ -28,18 +28,13 @@
 /* win32 wrappers around strerror */
 #ifdef _WIN32
 #define close(x) closesocket(x)
-#ifdef MIO_DEBUG
-char *ws_strerror(int code)
+JABBERD2_API char *mio_strerror(int code)
 {
-    static char buff[128];
-    if(FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
-                NULL, WSAGetLastError(), 0, buff,
-                sizeof(buff), NULL))
-        return buff;
-    return strerror(code);
+  static char buff[1024];
+  if(FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, code, 0, buff, sizeof(buff), NULL))
+    return buff;
+  return strerror(code);
 }
-#define strerror(x) ws_strerror(x)
-#endif
 #endif /* _WIN32 */
 
 /** our internal wrapper around a fd */
@@ -219,7 +214,7 @@ static void _mio_run(mio_t m, int timeout)
     /* an error */
     if(retval < 0)
     {
-        mio_debug(ZONE, "MIO_CHECK returned an error (%d)", MIO_ERROR(m));
+        mio_debug(ZONE, "MIO_CHECK returned an error (%d)", MIO_ERROR);
 
         return;
     }
@@ -398,7 +393,7 @@ static mio_fd_t _mio_connect(mio_t m, int port, char *hostip, mio_handler_t app,
     /* try to connect */
     flag = connect(fd,(struct sockaddr*)&sa,j_inet_addrlen(&sa));
 
-    mio_debug(ZONE, "connect returned %d and %s", flag, strerror(errno));
+    mio_debug(ZONE, "connect returned %d and %s", flag, MIO_STRERROR(MIO_ERROR));
 
     /* already connected?  great! */
     if(flag == 0)

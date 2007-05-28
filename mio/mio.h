@@ -155,6 +155,16 @@ JABBERD2_API mio_t mio_new(int maxfd); /* returns NULL if failed */
 /** give some cpu time to mio to check it's sockets, 0 is non-blocking */
 #define mio_run(m, timeout) (*m)->mio_run(m, timeout)
 
+/** all MIO related routines should use those for error reporting */
+#ifndef _WIN32
+# define MIO_ERROR               errno
+# define MIO_STRERROR(errno)     strerror(errno)
+#else /* _WIN32 */
+JABBERD2_API char *mio_strerror(int code);
+# define MIO_ERROR               WSAGetLastError()
+# define MIO_STRERROR(errno)     mio_strerror(errno)
+#endif /* _WIN32 */
+
 #ifdef __cplusplus
 }
 #endif

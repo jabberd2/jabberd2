@@ -112,6 +112,3 @@
 
 #define MIO_ITERATOR_FD(m, iter) \
     (&MIO(m)->fds[iter].mio_fd)
-
-
-#define MIO_ERROR(m)            errno

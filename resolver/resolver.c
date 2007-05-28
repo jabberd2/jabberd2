@@ -150,7 +150,7 @@ static int _resolver_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     return 0;
                 }
 
-                log_write(r->log, LOG_NOTICE, "[%d] [router] read error: %s (%d)", r->fd->fd, strerror(errno), errno);
+                log_write(r->log, LOG_NOTICE, "[%d] [router] read error: %s (%d)", r->fd->fd, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
                 sx_kill(s);
                 
@@ -182,7 +182,7 @@ static int _resolver_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)
                 return 0;
 
-            log_write(r->log, LOG_NOTICE, "[%d] [router] write error: %s (%d)", r->fd->fd, strerror(errno), errno);
+            log_write(r->log, LOG_NOTICE, "[%d] [router] write error: %s (%d)", r->fd->fd, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
             sx_kill(s);
 
@@ -488,7 +488,7 @@ static int _resolver_router_connect(resolver_t r) {
     if(r->fd == NULL) {
         if(errno == ECONNREFUSED)
             resolver_lost_router = 1;
-        log_write(r->log, LOG_NOTICE, "connection attempt to router failed: %s (%d)", strerror(errno), errno);
+        log_write(r->log, LOG_NOTICE, "connection attempt to router failed: %s (%d)", MIO_STRERROR(MIO_ERROR), MIO_ERROR);
         return 1;
     }
 

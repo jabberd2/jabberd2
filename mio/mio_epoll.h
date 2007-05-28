@@ -143,6 +143,3 @@
 
 #define MIO_ITERATOR_FD(m, iter) \
     (MIO(m)->res_event[iter].data.ptr)
-
-
-#define MIO_ERROR(m)            errno

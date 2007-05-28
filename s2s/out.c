@@ -264,7 +264,7 @@ void out_packet(s2s_t s2s, pkt_t pkt) {
         out->fd = mio_connect(s2s->mio, pkt->port, pkt->ip, _out_mio_callback, (void *) out);
 
 	if (out->fd == NULL) {
-            log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] mio_connect error: %s (%d)", -1, out->ip, out->port, strerror(errno), errno);
+            log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] mio_connect error: %s (%d)", -1, out->ip, out->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
             /* bounce queues */
             out_bounce_queue(s2s, pkt->to->domain, stanza_err_SERVICE_UNAVAILABLE);
@@ -561,7 +561,7 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     return 0;
                 }
 
-                log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] read error: %s (%d)", out->fd->fd, out->ip, out->port, strerror(errno), errno);
+                log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] read error: %s (%d)", out->fd->fd, out->ip, out->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
                 sx_kill(s);
                 
@@ -593,7 +593,7 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)
                 return 0;
 
-            log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] write error: %s (%d)", out->fd->fd, out->ip, out->port, strerror(errno), errno);
+            log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] write error: %s (%d)", out->fd->fd, out->ip, out->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
             sx_kill(s);
 
