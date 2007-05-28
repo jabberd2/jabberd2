@@ -41,7 +41,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories=".;../include;../..;../../util"
-				PreprocessorDefinitions="SX_DEBUG;WIN32;_DEBUG;_USRDLL;JABBERD2_EXPORTS;HAVE_CONFIG_H;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE"
+				PreprocessorDefinitions="SX_DEBUG;MIO_DEBUG;MIO_WSASYNC;WIN32;_DEBUG;_USRDLL;JABBERD2_EXPORTS;HAVE_CONFIG_H;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -119,7 +119,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				AdditionalIncludeDirectories=".;../include;../..;../../util"
-				PreprocessorDefinitions="WIN32;NDEBUG;_USRDLL;JABBERD2_EXPORTS;HAVE_CONFIG_H;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE"
+				PreprocessorDefinitions="MIO_WSASYNC;WIN32;NDEBUG;_USRDLL;JABBERD2_EXPORTS;HAVE_CONFIG_H;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE"
 				RuntimeLibrary="2"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
@@ -281,6 +281,10 @@
 				</File>
 				<File
 					RelativePath="..\..\mio\mio_select.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\mio\mio_wsasync.c"
 					>
 				</File>
 			</Filter>
@@ -475,6 +479,10 @@
 				</File>
 				<File
 					RelativePath="..\..\mio\mio_select.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\mio\mio_wsasync.h"
 					>
 				</File>
 			</Filter>
