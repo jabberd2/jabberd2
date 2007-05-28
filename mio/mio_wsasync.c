@@ -1,7 +1,6 @@
 /*
  * jabberd - Jabber Open Source Server
- * Copyright (c) 2002 Jeremie Miller, Thomas Muldowney,
- *                    Ryan Eatmon, Robert Norris, Christof Meerwald
+ * Copyright (c) 2007 Adam Strzelecki
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,34 +29,12 @@
 #include "mio.h"
 
 
-mio_t mio_epoll_new(int maxfd);
-mio_t mio_poll_new(int maxfd);
-mio_t mio_select_new(int maxfd);
-mio_t mio_wsasync_new(int maxfd);
-
-mio_t mio_new(int maxfd)
-{
-  mio_t m = NULL;
-
-#ifdef MIO_EPOLL
-  m = mio_epoll_new(maxfd);
-  if (m != NULL) return m;
-#endif
-
 #ifdef MIO_WSASYNC
-  m = mio_wsasync_new(maxfd);
-  if (m != NULL) return m;
-#endif
+#include "mio_wsasync.h"
+#include "mio_impl.h"
 
-#ifdef MIO_SELECT
-  m = mio_select_new(maxfd);
-  if (m != NULL) return m;
-#endif
-
-#ifdef MIO_POLL
-  m = mio_poll_new(maxfd);
-  if (m != NULL) return m;
-#endif
-
-  return m;
+mio_t mio_wsasync_new(int maxfd)
+{
+  return _mio_new(maxfd);
 }
+#endif
