@@ -18,6 +18,8 @@ SERVICE_STATUS_HANDLE jabber_service_status_handle;
 
 LPCTSTR jabber_service_name = NULL;
 LPCTSTR jabber_service_display = NULL;
+LPCTSTR jabber_service_description = NULL;
+LPCTSTR jabber_service_depends = NULL;
 jmainhandler_t *jabber_service_wrapper = NULL;
 
 void WINAPI jabber_service_main(DWORD argc, LPTSTR *argv);
@@ -57,11 +59,13 @@ BOOL WINAPI jabber_ctrl_handler(DWORD dwCtrlType)
     return TRUE;
 }
 
-int jabber_wrap_service(int argc, char** argv, jmainhandler_t *wrapper, LPCTSTR name, LPCTSTR display)
+int jabber_wrap_service(int argc, char** argv, jmainhandler_t *wrapper, LPCTSTR name, LPCTSTR display, LPCTSTR description, LPCTSTR depends)
 {
     jabber_service_wrapper = wrapper;
     jabber_service_name = name;
     jabber_service_display = display;
+    jabber_service_description = description;
+    jabber_service_depends = depends;
 
     if((argc == 2) && !strcmp(argv[1], "-I"))
     {
@@ -84,7 +88,7 @@ int jabber_wrap_service(int argc, char** argv, jmainhandler_t *wrapper, LPCTSTR 
     if((argc == 2) && !strcmp(argv[1], "-S"))
     {
         TCHAR szPathName[MAX_PATH]; LPTSTR slash = NULL;
-        SERVICE_TABLE_ENTRY DispatchTable[] = {{(LPTSTR)jabber_service_name, jabber_service_main}, {NULL, NULL}};  
+        SERVICE_TABLE_ENTRY DispatchTable[] = {{(LPTSTR)jabber_service_name, jabber_service_main}, {NULL, NULL}};
 
         GetModuleFileName(NULL, szPathName, sizeof(szPathName));
 
@@ -110,23 +114,23 @@ int jabber_wrap_service(int argc, char** argv, jmainhandler_t *wrapper, LPCTSTR 
 
 void WINAPI jabber_service_main(DWORD argc, LPTSTR *argv)
 {
-    jabber_service_status.dwServiceType        = SERVICE_WIN32; 
-    jabber_service_status.dwCurrentState       = SERVICE_START_PENDING; 
-    jabber_service_status.dwControlsAccepted   = SERVICE_ACCEPT_STOP; 
-    jabber_service_status.dwWin32ExitCode      = 0; 
-    jabber_service_status.dwServiceSpecificExitCode = 0; 
-    jabber_service_status.dwCheckPoint         = 0; 
-    jabber_service_status.dwWaitHint           = 0; 
- 
-    jabber_service_status_handle = RegisterServiceCtrlHandler(jabber_service_name, jabber_service_ctrl_handler);  
-    if (jabber_service_status_handle == (SERVICE_STATUS_HANDLE)0) 
-        return; 
+    jabber_service_status.dwServiceType        = SERVICE_WIN32;
+    jabber_service_status.dwCurrentState       = SERVICE_START_PENDING;
+    jabber_service_status.dwControlsAccepted   = SERVICE_ACCEPT_STOP;
+    jabber_service_status.dwWin32ExitCode      = 0;
+    jabber_service_status.dwServiceSpecificExitCode = 0;
+    jabber_service_status.dwCheckPoint         = 0;
+    jabber_service_status.dwWaitHint           = 0;
 
-    jabber_service_status.dwCurrentState       = SERVICE_RUNNING; 
-    jabber_service_status.dwCheckPoint         = 0; 
-    jabber_service_status.dwWaitHint           = 0;  
+    jabber_service_status_handle = RegisterServiceCtrlHandler(jabber_service_name, jabber_service_ctrl_handler);
+    if (jabber_service_status_handle == (SERVICE_STATUS_HANDLE)0)
+        return;
+
+    jabber_service_status.dwCurrentState       = SERVICE_RUNNING;
+    jabber_service_status.dwCheckPoint         = 0;
+    jabber_service_status.dwWaitHint           = 0;
     SetServiceStatus(jabber_service_status_handle, &jabber_service_status);
-    
+
     if(jabber_service_wrapper) jabber_service_wrapper(argc, argv);
 
     jabber_service_status.dwWin32ExitCode      = 0;
@@ -135,33 +139,33 @@ void WINAPI jabber_service_main(DWORD argc, LPTSTR *argv)
     jabber_service_status.dwWaitHint           = 0;
     SetServiceStatus(jabber_service_status_handle, &jabber_service_status);
 
-    return; 
+    return;
 }
 
 void WINAPI jabber_service_ctrl_handler(DWORD Opcode)
 {
-    switch(Opcode) 
-    { 
-        case SERVICE_CONTROL_PAUSE: 
-            jabber_service_status.dwCurrentState = SERVICE_PAUSED; 
-            break; 
- 
-        case SERVICE_CONTROL_CONTINUE: 
-            jabber_service_status.dwCurrentState = SERVICE_RUNNING; 
-            break; 
- 
-        case SERVICE_CONTROL_STOP: 
+    switch(Opcode)
+    {
+        case SERVICE_CONTROL_PAUSE:
+            jabber_service_status.dwCurrentState = SERVICE_PAUSED;
+            break;
+
+        case SERVICE_CONTROL_CONTINUE:
+            jabber_service_status.dwCurrentState = SERVICE_RUNNING;
+            break;
+
+        case SERVICE_CONTROL_STOP:
             jabber_service_status.dwCurrentState = SERVICE_STOP_PENDING;
             SetServiceStatus(jabber_service_status_handle, &jabber_service_status);
 
             // Call int signal
             if(jabber_term_handler) jabber_term_handler(0);
             break;
- 
-        case SERVICE_CONTROL_INTERROGATE: 
-            break; 
-    }      
-    return; 
+
+        case SERVICE_CONTROL_INTERROGATE:
+            break;
+    }
+    return;
 }
 
 BOOL jabber_install_service()
@@ -170,33 +174,36 @@ BOOL jabber_install_service()
     TCHAR szPathName[MAX_PATH];
     TCHAR szCmd[MAX_PATH + 16];
     HANDLE schSCManager, schService;
+    SERVICE_DESCRIPTION sdServiceDescription = { jabber_service_description };
 
     GetModuleFileName(NULL, szPathName, sizeof(szPathName));
     sprintf(szCmd, "\"%s\" -S", szPathName);
 
-    schSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);  
- 
-    if (schSCManager == NULL) 
+    schSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+
+    if (schSCManager == NULL)
         return FALSE;
 
-    schService = CreateService(schSCManager, 
+    schService = CreateService(schSCManager,
         jabber_service_name,       // service name (alias)
-        jabber_service_display,    // service name to display 
-        SERVICE_ALL_ACCESS,        // desired access 
-        SERVICE_WIN32_OWN_PROCESS, // service type 
-        SERVICE_DEMAND_START,      // start type 
-        SERVICE_ERROR_NORMAL,      // error control type 
-        szCmd,                     // service's binary 
-        NULL,                      // no load ordering group 
-        NULL,                      // no tag identifier 
-        NULL,                      // no dependencies 
-        NULL,                      // LocalSystem account 
-        NULL);                     // no password 
- 
-    if (schService == NULL) 
-        return FALSE;  
- 
-    CloseServiceHandle(schService); 
+        jabber_service_display,    // service name to display
+        SERVICE_ALL_ACCESS,        // desired access
+        SERVICE_WIN32_OWN_PROCESS, // service type
+        SERVICE_AUTO_START,        // start type
+        SERVICE_ERROR_NORMAL,      // error control type
+        szCmd,                     // service's binary
+        NULL,                      // no load ordering group
+        NULL,                      // no tag identifier
+        jabber_service_depends,    // dependencies
+        NULL,                      // LocalSystem account
+        NULL);                     // no password
+
+    if (schService == NULL)
+        return FALSE;
+
+    ChangeServiceConfig2(schService, SERVICE_CONFIG_DESCRIPTION, (LPVOID)&sdServiceDescription);
+
+    CloseServiceHandle(schService);
 
     return TRUE;
 }
@@ -207,13 +214,13 @@ BOOL jabber_delete_service()
     SC_HANDLE hService;
 
     schSCManager = OpenSCManager(NULL,NULL,SC_MANAGER_ALL_ACCESS);
- 
-    if (schSCManager == NULL) 
-        return FALSE;   
+
+    if (schSCManager == NULL)
+        return FALSE;
 
     hService=OpenService(schSCManager, jabber_service_name, SERVICE_ALL_ACCESS);
 
-    if (hService == NULL) 
+    if (hService == NULL)
         return FALSE;
 
     if(DeleteService(hService)==0)

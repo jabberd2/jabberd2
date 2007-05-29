@@ -467,7 +467,7 @@ static void _c2s_time_checks(c2s_t c2s) {
         } while(xhash_iter_next(c2s->sessions));
 }
 
-JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S")
+JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to Server", "jabberd2router\0")
 {
     c2s_t c2s;
     char *config_file;

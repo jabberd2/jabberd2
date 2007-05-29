@@ -371,7 +371,7 @@ static void _s2s_time_checks(s2s_t s2s) {
     return;
 }
 
-JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S")
+JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to Server", "jabberd2router\0")
 {
     s2s_t s2s;
     char *config_file;

@@ -272,7 +272,7 @@ static void _router_time_checks(router_t r) {
 }
 
 
-JABBER_MAIN("jabberd2router", "Jabber 2 Router")
+JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Router", NULL)
 {
     router_t r;
     char *config_file;

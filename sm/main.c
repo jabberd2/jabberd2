@@ -153,7 +153,7 @@ static int _sm_router_connect(sm_t sm) {
     return 0;
 }
 
-JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager")
+JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server: Session Manager", "jabberd2router\0")
 {
     int optchar;
     sess_t sess;

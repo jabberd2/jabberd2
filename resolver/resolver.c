@@ -498,7 +498,7 @@ static int _resolver_router_connect(resolver_t r) {
     return 0;
 }
 
-JABBER_MAIN("jabberd2resolver", "Jabber 2 Resolver")
+JABBER_MAIN("jabberd2resolver", "Jabber 2 Resolver", "Jabber Open Source Server: Resolver", "jabberd2router\0")
 {
     resolver_t r;
     char *config_file;

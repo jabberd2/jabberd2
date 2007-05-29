@@ -819,12 +819,12 @@ JABBERD2_API jsighandler_t* jabber_signal(int signo,  jsighandler_t *func);
 #ifdef _WIN32
 /* Windows service wrapper function */
 typedef int (jmainhandler_t)(int argc, char** argv);
-JABBERD2_API int jabber_wrap_service(int argc, char** argv, jmainhandler_t *wrapper, LPCTSTR name, LPCTSTR display);
-#define JABBER_MAIN(name, display) jabber_main(int argc, char** argv); \
-                    main(int argc, char** argv) { return jabber_wrap_service(argc, argv, jabber_main, name, display); } \
+JABBERD2_API int jabber_wrap_service(int argc, char** argv, jmainhandler_t *wrapper, LPCTSTR name, LPCTSTR display, LPCTSTR description, LPCTSTR depends);
+#define JABBER_MAIN(name, display, description, depends) jabber_main(int argc, char** argv); \
+                    main(int argc, char** argv) { return jabber_wrap_service(argc, argv, jabber_main, name, display, description, depends); } \
                     jabber_main(int argc, char** argv)
 #else /* _WIN32 */
-#define JABBER_MAIN(name, display) main(int argc, char** argv)
+#define JABBER_MAIN(name, display, description, depends) main(int argc, char** argv)
 #endif /* _WIN32 */
 
 #ifdef __cplusplus
