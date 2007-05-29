@@ -231,6 +231,36 @@
 				>
 			</File>
 			<File
+				RelativePath="..\include\version.h"
+				>
+			</File>
+			<File
+				RelativePath="..\include\version.xsl"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Updating $(InputDir)$(InputName).h"
+						CommandLine="cd ..\.. &amp; svn info --xml|xsltproc --nonet $(InputPath) - &gt; $(InputDir)$(InputName).h"
+						AdditionalDependencies="$(InputDir)..\.svn\entries"
+						Outputs="$(InputDir)$(InputName).h"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Updating $(InputDir)$(InputName).h"
+						CommandLine="cd ..\.. &amp; svn info --xml|xsltproc --nonet $(InputPath) - &gt; $(InputDir)$(InputName).h"
+						AdditionalDependencies="$(InputDir)..\.svn\entries"
+						Outputs="$(InputDir)$(InputName).h"
+					/>
+				</FileConfiguration>
+			</File>
+			<File
 				RelativePath="..\include\win32_port.h"
 				>
 			</File>
@@ -240,6 +270,10 @@
 			Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav"
 			UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}"
 			>
+			<File
+				RelativePath="..\jabberd2.rc"
+				>
+			</File>
 		</Filter>
 	</Files>
 	<Globals>

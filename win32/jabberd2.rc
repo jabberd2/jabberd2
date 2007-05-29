@@ -1,0 +1,40 @@
+#include "include/version.h"
+
+1 ICON "jabberd2.ico"
+
+1 VERSIONINFO
+    FILEVERSION SVN_FILEVERSION
+    PRODUCTVERSION SVN_FILEVERSION
+    FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+    FILEFLAGS 0x1L
+#else
+    FILEFLAGS 0x0L
+#endif
+    FILEOS 0x40004L
+    FILETYPE 0x1L
+    FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "000004b0"
+        BEGIN
+            VALUE "Comments", "Licensed under the terms of the GNU General Public License"
+            VALUE "CompanyName", "jabberd2"
+            VALUE "FileDescription", "Jabber Open Source Server"
+            VALUE "FileVersion", SVN_VERSION
+            VALUE "InternalName", "jabberd2"
+            VALUE "LegalCopyright", "Copyright © 2002-2007 Jeremie Miller, Thomas Muldowney, Ryan Eatmon, Robert Norris, Tomasz Sterna, Adam Strzelecki"
+            VALUE "LegalTrademarks", ""
+            VALUE "OriginalFilename", ""
+            VALUE "PrivateBuild", ""
+            VALUE "ProductName", "jabberd2"
+            VALUE "ProductVersion", SVN_VERSION
+            VALUE "SpecialBuild", ""
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0, 1200
+    END
+END
