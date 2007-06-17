@@ -252,6 +252,8 @@ static int _sx_sasl_proxy_policy(sasl_conn_t *conn, void *ctx, const char *reque
     _sx_sasl_data_t sd = (_sx_sasl_data_t) ctx;
     struct sx_sasl_creds_st creds = {NULL, NULL, NULL, NULL};
     char *buf, *c;
+    size_t len;
+    int ret;
 
     sasl_getprop(conn, SASL_MECHNAME, (const void **) &buf);
     if (strncmp(buf, "ANONYMOUS", 10) == 0) {
@@ -265,26 +267,72 @@ static int _sx_sasl_proxy_policy(sasl_conn_t *conn, void *ctx, const char *reque
                         "Bad identities provided");
           return SASL_BADAUTH;
       }
-	/* By this point, SASL's monkeyed around with the auth_identity, and
-         * appended the realm to it. We don't really want this, so we need to
-         * split it up again */
-	buf = strdup(auth_identity);
-	c = strchr(buf, '@');
-	if (c)
-	    *c = '\0';
-        creds.authnid = buf;
-        creds.realm = realm;
-        creds.authzid = requested_user;
-        /* If we start being fancy and allow auth_identity to be different from
-         * requested_user, then this will need to be changed to permit it!
+
+      /* No guarantee that realm is NULL terminated - so make a terminated
+         * version before we do anything */
+
+      /* XXX - Do we also need to check if realm contains NULL values, 
+       *       and complain if it does?
          */
-        if ((sd->ctx->cb)(sx_sasl_cb_CHECK_AUTHZID, &creds, NULL, sd->stream, sd->ctx->cbarg)==sx_sasl_ret_OK) {
-	    free(buf);
-            return SASL_OK;
-        } else {
-            free(buf);
-            return SASL_BADAUTH;
-        }
+
+      buf = malloc(urlen + 1);
+      strncpy(buf, realm?realm:"", urlen);
+      buf[urlen] = '\0';
+      creds.realm = buf;
+
+      /* By this point, SASL's default canon_user plugin has appended the
+         * realm to both the auth_identity, and the requested_user. This
+         * isn't what we want.
+         *   auth_identity should be a bare username
+         *   requested_user should be a JID
+         *
+         * We can't just remove everything after the '@' as some mechanisms
+         * (such as GSSAPI) use the @ to denote users in foreign realms.
+         */
+
+      buf = malloc(alen + 1);
+      strncpy(buf, auth_identity, alen);
+      buf[alen] = '\0';
+      c = strrchr(buf, '@');
+      if (c && strcmp(c+1, creds.realm) == 0)
+            *c = '\0';
+      creds.authnid = buf;
+
+      /* Now, we need to turn requested_user into a JID 
+         * (if it isn't already)
+       *
+       * XXX - This will break with s2s SASL, where the authzid is a domain
+       */
+      len = rlen;
+      if (sd->stream->req_to)
+          len+=strlen(sd->stream->req_to) + 2;
+      buf = malloc(len);
+      strncpy(buf, requested_user, rlen);
+      buf[rlen] = '\0';
+      c = strrchr(buf, '@');
+      if (c && strcmp(c + 1, creds.realm) == 0)
+          *c = '\0';
+      if (sd->stream->req_to && strchr(buf, '@') == 0) {
+          strcat(buf, "@");
+          strcat(buf, sd->stream->req_to);
+      }
+      creds.authzid = buf;
+
+          /* If we start being fancy and allow auth_identity to be different from
+           * requested_user, then this will need to be changed to permit it!
+           */
+        ret = (sd->ctx->cb)(sx_sasl_cb_CHECK_AUTHZID, &creds, NULL, sd->stream, sd->ctx->cbarg);
+
+      free((void *)creds.authnid);
+      free((void *)creds.authzid);
+      free((void *)creds.realm);
+
+      if (ret == sx_sasl_ret_OK) {
+          return SASL_OK;
+      } else {
+          sasl_seterror(conn, 0, "Requested identity not permitted for authorization identity");
+          return SASL_BADAUTH;
+      }
     }
 }
 
@@ -365,7 +413,9 @@ static int _sx_sasl_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
 /** move the stream to the auth state */
 void _sx_sasl_open(sx_t s, sasl_conn_t *sasl) {
     char *method;
-    char *buf;
+    char *buf, *c;
+    char *authzid;
+    size_t len;
     int *ssf;
     
     /* get the method */
@@ -382,9 +432,36 @@ void _sx_sasl_open(sx_t s, sasl_conn_t *sasl) {
 
     /* and the authenticated id */
     sasl_getprop(sasl, SASL_USERNAME, (const void **) &buf);
-        
-    /* schwing! */
-    sx_auth(s, method, buf);
+
+    if (s->type == type_SERVER) {
+        /* Now, we need to turn the id into a JID 
+         * (if it isn't already)
+         *
+         * XXX - This will break with s2s SASL, where the authzid is a domain
+         */
+
+      len = strlen(buf);
+      if (s->req_to)
+          len+=strlen(s->req_to) + 2;
+        authzid = malloc(len);
+        strcpy(authzid, buf);
+
+        sasl_getprop(sasl, SASL_DEFUSERREALM, (const void **) &buf);
+
+        c = strrchr(authzid, '@');
+        if (c && buf && strcmp(c+1, buf) == 0)
+            *c = '\0';
+        if (s->req_to && strchr(authzid, '@') == 0) {
+            strcat(authzid, "@");
+            strcat(authzid, s->req_to);
+        }
+
+        /* schwing! */
+        sx_auth(s, method, authzid);
+        free(authzid);
+    } else {
+        sx_auth(s, method, buf);
+    }
 
     free(method);
 }
