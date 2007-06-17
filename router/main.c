@@ -229,10 +229,12 @@ static int _router_sx_sasl_callback(int cb, void *arg, void ** res, sx_t s, void
             break;
 
         case sx_sasl_cb_CHECK_AUTHZID:
-            /* We just need to ensure that authnid == authzid, which top
-             * level does for us at the moment. Must revist this if this
-             * changes, however */
-            return sx_sasl_ret_OK;
+	    creds = (sx_sasl_creds_t) arg;
+
+	    if (strcmp(creds->authnid, creds->authzid) == 0)
+                return sx_sasl_ret_OK;
+	    else
+                return sx_sasl_ret_FAIL;
             break;
 
         case sx_sasl_cb_CHECK_MECH:

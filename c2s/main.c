@@ -374,11 +374,15 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
             if(jid.resource[0] != '\0')
                 return sx_sasl_ret_FAIL;
 
-            /* and user has right to authorize as * /
-            if((c2s->ar->user_authz_allowed)(c2s->ar, (char *)creds->authnid, (char *)creds->realm, (char *)creds->authzid))
-             * but since we do not support it yet, we check wether the user exists */
-            if((c2s->ar->user_exists)(c2s->ar, jid.node, jid.domain))
-                return sx_sasl_ret_OK;
+	    /* and user has right to authorize as */
+	    if (c2s->ar->user_authz_allowed) {
+		if (c2s->ar->user_authz_allowed(c2s->ar, (char *)creds->authnid, (char *)creds->realm, (char *)creds->authzid))
+    		    return sx_sasl_ret_OK;
+	    } else {
+		if (strcmp(creds->authnid, jid.node) == 0 &&
+		    (c2s->ar->user_exists)(c2s->ar, jid.node, jid.domain))
+		    return sx_sasl_ret_OK;
+	    }
 
             return sx_sasl_ret_FAIL;
 

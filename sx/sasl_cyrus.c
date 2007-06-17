@@ -258,12 +258,13 @@ static int _sx_sasl_proxy_policy(sasl_conn_t *conn, void *ctx, const char *reque
         /* If they're anonymous, their ID comes from us, so it must be OK! */
         return SASL_OK;
     } else {
-        if (!requested_user || !auth_identity || alen != rlen ||
-            (memcmp(requested_user, auth_identity, rlen) !=0)) {
-            sasl_seterror(conn, 0,
-                          "Requested identity is not authenticated identity");
-            return SASL_BADAUTH;
-        }
+        /* This will break with clients that give requested user as a JID,
+         * where requested_user != auth_identity */
+        if (!requested_user || !auth_identity || rlen == 0 || alen==0) {
+          sasl_seterror(conn, 0,
+                        "Bad identities provided");
+          return SASL_BADAUTH;
+      }
 	/* By this point, SASL's monkeyed around with the auth_identity, and
          * appended the realm to it. We don't really want this, so we need to
          * split it up again */

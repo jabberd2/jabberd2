@@ -284,6 +284,11 @@ struct authreg_st
     int         (*delete_user)(authreg_t ar, char *username, char *realm);
 
     void        (*free)(authreg_t ar);
+
+    /* Additions at the end - to preserve offsets for existing modules */
+
+    /** returns 1 if the user is permitted to authorize as the requested_user, 0 if not. requested_user is a JID */
+    int               (*user_authz_allowed)(authreg_t ar, char *username, char *realm, char *requested_user);
 };
 
 /** get a handle for a single module */
