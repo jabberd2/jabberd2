@@ -54,6 +54,7 @@ static mod_ret_t _iq_last_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     os_t os;
     os_object_t o;
     st_ret_t ret;
+    sess_t sess;
 
     /* we only want to play with iq:last gets */
     if(pkt->type != pkt_IQ || pkt->ns != ns_LAST)
@@ -63,10 +64,21 @@ static mod_ret_t _iq_last_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     if(!pres_trust(user, pkt->from))
         return -stanza_err_FORBIDDEN;
 
-    /* if they have a leading session, use that */
+    /* If the IQ was sent to a JID with a resource, then XMPP-IM 11.1.1
+     * requires we deliver it if that resource is available
+     */
+    if (*pkt->to->resource != '\0')
+	return mod_PASS;
+
+    /* If they have an available resource, we should return a query element with a
+     * seconds value of 0
+     */
     if(user->top != NULL)
     {
-        pkt_sess(pkt, user->top);
+	nad_set_attr(pkt->nad, 2, -1, "seconds", "0", 0);
+	nad_set_attr(pkt->nad, 1, -1, "type", "result", 6);
+	pkt_router(pkt_tofrom(pkt));
+
         return mod_HANDLED;
     }
 
