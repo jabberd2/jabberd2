@@ -22,7 +22,7 @@ pkglib_LTLIBRARIES = mod_active.la \
                   mod_status.la \
                   mod_template-roster.la \
                   mod_vacation.la \
-                  mod_validate.la
+                  mod_validate.la 
 
 noinst_HEADERS = sm.h
 
@@ -47,71 +47,94 @@ sm_LDADD = $(top_builddir)/sx/libsx.la \
            $(top_builddir)/subst/libsubst.la 
 
 mod_active_la_SOURCES = mod_active.c
-mod_active_la_LDFLAGS = -module -avoid-version
+mod_active_la_LDFLAGS = -module -export-dynamic
+mod_active_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
 mod_announce_la_SOURCES = mod_announce.c
-mod_announce_la_LDFLAGS = -module -avoid-version
+mod_announce_la_LDFLAGS = -module -export-dynamic
+mod_announce_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
 mod_amp_la_SOURCES = mod_amp.c
-mod_amp_la_LDFLAGS = -module -avoid-version
+mod_amp_la_LDFLAGS = -module -export-dynamic
+mod_amp_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
 mod_deliver_la_SOURCES = mod_deliver.c
-mod_deliver_la_LDFLAGS = -module -avoid-version
+mod_deliver_la_LDFLAGS = -module -export-dynamic
+mod_deliver_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
 mod_disco_la_SOURCES = mod_disco.c
-mod_disco_la_LDFLAGS = -module -avoid-version
+mod_disco_la_LDFLAGS = -module -export-dynamic
+mod_disco_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
 mod_disco_publish_la_SOURCES = mod_disco_publish.c
-mod_disco_publish_la_LDFLAGS = -module -avoid-version
+mod_disco_publish_la_LDFLAGS = -module -export-dynamic
+mod_disco_publish_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
 mod_echo_la_SOURCES = mod_echo.c
-mod_echo_la_LDFLAGS = -module -avoid-version
+mod_echo_la_LDFLAGS = -module -export-dynamic
+mod_echo_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
 mod_help_la_SOURCES = mod_help.c
-mod_help_la_LDFLAGS = -module -avoid-version
+mod_help_la_LDFLAGS = -module -export-dynamic
+mod_help_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
 mod_iq_last_la_SOURCES = mod_iq_last.c
-mod_iq_last_la_LDFLAGS = -module -avoid-version
+mod_iq_last_la_LDFLAGS = -module -export-dynamic
+mod_iq_last_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
 mod_iq_ping_la_SOURCES = mod_iq_ping.c
-mod_iq_ping_la_LDFLAGS = -module -avoid-version
+mod_iq_ping_la_LDFLAGS = -module -export-dynamic
+mod_iq_ping_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
 mod_iq_private_la_SOURCES = mod_iq_private.c
-mod_iq_private_la_LDFLAGS = -module -avoid-version
+mod_iq_private_la_LDFLAGS = -module -export-dynamic
+mod_iq_private_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
 mod_iq_time_la_SOURCES = mod_iq_time.c
-mod_iq_time_la_LDFLAGS = -module -avoid-version
+mod_iq_time_la_LDFLAGS = -module -export-dynamic
+mod_iq_time_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
 mod_iq_vcard_la_SOURCES = mod_iq_vcard.c
-mod_iq_vcard_la_LDFLAGS = -module -avoid-version
+mod_iq_vcard_la_LDFLAGS = -module -export-dynamic
+mod_iq_vcard_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
 mod_iq_version_la_SOURCES = mod_iq_version.c
-mod_iq_version_la_LDFLAGS = -module -avoid-version
+mod_iq_version_la_LDFLAGS = -module -export-dynamic
+mod_iq_version_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
 mod_offline_la_SOURCES = mod_offline.c
-mod_offline_la_LDFLAGS = -module -avoid-version
+mod_offline_la_LDFLAGS = -module -export-dynamic
+mod_offline_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
 mod_presence_la_SOURCES = mod_presence.c
-mod_presence_la_LDFLAGS = -module -avoid-version
+mod_presence_la_LDFLAGS = -module -export-dynamic
+mod_presence_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
 mod_privacy_la_SOURCES = mod_privacy.c
-mod_privacy_la_LDFLAGS = -module -avoid-version
+mod_privacy_la_LDFLAGS = -module -export-dynamic
+mod_privacy_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
 mod_roster_la_SOURCES = mod_roster.c
-mod_roster_la_LDFLAGS = -module -avoid-version
+mod_roster_la_LDFLAGS = -module -export-dynamic
+mod_roster_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
 mod_session_la_SOURCES = mod_session.c
-mod_session_la_LDFLAGS = -module -avoid-version
+mod_session_la_LDFLAGS = -module -export-dynamic
+mod_session_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
 mod_status_la_SOURCES = mod_status.c
-mod_status_la_LDFLAGS = -module -avoid-version
+mod_status_la_LDFLAGS = -module -export-dynamic
+mod_status_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
 mod_template_roster_la_SOURCES = mod_template_roster.c
-mod_template_roster_la_LDFLAGS = -module -avoid-version
+mod_template_roster_la_LDFLAGS = -module -export-dynamic
+mod_template_roster_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
 mod_vacation_la_SOURCES = mod_vacation.c
-mod_vacation_la_LDFLAGS = -module -avoid-version
+mod_vacation_la_LDFLAGS = -module -export-dynamic
+mod_vacation_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
 mod_validate_la_SOURCES = mod_validate.c
-mod_validate_la_LDFLAGS = -module -avoid-version
+mod_validate_la_LDFLAGS = -module -export-dynamic
+mod_validate_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
