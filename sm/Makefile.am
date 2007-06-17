@@ -40,7 +40,7 @@ sm_SOURCES = aci.c \
              storage.c 
 
 sm_CPPFLAGS = -DCONFIG_DIR=\"$(sysconfdir)\" -DLIBRARY_DIR=\"$(pkglibdir)\"
-sm_LDFLAGS = -Wl,-export-dynamic
+sm_LDFLAGS = -export-dynamic
 sm_LDADD = $(top_builddir)/sx/libsx.la \
            $(top_builddir)/mio/libmio.la \
            $(top_builddir)/util/libutil.la \
