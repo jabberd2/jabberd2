@@ -524,6 +524,8 @@ DLLEXPORT int ar_init(authreg_t ar) {
         return 1;
     }
 
+    mysql_query(conn, "SET NAMES 'utf8'");
+
     /* Set reconnect flag to 1 (set to 0 by default from mysql 5 on) */
     conn->reconnect = 1;
 
