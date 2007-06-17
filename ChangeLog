@@ -1,3 +1,72 @@
+2007-06-17 Tomasz Sterna <tomek@xiaoka.com>
+	* Merged nullstring config option by Simon Wilkinson. Fixes #17
+	* Fixed dynamic linker detection with libtool. Fixes #76
+	* Merged Cyrus SASL realm behaviour fix by Simon Wilkinson. Fixes #82
+	* Merged proxy authorization support by Simon Wilkinson. Closes #83
+	* Added DEFAULT CHARSET=UTF8 to tools/db-setup.mysql DB creation. Together with see #90 it fixes #88
+	* Merged MySQL connection setting to UTF-8 patch by Oles Hnatkevych. Fixes #90
+	* Merged XEP-0012 fix by Simon Wilkinson. Fixes #91
+
+2007-05-29 Adam Strzelecki <ono@java.pl>
+	* Add icon & version information to binaries. Version information "version.h" automatically generated from "svn info --xml" with xsltproc.
+	* Add service dependencies so all side services depends on "router". Make services to start automatically after installation.
+
+2007-05-28 Adam Strzelecki <ono@java.pl>
+	* Define MIO backend in the project.
+	* Update win32 package names.
+	* Use MIO_ERROR & MIO_STRERROR for socket error reporting, which will be mapped properly on WinSock.
+	* WSAAsyncSelect mio backend replacement for "select".
+
+2007-05-25 Adam Strzelecki <ono@java.pl>
+	* Unreferenced int len variable.
+
+2007-05-23 Adam Strzelecki <ono@java.pl>
+	* Windows guide updated.
+	* Visual Studio 2005 (VC8) project files for win32 builds.
+	* Checkout the Win32 build site on jabberd2 website or README.win32 to know how to use those.
+	* Those projects shall build one jabberd2.dll with common jabberd2 functions, EXE for every service, and DLL for each module.
+	* Installing Windows native service wrapper over main functions: JABBER_MAIN, this will define normal "main" on other platforms.
+	* mio_new(1024) changed to mio_new(MIO_MAXFD).
+	* ANSI C compliance changes, definitions first.
+	* Proper _WIN32 checks.
+	* IPv6 structure is slightly different on Windows (sin6_addr).
+	* ANSI C compliance changes, definitions first.
+	* Provide an API for importing/exporting functions from/to modules on Windows.
+	* Ensure we cast functions on GetProcAddress on Windows.
+	* Use <windows.h> headers and LIBRARY_DIR "." on Windows.
+	* Renamed WIN32 to _WIN32 checks.
+	* Fixes for win32 Cyrus SASL which is default for win32 build:
+	* * on Windows headers don't reside at sasl/
+	* * enforce using callbacks Cyrus SASL will look for plugins at "sasl" subdirectory of jabberd2 binaries rather than checking registry or dummy paths defined at win32 Cyrus library
+	* Add JABBERD2_API implementation for "sx", required to build proper jabberd2.dll on Windows.
+	* mio fixed for Windows platform:
+	  * select requires 3rd exception parameter
+	  * lowfd added for select, because Winsock doesn't start from 1 with descriptors
+	* Services shall use MIO_MAXFD instead of 1024 when calling mio_new, so we are not capped to 1024 on Windows select, since descriptors usually start above.
+	* On Windows we use FD_SETSIZE which is defined to 16k in win32 projects.
+	* Add JABBERD2_API implementation for "mio", required to build proper jabberd2.dll on Windows.
+	* Renamed WIN32 to _WIN32 checks.
+	* Add JABBERD2_API implementation for "subst", required to build proper jabberd2.dll on Windows.
+	* Updated implementation of timegm on Windows platform.
+	* Renamed WIN32 to _WIN32 checks.
+	* Native implementation of NT services and partial implementation & wrapper of win32 signals (i.e. Ctrl+C).
+	* Add JABBERD2_API implementation for "util", required to build proper jabberd2.dll on Windows.
+	* Adding DLLEXPORT to some modules so they build proper DLL on Windows. authreg_sqlite was not ANSI C complaint (declarations first), MSVC is more strict than GCC.
+	* New auth modules only for Windows platform:
+	  * ntlogon - plain-text, Windows NT or higher LogonUserA function authorizes only users that exist on server machine
+	  * sspi - works like ntlogon, but is using sspi interface (experimental)
+
+2007-05-23 Tomasz Sterna <tomek@xiaoka.com>
+	* Correct check function for GSASL library. Fixes #76
+	* Fixed typo message
+
+2007-05-21 Tomasz Sterna <tomek@xiaoka.com>
+	* Note about router-filter.xml syntax
+
+2007-05-15 11:27:42 +0200 (wto, 15 maj 2007) | 1 line
+	* Note about XMPP ping module
+	* Added support for reloading c2s serviced hosts on SIGHUP
+
 2007-05-14 Tomasz Sterna <tomek@xiaoka.com>
 	* Another fix for lack of strndup() on *BSD
 	* Added support for reloading c2s serviced hosts on SIGHUP
