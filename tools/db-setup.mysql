@@ -17,7 +17,7 @@ CREATE TABLE `authreg` (
     `password` TINYTEXT,
     `token` VARCHAR(10),
     `sequence` INT,
-    `hash` VARCHAR(40) );
+    `hash` VARCHAR(40) ) DEFAULT CHARSET=UTF8;
 
 --
 -- Session manager tables 
@@ -30,7 +30,7 @@ CREATE TABLE `authreg` (
 CREATE TABLE `active` (
     `collection-owner` TEXT NOT NULL, KEY(`collection-owner`(255)),
     `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
-    `time` INT );
+    `time` INT ) DEFAULT CHARSET=UTF8;
 
 --
 -- Logout times
@@ -39,7 +39,7 @@ CREATE TABLE `active` (
 CREATE TABLE `logout` (
     `collection-owner` TEXT NOT NULL, KEY(`collection-owner`(255)),
     `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
-    `time` INT );
+    `time` INT ) DEFAULT CHARSET=UTF8;
 
 --
 -- Roster items
@@ -52,7 +52,7 @@ CREATE TABLE `roster-items` (
     `name` TEXT,
     `to` TINYINT,
     `from` TINYINT,
-    `ask` INT );
+    `ask` INT ) DEFAULT CHARSET=UTF8;
 
 --
 -- Roster groups
@@ -62,7 +62,7 @@ CREATE TABLE `roster-groups` (
     `collection-owner` TEXT NOT NULL, KEY(`collection-owner`(255)),
     `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
     `jid` TEXT,
-    `group` TEXT );
+    `group` TEXT ) DEFAULT CHARSET=UTF8;
 
 --
 -- vCard (user profile information)
@@ -117,7 +117,7 @@ CREATE TABLE `vcard` (
     `key-cred` TEXT,
     
     `rev` VARCHAR(255)
-    );
+    ) DEFAULT CHARSET=UTF8;
 
 --
 -- Offline message queue
@@ -126,7 +126,7 @@ CREATE TABLE `vcard` (
 CREATE TABLE `queue` (
     `collection-owner` TEXT NOT NULL, KEY(`collection-owner`(255)),
     `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
-    `xml` MEDIUMTEXT );
+    `xml` MEDIUMTEXT ) DEFAULT CHARSET=UTF8;
 
 --
 -- Private XML storage
@@ -136,7 +136,7 @@ CREATE TABLE `private` (
     `collection-owner` TEXT NOT NULL, KEY(`collection-owner`(255)),
     `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
     `ns` TEXT,
-    `xml` MEDIUMTEXT );
+    `xml` MEDIUMTEXT ) DEFAULT CHARSET=UTF8;
 
 --
 -- Message Of The Day (MOTD) messages (announcements)
@@ -145,7 +145,7 @@ CREATE TABLE `private` (
 CREATE TABLE `motd-message` (
     `collection-owner` TEXT NOT NULL, KEY(`collection-owner`(255)),
     `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
-    `xml` TEXT );
+    `xml` TEXT ) DEFAULT CHARSET=UTF8;
 
 --
 -- Times of last MOTD message for each user
@@ -154,7 +154,7 @@ CREATE TABLE `motd-message` (
 CREATE TABLE `motd-times` (
     `collection-owner` TEXT NOT NULL, KEY(`collection-owner`(255)),
     `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
-    `time` INT );
+    `time` INT ) DEFAULT CHARSET=UTF8;
 
 --
 -- User-published discovery items
@@ -165,7 +165,7 @@ CREATE TABLE `disco-items` (
     `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
     `jid` TEXT,
     `name` TEXT,
-    `node` TEXT );
+    `node` TEXT ) DEFAULT CHARSET=UTF8;
 
 --
 -- Default privacy list
@@ -174,7 +174,7 @@ CREATE TABLE `disco-items` (
 CREATE TABLE `privacy-default` (
     `collection-owner` TEXT NOT NULL, KEY(`collection-owner`(255)),
     `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
-    `default` text );
+    `default` text ) DEFAULT CHARSET=UTF8;
 
 --
 -- Privacy lists
@@ -188,7 +188,7 @@ CREATE TABLE `privacy-items` (
     `value` TEXT,
     `deny` TINYINT,
     `order` INT,
-    `block` INT );
+    `block` INT ) DEFAULT CHARSET=UTF8;
 
 --
 -- Vacation settings
@@ -199,4 +199,4 @@ CREATE TABLE `vacation-settings` (
     `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
     `start` INT,
     `end` INT,
-    `message` TEXT );
+    `message` TEXT ) DEFAULT CHARSET=UTF8;
