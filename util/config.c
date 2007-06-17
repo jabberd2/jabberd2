@@ -209,6 +209,17 @@ int config_load(config_t c, const char *file)
                 elem->attrs[elem->nvalues][j] = pstrdupx(xhash_pool(c->hash), NAD_ANAME(bd.nad, attr), NAD_ANAME_L(bd.nad, attr));
                 elem->attrs[elem->nvalues][j + 1] = pstrdupx(xhash_pool(c->hash), NAD_AVAL(bd.nad, attr), NAD_AVAL_L(bd.nad, attr));
 
+		/* 
+		 * pstrdupx(blob, 0) returns NULL - which means that later
+		 * there's no way of telling whether an attribute is defined
+		 * as empty, or just not defined. This fixes that by creating
+		 * an empty string for attributes which are defined empty
+		 */
+                if (NAD_AVAL_L(bd.nad, attr)==0) {
+                    elem->attrs[elem->nvalues][j + 1] = pstrdup(xhash_pool(c->hash), "");
+                } else {
+                    elem->attrs[elem->nvalues][j + 1] = pstrdupx(xhash_pool(c->hash), NAD_AVAL(bd.nad, attr), NAD_AVAL_L(bd.nad, attr));
+                }
                 j += 2;
                 attr = bd.nad->attrs[attr].next;
             }
