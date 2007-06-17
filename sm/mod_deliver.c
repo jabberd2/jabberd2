@@ -78,7 +78,7 @@ static mod_ret_t _deliver_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt)
             return mod_HANDLED;
 
         } else if(pkt->type & pkt_IQ)
-            return -stanza_err_RECIPIENT_UNAVAILABLE;
+            return -stanza_err_SERVICE_UNAVAILABLE;
         
         /* unmatched messages will fall through (XMPP-IM r20 s11 rule 2) */
     }

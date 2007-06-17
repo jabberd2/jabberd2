@@ -129,7 +129,7 @@ void dispatch(sm_t sm, pkt_t pkt) {
     /* get the user */
     user = user_load(sm, pkt->to);
     if(user == NULL) {
-        pkt_router(pkt_error(pkt, stanza_err_ITEM_NOT_FOUND));
+        pkt_router(pkt_error(pkt, stanza_err_SERVICE_UNAVAILABLE));
         return;
     }
    

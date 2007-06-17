@@ -114,9 +114,11 @@ static mod_ret_t _presence_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     /* if there's a resource, send it direct */
     if(*pkt->to->resource != '\0') {
         sess = sess_match(user, pkt->to->resource);
-        if(sess == NULL)
-            /* this resource isn't online */
-            return -stanza_err_RECIPIENT_UNAVAILABLE;   /* xmpp-im-11 9.5#2 */
+        if(sess == NULL) {
+            /* resource isn't online - XMPP-IM 11.3 requires we ignore it*/
+	    pkt_free(pkt);
+            return mod_HANDLED;
+	}
 
         pkt_sess(pkt, sess);
         return mod_HANDLED;

@@ -107,7 +107,7 @@ static mod_ret_t _iq_last_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
             return -stanza_err_INTERNAL_SERVER_ERROR;
 
         case st_NOTFOUND:
-            return -stanza_err_ITEM_NOT_FOUND;
+            return -stanza_err_SERVICE_UNAVAILABLE;
 
         case st_NOTIMPL:
             return -stanza_err_FEATURE_NOT_IMPLEMENTED;
