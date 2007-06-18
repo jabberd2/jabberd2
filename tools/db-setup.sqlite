@@ -10,8 +10,7 @@
 CREATE TABLE "authreg" (
     "username" TEXT NOT NULL,
     "realm" TEXT NOT NULL,
-    "password" TEXT,
-    "hash" TEXT );
+    "password" TEXT );
 
 CREATE INDEX i_authreg_username ON "authreg"("username");
 CREATE INDEX i_authreg_realm ON "authreg"("realm");

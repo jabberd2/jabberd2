@@ -120,8 +120,8 @@ void authreg_free(authreg_t ar) {
 
 /** auth get handler */
 static void _authreg_auth_get(c2s_t c2s, sess_t sess, nad_t nad) {
-    int ns, elem, ssequence, attr;
-    char username[1024], shash[41], stoken[11], seqs[10], id[128];
+    int ns, elem, attr;
+    char username[1024], id[128];
     int ar_mechs;
 
     /* can't auth if they're active */
@@ -206,8 +206,8 @@ static void _authreg_auth_get(c2s_t c2s, sess_t sess, nad_t nad) {
 
 /** auth set handler */
 static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
-    int ns, elem, attr, authd = 0, ssequence;
-    char username[1024], resource[1024], str[1024], shash[41], stoken[11], hash[280];
+    int ns, elem, attr, authd = 0;
+    char username[1024], resource[1024], str[1024], hash[280];
     int ar_mechs;
 
     /* can't auth if they're active */
@@ -407,8 +407,8 @@ static void _authreg_register_get(c2s_t c2s, sess_t sess, nad_t nad) {
 /** register set handler */
 static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
 {
-    int ns = 0, elem, attr, sequence = 500, i;
-    char username[1024], password[1024], hash[41], token[11], str[51];
+    int ns = 0, elem, attr, i;
+    char username[1024], password[1024], str[51];
 
     /* if we're not configured for registration (or pw changes), or we can't set passwords, fail outright */
     if(!(sess->host->ar_register_enable || sess->host->ar_register_password) || c2s->ar->set_password == NULL) {

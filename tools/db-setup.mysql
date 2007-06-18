@@ -14,8 +14,7 @@ USE jabberd2;
 CREATE TABLE `authreg` (
     `username` TEXT, KEY `username` (`username`(255)),
     `realm` TINYTEXT, KEY `realm` (`realm`(255)),
-    `password` TINYTEXT,
-    `hash` VARCHAR(40) ) DEFAULT CHARSET=UTF8;
+    `password` TINYTEXT ) DEFAULT CHARSET=UTF8;
 
 --
 -- Session manager tables 

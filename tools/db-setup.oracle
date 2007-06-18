@@ -35,8 +35,7 @@
 CREATE TABLE "authreg" (
     "username" varchar2(256),
     "realm" varchar2(256),
-    "password" varchar2(256),
-    "hash" varchar2(40) );
+    "password" varchar2(256) );
 
 CREATE SEQUENCE "seq-active" INCREMENT BY 1 START WITH 1 MINVALUE 1 NOCYCLE NOCACHE NOORDER;
 CREATE SEQUENCE "seq-logout" INCREMENT BY 1 START WITH 1 MINVALUE 1 NOCYCLE NOCACHE NOORDER;

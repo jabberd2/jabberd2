@@ -39,9 +39,6 @@ typedef struct creds_st
     char    username[257];
     char    realm[257];
     char    password[257];
-    char    token[11];
-    int     sequence;
-    char    hash[41];
 } *creds_t;
 
 /** internal structure, holds our data */

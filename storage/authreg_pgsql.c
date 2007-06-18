@@ -34,9 +34,6 @@ typedef struct pgsqlcontext_st {
   char * sql_setpassword;
   char * sql_delete;
   char * field_password;
-  char * field_hash;
-  char * field_token;
-  char * field_sequence;
   } *pgsqlcontext_t;
 
 static PGresult *_ar_pgsql_get_user_tuple(authreg_t ar, char *username, char *realm) {
@@ -331,15 +328,6 @@ int ar_init(authreg_t ar) {
     pgsqlcontext->field_password = _ar_pgsql_param( ar->c2s->config
 	       , "authreg.pgsql.field.password"
 	       , "password" ); 
-    pgsqlcontext->field_hash = _ar_pgsql_param( ar->c2s->config
-	       , "authreg.pgsql.field.hash"
-	       , "hash" ); 
-    pgsqlcontext->field_token = _ar_pgsql_param( ar->c2s->config
-	       , "authreg.pgsql.field.token"
-	       , "token" ); 
-    pgsqlcontext->field_sequence = _ar_pgsql_param( ar->c2s->config
-	       , "authreg.pgsql.field.sequence"
-	       , "sequence" ); 
     table = _ar_pgsql_param( ar->c2s->config
 	       , "authreg.pgsql.table"
 	       , "authreg" ); 
@@ -355,15 +343,12 @@ int ar_init(authreg_t ar) {
     create = malloc( strlen( template ) + strlentur ); 
     sprintf( create, template, table, username, realm );
 
-    template = "SELECT \"%s\",\"%s\",\"%s\",\"%s\" FROM \"%s\" WHERE \"%s\" = '%%s' AND \"%s\" = '%%s'";
+    template = "SELECT \"%s\" FROM \"%s\" WHERE \"%s\" = '%%s' AND \"%s\" = '%%s'";
     select = malloc( strlen( template )
 		     + strlen( pgsqlcontext->field_password )
-		     + strlen( pgsqlcontext->field_hash ) + strlen( pgsqlcontext->field_token )
-		     + strlen( pgsqlcontext->field_sequence )
 		     + strlentur ); 
     sprintf( select, template
 	     , pgsqlcontext->field_password
-	     , pgsqlcontext->field_hash, pgsqlcontext->field_token, pgsqlcontext->field_sequence
 	     , table, username, realm );
 
     template = "UPDATE \"%s\" SET \"%s\" = '%%s' WHERE \"%s\" = '%%s' AND \"%s\" = '%%s'";

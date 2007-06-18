@@ -351,18 +351,6 @@ sub _migrate_auth {
     my $pass = $auth->GetPassword;
     $item->{'password'} = _object_quote($pass);
 
-    my $seq = 500;
-
-    my $token = sprintf "%X", time();
-    my $h = sha1_hex(sha1_hex($pass) . $token);
-    for(my $i = 0; $i < $seq; $i++) {
-        $h = sha1_hex($h);
-    }
-
-    $item->{'token'} = _object_quote($token);
-    $item->{'sequence'} = $seq;
-    $item->{'hash'} = _object_quote($h);
-
     push @{$data->{'authreg'}}, $item;
 }
 

@@ -35,9 +35,6 @@ typedef struct mysqlcontext_st {
   char * sql_setpassword;
   char * sql_delete;
   char * field_password;
-  char * field_hash;
-  char * field_token;
-  char * field_sequence;
   } *mysqlcontext_t;
 
 static MYSQL_RES *_ar_mysql_get_user_tuple(authreg_t ar, char *username, char *realm) {
@@ -327,15 +324,6 @@ DLLEXPORT int ar_init(authreg_t ar) {
     mysqlcontext->field_password = _ar_mysql_param( ar->c2s->config
 	       , "authreg.mysql.field.password"
 	       , "password" ); 
-    mysqlcontext->field_hash = _ar_mysql_param( ar->c2s->config
-	       , "authreg.mysql.field.hash"
-	       , "hash" ); 
-    mysqlcontext->field_token = _ar_mysql_param( ar->c2s->config
-	       , "authreg.mysql.field.token"
-	       , "token" ); 
-    mysqlcontext->field_sequence = _ar_mysql_param( ar->c2s->config
-	       , "authreg.mysql.field.sequence"
-	       , "sequence" ); 
     table = _ar_mysql_param( ar->c2s->config
 	       , "authreg.mysql.table"
 	       , "authreg" ); 
@@ -351,15 +339,12 @@ DLLEXPORT int ar_init(authreg_t ar) {
     create = malloc( strlen( template ) + strlentur ); 
     sprintf( create, template, table, username, realm );
 
-    template = "SELECT `%s`,`%s`,`%s`,`%s` FROM `%s` WHERE `%s` = '%%s' AND `%s` = '%%s'";
+    template = "SELECT `%s` FROM `%s` WHERE `%s` = '%%s' AND `%s` = '%%s'";
     select = malloc( strlen( template )
 		     + strlen( mysqlcontext->field_password )
-		     + strlen( mysqlcontext->field_hash ) + strlen( mysqlcontext->field_token )
-		     + strlen( mysqlcontext->field_sequence )
 		     + strlentur ); 
     sprintf( select, template
 	     , mysqlcontext->field_password
-	     , mysqlcontext->field_hash, mysqlcontext->field_token, mysqlcontext->field_sequence
 	     , table, username, realm );
 
     template = "UPDATE `%s` SET `%s` = '%%s' WHERE `%s` = '%%s' AND `%s` = '%%s'";

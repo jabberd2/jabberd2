@@ -17,7 +17,6 @@ CREATE TABLE "authreg" (
     "username" varchar(1023) NOT NULL,
     "realm" varchar(1023) NOT NULL,
     "password" varchar(256),
-    "hash" varchar(40),
     PRIMARY KEY ("username", "realm") );
 
 CREATE INDEX i_authreg_username ON "authreg"("username");
