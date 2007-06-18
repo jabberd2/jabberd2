@@ -267,14 +267,10 @@
            Comment out any that you don't want to be offered to clients.
            Note that if the auth/reg module does not support one of
            these mechanisms, then it will not be offered regardless of
-           whether or not it is enabled here.
-
-           Similarly, if <zerok/> is disabled, then zero-knowledge data
-           will not be created when a user is registered. -->
+           whether or not it is enabled here. -->
       <traditional>
         <plain/>
         <digest/>
-        <zerok/>
       </traditional>
 
       <!-- SASL authentication mechanisms. Comment out any that you

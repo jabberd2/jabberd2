@@ -33,7 +33,6 @@ typedef struct mysqlcontext_st {
   char * sql_create;
   char * sql_select;
   char * sql_setpassword;
-  char * sql_setzerok;
   char * sql_delete;
   char * field_password;
   char * field_hash;
@@ -162,79 +161,6 @@ static int _ar_mysql_set_password(authreg_t ar, char *username, char *realm, cha
     return 0;
 }
 
-static int _ar_mysql_get_zerok(authreg_t ar, char *username, char *realm, char hash[41], char token[11], int *sequence) {
-    mysqlcontext_t ctx = (mysqlcontext_t) ar->private;
-    MYSQL *conn = ctx->conn;
-    MYSQL_RES *res = _ar_mysql_get_user_tuple(ar, username, realm);
-    int i, fhash, ftok, fseq;
-    MYSQL_FIELD *field;
-    MYSQL_ROW tuple;
-
-    if(res == NULL)
-        return 1;
-
-    fhash = ftok = fseq = 0;
-    for(i = mysql_num_fields(res) - 1; i >= 0; i--) {
-        field = mysql_fetch_field_direct(res, i);
-        if(strcmp(field->name, ctx->field_hash) == 0)
-            fhash = i;
-        else if(strcmp(field->name, ctx->field_token) == 0)
-            ftok = i;
-        else if(strcmp(field->name, ctx->field_sequence) == 0)
-            fseq = i;
-    }
-
-    if((tuple = mysql_fetch_row(res)) == NULL) {
-        log_write(ar->c2s->log, LOG_ERR, "mysql: sql tuple retrieval failed: %s", mysql_error(conn));
-        mysql_free_result(res);
-        return 1;
-    }
-
-    if(tuple[fhash] == NULL || tuple[ftok] == NULL || tuple[fseq] == NULL) {
-        mysql_free_result(res);
-        return 1;
-    }
-
-    strcpy(hash, tuple[fhash]);
-    strcpy(token, tuple[ftok]);
-    *sequence = atoi(tuple[fseq]);
-
-    mysql_free_result(res);
-
-    return 0;
-}
-
-static int _ar_mysql_set_zerok(authreg_t ar, char *username, char *realm, char hash[41], char token[11], int sequence) {
-    mysqlcontext_t ctx = (mysqlcontext_t) ar->private;
-    MYSQL *conn = ctx->conn;
-    char iuser[MYSQL_LU+1], irealm[MYSQL_LR+1];
-    char euser[MYSQL_LU*2+1], erealm[MYSQL_LR*2+1], ehash[81], etoken[21], sql[1024+MYSQL_LU*2+MYSQL_LR*2+80+20+12+1]; /* query(1024) + euser + erealm + ehash(80) + etoken(20) + sequence(12) + \0(1) */
-
-    if(mysql_ping(conn) != 0) {
-        log_write(ar->c2s->log, LOG_ERR, "mysql: connection to database lost");
-        return 1;
-    }
-
-    snprintf(iuser, MYSQL_LU+1, "%s", username);
-    snprintf(irealm, MYSQL_LR+1, "%s", realm);
-
-    mysql_real_escape_string(conn, euser, iuser, strlen(iuser));
-    mysql_real_escape_string(conn, erealm, irealm, strlen(irealm));
-    mysql_real_escape_string(conn, ehash, hash, strlen(hash));
-    mysql_real_escape_string(conn, etoken, token, strlen(token));
-
-    sprintf(sql, ctx->sql_setzerok, ehash, etoken, sequence, euser, erealm);
-
-    log_debug(ZONE, "prepared sql: %s", sql);
-
-    if(mysql_query(conn, sql) != 0) {
-        log_write(ar->c2s->log, LOG_ERR, "mysql: sql update failed: %s", mysql_error(conn));
-        return 1;
-    }
-
-    return 0;
-}
-
 static int _ar_mysql_create_user(authreg_t ar, char *username, char *realm) {
     mysqlcontext_t ctx = (mysqlcontext_t) ar->private;
     MYSQL *conn = ctx->conn;
@@ -311,7 +237,6 @@ static void _ar_mysql_free(authreg_t ar) {
     free(ctx->sql_create);
     free(ctx->sql_select);
     free(ctx->sql_setpassword);
-    free(ctx->sql_setzerok);
     free(ctx->sql_delete);
     free(ctx);
 }
@@ -380,7 +305,7 @@ static int _ar_mysql_check_sql( authreg_t ar, char * sql, char * types ) {
 /** start me up */
 DLLEXPORT int ar_init(authreg_t ar) {
     char *host, *port, *dbname, *user, *pass;
-    char *create, *select, *setpassword, *setzerok, *delete;
+    char *create, *select, *setpassword, *delete;
     char *table, *username, *realm;
     char *template;
     int strlentur; /* string length of table, user, and realm strings */
@@ -441,14 +366,6 @@ DLLEXPORT int ar_init(authreg_t ar) {
     setpassword = malloc( strlen( template ) + strlentur + strlen( mysqlcontext->field_password ) ); 
     sprintf( setpassword, template, table, mysqlcontext->field_password, username, realm );
 
-    template = "UPDATE `%s` SET `%s` = '%%s', `%s` = '%%s', `%s` = '%%d'  WHERE `%s` = '%%s' AND `%s` = '%%s'";
-    setzerok = malloc( strlen( template ) + strlentur
-		     + strlen( mysqlcontext->field_hash ) + strlen( mysqlcontext->field_token )
-		     + strlen( mysqlcontext->field_sequence ) ); 
-    sprintf( setzerok, template, table
-	     , mysqlcontext->field_hash, mysqlcontext->field_token, mysqlcontext->field_sequence
-	     , username, realm );
-
     template = "DELETE FROM `%s` WHERE `%s` = '%%s' AND `%s` = '%%s'";
     delete = malloc( strlen( template ) + strlentur ); 
     sprintf( delete, template, table, username, realm );
@@ -469,11 +386,6 @@ DLLEXPORT int ar_init(authreg_t ar) {
            , setpassword ));
     if( _ar_mysql_check_sql( ar, mysqlcontext->sql_setpassword, "sss" ) != 0 ) return 1;
 
-    mysqlcontext->sql_setzerok = strdup(_ar_mysql_param( ar->c2s->config
-	       , "authreg.mysql.sql.setzerok"
-           , setzerok ));
-    if( _ar_mysql_check_sql( ar, mysqlcontext->sql_setzerok, "ssdss" ) != 0 ) return 1;
-
     mysqlcontext->sql_delete = strdup(_ar_mysql_param( ar->c2s->config
 	       , "authreg.mysql.sql.delete"
            , delete ));
@@ -483,13 +395,11 @@ DLLEXPORT int ar_init(authreg_t ar) {
     log_debug( ZONE, "SQL to create account: %s", mysqlcontext->sql_create );
     log_debug( ZONE, "SQL to query user information: %s", mysqlcontext->sql_select );
     log_debug( ZONE, "SQL to set password: %s", mysqlcontext->sql_setpassword );
-    log_debug( ZONE, "SQL to set zero K: %s", mysqlcontext->sql_setzerok );
     log_debug( ZONE, "SQL to delete account: %s", mysqlcontext->sql_delete );
 
     free(create);
     free(select);
     free(setpassword);
-    free(setzerok);
     free(delete);
 
     host = config_get_one(ar->c2s->config, "authreg.mysql.host", 0);
@@ -532,8 +442,6 @@ DLLEXPORT int ar_init(authreg_t ar) {
     ar->user_exists = _ar_mysql_user_exists;
     ar->get_password = _ar_mysql_get_password;
     ar->set_password = _ar_mysql_set_password;
-    ar->get_zerok = _ar_mysql_get_zerok;
-    ar->set_zerok = _ar_mysql_set_zerok;
     ar->create_user = _ar_mysql_create_user;
     ar->delete_user = _ar_mysql_delete_user;
 

@@ -32,7 +32,6 @@ typedef struct pgsqlcontext_st {
   char * sql_create;
   char * sql_select;
   char * sql_setpassword;
-  char * sql_setzerok;
   char * sql_delete;
   char * field_password;
   char * field_hash;
@@ -153,74 +152,6 @@ static int _ar_pgsql_set_password(authreg_t ar, char *username, char *realm, cha
     return 0;
 }
 
-static int _ar_pgsql_get_zerok(authreg_t ar, char *username, char *realm, char hash[41], char token[11], int *sequence) {
-    pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
-    PGresult *res = _ar_pgsql_get_user_tuple(ar, username, realm);
-    int fhash, ftok, fseq;
-
-    if(res == NULL)
-        return 1;
-
-    fhash = PQfnumber(res, ctx->field_hash);
-    ftok = PQfnumber(res, ctx->field_token);
-    fseq = PQfnumber(res, ctx->field_sequence);
-    if(fhash == -1 || ftok == -1 || fseq == -1) {
-        log_debug(ZONE, "weird, required field wasn't returned");
-        PQclear(res);
-        return 1;
-    }
-
-    if(PQgetisnull(res, 0, fhash) || PQgetisnull(res, 0, ftok) || PQgetisnull(res, 0, fseq)) {
-        PQclear(res);
-        return 1;
-    }
-
-    strcpy(hash, PQgetvalue(res, 0, fhash));
-    strcpy(token, PQgetvalue(res, 0, ftok));
-    *sequence = atoi(PQgetvalue(res, 0, fseq));
-
-    PQclear(res);
-
-    return 0;
-}
-
-static int _ar_pgsql_set_zerok(authreg_t ar, char *username, char *realm, char hash[41], char token[11], int sequence) {
-    pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
-    PGconn *conn = ctx->conn;
-    char iuser[PGSQL_LU+1], irealm[PGSQL_LR+1];
-    char euser[PGSQL_LU*2+1], erealm[PGSQL_LR*2+1], ehash[81], etoken[21], sql[1024 + PGSQL_LU*2 + PGSQL_LR*2 + 80 + 20 + 12 + 1]; /* query(1024) + euser + erealm + ehash(80) + etoken(20) + sequence(12) + \0(1) */
-    PGresult *res;
-
-    snprintf(iuser, PGSQL_LU+1, "%s", username);
-    snprintf(irealm, PGSQL_LR+1, "%s", realm);
-
-    PQescapeString(euser, iuser, strlen(iuser));
-    PQescapeString(erealm, irealm, strlen(irealm));
-    PQescapeString(ehash, hash, strlen(hash));
-    PQescapeString(etoken, token, strlen(token));
-
-    sprintf(sql, ctx->sql_setzerok, ehash, etoken, sequence, euser, erealm);
-
-    log_debug(ZONE, "prepared sql: %s", sql);
-
-    res = PQexec(conn, sql);
-    if(PQresultStatus(res) != PGRES_COMMAND_OK && PQstatus(conn) != CONNECTION_OK) {
-        log_write(ar->c2s->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
-        PQclear(res);
-        PQreset(conn);
-        res = PQexec(conn, sql);
-    }
-    if(PQresultStatus(res) != PGRES_COMMAND_OK) {
-        log_write(ar->c2s->log, LOG_ERR, "pgsql: sql update failed: %s", PQresultErrorMessage(res));
-        PQclear(res);
-        return 1;
-    }
-
-    PQclear(res);
-
-    return 0;
-}
-
 static int _ar_pgsql_create_user(authreg_t ar, char *username, char *realm) {
     pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
     PGconn *conn = ctx->conn;
@@ -309,7 +240,6 @@ static void _ar_pgsql_free(authreg_t ar) {
     free(ctx->sql_create);
     free(ctx->sql_select);
     free(ctx->sql_setpassword);
-    free(ctx->sql_setzerok);
     free(ctx->sql_delete);
     free(ctx);
 }
@@ -378,7 +308,7 @@ int _ar_pgsql_check_sql( authreg_t ar, char * sql, char * types ) {
 /** start me up */
 int ar_init(authreg_t ar) {
     char *host, *port, *dbname, *user, *pass;
-    char *create, *select, *setpassword, *setzerok, *delete;
+    char *create, *select, *setpassword, *delete;
     char *table, *username, *realm;
     char *template;
     int strlentur; /* string length of table, user, and realm strings */
@@ -440,14 +370,6 @@ int ar_init(authreg_t ar) {
     setpassword = malloc( strlen( template ) + strlentur + strlen( pgsqlcontext->field_password ) ); 
     sprintf( setpassword, template, table, pgsqlcontext->field_password, username, realm );
 
-    template = "UPDATE \"%s\" SET \"%s\" = '%%s', \"%s\" = '%%s', \"%s\" = '%%d'  WHERE \"%s\" = '%%s' AND \"%s\" = '%%s'";
-    setzerok = malloc( strlen( template ) + strlentur
-		     + strlen( pgsqlcontext->field_hash ) + strlen( pgsqlcontext->field_token )
-		     + strlen( pgsqlcontext->field_sequence ) ); 
-    sprintf( setzerok, template, table
-	     , pgsqlcontext->field_hash, pgsqlcontext->field_token, pgsqlcontext->field_sequence
-	     , username, realm );
-
     template = "DELETE FROM \"%s\" WHERE \"%s\" = '%%s' AND \"%s\" = '%%s'";
     delete = malloc( strlen( template ) + strlentur ); 
     sprintf( delete, template, table, username, realm );
@@ -468,11 +390,6 @@ int ar_init(authreg_t ar) {
            , setpassword ));
     if( _ar_pgsql_check_sql( ar, pgsqlcontext->sql_setpassword, "sss" ) != 0 ) return 1;
 
-    pgsqlcontext->sql_setzerok = strdup(_ar_pgsql_param( ar->c2s->config
-	       , "authreg.pgsql.sql.setzerok"
-           , setzerok ));
-    if( _ar_pgsql_check_sql( ar, pgsqlcontext->sql_setzerok, "ssdss" ) != 0 ) return 1;
-
     pgsqlcontext->sql_delete = strdup(_ar_pgsql_param( ar->c2s->config
 	       , "authreg.pgsql.sql.delete"
            , delete ));
@@ -482,13 +399,11 @@ int ar_init(authreg_t ar) {
     log_debug( ZONE, "SQL to create account: %s", pgsqlcontext->sql_create );
     log_debug( ZONE, "SQL to query user information: %s", pgsqlcontext->sql_select );
     log_debug( ZONE, "SQL to set password: %s", pgsqlcontext->sql_setpassword );
-    log_debug( ZONE, "SQL to set zero K: %s", pgsqlcontext->sql_setzerok );
     log_debug( ZONE, "SQL to delete account: %s", pgsqlcontext->sql_delete );
 
     free(create);
     free(select);
     free(setpassword);
-    free(setzerok);
     free(delete);
 
     host = config_get_one(ar->c2s->config, "authreg.pgsql.host", 0);
@@ -513,8 +428,6 @@ int ar_init(authreg_t ar) {
     ar->user_exists = _ar_pgsql_user_exists;
     ar->get_password = _ar_pgsql_get_password;
     ar->set_password = _ar_pgsql_set_password;
-    ar->get_zerok = _ar_pgsql_get_zerok;
-    ar->set_zerok = _ar_pgsql_set_zerok;
     ar->create_user = _ar_pgsql_create_user;
     ar->delete_user = _ar_pgsql_delete_user;
 

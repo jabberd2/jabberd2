@@ -154,7 +154,7 @@ static void _authreg_auth_get(c2s_t c2s, sess_t sess, nad_t nad) {
         ar_mechs = ar_mechs | c2s->ar_ssl_mechanisms;
         
     /* no point going on if we have no mechanisms */
-    if(!(ar_mechs & (AR_MECH_TRAD_PLAIN | AR_MECH_TRAD_DIGEST | AR_MECH_TRAD_ZEROK))) {
+    if(!(ar_mechs & (AR_MECH_TRAD_PLAIN | AR_MECH_TRAD_DIGEST))) {
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_FORBIDDEN), 0));
         return;
     }
@@ -197,17 +197,6 @@ static void _authreg_auth_get(c2s_t c2s, sess_t sess, nad_t nad) {
 
     if(ar_mechs & AR_MECH_TRAD_DIGEST && c2s->ar->get_password != NULL)
         nad_append_elem(nad, ns, "digest", 2);
-
-    /* don't offer zerok if the sequence is zero */
-    if(ar_mechs & AR_MECH_TRAD_ZEROK && c2s->ar->get_zerok != NULL && c2s->ar->set_zerok != NULL && (c2s->ar->get_zerok)(c2s->ar, username, sess->host->realm, shash, stoken, &ssequence) == 0 && ssequence > 0)
-    {
-        snprintf(seqs, 10, "%d", ssequence - 1);
-        nad_append_elem(nad, ns, "sequence", 2);
-        nad_append_cdata(nad, seqs, strlen(seqs), 3);
-
-        nad_append_elem(nad, ns, "token", 2);
-        nad_append_cdata(nad, stoken, strlen(stoken), 3);
-    }
 
     /* give it back to the client */
     sx_nad_write(sess->s, nad);
@@ -270,7 +259,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
         ar_mechs = ar_mechs | c2s->ar_ssl_mechanisms;
     
     /* no point going on if we have no mechanisms */
-    if(!(ar_mechs & (AR_MECH_TRAD_PLAIN | AR_MECH_TRAD_DIGEST | AR_MECH_TRAD_ZEROK))) {
+    if(!(ar_mechs & (AR_MECH_TRAD_PLAIN | AR_MECH_TRAD_DIGEST))) {
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_FORBIDDEN), 0));
         return;
     }
@@ -281,33 +270,6 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
         return;
     }
     
-    /* zerok auth */
-    if(!authd && ar_mechs & AR_MECH_TRAD_ZEROK && c2s->ar->get_zerok != NULL && c2s->ar->set_zerok != NULL && (c2s->ar->get_zerok)(c2s->ar, username, sess->host->realm, shash, stoken, &ssequence) == 0)
-    {
-        elem = nad_find_elem(nad, 1, ns, "hash", 1);
-        if(elem >= 0)
-        {
-            snprintf(hash, 41, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
-            shahash_r(hash, hash);
-
-            if(strcmp(hash, shash) == 0)
-            {
-                /* update the auth creds */
-                ssequence--;
-
-                /* don't auth them if we can't update their auth creds */
-                snprintf(str, 41, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
-                if((c2s->ar->set_zerok)(c2s->ar, username, sess->host->realm, str, stoken, ssequence) == 0)
-                {
-                    authd = 1;
-                    log_debug(ZONE, "zerok auth succeeded");
-                }
-                else
-                    log_debug(ZONE, "couldn't update auth creds, not allowing zerok auth");
-            }
-        }
-    }
-
     /* digest auth */
     if(!authd && ar_mechs & AR_MECH_TRAD_DIGEST && c2s->ar->get_password != NULL)
     {
@@ -584,30 +546,6 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
         log_debug(ZONE, "password store failed");
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_INTERNAL_SERVER_ERROR), 0));
         return;
-    }
-
-    /* store zerok data if we can */
-    if(((c2s->ar_mechanisms & AR_MECH_TRAD_ZEROK) ||
-        (c2s->ar_ssl_mechanisms & AR_MECH_TRAD_ZEROK)) && 
-       c2s->ar->set_zerok != NULL)
-    {
-        snprintf(token, 11, "%X", (unsigned int) time(NULL));
-
-        shahash_r(password, hash);
-        snprintf(str, 51, "%s%s", hash, token);
-        shahash_r(str, hash);
-
-        for(i = 0; i < sequence; i++)
-            shahash_r(hash, hash);
-
-        hash[40] = '\0';
-    
-        if((c2s->ar->set_zerok)(c2s->ar, username, sess->host->realm, hash, token, sequence) != 0)
-        {
-            log_debug(ZONE, "zerok store failed");
-            sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_INTERNAL_SERVER_ERROR), 0));
-            return;
-        }
     }
 
     log_debug(ZONE, "updated auth creds for %s", username);

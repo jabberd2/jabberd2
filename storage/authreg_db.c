@@ -201,37 +201,6 @@ static int _ar_db_set_password(authreg_t ar, char *username, char *realm, char p
     return 0;
 }
 
-static int _ar_db_get_zerok(authreg_t ar, char *username, char *realm, char hash[41], char token[11], int *sequence)
-{
-    creds_t creds;
-
-    if((creds = _ar_db_fetch_user(ar, username, realm)) == NULL)
-        return 1;
-
-    strcpy(hash, creds->hash);
-    strcpy(token, creds->token);
-    *sequence = creds->sequence;
-
-    return 0;
-}
-
-static int _ar_db_set_zerok(authreg_t ar, char *username, char *realm, char hash[41], char token[11], int sequence)
-{
-    creds_t creds;
-
-    if((creds = _ar_db_fetch_user(ar, username, realm)) == NULL)
-        return 1;
-
-    strcpy(creds->hash, hash);
-    strcpy(creds->token, token);
-    creds->sequence = sequence;
-
-    if(_ar_db_store_user(ar, creds) != 0)
-        return 1;
-
-    return 0;
-}
-
 static int _ar_db_create_user(authreg_t ar, char *username, char *realm)
 {
     creds_t creds;
@@ -381,8 +350,6 @@ int ar_init(authreg_t ar)
     ar->user_exists = _ar_db_user_exists;
     ar->get_password = _ar_db_get_password;
     ar->set_password = _ar_db_set_password;
-    ar->get_zerok = _ar_db_get_zerok;
-    ar->set_zerok = _ar_db_set_zerok;
     ar->create_user = _ar_db_create_user;
     ar->delete_user = _ar_db_delete_user;
     ar->free = _ar_db_free;

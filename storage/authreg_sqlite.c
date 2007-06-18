@@ -39,8 +39,6 @@ typedef struct moddata_st {
     sqlite3_stmt *get_password_stmt;
     sqlite3_stmt *check_password_stmt;
     sqlite3_stmt *set_password_stmt;
-    sqlite3_stmt *get_zerok_stmt;
-    sqlite3_stmt *set_zerok_stmt;
     sqlite3_stmt *create_user_stmt;
     sqlite3_stmt *delete_user_stmt;
 } *moddata_t;
@@ -195,78 +193,6 @@ _ar_sqlite_set_password(authreg_t ar, char *username, char *realm,
 }
 
 /**
- * @return 0 if zerok is returned, 1 if not
- */
-static int
-_ar_sqlite_get_zerok(authreg_t ar, char *username, char *realm,
-		     char hash[41], char token[11], int *sequence)
-{
-    sqlite3_stmt *stmt;
-    moddata_t data = (moddata_t) ar->private;
-    int res, ret = 1;
-    
-    char *sql =
-	"SELECT hash, token, sequence FROM authreg WHERE username = ? AND realm = ?";
-    
-    log_debug(ZONE, "sqlite (authreg): getzerok");
-
-    stmt = _get_stmt(ar, data->db, &data->get_zerok_stmt, sql);
-    if (stmt == NULL) {
-	return 1;
-    }
-
-    sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 2, realm, -1, SQLITE_STATIC);
-    
-    res = sqlite3_step(stmt);
-    if (res == SQLITE_ROW) {
-	strncpy(hash, (char *) sqlite3_column_text(stmt, 0), 41);
-	strncpy(token, (char *) sqlite3_column_text(stmt, 1), 11);
-	*sequence = sqlite3_column_int(stmt, 2);
-	
-	ret = 0;
-    }
-    sqlite3_reset(stmt);
-    return ret;
-}
-
-/**
- * @return 0 if zerok is set, 1 if not
- */
-static int
-_ar_sqlite_set_zerok(authreg_t ar, char *username, char *realm,
-		     char hash[41], char token[11], int sequence)
-{
-    sqlite3_stmt *stmt;
-    moddata_t data = (moddata_t) ar->private;
-    int res, ret = 0;
-
-    char *sql =
-	"UPDATE authreg SET hash = ?, token = ?, sequence = ? WHERE username = ? AND realm = ?";
-    
-    log_debug(ZONE, "sqlite (authreg): set zerok");
-    
-    stmt = _get_stmt(ar, data->db, &data->set_zerok_stmt, sql);
-    if (stmt == NULL) {
-	return 1;
-    }
-    
-    sqlite3_bind_text(stmt, 1, hash, -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 2, token, -1, SQLITE_STATIC);
-    sqlite3_bind_int(stmt, 3, sequence);
-    sqlite3_bind_text(stmt, 4, username, -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 5, realm, -1, SQLITE_STATIC);
-
-    res = sqlite3_step(stmt);
-    if (res != SQLITE_DONE) {
-	log_write(ar->c2s->log, LOG_ERR, "sqlite (authreg): %s", sqlite3_errmsg (data->db));
-	ret = 1;
-    }
-    sqlite3_reset(stmt);
-    return ret;
-}
-
-/**
  * @return 0 if user is created, 1 if not
  */
 static int
@@ -344,8 +270,6 @@ _ar_sqlite_free(authreg_t ar)
     sqlite3_finalize(data->get_password_stmt);
     sqlite3_finalize(data->check_password_stmt);
     sqlite3_finalize(data->set_password_stmt);
-    sqlite3_finalize(data->get_zerok_stmt);
-    sqlite3_finalize(data->set_zerok_stmt);
     sqlite3_finalize(data->create_user_stmt);
     sqlite3_finalize(data->delete_user_stmt);
 
@@ -411,8 +335,6 @@ ar_init(authreg_t ar)
     ar->get_password = _ar_sqlite_get_password;
     ar->check_password = _ar_sqlite_check_password;
     ar->set_password = _ar_sqlite_set_password;
-    ar->get_zerok = _ar_sqlite_get_zerok;
-    ar->set_zerok = _ar_sqlite_set_zerok;
     ar->create_user = _ar_sqlite_create_user;
     ar->delete_user = _ar_sqlite_delete_user;
     ar->free = _ar_sqlite_free;

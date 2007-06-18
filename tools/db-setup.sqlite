@@ -11,8 +11,6 @@ CREATE TABLE "authreg" (
     "username" TEXT NOT NULL,
     "realm" TEXT NOT NULL,
     "password" TEXT,
-    "token" TEXT,
-    "sequence" INTEGER,
     "hash" TEXT );
 
 CREATE INDEX i_authreg_username ON "authreg"("username");

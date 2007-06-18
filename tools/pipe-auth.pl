@@ -16,7 +16,7 @@ use MIME::Base64;
 $| = 1;
 
 # On startup, we have to inform c2s of the functions we can deal with. USER-EXISTS is not optional.
-print "OK USER-EXISTS GET-PASSWORD CHECK-PASSWORD SET-PASSWORD GET-ZEROK SET-ZEROK CREATE-USER DESTROY-USER FREE\n";
+print "OK USER-EXISTS GET-PASSWORD CHECK-PASSWORD SET-PASSWORD CREATE-USER DESTROY-USER FREE\n";
 
 # Our main loop
 my $buf;
@@ -75,32 +75,6 @@ sub _cmd_set_password
     #     $fail = [store $pass in database];
     #     return "OK" if not $fail;
 
-    return "NO";
-}
-
-# Retrieve the user's stored zerok data.
-sub _cmd_get_zerok
-{
-    my ($user, $realm) = @_;
-
-    # !!! $hash = [hash in database];
-    #     $token = [token in database];
-    #     $sequence = [sequence in database];
-    #     return "OK $hash $token $sequence" if $hash and $token and $sequence;
-
-    return "NO";
-}
-
-# Store the user's zerok data.
-sub _cmd_set_zerok
-{
-    my ($user, $hash, $token, $sequence, $realm) = @_;
-
-    # !!! $fail = [store $hash in database];
-    #     $fail and $fail = [store $token in database];
-    #     $fail and $fail = [store $sequence in database];
-    #     return "OK" if not $fail;
-    
     return "NO";
 }
 

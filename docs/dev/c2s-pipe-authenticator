@@ -10,7 +10,7 @@ Commands return OK or NO, followed by return values
 Init:
 
 [auth process running]
-<<< OK USER-EXISTS GET-PASSWORD CHECK-PASSWORD SET-PASSWORD GET-ZEROK SET-ZEROK CREATE-USER DESTROY-USER FREE
+<<< OK USER-EXISTS GET-PASSWORD CHECK-PASSWORD SET-PASSWORD CREATE-USER DESTROY-USER FREE
 
 >>> USER-EXISTS user [realm]
 <<< OK
@@ -25,14 +25,6 @@ Init:
 <<< NO
 
 >>> SET-PASSWORD user encoded_pass [realm]
-<<< OK
-<<< NO
-
->>> GET-ZEROK user [realm]
-<<< OK hash token seq#
-<<< NO
-
->>> SET-ZEROK user hash token seq# [realm]
 <<< OK
 <<< NO
 

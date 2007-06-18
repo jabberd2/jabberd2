@@ -15,8 +15,6 @@ CREATE TABLE `authreg` (
     `username` TEXT, KEY `username` (`username`(255)),
     `realm` TINYTEXT, KEY `realm` (`realm`(255)),
     `password` TINYTEXT,
-    `token` VARCHAR(10),
-    `sequence` INT,
     `hash` VARCHAR(40) ) DEFAULT CHARSET=UTF8;
 
 --

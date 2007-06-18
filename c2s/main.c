@@ -138,11 +138,9 @@ static void _c2s_config_expand(c2s_t c2s)
 
     if(config_get(c2s->config, "authreg.mechanisms.traditional.plain") != NULL) c2s->ar_mechanisms |= AR_MECH_TRAD_PLAIN;
     if(config_get(c2s->config, "authreg.mechanisms.traditional.digest") != NULL) c2s->ar_mechanisms |= AR_MECH_TRAD_DIGEST;
-    if(config_get(c2s->config, "authreg.mechanisms.traditional.zerok") != NULL) c2s->ar_mechanisms |= AR_MECH_TRAD_ZEROK;
 
     if(config_get(c2s->config, "authreg.ssl-mechanisms.traditional.plain") != NULL) c2s->ar_ssl_mechanisms |= AR_MECH_TRAD_PLAIN;
     if(config_get(c2s->config, "authreg.ssl-mechanisms.traditional.digest") != NULL) c2s->ar_ssl_mechanisms |= AR_MECH_TRAD_DIGEST;
-    if(config_get(c2s->config, "authreg.ssl-mechanisms.traditional.zerok") != NULL) c2s->ar_ssl_mechanisms |= AR_MECH_TRAD_ZEROK;
 
     elem = config_get(c2s->config, "io.limits.bytes");
     if(elem != NULL)

@@ -17,8 +17,6 @@ CREATE TABLE "authreg" (
     "username" varchar(1023) NOT NULL,
     "realm" varchar(1023) NOT NULL,
     "password" varchar(256),
-    "token" varchar(10),
-    "sequence" integer,
     "hash" varchar(40),
     PRIMARY KEY ("username", "realm") );
 

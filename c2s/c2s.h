@@ -99,7 +99,6 @@ struct sess_st {
 /* allowed mechanisms */
 #define AR_MECH_TRAD_PLAIN      (1<<0)
 #define AR_MECH_TRAD_DIGEST     (1<<1)
-#define AR_MECH_TRAD_ZEROK      (1<<2)
 
 struct host_st {
     /** our realm (SASL) */
@@ -275,10 +274,6 @@ struct authreg_st
     /** store this password (register) */
     int         (*set_password)(authreg_t ar, char *username, char *realm, char password[257]);
 
-    /** get/set zerok data for this user (zerok auth, zerok register) */
-    int         (*get_zerok)(authreg_t ar, char *username, char *realm, char hash[41], char token[11], int *sequence);
-    int         (*set_zerok)(authreg_t ar, char *username, char *realm, char hash[41], char token[11], int sequence);
-
     /** make or break the user (register / register remove) */
     int         (*create_user)(authreg_t ar, char *username, char *realm);
     int         (*delete_user)(authreg_t ar, char *username, char *realm);
@@ -308,8 +303,6 @@ int     authreg_user_exists(authreg_t ar, char *username, char *realm);
 int     authreg_get_password(authreg_t ar, char *username, char *realm, char password[257]);
 int     authreg_check_password(authreg_t ar, char *username, char *realm, char password[257]);
 int     authreg_set_password(authreg_t ar, char *username, char *realm, char password[257]);
-int     authreg_get_zerok(authreg_t ar, char *username, char *realm, char hash[41], char token[11], int *sequence);
-int     authreg_set_zerok(authreg_t ar, char *username, char *realm, char hash[41], char token[11], int sequence);
 int     authreg_create_user(authreg_t ar, char *username, char *realm);
 int     authreg_delete_user(authreg_t ar, char *username, char *realm);
 void    authreg_free(authreg_t ar);

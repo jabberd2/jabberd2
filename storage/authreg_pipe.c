@@ -191,83 +191,6 @@ static int _ar_pipe_set_password(authreg_t ar, char *username, char *realm, char
     return 0;
 }
 
-static int _ar_pipe_get_zerok(authreg_t ar, char *username, char *realm, char hash[41], char token[11], int *sequence)
-{
-    moddata_t data = (moddata_t) ar->private;
-    char buf[1024], *tok, *c;
-    int i = 0;
-
-    if(_ar_pipe_write(ar, data->out, "GET-ZEROK %s %s\n", username, realm) < 0)
-        return 1;
-
-    if(_ar_pipe_read(ar, data->in, buf, 1023) <= 0)
-        return 1;
-
-    if(buf[0] != 'O' || buf[1] != 'K')
-        return 1;
-
-    if(buf[2] != ' ' || !((buf[3] >= '0' && buf[3] <= '9') || (buf[3] >= 'a' && buf[3] <= 'f')))
-    {
-        log_debug(ZONE, "malformed response from pipe");
-        return 1;
-    }
-
-    c = &buf[3];
-    while(c != NULL && i < 3)
-    {
-        tok = c;
-
-        c = strchr(c, ' ');
-        if(c != NULL)
-        {
-            *c = '\0';
-            c++;
-        }
-
-        switch(i)
-        {
-            case 0:
-                snprintf(hash, 41, "%s", tok);
-                break;
-            case 1:
-                snprintf(token, 11, "%s", tok);
-                break;
-            case 2:
-                *sequence = atoi(tok);
-                break;
-        }
-
-        i++;
-    }
-
-    if(i < 3)
-    {
-        log_debug(ZONE, "malformed response from pipe");
-        return 1;
-    }
-
-    log_debug(ZONE, "got zerok: hash=%s, token=%s, sequence=%d", hash, token, sequence);
-
-    return 0;
-}
-
-static int _ar_pipe_set_zerok(authreg_t ar, char *username, char *realm, char hash[41], char token[11], int sequence)
-{
-    moddata_t data = (moddata_t) ar->private;
-    char buf[1024];
-
-    if(_ar_pipe_write(ar, data->out, "SET-ZEROK %s %s %s %d %s\n", username, hash, token, sequence, realm) < 0)
-        return 1;
-
-    if(_ar_pipe_read(ar, data->in, buf, 1023) <= 0)
-        return 1;
-
-    if(buf[0] != 'O' || buf[1] != 'K')
-        return 1;
-
-    return 0;
-}
-
 static int _ar_pipe_create_user(authreg_t ar, char *username, char *realm)
 {
     moddata_t data = (moddata_t) ar->private;
@@ -454,10 +377,6 @@ int ar_init(authreg_t ar)
             ar->check_password = _ar_pipe_check_password;
         else if(strcmp(tok, "SET-PASSWORD") == 0)
             ar->set_password = _ar_pipe_set_password;
-        else if(strcmp(tok, "GET-ZEROK") == 0)
-            ar->get_zerok = _ar_pipe_get_zerok;
-        else if(strcmp(tok, "SET-ZEROK") == 0)
-            ar->set_zerok = _ar_pipe_set_zerok;
         else if(strcmp(tok, "CREATE-USER") == 0)
             ar->create_user = _ar_pipe_create_user;
         else if(strcmp(tok, "DELETE-USER") == 0)
