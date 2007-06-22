@@ -526,6 +526,78 @@
 					>
 				</File>
 			</Filter>
+			<Filter
+				Name="version"
+				>
+				<File
+					RelativePath="..\include\version.h"
+					>
+				</File>
+				<File
+					RelativePath="..\include\version.h.xsl"
+					>
+					<FileConfiguration
+						Name="Debug|Win32"
+						>
+						<Tool
+							Name="VCCustomBuildTool"
+							Description="Updating $(InputDir)$(InputName)"
+							CommandLine="cd ..\.. &amp; svn info --xml|xsltproc --nonet $(InputPath) - &gt; $(InputDir)$(InputName)&#x0D;&#x0A;"
+							AdditionalDependencies="$(InputDir)..\.svn\entries"
+							Outputs="$(InputDir)$(InputName)"
+						/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="Release|Win32"
+						>
+						<Tool
+							Name="VCCustomBuildTool"
+							Description="Updating $(InputDir)$(InputName)"
+							CommandLine="cd ..\.. &amp; svn info --xml|xsltproc --nonet $(InputPath) - &gt; $(InputDir)$(InputName)&#x0D;&#x0A;"
+							AdditionalDependencies="$(InputDir)..\.svn\entries"
+							Outputs="$(InputDir)$(InputName)"
+						/>
+					</FileConfiguration>
+				</File>
+				<File
+					RelativePath="..\include\version.wxi"
+					>
+				</File>
+				<File
+					RelativePath="..\include\version.wxi.xsl"
+					>
+					<FileConfiguration
+						Name="Debug|Win32"
+						>
+						<Tool
+							Name="VCCustomBuildTool"
+							Description="Updating $(InputDir)$(InputName)"
+							CommandLine="cd ..\.. &amp; svn info --xml|xsltproc --nonet $(InputPath) - &gt; $(InputDir)$(InputName)&#x0D;&#x0A;"
+							AdditionalDependencies="$(InputDir)..\.svn\entries"
+							Outputs="$(InputDir)$(InputName)"
+						/>
+					</FileConfiguration>
+					<FileConfiguration
+						Name="Release|Win32"
+						>
+						<Tool
+							Name="VCCustomBuildTool"
+							Description="Updating $(InputDir)$(InputName)"
+							CommandLine="cd ..\.. &amp; svn info --xml|xsltproc --nonet $(InputPath) - &gt; $(InputDir)$(InputName)&#x0D;&#x0A;"
+							AdditionalDependencies="$(InputDir)..\.svn\entries"
+							Outputs="$(InputDir)$(InputName)"
+						/>
+					</FileConfiguration>
+				</File>
+			</Filter>
+		</Filter>
+		<Filter
+			Name="Resource Files"
+			>
+			<File
+				RelativePath="..\jabberd2.rc"
+				>
+			</File>
 		</Filter>
 	</Files>
 	<Globals>
