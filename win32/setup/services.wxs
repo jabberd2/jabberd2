@@ -1,0 +1,187 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+	<Fragment>
+		<Property Id="C2S.XML.EXISTS">
+			<DirectorySearch Id="c2s.xml.directory" Path="[WIXUI_INSTALLDIR]">
+				<FileSearch Name="c2s.xml" />
+			</DirectorySearch>
+		</Property>
+		<Property Id="RESOLVER.XML.EXISTS">
+			<DirectorySearch Id="resolver.xml.directory" Path="[WIXUI_INSTALLDIR]">
+				<FileSearch Name="resolver.xml" />
+			</DirectorySearch>
+		</Property>
+		<Property Id="ROUTER.XML.EXISTS">
+			<DirectorySearch Id="router.xml.directory" Path="[WIXUI_INSTALLDIR]">
+				<FileSearch Name="router.xml" />
+			</DirectorySearch>
+		</Property>
+		<Property Id="FILTER.XML.EXISTS">
+			<DirectorySearch Id="filter.xml.directory" Path="[WIXUI_INSTALLDIR]">
+				<FileSearch Name="router-filter.xml" />
+			</DirectorySearch>
+		</Property>
+		<Property Id="USERS.XML.EXISTS">
+			<DirectorySearch Id="users.xml.directory" Path="[WIXUI_INSTALLDIR]">
+				<FileSearch Name="router-users.xml" />
+			</DirectorySearch>
+		</Property>
+		<Property Id="S2S.XML.EXISTS">
+			<DirectorySearch Id="s2s.xml.directory" Path="[WIXUI_INSTALLDIR]">
+				<FileSearch Name="s2s.xml" />
+			</DirectorySearch>
+		</Property>
+		<Property Id="SM.XML.EXISTS">
+			<DirectorySearch Id="sm.xml.directory" Path="[WIXUI_INSTALLDIR]">
+				<FileSearch Name="sm.xml" />
+			</DirectorySearch>
+		</Property>
+		<DirectoryRef Id="APPLICATIONFOLDER" FileSource="$(var.TargetDir)">
+			<Component Id="c2s.exe" Guid="{77DD37C2-8852-4347-8EFE-6FC85A988B30}">
+				<File Id="c2s.exe" Name="c2s.exe" KeyPath="yes" Vital="yes" />
+				<RemoveFile Id="c2s.log" Name="c2s.log" On="uninstall" />
+				<RemoveFile Id="c2s.pid" Name="c2s.pid" On="uninstall" />
+				<ServiceInstall Arguments="-S" ErrorControl="normal" Start="auto" Type="ownProcess" Vital="yes"
+								Id="jabberd2c2s" Name="jabberd2c2s" DisplayName="Jabber 2 C2S"
+								Description="Jabber Open Source Server: Client to Server">
+					<ServiceDependency Id="jabberd2router" />
+				</ServiceInstall>
+				<ServiceControl Id="jabberd2c2s" Name="jabberd2c2s" Remove="uninstall" Start="install" Stop="both" />
+				<File Id="c2s.dist.xml" Name="c2s.dist.xml" Vital="yes" />
+			</Component>
+			<Component Id="c2s.xml" Guid="{C6B805D9-9171-48A3-93BC-2DF99357F791}" Permanent="yes">
+				<Condition>NOT C2S.XML.EXISTS</Condition>
+				<File Id="c2s.xml" Name="c2s.xml" Vital="yes" KeyPath="yes" Source="$(var.TargetDir)\c2s.dist.xml" />
+				<util:XmlFile Id="c2s.configure" Action="setValue" ElementPath="/c2s/local/id"
+							  File="[APPLICATIONFOLDER]\c2s.dist.xml" Value="[DOMAIN]" />
+			</Component>
+
+			<Component Id="resolver.exe" Guid="{460A1925-3F0C-4138-866B-BCE36087BEEB}">
+				<File Id="resolver.exe" Name="resolver.exe" KeyPath="yes" Vital="yes" />
+				<RemoveFile Id="resolver.log" Name="resolver.log" On="uninstall" />
+				<RemoveFile Id="resolver.pid" Name="resolver.pid" On="uninstall" />
+				<ServiceInstall Arguments="-S" ErrorControl="normal" Start="auto" Type="ownProcess" Vital="yes"
+								Id="jabberd2resolver" Name="jabberd2resolver" DisplayName="Jabber 2 Resolver"
+								Description="Jabber Open Source Server: Resolver">
+					<ServiceDependency Id="jabberd2router" />
+				</ServiceInstall>
+				<ServiceControl Id="jabberd2resolver" Name="jabberd2resolver" Remove="uninstall" Start="install" Stop="both" />
+				<File Id="resolver.dist.xml" Name="resolver.dist.xml" Vital="yes" />
+			</Component>
+			<Component Id="resolver.xml" Guid="{23323231-FB9F-4FD7-BEE5-3E5255A4AFDC}" Permanent="yes">
+				<Condition>NOT RESOLVER.XML.EXISTS</Condition>
+				<File Id="resolver.xml" Name="resolver.xml" Vital="yes" KeyPath="yes" Source="$(var.TargetDir)\resolver.dist.xml" />
+			</Component>
+
+			<Component Id="router.exe" Guid="{B633B226-3A8C-4E25-A26D-0786EC08D217}">
+				<File Id="router.exe" Name="router.exe" KeyPath="yes" Vital="yes" />
+				<RemoveFile Id="router.log" Name="router.log" On="uninstall" />
+				<RemoveFile Id="router.pid" Name="router.pid" On="uninstall" />
+				<ServiceInstall Arguments="-S" ErrorControl="normal" Start="auto" Type="ownProcess" Vital="yes"
+								Id="jabberd2router" Name="jabberd2router" DisplayName="Jabber 2 Router"
+								Description="Jabber Open Source Server: Router" />
+				<ServiceControl Id="jabberd2router" Name="jabberd2router" Remove="uninstall" Start="install" Stop="both" />
+				<File Id="router.dist.xml" Name="router.dist.xml" Vital="yes" />
+				<File Id="filter.dist.xml" Name="router-filter.dist.xml" Vital="yes" />
+				<File Id="users.dist.xml" Name="router-users.dist.xml" Vital="yes" />
+			</Component>
+			<Component Id="router.xml" Guid="{15EC6601-ACB1-48B7-AC01-38F3CED13E9D}" Permanent="yes">
+				<Condition>NOT ROUTER.XML.EXISTS</Condition>
+				<File Id="router.xml" Name="router.xml" Vital="yes" KeyPath="yes" Source="$(var.TargetDir)\router.dist.xml" />
+			</Component>
+			<Component Id="filter.xml" Guid="{A73E50B0-74DA-47D1-AB12-7377271F58C6}" Permanent="yes">
+				<Condition>NOT FILTER.XML.EXISTS</Condition>
+				<File Id="filter.xml" Name="router-filter.xml" Vital="yes" KeyPath="yes" Source="$(var.TargetDir)\router-filter.dist.xml" />
+			</Component>
+			<Component Id="users.xml" Guid="{8A9EB164-7BE9-49A0-9C4D-4CF5FCC55233}" Permanent="yes">
+				<Condition>NOT USERS.XML.EXISTS</Condition>
+				<File Id="users.xml" Name="router-users.xml" Vital="yes" KeyPath="yes" Source="$(var.TargetDir)\router-users.dist.xml" />
+			</Component>
+
+			<Component Id="s2s.exe" Guid="{CEDBD464-DD63-4430-8469-3F3C27A06C90}">
+				<File Id="s2s.exe" Name="s2s.exe" KeyPath="yes" Vital="yes" />
+				<RemoveFile Id="s2s.log" Name="s2s.log" On="uninstall" />
+				<RemoveFile Id="s2s.pid" Name="s2s.pid" On="uninstall" />
+				<ServiceInstall Arguments="-S" ErrorControl="normal" Start="auto" Type="ownProcess" Vital="yes"
+								Id="jabberd2s2s" Name="jabberd2s2s" DisplayName="Jabber 2 S2S"
+								Description="Jabber Open Source Server: Server to Server">
+					<ServiceDependency Id="jabberd2router" />
+				</ServiceInstall>
+				<ServiceControl Id="jabberd2s2s" Name="jabberd2s2s" Remove="uninstall" Start="install" Stop="both" />
+				<File Id="s2s.dist.xml" Name="s2s.dist.xml" Vital="yes" />
+			</Component>
+			<Component Id="s2s.xml" Guid="{554A5AFC-CA6C-45A8-AFB8-65F51C108861}" Permanent="yes">
+				<Condition>NOT S2S.XML.EXISTS</Condition>
+				<File Id="s2s.xml" Name="s2s.xml" Vital="yes" KeyPath="yes" Source="$(var.TargetDir)\s2s.dist.xml" />
+			</Component>
+
+			<Component Id="sm.exe" Guid="{B5C795C8-6FFC-441C-9F7C-6846124C2D43}">
+				<File Id="sm.exe" Name="sm.exe" KeyPath="yes" Vital="yes" />
+				<RemoveFile Id="sm.log" Name="sm.log" On="uninstall" />
+				<RemoveFile Id="sm.pid" Name="sm.pid" On="uninstall" />
+				<ServiceInstall Arguments="-S" ErrorControl="normal" Start="auto" Type="ownProcess" Vital="yes"
+								Id="jabberd2sm" Name="jabberd2sm" DisplayName="Jabber 2 Session Manager"
+								Description="Jabber Open Source Server: Session Manager">
+					<ServiceDependency Id="jabberd2router" />
+				</ServiceInstall>
+				<ServiceControl Id="jabberd2sm" Name="jabberd2sm" Remove="uninstall" Start="install" Stop="both" />
+				<File Id="sm.dist.xml" Name="sm.dist.xml" Vital="yes" />
+			</Component>
+			<Component Id="sm.xml" Guid="{74E3ADAC-1CE9-41A4-9B30-3CA98D2E6BDA}" Permanent="yes">
+				<Condition>NOT SM.XML.EXISTS</Condition>
+				<File Id="sm.xml" Name="sm.xml" Vital="yes" KeyPath="yes" Source="$(var.TargetDir)\sm.dist.xml" />
+				<util:XmlFile Id="smConfigure" Action="setValue" ElementPath="/sm/id"
+							  File="[APPLICATIONFOLDER]\sm.dist.xml" Value="[DOMAIN]" />
+			</Component>
+
+			<Component Id="server.pem" Guid="{8AA5D8A8-A7EC-4F9F-BD19-FE0DD03BA620}">
+				<File Id="server.pem" Name="server.pem" KeyPath="yes" Vital="yes" />
+			</Component>
+			<Component Id="jabberd2.dll" Guid="{4C6C8EBD-DB23-498C-8E1E-0254631AB252}">
+				<File Id="jabberd2.dll" Name="jabberd2.dll" KeyPath="yes" Vital="yes" />
+			</Component>
+			<Component Id="dbsetupstatus.mysql" Guid="{7DF07536-99A9-455A-9DB8-A4369AE0660D}">
+				<File Id="dbsetupstatus.mysql" Name="db-setup-status.mysql" KeyPath="yes" Vital="yes" />
+			</Component>
+			<Component Id="dbsetup.mysql" Guid="{0EE029D6-DFD1-4F20-A910-02B472940D7F}">
+				<File Id="dbsetup.mysql" Name="db-setup.mysql" KeyPath="yes" Vital="yes" />
+			</Component>
+			<Component Id="dbupdate.mysql" Guid="{E6CEA2B8-BFF6-4969-9B4E-3F6F5AF8CB06}">
+				<File Id="dbupdate.mysql" Name="db-update.mysql" KeyPath="yes" Vital="yes" />
+			</Component>
+			<Component Id="dbsetup.sqlite" Guid="{5C39F304-CD9E-4488-8C8D-5C629EB315D1}">
+				<File Id="dbsetup.sqlite" Name="db-setup.sqlite" KeyPath="yes" Vital="yes" />
+			</Component>
+			<Component Id="sqlite.dist.db" Guid="{928DD3B5-F429-45C4-B677-F3A2FFE23051}">
+				<File Id="sqlite.dist.db" Name="sqlite.dist.db" KeyPath="yes" Vital="yes" />
+			</Component>
+			<Component Id="sqlite.db" Guid="{54949691-C375-45B4-9936-D10967CCD0B2}" Permanent="yes">
+				<File Id="sqlite.db" Name="sqlite.db" KeyPath="yes" Vital="yes" Source="$(var.TargetDir)\sqlite.dist.db" />
+			</Component>
+		</DirectoryRef>
+	</Fragment>
+	<Fragment>
+		<ComponentGroup Id="Services">
+			<ComponentRef Id="c2s.exe" />
+			<ComponentRef Id="c2s.xml" />
+			<ComponentRef Id="resolver.exe" />
+			<ComponentRef Id="resolver.xml" />
+			<ComponentRef Id="router.exe" />
+			<ComponentRef Id="router.xml" />
+			<ComponentRef Id="filter.xml" />
+			<ComponentRef Id="users.xml" />
+			<ComponentRef Id="s2s.exe" />
+			<ComponentRef Id="s2s.xml" />
+			<ComponentRef Id="sm.exe" />
+			<ComponentRef Id="sm.xml" />
+			<ComponentRef Id="server.pem" />
+			<ComponentRef Id="jabberd2.dll" />
+			<ComponentRef Id="dbsetupstatus.mysql" />
+			<ComponentRef Id="dbsetup.mysql" />
+			<ComponentRef Id="dbupdate.mysql" />
+			<ComponentRef Id="dbsetup.sqlite" />
+			<ComponentRef Id="sqlite.dist.db" />
+			<ComponentRef Id="sqlite.db" />
+		</ComponentGroup>
+	</Fragment>
+</Wix>

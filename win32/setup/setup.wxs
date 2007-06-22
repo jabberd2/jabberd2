@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?include "../include/version.wxi" ?>
+<?define ProductName = "jabberd $(var.ProductVersion) for Windows" ?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+	<Product Id="f0157526-c9f6-472b-b336-ba2de2906620" Name="$(var.ProductName)" xmlns:De="http://schemas.microsoft.com/wix/2006/wi" Language="1033" Version="$(var.ProductFileVersion)" Manufacturer="jabberd2" UpgradeCode="5f4d7239-76fb-40e6-92b4-cb4aff5082d0">
+		<Package InstallerVersion="200" Compressed="yes" Description="$(var.ProductName) installer" Keywords="jabber" />
+
+		<Media Id="1" Cabinet="setup.cab" EmbedCab="yes" />
+
+		<Directory Id="TARGETDIR" Name="SourceDir">
+			<Directory Id="ProgramFilesFolder">
+				<Directory Id="APPLICATIONFOLDER" Name="jabberd2">
+					<Directory Id="ModulesDir" Name="modules" />
+					<Directory Id="SASLDir" Name="sasl" />
+				</Directory>
+			</Directory>
+		</Directory>
+
+		<Upgrade Id="5f4d7239-76fb-40e6-92b4-cb4aff5082d0">
+			<UpgradeVersion OnlyDetect="yes" Property="NEWER_VER_FOUND" IncludeMinimum="yes"
+							Minimum="$(var.ProductFileVersion)" />
+			<UpgradeVersion OnlyDetect="yes" Property="OLDER_VER_FOUND" IncludeMinimum="yes"
+							Minimum="1.0.0" IncludeMaximum="no" Maximum="$(var.ProductFileVersion)" />
+		</Upgrade>
+
+		<Feature Id="Complete" Title="$(var.ProductName)" Description="Complete package" Display="expand"
+				 Level="1" ConfigurableDirectory="APPLICATIONFOLDER">
+			<Feature Id="jabberd2" Title="$(var.ProductName)" Level="1">
+				<ComponentGroupRef Id="Libraries" />
+				<ComponentGroupRef Id="SASL" />
+				<ComponentGroupRef Id="Services" />
+				<ComponentGroupRef Id="Modules" />
+			</Feature>
+		</Feature>
+
+		<WixVariable Id="WixUILicenseRtf" Value="license\GPL.rtf" />
+		<WixVariable Id="WixUIBannerBmp" Value="bitmaps\banner.jpg" />
+		<WixVariable Id="WixUIDialogBmp" Value="bitmaps\background.jpg" />
+
+		<InstallExecuteSequence>
+			<RemoveExistingProducts After="InstallValidate">OLDER_VER_FOUND</RemoveExistingProducts>
+			<Custom Action="AlreadyNewestVersion" After="FindRelatedProducts">NEWER_VER_FOUND</Custom>
+		</InstallExecuteSequence>
+
+		<CustomAction Id="AlreadyNewestVersion" Error="$(var.ProductName) has already been updated." />
+
+		<UIRef Id="WixUI_Common" />
+		<UIRef Id="jabberd2UI" />
+	</Product>
+</Wix>
