@@ -443,7 +443,7 @@ static mod_ret_t _roster_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)
         xhash_walk(sess->user->roster, _roster_get_walker, (void *) pkt);
 
         nad_set_attr(pkt->nad, 1, -1, "type", "result", 6);
-        pkt_sess(pkt, sess);
+        pkt_sess(pkt_tofrom(pkt), sess);
 
         /* remember that they loaded it, so we know to push updates to them */
         sess->module_data[mod->index] = (void *) 1;
