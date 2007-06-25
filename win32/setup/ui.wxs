@@ -1,30 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 	<Fragment>
-		<PropertyRef Id="SM.XML.EXISTS" />
-		<PropertyRef Id="C2S.XML.EXISTS" />
-		<Property Id="SampleScript">
-			<![CDATA[
-			function WhatIsPath()
-			{
-				alert(Session.Property("WIXUI_INSTALLDIR"));
-			}
+		<CustomAction Id="CheckPaths" BinaryKey="jabberd2ca" DllEntry="CheckPaths" />
+		<Binary Id="jabberd2ca" SourceFile="$(var.TargetDir)\jabberd2ca.dll" />
 
-			function alert(s)
-			{
-				var msiMessageTypeUser     = 0x03000000;
-				var msiMessageTypeOkOnly   = 0;
-				var msiMessageTypeDefault1 = 0x000;
-
-				var options = msiMessageTypeUser + msiMessageTypeOkOnly + msiMessageTypeDefault1;
-
-				var objRecord = Session.Installer.CreateRecord(1);
-				objRecord.StringData(0) = "[1]";
-				objRecord.StringData(1) = "Hello";
-
-				var response = Session.Message(options, objRecord);
-			}]]>
-		</Property>
 		<UI Id="jabberd2UI">
 			<Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
 			<TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
@@ -32,7 +11,7 @@
 			<TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
 			<TextStyle Id="WixUI_Font_Description" FaceName="Tahoma" Size="7" />
 
-			<Property Id="WIXUI_INSTALLDIR" Value="APPLICATIONFOLDER" />
+			<Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
 			<Property Id="ARPNOMODIFY" Value="1" />
 
 			<DialogRef Id="BrowseDlg" />
@@ -56,18 +35,22 @@
 			<Publish Dialog="InstallDirDlg" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
 			<Publish Dialog="InstallDirDlg" Control="Next" Property="DOMAIN" Value="[%USERDNSDOMAIN]" Order="1">1</Publish>
 			<Publish Dialog="InstallDirDlg" Control="Next" Property="DOMAIN" Value="[%USERDOMAIN]" Order="2">DOMAIN = ""</Publish>
-			<Publish Dialog="InstallDirDlg" Control="Next" Event="DoAction" Value="AppSearch" Order="3">1</Publish>
-			<Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="ConfigurationDlg" Order="4">NOT C2S.XML.EXISTS AND NOT S2S.XML.EXISTS</Publish>
-			<Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="5">1</Publish>
+			<Publish Dialog="InstallDirDlg" Control="Next" Property="INSTALLDIR" Value="[INSTALLDIR]" Order="3">1</Publish>
+			<Publish Dialog="InstallDirDlg" Control="Next" Event="DoAction" Value="CheckPaths" Order="4">1</Publish>
+			<Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="ConfigurationDlg" Order="5">NOT C2S.XML.EXISTS AND NOT S2S.XML.EXISTS</Publish>
+			<Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="DetectedDlg" Order="6">C2S.XML.EXISTS OR S2S.XML.EXISTS</Publish>
 			<Publish Dialog="InstallDirDlg" Control="ChangeFolder" Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
 			<Publish Dialog="InstallDirDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="2">1</Publish>
 
 			<Publish Dialog="ConfigurationDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg">1</Publish>
 			<Publish Dialog="ConfigurationDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="1">NOT DOMAIN = ""</Publish>
 
+			<Publish Dialog="DetectedDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg">1</Publish>
+			<Publish Dialog="DetectedDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="1">1</Publish>
+
 			<Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="ConfigurationDlg" Order="1">NOT Installed AND NOT C2S.XML.EXISTS AND NOT S2S.XML.EXISTS</Publish>
-			<Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg" Order="2">NOT Installed</Publish>
-			<Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2">Installed</Publish>
+			<Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="DetectedDlg" Order="2">NOT Installed AND (C2S.XML.EXISTS OR S2S.XML.EXISTS)</Publish>
+			<Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="3">Installed</Publish>
 
 			<Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg">1</Publish>
 			<Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
@@ -89,6 +72,22 @@
 					<Condition Action="disable">DOMAIN = ""</Condition>
 					<Condition Action="enable"><![CDATA[DOMAIN <> ""]]></Condition>
 				</Control>
+				<Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="Back" />
+				<Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
+					<Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+				</Control>
+			</Dialog>
+
+			<Dialog Id="DetectedDlg" Width="370" Height="270" Title="[ProductName] [Setup]">
+				<Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes" Text="{\WixUI_Font_Title}Old jabberd2 detected" />
+				<Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="15" Transparent="yes" NoPrefix="yes" Text="Set has detected old jabberd2 configuration" />
+				<Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="!(loc.InstallDirDlgBannerBitmap)" />
+				<Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+
+				<Control Id="HelpLabel" Type="Text" X="20" Y="60" Width="330" Height="170" Text="Previous jabberd2 configuration was detected at &quot;[INSTALLDIR]&quot; folder.&#xA;&#xA;Installer will not modify or overwrite old configuration files.&#xA;&#xA;New distribution configuration files will be written with &quot;dist.xml&quot; extension." />
+
+				<Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+				<Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="Next" />
 				<Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="Back" />
 				<Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
 					<Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>

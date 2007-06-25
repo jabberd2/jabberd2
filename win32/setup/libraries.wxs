@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
 	<Fragment>
-		<DirectoryRef Id="APPLICATIONFOLDER" FileSource="$(var.TargetDir)">
+		<DirectoryRef Id="INSTALLDIR" FileSource="$(var.TargetDir)">
 			<Component Id="libdb45.dll" Guid="{3B9C1069-2EDE-44B1-B6A1-A46FC9D21030}">
 				<File Id="libdb45.dll" Name="libdb45.dll" KeyPath="yes" Vital="yes" />
 			</Component>
