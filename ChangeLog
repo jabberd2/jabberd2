@@ -1,4 +1,24 @@
+2007-07-03 Tomasz Sterna <tomek@xiaoka.com>
+	* Integrated util/*.h cleanups by plaes. Closes #97
+	* Integrated own strndup fix by plaes. Closes #96
+
+2007-06-25 Adam Strzelecki <ono@java.pl>
+	* Final polish to setup, with old version detection and upgrading.
+
+2007-06-22 Adam Strzelecki <ono@java.pl>
+	* WiX Windows jabberd2 setup project. (Initial checkin)
+	* Move automatic versioning into jabberd2 module.
+
+2007-06-22 Tomasz Sterna <tomek@xiaoka.com>
+	* Corrected roster-get iq response. Fixes #94
+
+2007-06-18 Tomasz Sterna <tomek@xiaoka.com>
+	* Removed support for ZeroK authentication
+	* Identation cosmetics
+
 2007-06-17 Tomasz Sterna <tomek@xiaoka.com>
+	* XMPP compatibility fixes. Fixes #92
+	* Exported libsubst sysmbols dynamic for sm modules to use. Fixes #74
 	* Merged nullstring config option by Simon Wilkinson. Fixes #17
 	* Fixed dynamic linker detection with libtool. Fixes #76
 	* Merged Cyrus SASL realm behaviour fix by Simon Wilkinson. Fixes #82
