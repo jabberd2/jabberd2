@@ -1,0 +1,28 @@
+.TH @jabberd_storage_bin@ 8 "27 April 2004" "@VERSION@" "jabberd project"
+.SH NAME
+@jabberd_storage_bin@ \- Jabber storage manager
+.SH SYNOPSIS
+.B @jabberd_storage_bin@
+.I [-h] [-c config] [-D]
+.SH DESCRIPTION
+.BR @jabberd_storage_bin@
+provides storage and authentication services to the other components in the jabberd system.
+.SH OPTIONS
+.TP
+.B \-h
+Show summary of options.
+.TP
+.B \-c
+Alternate configuration file to use. The compiled-in default is @sysconfdir@/storage.xml.
+.TP
+.B \-D
+Print debugging output. You should configure jabberd with the --enable-debug switch to enable this.
+.SH SEE ALSO
+.BR jabberd (8)
+.BR @jabberd_c2s_bin@ (8)
+.BR @jabberd_router_bin@ (8)
+.BR @jabberd_resolver_bin@ (8)
+.BR @jabberd_s2s_bin@ (8)
+.BR @jabberd_sm_bin@ (8)
+.SH AUTHOR
+Robert Norris <rob@cataclysm.cx>

@@ -1,0 +1,40 @@
+c2s startup
+pipe init
+ - create socketpair
+ - fork
+ - attach pair to stdio
+ - exec prog
+
+Commands return OK or NO, followed by return values
+
+Init:
+
+[auth process running]
+<<< OK USER-EXISTS GET-PASSWORD CHECK-PASSWORD SET-PASSWORD CREATE-USER DESTROY-USER FREE
+
+>>> USER-EXISTS user [realm]
+<<< OK
+<<< NO
+
+>>> GET-PASSWORD user [realm]
+<<< OK encoded_pass
+<<< NO
+
+>>> CHECK-PASSWORD user encoded_pass [realm]
+<<< OK
+<<< NO
+
+>>> SET-PASSWORD user encoded_pass [realm]
+<<< OK
+<<< NO
+
+>>> CREATE-USER user [realm]
+<<< OK
+<<< NO
+
+>>> DELETE-USER user [realm]
+<<< OK
+<<< NO
+
+>>> FREE
+[auth process exits]

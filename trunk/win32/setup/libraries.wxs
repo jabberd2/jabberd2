@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+	<Fragment>
+		<DirectoryRef Id="INSTALLDIR" FileSource="$(var.TargetDir)">
+			<Component Id="libdb45.dll" Guid="{3B9C1069-2EDE-44B1-B6A1-A46FC9D21030}">
+				<File Id="libdb45.dll" Name="libdb45.dll" KeyPath="yes" Vital="yes" />
+			</Component>
+			<Component Id="libexpat.dll" Guid="{28B2C906-9655-48F4-BFD4-9448FB504750}">
+				<File Id="libexpat.dll" Name="libexpat.dll" KeyPath="yes" Vital="yes" />
+			</Component>
+			<Component Id="libidn.dll" Guid="{68DC74AB-28C9-4C96-841A-BC6E3020243E}">
+				<File Id="libidn.dll" Name="libidn.dll" KeyPath="yes" Vital="yes" />
+			</Component>
+			<Component Id="sqlite3.dll" Guid="{53BCD278-9B09-4246-BEED-C38695F7A6A8}">
+				<File Id="sqlite3.dll" Name="sqlite3.dll" KeyPath="yes" Vital="yes" />
+			</Component>
+		</DirectoryRef>
+	</Fragment>
+	<Fragment>
+		<ComponentGroup Id="Libraries">
+			<ComponentRef Id="libdb45.dll" />
+			<ComponentRef Id="libexpat.dll" />
+			<ComponentRef Id="libidn.dll" />
+			<ComponentRef Id="sqlite3.dll" />
+		</ComponentGroup>
+	</Fragment>
+</Wix>
