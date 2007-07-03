@@ -1,8 +1,9 @@
-#ifndef HAVE_STRNDUP
-
 #ifdef HAVE_CONFIG_H
 # include "config.h"
-#endif
+#endif /* HAVE_CONFIG_H */
+
+#ifndef HAVE_STRNDUP
+
 #include <stddef.h>
 
 /* jabberd2 Windows DLL */
@@ -27,4 +28,4 @@ JABBERD2_API char *strndup(char *str, size_t len)
     }
     return dup;
 }
-#endif
+#endif /* HAVE_STRNDUP */
