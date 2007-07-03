@@ -1,5 +1,16 @@
 This file contains upgrade instructions between different versions of jabberd2.
 
+* 2.1.6 to 2.1.7 upgrade:
+
+What had change:
+- MySQL connection defaults to UTF-8 now
+- Removed support for ZeroK authentication
+
+Please make sure that the encoding of the data in your MySQL DB is UTF-8
+or is convertable by MySQL to UTF-8.
+You may remove the 'token', 'sequence' and 'hash' columns in authreg table.
+
+
 * 2.1.5 to 2.1.6 upgrade:
 
 What had change:
