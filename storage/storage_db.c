@@ -333,7 +333,7 @@ static st_ret_t _st_db_get(st_driver_t drv, const char *type, const char *owner,
             f = storage_filter(filter);
             cfilter = pstrdup(xhash_pool(data->filters), filter);
             xhash_put(data->filters, cfilter, (void *) f);
-            pool_cleanup(xhash_pool(data->filters), (pool_cleaner) pool_free, f->p);
+            pool_cleanup(xhash_pool(data->filters), (pool_cleanup_t) pool_free, f->p);
         }
     }
 
@@ -393,7 +393,7 @@ static st_ret_t _st_db_delete_guts(st_driver_t drv, const char *type, const char
             f = storage_filter(filter);
             cfilter = pstrdup(xhash_pool(data->filters), filter);
             xhash_put(data->filters, cfilter, (void *) f);
-            pool_cleanup(xhash_pool(data->filters), (pool_cleaner) pool_free, f->p);
+            pool_cleanup(xhash_pool(data->filters), (pool_cleanup_t) pool_free, f->p);
         }
     }
 
