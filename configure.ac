@@ -573,9 +573,7 @@ if test "x-$want_db" = "x-yes" ; then
                                                have_db_version=yes],
                                               AC_MSG_RESULT(no))],
                                 AC_MSG_RESULT(no))
-                if test "x-$have_db_version" = "x-" ; then
-                    LIBS="$save_libs"
-                fi
+                LIBS="$save_libs"
             fi
         done
     fi
@@ -642,6 +640,7 @@ AC_ARG_ENABLE(ldap, AC_HELP_STRING([--enable-ldap], [enable OpenLDAP auth/reg su
               want_ldap=$enableval, want_ldap=no)
 if test "x-$want_ldap" = "x-yes" ; then
     AC_CHECK_HEADERS(lber.h ldap.h)
+    save_libs="$LIBS"
     if test "x-$ac_cv_header_ldap_h" = "x-yes" -a "x-$ac_cv_header_lber_h" = "x-yes" ; then
         AC_CHECK_LIB(lber, ber_alloc)
         AC_CHECK_LIB(ldap, ldap_init)
@@ -661,6 +660,7 @@ if test "x-$want_ldap" = "x-yes" ; then
                                         have_ldap_version=yes],
                                        AC_MSG_RESULT(no))
     fi
+    LIBS="$save_libs"
     if test "x-$have_ldap_version" = "x-" ; then
         AC_MSG_ERROR([OpenLDAP client libraries >= 2.1.0 not found])
     else
