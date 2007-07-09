@@ -1,3 +1,10 @@
+2007-07-06 Tomasz Sterna <tomek@xiaoka.com>
+	* Keeping garbage out of LIBS variable. Fixes #95
+	* Reporting dropped packet when starttls-required. Fixes #5
+
+2007-07-05 Tomasz Sterna <tomek@xiaoka.com>
+	* Fix for storage_db compilation error after util/ cleanup. Fixes #99, refs #97
+
 2007-07-03 Tomasz Sterna <tomek@xiaoka.com>
 	* Integrated util/*.h cleanups by plaes. Closes #97
 	* Integrated own strndup fix by plaes. Closes #96
