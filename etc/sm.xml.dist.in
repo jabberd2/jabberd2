@@ -466,7 +466,8 @@
     <dropsubscriptions/>
     -->
     
-    <!-- Offline storage message quota -->
+    <!-- Offline storage message quota.
+         Specifies how many messages will be stored in user offline store -->
     <!--
     <userquota>500</userquota>
     -->
