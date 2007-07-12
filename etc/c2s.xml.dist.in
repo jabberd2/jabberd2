@@ -109,7 +109,7 @@
     <id register-enable='true'>localhost</id>
     <!-- or
     <id realm='company'
-        pemfile='/usr/local/etc/jabberd/server.pem'
+        pemfile='@sysconfdir@/server.pem'
         verify-mode='7'
         require-starttls='true'
         register-enable='true'
