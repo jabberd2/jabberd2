@@ -1,3 +1,8 @@
+2007-07-09 Tomasz Sterna <tomek@xiaoka.com>
+	* Made SCOD at least compile
+	* Changed SASL backend selection method. Incorporated SCOD selection option.
+	* Resurrected /scod from revision 189
+
 2007-07-06 Tomasz Sterna <tomek@xiaoka.com>
 	* Keeping garbage out of LIBS variable. Fixes #95
 	* Reporting dropped packet when starttls-required. Fixes #5
