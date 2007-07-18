@@ -337,7 +337,9 @@ static void _router_route_log_sink(xht log_sinks, const char *key, void *val, vo
 
     log_debug(ZONE, "copying route to '%s' (%s, port %d)", key, comp->ip, comp->port);
 
-    _router_comp_write(comp, nad_copy(nad));
+    nad = nad_copy(nad);
+    nad_set_attr(nad, 0, -1, "type", "log", 3);
+    _router_comp_write(comp, nad);
 }
 
 static void _router_process_route(component_t comp, nad_t nad) {
