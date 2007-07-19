@@ -14,6 +14,7 @@ svn -q export "$1" "$APPNAME-$APPVER"
 cd "$APPNAME-$APPVER"
 sed -i "s/^AC_INIT(.*$/AC_INIT($APPNAME, $APPVER, jabberd2@xiaoka.com)/" configure.ac
 autoreconf --install --force
+libtoolize --copy --force
 cd ..
 tar -zchf "$DSTDIR/$APPNAME-$APPVER.tar.gz" "$APPNAME-$APPVER"
 tar -jchf "$DSTDIR/$APPNAME-$APPVER.tar.bz2" "$APPNAME-$APPVER"
