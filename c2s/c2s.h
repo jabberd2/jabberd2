@@ -117,6 +117,7 @@ struct host_st {
     /** registration */
     int                 ar_register_enable;
     char                *ar_register_instructions;
+    char                *ar_register_oob;
     int                 ar_register_password;
 
 };

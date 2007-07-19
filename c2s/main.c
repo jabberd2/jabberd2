@@ -245,10 +245,14 @@ static void _c2s_hosts_expand(c2s_t c2s)
         host->host_verify_mode = j_atoi(j_attr((const char **) elem->attrs[i], "verify-mode"), 0);
 
         host->ar_register_enable = (j_attr((const char **) elem->attrs[i], "register-enable") != NULL);
-        if(host->ar_register_enable) {
+        host->ar_register_oob = j_attr((const char **) elem->attrs[i], "register-oob");
+        if(host->ar_register_enable || host->ar_register_oob) {
             host->ar_register_instructions = j_attr((const char **) elem->attrs[i], "instructions");
             if(host->ar_register_instructions == NULL)
-                host->ar_register_instructions = "Enter a username and password to register with this server.";
+                if(host->ar_register_oob)
+                    host->ar_register_instructions = "Only web based registration is possible with this server.";
+                else
+                    host->ar_register_instructions = "Enter a username and password to register with this server.";
         } else
             host->ar_register_password = (j_attr((const char **) elem->attrs[i], "password-change") != NULL);
 

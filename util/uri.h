@@ -44,5 +44,6 @@
 #define uri_RESOLVER    "http://jabberd.jabberstudio.org/ns/resolver/1.0"
 #define uri_XDATA       "jabber:x:data"
 #define uri_XML         "http://www.w3.org/XML/1998/namespace"
+#define uri_OOB         "jabber:x:oob"
 
 #endif

@@ -368,7 +368,7 @@ static void _authreg_register_get(c2s_t c2s, sess_t sess, nad_t nad) {
     char id[128];
 
     /* registrations can happen if reg is enabled and we can create users and set passwords */
-    if(sess->active || !(c2s->ar->set_password != NULL && c2s->ar->create_user != NULL && sess->host->ar_register_enable)) {
+    if(sess->active || !(c2s->ar->set_password != NULL && c2s->ar->create_user != NULL && (sess->host->ar_register_enable || sess->host->ar_register_oob))) {
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_NOT_ALLOWED), 0));
         return;
     }
@@ -394,11 +394,20 @@ static void _authreg_register_get(c2s_t c2s, sess_t sess, nad_t nad) {
     ns = nad_add_namespace(nad, "jabber:iq:register", NULL);
     nad_append_elem(nad, ns, "query", 1);
     
-    nad_append_elem(nad, ns, "username", 2);
-    nad_append_elem(nad, ns, "password", 2);
-
     nad_append_elem(nad, ns, "instructions", 2);
     nad_append_cdata(nad, sess->host->ar_register_instructions, strlen(sess->host->ar_register_instructions), 3);
+
+    if(sess->host->ar_register_enable) {
+        nad_append_elem(nad, ns, "username", 2);
+        nad_append_elem(nad, ns, "password", 2);
+    }
+
+    if(sess->host->ar_register_oob) {
+        int ns = nad_add_namespace(nad, "jabber:x:oob", NULL);
+        nad_append_elem(nad, ns, "x", 2);
+        nad_append_elem(nad, ns, "url", 3);
+        nad_append_cdata(nad, sess->host->ar_register_oob, strlen(sess->host->ar_register_oob), 4);
+    }
 
     /* give it back to the client */
     sx_nad_write(sess->s, nad);
