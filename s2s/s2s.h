@@ -200,6 +200,8 @@ struct conn_st {
     /** timestamps for idle timeouts */
     time_t              last_activity;
     time_t              last_packet;
+
+    unsigned int        packet_count;
 };
 
 /** one item in the dns resolution cache */
@@ -225,8 +227,8 @@ extern sig_atomic_t s2s_lost_router;
 int             s2s_router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
 int             s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg);
 
-char            *s2s_route_key(pool p, char *local, char *remote);
-char            *s2s_db_key(pool p, char *secret, char *remote, char *id);
+char            *s2s_route_key(pool_t p, char *local, char *remote);
+char            *s2s_db_key(pool_t p, char *secret, char *remote, char *id);
 
 void            out_packet(s2s_t s2s, pkt_t pkt);
 void            out_resolve(s2s_t s2s, nad_t nad);

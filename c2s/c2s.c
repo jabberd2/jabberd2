@@ -198,6 +198,9 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
             break;
 
         case event_PACKET:
+            /* we're counting packets */
+            sess->packet_count++;
+
             nad = (nad_t) data;
 
             /* we only want (message|presence|iq) in jabber:client, everything else gets dropped */
@@ -439,7 +442,7 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
         case action_CLOSE:
             log_debug(ZONE, "close action on fd %d", fd->fd);
 
-            log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] disconnect", sess->fd->fd, sess->ip, sess->port);
+            log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] disconnect, packets: %i", sess->fd->fd, sess->ip, sess->port, sess->packet_count);
 
             /* tell the sm to close their session */
             if(sess->active)

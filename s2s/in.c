@@ -87,7 +87,7 @@ int in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg)
             log_debug(ZONE, "close action on fd %d", fd->fd);
 
             /* !!! logging */
-            log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] disconnect", fd->fd, in->ip, in->port);
+            log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] disconnect, packets: %i", fd->fd, in->ip, in->port, in->packet_count);
 
             jqueue_push(in->s2s->dead, (void *) in->s, 0);
 
@@ -253,6 +253,9 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             break;
 
         case event_PACKET:
+            /* we're counting packets */
+            in->packet_count++;
+
             nad = (nad_t) data;
 
             /* update last packet timestamp */

@@ -503,7 +503,7 @@ static int _out_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, v
             /* generate the ip/port pair */
             snprintf(ipport, INET6_ADDRSTRLEN + 16, "%s/%d", out->ip, out->port);
 
-            log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] disconnect", fd->fd, out->ip, out->port);
+            log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] disconnect, packets: %i", fd->fd, out->ip, out->port, out->packet_count);
 
             xhash_zap(out->s2s->out, ipport);
 
@@ -630,6 +630,9 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             break;
 
         case event_PACKET:
+            /* we're counting packets */
+            out->packet_count++;
+
             nad = (nad_t) data;
 
             /* watch for the features packet - STARTTLS and/or SASL*/

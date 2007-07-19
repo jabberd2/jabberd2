@@ -75,6 +75,7 @@ struct sess_st {
     int                 rate_log;
 
     time_t              last_activity;
+    unsigned int        packet_count;
 
     int                 bound;
     int                 active;
