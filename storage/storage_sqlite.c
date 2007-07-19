@@ -506,6 +506,66 @@ static st_ret_t _st_sqlite_get (st_driver_t drv, const char *type,
     return st_SUCCESS;
 }
 
+static st_ret_t _st_sqlite_count (st_driver_t drv, const char *type,
+				   const char *owner, const char *filter, int *count) {
+
+    drvdata_t data = (drvdata_t) drv->private;
+    char *cond, *buf = NULL;
+    unsigned int nbuf = 0;
+    unsigned int buflen = 0;
+    char tbuf[128];
+    int res, coltype;
+    sqlite3_stmt *stmt;
+
+    if (data->prefix != NULL) {
+	snprintf (tbuf, sizeof (tbuf), "%s%s", data->prefix, type);
+	type = tbuf;
+    }
+
+    cond = _st_sqlite_convert_filter (drv, owner, filter);
+    log_debug (ZONE, "generated filter: %s", cond);
+
+    SQLITE_SAFE_CAT3 (buf, nbuf, buflen,
+		      "SELECT COUNT(*) FROM \"", type, "\" WHERE ");
+    strcpy (&buf[nbuf], cond);
+    free (cond);
+
+    log_debug (ZONE, "prepared sql: %s", buf);
+
+    res = sqlite3_prepare (data->db, buf, strlen (buf), &stmt, NULL);
+    free (buf);
+    if (res != SQLITE_OK) {
+	return st_FAILED;
+    }
+
+    _st_sqlite_bind_filter (drv, owner, filter, stmt, 1);
+
+    res = sqlite3_step (stmt);
+    if (res != SQLITE_ROW) {
+	log_write (drv->st->sm->log, LOG_ERR,
+		   "sqlite: sql select failed: %s",
+		   sqlite3_errmsg (data->db));
+	sqlite3_finalize (stmt);
+	return st_FAILED;
+    }
+
+    coltype = sqlite3_column_type (stmt, 0);
+
+    if (coltype != SQLITE_INTEGER) {
+	log_write (drv->st->sm->log, LOG_ERR,
+		   "sqlite: weird, count() returned non integer value: %s",
+		   sqlite3_errmsg (data->db));
+	sqlite3_finalize (stmt);
+	return st_FAILED;
+    }
+
+    *count = sqlite3_column_int (stmt, 0);
+
+    sqlite3_finalize (stmt);
+
+    return st_SUCCESS;
+}
+
 static st_ret_t _st_sqlite_delete (st_driver_t drv, const char *type,
 				   const char *owner, const char *filter) {
 
@@ -662,6 +722,7 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv) {
     drv->private = (void *) data;
     drv->add_type = _st_sqlite_add_type;
     drv->put = _st_sqlite_put;
+    drv->count = _st_sqlite_count;
     drv->get = _st_sqlite_get;
     drv->delete = _st_sqlite_delete;
     drv->replace = _st_sqlite_replace;
