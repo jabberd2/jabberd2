@@ -27,6 +27,10 @@
   * $Revision: 1.61 $
   */
 
+typedef struct _mod_roster_st {
+    int maxitems;
+} *mod_roster_t;
+
 /** free a single roster item */
 static void _roster_free_walker(xht roster, const char *key, void *val, void *arg)
 {
@@ -159,10 +163,11 @@ static void _roster_push(user_t user, pkt_t pkt, int mod_index)
 
 static mod_ret_t _roster_in_sess_s10n(mod_instance_t mi, sess_t sess, pkt_t pkt)
 {
+    mod_roster_t mroster = (mod_roster_t) mi->mod->private;
     module_t mod = mi->mod;
     item_t item;
     pkt_t push;
-    int ns, elem;
+    int ns, elem, ret, items = -1;
 
     log_debug(ZONE, "got s10n packet");
 
@@ -185,6 +190,17 @@ static mod_ret_t _roster_in_sess_s10n(mod_instance_t mi, sess_t sess, pkt_t pkt)
          * so quietly pass it on */
         if(pkt->type == pkt_S10N_UN || pkt->type == pkt_S10N_UNED)
             return mod_PASS;
+
+        /* check if user exceedes maximum roster items */
+        if(mroster->maxitems > 0) {
+            ret = storage_count(sess->user->sm->st, "roster-items", jid_user(sess->user->jid), NULL, &items);
+
+            log_debug(ZONE, "user has %i roster-items, maximum is %i", items, mroster->maxitems);
+
+            /* if the limit is reached, return an error */
+            if (ret == st_SUCCESS && items >= mroster->maxitems)
+                return -stanza_err_NOT_ACCEPTABLE;
+        }
 
         /* make a new one */
         item = (item_t) malloc(sizeof(struct item_st));
@@ -252,8 +268,9 @@ static void _roster_get_walker(xht roster, const char *id, void *val, void *arg)
 
 static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi)
 {
+    mod_roster_t mroster = (mod_roster_t) mi->mod->private;
     module_t mod = mi->mod;
-    int attr, ns, i;
+    int attr, ns, i, ret, items = -1;
     jid_t jid;
     item_t item;
     pkt_t push;
@@ -329,6 +346,17 @@ static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi
     item = xhash_get(sess->user->roster, jid_full(jid));
     if(item == NULL)
     {
+        /* check if user exceedes maximum roster items */
+        if(mroster->maxitems > 0) {
+            ret = storage_count(sess->user->sm->st, "roster-items", jid_user(sess->user->jid), NULL, &items);
+
+            log_debug(ZONE, "user has %i roster-items, maximum is %i", items, mroster->maxitems);
+
+            /* if the limit is reached, skip it */
+            if (ret == st_SUCCESS && items >= mroster->maxitems)
+                return;
+        }
+
         /* make a new one */
         item = (item_t) malloc(sizeof(struct item_st));
         memset(item, 0, sizeof(struct item_st));
@@ -707,8 +735,16 @@ static void _roster_user_delete(mod_instance_t mi, jid_t jid) {
 
 DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     module_t mod = mi->mod;
+    mod_roster_t mroster;
 
     if(mod->init) return 0;
+
+    mroster = (mod_roster_t) malloc(sizeof(struct _mod_roster_st));
+    memset(mroster, 0, sizeof(struct _mod_roster_st));
+
+    mroster->maxitems = j_atoi(config_get_one(mod->mm->sm->config, "roster.maxitems", 0), 0);
+
+    mod->private = mroster;
 
     mod->in_sess = _roster_in_sess;
     mod->pkt_user = _roster_pkt_user;

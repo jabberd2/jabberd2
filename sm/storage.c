@@ -266,7 +266,7 @@ st_ret_t storage_count(storage_t st, const char *type, const char *owner, const 
             return ret;
     }
 
-    return (drv->count != NULL) ? (drv->count)(drv, type, owner, filter, count) : st_NOTIMPL;
+    return ((drv->count != NULL) ? (drv->count)(drv, type, owner, filter, count) : st_NOTIMPL);
 }
 
 
@@ -322,7 +322,7 @@ st_ret_t storage_replace(storage_t st, const char *type, const char *owner, cons
     return (drv->replace)(drv, type, owner, filter, os);
 }
 
-static st_filter_t _storage_filter(pool p, const char *f, int len) {
+static st_filter_t _storage_filter(pool_t p, const char *f, int len) {
     char *c, *key, *val, *sub;
     int vallen;
     st_filter_t res, sf;
@@ -411,7 +411,7 @@ static st_filter_t _storage_filter(pool p, const char *f, int len) {
 }
 
 st_filter_t storage_filter(const char *filter) {
-    pool p;
+    pool_t p;
     st_filter_t f;
 
     if(filter == NULL)

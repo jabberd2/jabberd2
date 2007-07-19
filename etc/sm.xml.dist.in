@@ -473,4 +473,12 @@
     -->
   </offline>
 
+  <!-- roster module configuration -->
+  <roster>
+    <!-- maximum items per user roster -->
+    <!--
+    <maxitems>100</maxitems>
+    -->
+  </roster>
+
 </sm>
