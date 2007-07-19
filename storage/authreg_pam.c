@@ -109,7 +109,7 @@ static int _ar_pam_check_password(authreg_t ar, char *username, char *realm, cha
 
     ret = pam_acct_mgmt(pam, 0);
     if(ret != PAM_SUCCESS) {
-        log_write(ar->c2s->log, LOG_ERR, "pam: auth succeeded, but can't use account: %s", pam_strerror(NULL, ret));
+        log_write(ar->c2s->log, LOG_ERR, "pam: authentication succeeded, but can't use account: %s", pam_strerror(NULL, ret));
         pam_end(pam, ret);
         return 1;
     }

@@ -322,7 +322,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
     /* now, are they authenticated? */
     if(authd)
     {
-        log_write(c2s->log, LOG_NOTICE, "[%d] auth succeeded: username=%s, resource=%s", sess->s->tag, username, resource);
+        log_write(c2s->log, LOG_NOTICE, "[%d] legacy authentication succeeded: host=%s, username=%s, resource=%s", sess->s->tag, sess->host->realm, username, resource);
 
         /* our local id */
         sprintf(sess->c2s_id, "%d", sess->s->tag);
