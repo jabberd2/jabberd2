@@ -442,7 +442,7 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
         case action_CLOSE:
             log_debug(ZONE, "close action on fd %d", fd->fd);
 
-            log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] disconnect, packets: %i", sess->fd->fd, sess->ip, sess->port, sess->packet_count);
+            log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] disconnect jid=%s, packets: %i", sess->fd->fd, sess->ip, sess->port, sess->jid?jid_full(sess->jid):"unbound", sess->packet_count);
 
             /* tell the sm to close their session */
             if(sess->active)
