@@ -731,7 +731,7 @@ static void _out_result(conn_t out, nad_t nad) {
 
     /* key is valid */
     if(nad_find_attr(nad, 0, -1, "type", "valid") >= 0) {
-        log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] outgoing route '%s' is now valid%s", out->fd->fd, out->ip, out->port, rkey, out->s->ssf ? ", SSL negotiated" : "");
+        log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] outgoing route '%s' is now valid%s", out->fd->fd, out->ip, out->port, rkey, out->s->ssf ? ", TLS negotiated" : "");
 
         xhash_put(out->states, pstrdup(xhash_pool(out->states), rkey), (void *) conn_VALID);    /* !!! small leak here */
 
@@ -837,7 +837,7 @@ static void _out_verify(conn_t out, nad_t nad) {
     attr = nad_find_attr(nad, 0, -1, "type", "valid");
     if(attr >= 0) {
         xhash_put(in->states, pstrdup(xhash_pool(in->states), rkey), (void *) conn_VALID);
-        log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] incoming route '%s' is now valid%s", in->fd->fd, in->ip, in->port, rkey, in->s->ssf ? ", SSL negotiated" : "");
+        log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] incoming route '%s' is now valid%s", in->fd->fd, in->ip, in->port, rkey, in->s->ssf ? ", TLS negotiated" : "");
         valid = 1;
     } else {
         log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] incoming route '%s' is now invalid", in->fd->fd, in->ip, in->port, rkey);
