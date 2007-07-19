@@ -1,3 +1,17 @@
+2007-07-19 Tomasz Sterna <tomek@xiaoka.com>
+	* Added jabber:x:oob redirection support during in-band registration
+	* Logging JID on disconnection
+	* Added counting packets on c2s and s2s connections
+	* Added TLS indicator for c2s and s2s logs. Closes #108
+	* Unified logging format
+
+2007-07-18 Tomasz Sterna <tomek@xiaoka.com>
+	* Added type='log' to ComponentProtocol <route/> wrapper for logged packets. Closes #109
+
+2007-07-12 Tomasz Sterna <tomek@xiaoka.com>
+	* More info about message quota
+	* using sysconfdir for server certificate storage
+
 2007-07-09 Tomasz Sterna <tomek@xiaoka.com>
 	* Made SCOD at least compile
 	* Changed SASL backend selection method. Incorporated SCOD selection option.
