@@ -100,7 +100,11 @@
          instructions
          Human-readable instructions to be returned to client when
          registration is requested.
-         
+
+         register-oob
+         URL to be attached as an alternative, out-of-band registration
+         method. Usually web-based http:// URL.
+
          password-change
          Password change only. When registration is disabled, it may
          still be useful to allow clients to change their password. If
@@ -114,6 +118,7 @@
         require-starttls='true'
         register-enable='true'
         instructions='Enter a username and password to register with this server.'
+        register-oob='http://example.org/register'
         password-change='true'
     >localhost</id> -->
 
