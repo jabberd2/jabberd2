@@ -1,3 +1,8 @@
+2007-07-20 Tomasz Sterna <tomek@xiaoka.com>
+	* Removed SASL backend fallbacks
+	* Added roster items limit option. Closes #89
+	* Added count support in SQLite3 backend
+
 2007-07-19 Tomasz Sterna <tomek@xiaoka.com>
 	* Added jabber:x:oob redirection support during in-band registration
 	* Logging JID on disconnection
