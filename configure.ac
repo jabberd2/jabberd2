@@ -376,49 +376,54 @@ if test "x-$have_idn" = "x-" ; then
     AC_MSG_ERROR([Libidn >= 0.3.0 not found])
 fi
 
-# GnuSASL or Cyrus-SASL
-AC_ARG_ENABLE(gsasl, AC_HELP_STRING([--enable-gsasl], [enable GnuSASL support (yes)]), want_gsasl=$enableval, want_gsasl=yes)
-AC_ARG_ENABLE(cyrus, AC_HELP_STRING([--enable-cyrus], [enable Cyrus-SASL support (no)]), want_cyrus=$enableval, want_cyrus=no)
-if test "x-$want_gsasl" != "x-yes" -a "x-$want_cyrus" != "x-yes" ; then
-    AC_MSG_ERROR([GnuSASL or Cyrus-SASL library is required])
-fi
-if test "x-$want_gsasl" = "x-yes" ; then
-    if test "x-$want_cyrus" = "x-yes" ; then
-        AC_MSG_WARN(Requested both GnuSASL and Cyrus-SASL. Choosing GnuSASL.)
-        want_cyrus=no
-    fi
-    AC_CHECK_HEADERS(gsasl.h)
-    if test "x-$ac_cv_header_gsasl_h" = "x-yes" ; then
-        AC_CHECK_LIB(gsasl, gsasl_check_version)
-    fi
-    if test "x-$ac_cv_lib_gsasl_gsasl_check_version" = "x-yes" ; then
-        AC_MSG_CHECKING(for GnuSASL version >= 0.2.14)
-        AC_RUN_IFELSE([AC_LANG_PROGRAM([[#include <gsasl.h>]],
-                                       [[return !(gsasl_check_version("0.2.14"))]])],
-                      [AC_MSG_RESULT(yes)
-                        have_gsasl=yes],
-                      AC_MSG_RESULT(no))
-    fi
+#
+# SASL backend selection
+
+AC_ARG_ENABLE(sasl, AC_HELP_STRING([--enable-sasl=BACKEND], [use BACKEND as SASL backend]),
+              sasl_check=$enableval, sasl_check='gsasl')
+
+sasl_backend=''
+for backend in $sasl_check ; do
+    case x-$backend in
+
+        x-gsasl)
+            AC_CHECK_HEADERS(gsasl.h)
+            if test "x-$ac_cv_header_gsasl_h" = "x-yes" ; then
+                AC_CHECK_LIB(gsasl, gsasl_check_version)
+            fi
+            if test "x-$ac_cv_lib_gsasl_gsasl_check_version" = "x-yes" ; then
+                AC_MSG_CHECKING(for GnuSASL version >= 0.2.14)
+                AC_RUN_IFELSE([AC_LANG_PROGRAM([[#include <gsasl.h>]],
+                                               [[return !(gsasl_check_version("0.2.14"))]])],
+                              [AC_MSG_RESULT(yes)
+                                sasl_backend='gsasl'],
+                              AC_MSG_RESULT(no))
+            fi
+            ;;
+
+        x-cyrus)
+            AC_CHECK_LIB(sasl2, sasl_client_init)
+            if test "x-$ac_cv_lib_sasl2_sasl_client_init" = "x-yes" ; then
+                AC_CHECK_HEADERS(sasl/sasl.h)
+                if test "x-$ac_cv_header_sasl_sasl_h" = "x-yes" ; then
+                    sasl_backend='cyrus'
+                fi
+            fi
+            ;;
+
+        x-scod)
+            sasl_backend='scod'
+            ;;
+    esac
+done
+
+if test "x-$sasl_backend" = "x-" ; then
+    AC_MSG_ERROR([no SASL backend available out of: $sasl_check])
 fi
 
-if test "x-$want_cyrus" = "x-yes" ; then
-    AC_CHECK_LIB(sasl2, sasl_client_init)
-    if test "x-$ac_cv_lib_sasl2_sasl_client_init" = "x-yes" ; then
-        AC_CHECK_HEADERS(sasl/sasl.h)
-        if test "x-$ac_cv_header_sasl_sasl_h" = "x-yes" ; then
-            have_cyrus=yes
-        fi
-    fi
-fi
-
-if test "x-$want_gsasl" = "x-yes" -a "x-$have_gsasl" != "x-yes" ; then
-    AC_MSG_ERROR([GnuSASL >= 0.2.14 not found])
-fi
-if test "x-$want_cyrus" = "x-yes" -a "x-$have_cyrus" != "x-yes" ; then
-    AC_MSG_ERROR([Cyrus-SASL not found])
-fi
-AM_CONDITIONAL(SASL_GSASL, [test "x-$have_gsasl" = "x-yes"])
-AM_CONDITIONAL(SASL_CYRUS, [test "x-$have_cyrus" = "x-yes"])
+AM_CONDITIONAL(SASL_GSASL, [test "x-$sasl_backend" = "x-gsasl"])
+AM_CONDITIONAL(SASL_CYRUS, [test "x-$sasl_backend" = "x-cyrus"])
+AM_CONDITIONAL(SASL_SCOD, [test "x-$sasl_backend" = "x-scod"])
 
 #
 # optional libs
@@ -750,7 +755,7 @@ AC_CHECK_TYPES([in_port_t, sa_family_t, struct sockaddr_storage, struct sockaddr
 #
 # mio backend selection
 
-AC_ARG_ENABLE(mio, AC_HELP_STRING([--enable-mio=BACKEND], [use BACKEND to drive MIO]),
+AC_ARG_ENABLE(mio, AC_HELP_STRING([--enable-mio=BACKEND], [use BACKEND to drive MIO (select poll epoll)]),
               mio_check=$enableval, mio_check='epoll poll select')
 
 mio_backend=''
@@ -799,7 +804,7 @@ for backend in $mio_check ; do
 done
 
 if test "x-$mio_backend" = "x-" ; then
-    AC_MSG_ERROR([no MIO backend available out of: $backend])
+    AC_MSG_ERROR([no MIO backend available out of: $mio_check])
 fi
 
 
@@ -813,6 +818,7 @@ AC_CONFIG_FILES([Doxyfile
                  util/Makefile
                  mio/Makefile
                  sx/Makefile
+                 sx/scod/Makefile
                  storage/Makefile
                  c2s/Makefile
                  resolver/Makefile
