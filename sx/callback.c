@@ -20,6 +20,26 @@
 
 #include "sx.h"
 
+/* check for unescaped predefined entities */
+int _sx_check_unescaped_entities(char *str, int len) {
+    char *c;
+
+    if(strchr(str, '<')) return 1;
+    if(strchr(str, '>')) return 1;
+    if(strchr(str, '\'')) return 1;
+    if(strchr(str, '"')) return 1;
+    if((c = strchr(str, '&'))) {
+        if(len > 0) {
+            if(strncmp("&lt;",c,len) && strncmp("&gt;",c,len) && strncmp("&amp;",c,len)
+            && strncmp("&apos;",c,len) && strncmp("&quot;",c,len)) return 1;
+        } else {
+            if(strcmp("&lt;",c) && strcmp("&gt;",c) && strcmp("&amp;",c)
+            && strcmp("&apos;",c) && strcmp("&quot;",c)) return 1;
+        }
+    }
+    return 0;
+}
+
 /** primary expat callbacks */
 void _sx_element_start(void *arg, const char *name, const char **atts) {
     sx_t s = (sx_t) arg;
@@ -95,6 +115,11 @@ void _sx_element_start(void *arg, const char *name, const char **atts) {
             ns = -1;
         }
 
+        if(_sx_check_unescaped_entities((char *) attr[1], -1)) {
+            _sx_error(s, stream_err_RESTRICTED_XML, NULL);
+            return;
+        }
+
         /* add it */
         nad_append_attr(s->nad, ns, elem, (char *) attr[1]);
 
@@ -130,6 +155,11 @@ void _sx_cdata(void *arg, const char *str, int len) {
     /* no nad? no cdata */
     if(s->nad == NULL)
         return;
+
+    if(_sx_check_unescaped_entities((char *) str, len)) {
+        _sx_error(s, stream_err_RESTRICTED_XML, NULL);
+        return;
+    }
 
     /* go */
     nad_append_cdata(s->nad, (char *) str, len, s->depth - 1);
