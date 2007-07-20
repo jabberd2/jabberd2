@@ -23,26 +23,26 @@
 /* check for unescaped predefined entities */
 int _sx_check_unescaped_entities(char *str, int len) {
     char *c;
+    int ret = 0;
 
-    if(strchr(str, '<')) return 1;
-    if(strchr(str, '>')) return 1;
-    if(strchr(str, '\'')) return 1;
-    if(strchr(str, '"')) return 1;
-    if((c = strchr(str, '&'))) {
-        if(len > 0) {
-            if(strncmp("&lt;",c,len) && strncmp("&gt;",c,len) && strncmp("&amp;",c,len)
-            && strncmp("&apos;",c,len) && strncmp("&quot;",c,len)) return 1;
-        } else {
-            if(strcmp("&lt;",c) && strcmp("&gt;",c) && strcmp("&amp;",c)
-            && strcmp("&apos;",c) && strcmp("&quot;",c)) return 1;
-        }
-    }
-    return 0;
+    if(len > 0) str = strndup(str, len);
+
+    if(strchr(str, '<')) ret = 1;
+    if(strchr(str, '>')) ret = 1;
+    if(strchr(str, '\'')) ret = 1;
+    if(strchr(str, '"')) ret = 1;
+    if((c = strchr(str, '&'))
+         && strcmp("&lt;",c) && strcmp("&gt;",c) && strcmp("&amp;",c)
+         && strcmp("&apos;",c) && strcmp("&quot;",c)) ret = 1;
+
+    if(len > 0) free(str);
+    return ret;
 }
 
 /** primary expat callbacks */
 void _sx_element_start(void *arg, const char *name, const char **atts) {
     sx_t s = (sx_t) arg;
+    sx_error_t sxe;
     char buf[1024];
     char *uri, *elem, *prefix;
     const char **attr;
@@ -116,7 +116,10 @@ void _sx_element_start(void *arg, const char *name, const char **atts) {
         }
 
         if(_sx_check_unescaped_entities((char *) attr[1], -1)) {
+            _sx_gen_error(sxe, SX_ERR_STREAM, "Stream error", "Unescaped predefined entity");
+            _sx_event(s, event_ERROR, (void *) &sxe);
             _sx_error(s, stream_err_RESTRICTED_XML, NULL);
+            s->fail = 1;
             return;
         }
 
@@ -149,6 +152,7 @@ void _sx_element_end(void *arg, const char *name) {
 
 void _sx_cdata(void *arg, const char *str, int len) {
     sx_t s = (sx_t) arg;
+    sx_error_t sxe;
 
     if(s->fail) return;
 
@@ -157,7 +161,10 @@ void _sx_cdata(void *arg, const char *str, int len) {
         return;
 
     if(_sx_check_unescaped_entities((char *) str, len)) {
+        _sx_gen_error(sxe, SX_ERR_STREAM, "Stream error", "Unescaped predefined entity");
+        _sx_event(s, event_ERROR, (void *) &sxe);
         _sx_error(s, stream_err_RESTRICTED_XML, NULL);
+        s->fail = 1;
         return;
     }
 
