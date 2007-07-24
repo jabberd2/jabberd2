@@ -358,7 +358,7 @@ fi
 
 # Expat
 AC_CHECK_LIB([expat], [XML_ParserCreate])
-if test "x-$ac_cv_lib_expat_XML_ParserCreate" = "x-" ; then
+if test "x-$ac_cv_lib_expat_XML_ParserCreate" != "x-yes" ; then
     AC_MSG_ERROR([Expat not found])
 fi
 
@@ -372,7 +372,7 @@ if test "x-$ac_cv_lib_idn_stringprep_check_version" = "x-yes" ; then
                     have_idn=yes],
                   AC_MSG_RESULT(no))
 fi
-if test "x-$have_idn" = "x-" ; then
+if test "x-$have_idn" != "x-yes" ; then
     AC_MSG_ERROR([Libidn >= 0.3.0 not found])
 fi
 
@@ -449,7 +449,7 @@ if test "x-$want_ssl" = "x-yes" ; then
                        have_openssl=yes],
                       AC_MSG_RESULT(no))
     fi
-    if test "x-$have_openssl" = "x-" ; then
+    if test "x-$have_openssl" != "x-yes" ; then
         AC_MSG_ERROR([OpenSSL >= 0.9.6b not found])
     fi
 
@@ -666,7 +666,7 @@ if test "x-$want_ldap" = "x-yes" ; then
                                        AC_MSG_RESULT(no))
     fi
     LIBS="$save_libs"
-    if test "x-$have_ldap_version" = "x-" ; then
+    if test "x-$have_ldap_version" != "x-yes" ; then
         AC_MSG_ERROR([OpenLDAP client libraries >= 2.1.0 not found])
     else
         LDAP_LIBS="-llber -lldap"
