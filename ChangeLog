@@ -1,4 +1,16 @@
+2007-07-26 Tomasz Sterna <tomek@xiaoka.com>
+	* Changed SASL level error reporting to malformed-request error according to rfc3920bis. Fixes #116
+
+2007-07-25 Tomasz Sterna <tomek@xiaoka.com>
+	* Reverted r300:302 changes. Let the parser be permissive. Refs #112
+
+2007-07-24 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed ./configure tests reliability. Fixes #114
+
 2007-07-20 Tomasz Sterna <tomek@xiaoka.com>
+	* Stream error on unquoted predefined entities on stream. Fixes #112
+	* Changed DOS line endings to UNIX line endings. Refs #111
+	* Fixed XML predefined entities quoting in serialized XML. Refs #112
 	* Removed SASL backend fallbacks
 	* Added roster items limit option. Closes #89
 	* Added count support in SQLite3 backend
