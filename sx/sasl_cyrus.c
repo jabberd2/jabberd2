@@ -800,7 +800,7 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, char *mech, char *in,
 
     _sx_debug(ZONE, "sasl handshake failed: %s", buf);
 
-    _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_TEMPORARY_FAILURE), 0);
+    _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_MALFORMED_REQUEST), 0);
 }
 
 /** process handshake packets from the server */

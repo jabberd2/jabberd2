@@ -28,6 +28,7 @@
 #define _sasl_err_INCORRECT_ENCODING    "incorrect-encoding"
 #define _sasl_err_INVALID_AUTHZID       "invalid-authzid"
 #define _sasl_err_INVALID_MECHANISM     "invalid-mechanism"
+#define _sasl_err_MALFORMED_REQUEST     "malformed-request"
 #define _sasl_err_MECH_TOO_WEAK         "mechanism-too-weak"
 #define _sasl_err_NOT_AUTHORIZED        "not-authorized"
 #define _sasl_err_TEMPORARY_FAILURE     "temporary-auth-failure"
