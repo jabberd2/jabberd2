@@ -332,7 +332,7 @@ static jid_t jid_reset_components_internal(jid_t jid, const unsigned char *node,
     else {
         /* allocate new data buffer */
         jid->jid_data_len = node_l+domain_l+resource_l+3;
-        jid->jid_data = realloc(jid->jid_data_len);
+        jid->jid_data = realloc(jid->jid_data, jid->jid_data_len);
     }
 
     /* copy to buffer */
