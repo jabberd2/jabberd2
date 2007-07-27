@@ -698,6 +698,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
             if(sess->ip != NULL) free(sess->ip);
             if(sess->result != NULL) nad_free(sess->result);
             if(sess->jid != NULL) jid_free(sess->jid);
+            if(sess->rate != NULL) rate_free(sess->rate);
 
             free(sess);
         }

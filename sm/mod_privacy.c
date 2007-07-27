@@ -57,7 +57,7 @@ struct zebra_st {
 };
 
 struct zebra_list_st {
-    pool            p;
+    pool_t          p;
 
     char            *name;
 
@@ -118,7 +118,7 @@ static int _privacy_user_load(mod_instance_t mi, user_t user) {
     os_t os;
     os_object_t o;
     zebra_list_t zlist;
-    pool p;
+    pool_t p;
     zebra_item_t zitem, scan;
     char *str;
 
@@ -205,7 +205,7 @@ static int _privacy_user_load(mod_instance_t mi, user_t user) {
                                 continue;
                             }
 
-                            pool_cleanup(zlist->p, free, zitem->jid);
+                            pool_cleanup(zlist->p, jid_free, zitem->jid);
 
                             log_debug(ZONE, "jid item with value '%s'", jid_full(zitem->jid));
 
@@ -591,7 +591,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     char corder[14], str[256], filter[1024];
     zebra_t z;
     zebra_list_t zlist, old;
-    pool p;
+    pool_t p;
     zebra_item_t zitem, scan;
     sess_t sscan;
     pkt_t result;
@@ -696,7 +696,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                             return -stanza_err_BAD_REQUEST;
                         }
 
-                        pool_cleanup(p, free, zitem->jid);
+                        pool_cleanup(p, jid_free, zitem->jid);
 
                         log_debug(ZONE, "jid item with value '%s'", jid_full(zitem->jid));
 

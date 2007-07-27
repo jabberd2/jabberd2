@@ -226,8 +226,12 @@ static void _mio_run(mio_t m, int timeout)
     {
         mio_fd_t fd = MIO_ITERATOR_FD(m,iter);
 
-        /* skip dead slots */
-        if(FD(m,fd)->type == type_CLOSED) continue;
+        /* deferred closing fd */
+        if(FD(m,fd)->type == type_CLOSED)
+        {
+            MIO_FREE_FD(m, fd);
+            continue;
+        }
 
         /* new conns on a listen socket */
         if(FD(m,fd)->type == type_LISTEN && MIO_CAN_READ(m,iter))
@@ -258,12 +262,6 @@ static void _mio_run(mio_t m, int timeout)
             /* don't wait for writeability if nothing to write anymore */
             if(ACT(m, fd, action_WRITE, NULL) == 0)
                 MIO_UNSET_WRITE(m, FD(m,fd));
-        }
-
-        /* deferred closing fd */
-        if(FD(m,fd)->type == type_CLOSED)
-        {
-            MIO_FREE_FD(m, fd);
         }
     }
 }

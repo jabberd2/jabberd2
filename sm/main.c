@@ -392,6 +392,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
     xhash_free(sm->acls);
     xhash_free(sm->features);
     xhash_free(sm->xmlns);
+    xhash_free(sm->xmlns_refcount);
     xhash_free(sm->users);
 
     sx_free(sm->router);

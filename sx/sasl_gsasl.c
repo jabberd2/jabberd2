@@ -38,15 +38,6 @@ typedef struct _sx_sasl_st {
     char                        *ext_id;
 } *_sx_sasl_t;
 
-/* RFC 3290 defines a number of failure messages */
-#define _sasl_err_ABORTED               "aborted"
-#define _sasl_err_INCORRECT_ENCODING    "incorrect-encoding"
-#define _sasl_err_INVALID_AUTHZID       "invalid-authzid"
-#define _sasl_err_INVALID_MECHANISM     "invalid-mechanism"
-#define _sasl_err_MECH_TOO_WEAK         "mechanism-too-weak"
-#define _sasl_err_NOT_AUTHORIZED        "not-authorized"
-#define _sasl_err_TEMPORARY_FAILURE     "temporary-auth-failure"
-
 /* Per-session library handle. */
 /* defined here to be able to get mechanism from handle */
 struct Gsasl_session
@@ -346,7 +337,8 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
         ret = gsasl_step(sd, buf, buflen, &out, (size_t *) &outlen);
         if(ret != GSASL_OK && ret != GSASL_NEEDS_MORE) {
             _sx_debug(ZONE, "gsasl_step failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
-            _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_TEMPORARY_FAILURE), 0);
+            _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_MALFORMED_REQUEST), 0);
+            if(buf != NULL) free(buf);
             return;
         }
     }
@@ -358,7 +350,8 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
         ret = gsasl_step(sd, buf, buflen, &out, (size_t *) &outlen);
         if(ret != GSASL_OK && ret != GSASL_NEEDS_MORE) {
             _sx_debug(ZONE, "gsasl_step failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
-            _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_TEMPORARY_FAILURE), 0);
+            _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_MALFORMED_REQUEST), 0);
+            if(buf != NULL) free(buf);
             return;
         }
 
@@ -404,7 +397,7 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
     _sx_debug(ZONE, "sasl handshake failed; (%d): %s", ret, gsasl_strerror(ret));
 
     /* !!! TODO XXX check ret and flag error appropriately */
-    _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_TEMPORARY_FAILURE), 0);
+    _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_MALFORMED_REQUEST), 0);
 }
 
 /** process handshake packets from the server */
