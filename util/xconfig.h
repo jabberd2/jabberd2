@@ -38,7 +38,7 @@ typedef struct xconfig_elem_st   *xconfig_elem_t;
 /** holder for the xconfig hash and nad */
 struct xconfig_st {
     pool_t              p;
-    xhash_t             hash;
+    xht                 hash;
     nad_t               nad;
 };
 
