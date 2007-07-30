@@ -60,6 +60,10 @@ Prerequisites:
       there are no libraries for VC except DLLs you shall make one using
       sqlite-source-3.x.zip from SQLite downloads.
 
+   8. http://wix.sourceforge.net/releases/
+
+      WiX 3.0.3029.0 or newer for building MSI jabberd2 setup inside VS2005 IDE
+
 After all prerequisite libraries are configured for use within VC open
 win32/jabberd2.sln and build all projects.
 
@@ -103,4 +107,4 @@ Also I'm sending thanks to Tomasz Sterna (current project maintainer) for
 letting me in with my win32 modifications and support.
 
 --
-Adam Strzelecki <ono@java.pl>, 2007-05-23
+Adam Strzelecki <ono@java.pl>, 2007-07-30
