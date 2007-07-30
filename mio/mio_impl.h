@@ -133,7 +133,7 @@ static void _mio_close(mio_t m, mio_fd_t fd)
     FD(m,fd)->type = type_CLOSED;
     FD(m,fd)->app = NULL;
     FD(m,fd)->arg = NULL;
-    MIO_FREE_FD(m, mio_fd);
+    MIO_FREE_FD(m, fd);
 }
 
 /** internally accept an incoming connection from a listen sock */
