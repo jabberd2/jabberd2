@@ -45,7 +45,7 @@ static mod_ret_t _disco_publish_pkt_user(mod_instance_t mi, user_t user, pkt_t p
     os_t os;
     os_object_t o;
 
-    /* can only deal with disco info requests */
+    /* can only deal with disco items requests */
     if(pkt->ns != ns_DISCO_ITEMS)
         return mod_PASS;
 
