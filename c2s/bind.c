@@ -32,25 +32,42 @@ static void _bind_features(sx_t s, sx_plugin_t p, nad_t nad) {
     int ns;
 
     if(s->auth_id == NULL) {
-        log_debug(ZONE, "not auth'd, not offering resource bind");
+        c2s_t c2s;
+        host_t host;
 
-        return;
+        log_debug(ZONE, "not auth'd, offering auth and register");
+
+        ns = nad_add_namespace(nad, uri_IQAUTH, NULL);
+        nad_append_elem(nad, ns, "auth", 1);
+    
+        c2s = (c2s_t) p->private;
+        host = xhash_get(c2s->hosts, s->req_to);
+        if(host && host->ar_register_enable) {
+            ns = nad_add_namespace(nad, uri_IQREGISTER, NULL);
+            nad_append_elem(nad, ns, "register", 1);
+        }
+    } else {
+        log_debug(ZONE, "auth'd, offering resource bind and session");
+    
+        ns = nad_add_namespace(nad, uri_BIND, NULL);
+        nad_append_elem(nad, ns, "bind", 1);
+    
+        ns = nad_add_namespace(nad, uri_XSESSION, NULL);
+        nad_append_elem(nad, ns, "session", 1);
     }
-
-    log_debug(ZONE, "offering resource bind and session");
-
-    ns = nad_add_namespace(nad, uri_BIND, NULL);
-    nad_append_elem(nad, ns, "bind", 1);
-
-    ns = nad_add_namespace(nad, uri_XSESSION, NULL);
-    nad_append_elem(nad, ns, "session", 1);
 }
 
 /** plugin initialiser */
+/** args: c2s */
 int bind_init(sx_env_t env, sx_plugin_t p, va_list args) {
+    c2s_t c2s;
+
     log_debug(ZONE, "initialising resource bind sx plugin");
 
+    c2s = va_arg(args, c2s_t);
+
     p->features = _bind_features;
+    p->private = (void *) c2s;
 
     return 0;
 }
