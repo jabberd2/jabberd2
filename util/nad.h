@@ -49,7 +49,20 @@
 # include <config.h>
 #endif
 
-#include "pool.h"
+/* jabberd2 Windows DLL */
+#ifndef JABBERD2_API
+# ifdef _WIN32
+#  ifdef JABBERD2_EXPORTS
+#   define JABBERD2_API  __declspec(dllexport)
+#  else /* JABBERD2_EXPORTS */
+#   define JABBERD2_API  __declspec(dllimport)
+#  endif /* JABBERD2_EXPORTS */
+# else /* _WIN32 */
+#  define JABBERD2_API extern
+# endif /* _WIN32 */
+#endif /* JABBERD2_API */
+
+typedef struct nad_st **nad_cache_t;
 
 struct nad_elem_st {
     int parent;
@@ -75,8 +88,9 @@ struct nad_ns_st {
     int next;
 };
 
-typedef struct _nad_st {
-    pool_t p;
+typedef struct nad_st
+{
+    nad_cache_t cache;   /* he who gave us life */
     struct nad_elem_st *elems;
     struct nad_attr_st *attrs;
     struct nad_ns_st *nss;
@@ -85,13 +99,23 @@ typedef struct _nad_st {
     int elen, alen, nlen, clen, dlen;
     int ecur, acur, ncur, ccur;
     int scope; /* currently scoped namespaces, get attached to the next element */
+    struct nad_st *next; /* for keeping a list of nads */
 } *nad_t;
 
+/** create a new cache, simple pointer to a list of nads */
+JABBERD2_API nad_cache_t nad_cache_new(void);
+
+/** free the cache and any nads in it */
+JABBERD2_API void nad_cache_free(nad_cache_t cache);
+
 /** create a new nad */
-JABBERD2_API nad_t nad_new(pool_t p);
+JABBERD2_API nad_t nad_new(nad_cache_t cache);
 
 /** copy a nad */
 JABBERD2_API nad_t nad_copy(nad_t nad);
+
+/** free that nad */
+JABBERD2_API void nad_free(nad_t nad);
 
 /** find the next element with this name/depth */
 /** 0 for siblings, 1 for children and so on */
@@ -150,10 +174,10 @@ JABBERD2_API void nad_print(nad_t nad, int elem, char **xml, int *len);
 
 /** serialize and deserialize a nad */
 JABBERD2_API void nad_serialize(nad_t nad, char **buf, int *len);
-JABBERD2_API nad_t nad_deserialize(pool_t p, const char *buf);
+JABBERD2_API nad_t nad_deserialize(nad_cache_t cache, const char *buf);
 
 /** create a nad from raw xml */
-JABBERD2_API nad_t nad_parse(pool_t p, const char *buf, int len);
+JABBERD2_API nad_t nad_parse(nad_cache_t cache, const char *buf, int len);
 
 /* these are some helpful macros */
 #define NAD_ENAME(N,E) (N->cdata + N->elems[E].iname)
