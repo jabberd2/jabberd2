@@ -241,7 +241,7 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                    xhash_zap(in->s2s->in, in->key);
                 }
 
-                in->key = strdup(s->id);
+                in->key = pstrdup(xhash_pool(in->routes), s->id);
 
                 /* track it - add to open streams hash and remove from new connections hash */
                 xhash_put(in->s2s->in, in->key, (void *) in);
