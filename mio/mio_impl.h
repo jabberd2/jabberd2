@@ -133,6 +133,7 @@ static void _mio_close(mio_t m, mio_fd_t fd)
     FD(m,fd)->type = type_CLOSED;
     FD(m,fd)->app = NULL;
     FD(m,fd)->arg = NULL;
+    MIO_FREE_FD(m, mio_fd);
 }
 
 /** internally accept an incoming connection from a listen sock */
@@ -226,12 +227,8 @@ static void _mio_run(mio_t m, int timeout)
     {
         mio_fd_t fd = MIO_ITERATOR_FD(m,iter);
 
-        /* deferred closing fd */
-        if(FD(m,fd)->type == type_CLOSED)
-        {
-            MIO_FREE_FD(m, fd);
-            continue;
-        }
+        /* skip dead slots */
+        if(FD(m,fd)->type == type_CLOSED) continue;
 
         /* new conns on a listen socket */
         if(FD(m,fd)->type == type_LISTEN && MIO_CAN_READ(m,iter))
