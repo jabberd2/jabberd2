@@ -304,7 +304,7 @@ int _ar_pgsql_check_sql( authreg_t ar, char * sql, char * types ) {
 
 /** start me up */
 int ar_init(authreg_t ar) {
-    char *host, *port, *dbname, *user, *pass;
+    char *host, *port, *dbname, *user, *pass, *conninfo;
     char *create, *select, *setpassword, *delete;
     char *table, *username, *realm;
     char *template;
@@ -391,15 +391,22 @@ int ar_init(authreg_t ar) {
     free(setpassword);
     free(delete);
 
-    host = config_get_one(ar->c2s->config, "authreg.pgsql.host", 0);
-    port = config_get_one(ar->c2s->config, "authreg.pgsql.port", 0);
-    dbname = config_get_one(ar->c2s->config, "authreg.pgsql.dbname", 0);
-    user = config_get_one(ar->c2s->config, "authreg.pgsql.user", 0);
-    pass = config_get_one(ar->c2s->config, "authreg.pgsql.pass", 0);
+    conninfo = config_get_one(ar->c2s->config,"authreg.pgsql.conninfo",0);
+    if(conninfo) {
+	/* don't log connection info for it can contain password */
+	log_debug( ZONE, "pgsql connecting to the databse");
+	conn = PQconnectdb(conninfo);
+    }else{
+	/* compatibility settings */
+	host = config_get_one(ar->c2s->config, "authreg.pgsql.host", 0);
+	port = config_get_one(ar->c2s->config, "authreg.pgsql.port", 0);
+	dbname = config_get_one(ar->c2s->config, "authreg.pgsql.dbname", 0);
+	user = config_get_one(ar->c2s->config, "authreg.pgsql.user", 0);
+	pass = config_get_one(ar->c2s->config, "authreg.pgsql.pass", 0);
+	log_debug( ZONE, "pgsql connecting as '%s' to database '%s' on %s:%s", user, dbname, host, port );
+	conn = PQsetdbLogin(host, port, NULL, NULL, dbname, user, pass);
+    }
 
-    log_debug( ZONE, "pgsql connecting as '%s' to database '%s' on %s:%s", user, dbname, host, port );
-
-    conn = PQsetdbLogin(host, port, NULL, NULL, dbname, user, pass);
     if(conn == NULL) {
         log_write(ar->c2s->log, LOG_ERR, "pgsql: unable to allocate database connection state");
         return 1;

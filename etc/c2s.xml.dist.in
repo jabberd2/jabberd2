@@ -325,6 +325,14 @@
 
     <!-- PostgreSQL module configuration -->
     <pgsql>
+      <!-- PostgreSQL connection info -->
+      <!-- For the rest of the options see
+           http://www.postgresql.org/docs/8.0/interactive/libpq.html -->
+      <conninfo>dbname=jabberd2 user=jabberd2 password=secret</conninfo>
+
+      <!-- Alternatively you may set connection settings separately.
+           These are used only in absence of 'conninfo' -->
+
       <!-- Database server host and port -->
       <host>localhost</host>
       <port>5432</port>
