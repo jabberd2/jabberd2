@@ -18,14 +18,16 @@ The main culprits for this release are:
       advice.
 
   Robert Norris     <rob@cataclysm.cx>
-    - Overall system design, pretty much all the other code, and the
-      current coordinator for this whole mess.
+    - Overall system design, pretty much all the other code.
 
   Stephen Marquard  <xmpp:scm@jabber.org>
-    - Uber bug fixer
+    - Uber bug fixer. Many new features.
 
-  Tomasz Sterna <xmpp:smoku@xiaoka.com>
-    - Bug fixer, merger. Keeping jabberd2 alive at xiaoka.com.
+  Tomasz Sterna     <xmpp:smoku@xiaoka.com>
+    - Maintenance, bug fixing, merging. Current coordinator of the project.
+
+  Adam Strzelecki   <ono@java.pl>
+    - Win32 porting, installer and MIO
 
 Other people who chipped in:
 
@@ -84,8 +86,68 @@ Other people who chipped in:
   Albert Chin           <china@thewrittenword.com>
     - Various fixes to get things running on Solaris, AIX & Tru64
 
-  Tomasz Sieprawski     <tsieprawski@gmail.com>
+  Tomasz Sieprawski     <tsieprawski gmail.com>
     - XMPP Ping module
+
+  Priit Laes            <plaes store20.com>
+    - code cleanups
+
+  Simon Wilkinson       <simon sxw.org.uk>
+    - Cyrus SASL backend
+    - security level dependant authorisation methods
+
+  Oles Hnatkevych       <don_oles able.com.ua>
+    - MySQL backend fixes
+
+  Andrew Klang
+    - LDAP backend fixes
+
+  Klara Mall
+    - SSL fix
+
+  Kaspar Brand
+    - SSL fix
+
+  Gonzalo Barrio
+    - LDAP backend features
+    - Oracle backend fixes
+
+  Reinhard Max
+    - PostgreSQL backend fixes
+    - SQLite storage module
+
+  Stefan Huehner
+    - compilation fixes
+
+  Michael Moeller
+    - FS storage module
+
+  Nicolas Pouillon
+    - SQLite backend fixes
+
+  Mark Doliner
+    - roster handling fixes
+
+  Christof Meerwald
+    - SQLite fixes
+    - epoll MIO backend
+
+  Maxim Britov
+    - using system expat library
+
+  Cedric Vivier
+    - PostgreSQL schema changes
+    - AMP module
+    - offline storage message and presence dropping option
+
+  Russ Schnapp
+    - MOTD date fix
+
+  Lucas Nussbaum
+    - mod_status saving statuses in DB
+
+  Robert Quattlebaum
+    - full vCard support
 
 Thanks also go to the testers and bug reporters out there - you know who
 you are. Special thanks in this capacity to Justin Kirby, whose many
