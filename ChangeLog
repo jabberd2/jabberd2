@@ -1,3 +1,22 @@
+2007-07-30 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed many memleaks
+	* Check if OpenSSL is already initialized in PostgreSQL backend, by Michael Krelin. Closes #122
+	* Implemented PQconnectdb PostgreSQL connection method. Closes #121
+	* Applied pg_config using by configure patch by Michael Krelin. Closes #120
+	* Implemented auth/reg stream features advertisement. Fixes #118
+	* Removed useless while/alloc loops
+
+2007-07-30 Adam Strzelecki <ono@java.pl>
+	* WiX notes for Windows README
+	* WiX new "JabberWelcomeDlg"
+	* WiX fixed cases of reinstall & upgrade
+	* xhash_t changed to xht
+	* nad_cache_new & nad_cache_free exported as JABBERD2_API functions.
+
+2007-07-27 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed many memleaks
+	* Changed allocator BLOCKSIZE to 128 bytes
+
 2007-07-26 Tomasz Sterna <tomek@xiaoka.com>
 	* Changed SASL level error reporting to malformed-request error according to rfc3920bis. Fixes #116
 
