@@ -149,6 +149,9 @@ Other people who chipped in:
   Robert Quattlebaum
     - full vCard support
 
+  Michael Krelin        <hacker klever.net>
+    - PostgreSQL related fixes
+
 Thanks also go to the testers and bug reporters out there - you know who
 you are. Special thanks in this capacity to Justin Kirby, whose many
 failed efforts to compile j2 helped get much of the build system to

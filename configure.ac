@@ -494,37 +494,48 @@ AM_CONDITIONAL(STORAGE_MYSQL, [test "x-$have_mysql" = "x-yes"])
 
 # PostgreSQL
 AC_ARG_ENABLE([pgsql],
-        AC_HELP_STRING([--enable-pgsql], [enable PostgreSQL auth/reg/storage support (no)]),
-        [enable_pgsql=$enableval have_pgsql=no],
+        AC_HELP_STRING([--enable-pgsql],
+	[enable PostgreSQL auth/reg/storage support, you can provide path to
+	pg_config executable (no)]),
+        [enable_pgsql="$enableval" have_pgsql=no],
         [enable_pgsql=no         have_pgsql=no])
-if test "x-$enable_pgsql" = "x-yes" ; then
-        for i in /usr /usr/local /usr/local/pgsql ; do
-                for j in include include/pgsql include/postgres include/postgresql "" ; do
-                        if test -r "$i/$j/libpq-fe.h" ; then
-                                PGSQL_INCLUDE=$i/$j
-                        fi
-                done
-                for lib in lib lib64 ; do
-                        for j in $lib $lib/pgsql $lib/postgres $lib/postgresql "" ; do
-                                if test -f "$i/$j/libpq.so" || test -f "$i/$j/libpq.a" ; then
-                                        PGSQL_LIBDIR=$i/$j
-                                fi
-                        done
-                done
-        done
-        AC_CHECK_LIB([pq], [PQsetdbLogin], [
-                have_pgsql=yes
-                if test "x-$PGSQL_INCLUDE" != "x-"; then
-                        PGSQL_CFLAGS="-I $PGSQL_INCLUDE"
-                fi
-                if test "x-$PGSQL_LIBDIR" != "x-"; then
-                        PGSQL_LIBS="-L$PGSQL_LIBDIR -lpq"
-                fi
-                AC_DEFINE(STORAGE_POSTGRES, 1, [Define to 1 if you want to use PostgreSQL for storage.])
-        ])
-        if test "x-$have_pgsql" != "x-yes" ; then
-                AC_MSG_ERROR([PostgreSQL support requested, but headers/libraries not found.])
-        fi
+if test "x-$enable_pgsql" != "x-no" ; then
+	if test -x "$enable_pgsql" ; then
+		PGSQL_INCLUDE="$($enable_pgsql --includedir)"
+		PGSQL_LIBDIR="$($enable_pgsql --libdir)"
+		PGSQL_CFLAGS="-I$PGSQL_INCLUDE"
+		PGSQL_LIBS="-L$PGSQL_LIBDIR -lpq"
+		have_pgsql=yes
+		AC_DEFINE([STORAGE_POSTGRES],[1],[Define to 1 if you want to use PostgreSQL for storage.])
+	else	# leave legacy detection intact for now
+		for i in /usr /usr/local /usr/local/pgsql ; do
+			for j in include include/pgsql include/postgres include/postgresql "" ; do
+				if test -r "$i/$j/libpq-fe.h" ; then
+					PGSQL_INCLUDE=$i/$j
+				fi
+			done
+			for lib in lib lib64 ; do
+				for j in $lib $lib/pgsql $lib/postgres $lib/postgresql "" ; do
+					if test -f "$i/$j/libpq.so" || test -f "$i/$j/libpq.a" ; then
+						PGSQL_LIBDIR=$i/$j
+					fi
+				done
+			done
+		done
+		AC_CHECK_LIB([pq], [PQsetdbLogin], [
+			have_pgsql=yes
+			if test "x-$PGSQL_INCLUDE" != "x-"; then
+				PGSQL_CFLAGS="-I $PGSQL_INCLUDE"
+			fi
+			if test "x-$PGSQL_LIBDIR" != "x-"; then
+				PGSQL_LIBS="-L$PGSQL_LIBDIR -lpq"
+			fi
+			AC_DEFINE(STORAGE_POSTGRES, 1, [Define to 1 if you want to use PostgreSQL for storage.])
+		])
+		if test "x-$have_pgsql" != "x-yes" ; then
+			AC_MSG_ERROR([PostgreSQL support requested, but headers/libraries not found.])
+		fi
+	fi
 fi
 AC_SUBST(PGSQL_CFLAGS)
 AC_SUBST(PGSQL_LIBS)
