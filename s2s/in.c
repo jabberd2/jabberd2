@@ -239,9 +239,10 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
                    /* remove the initial (non-SSL) stream id from the in connections hash */
                    xhash_zap(in->s2s->in, in->key);
+                   free(in->key);
                 }
 
-                in->key = pstrdup(xhash_pool(in->routes), s->id);
+                in->key = strdup(s->id);
 
                 /* track it - add to open streams hash and remove from new connections hash */
                 xhash_put(in->s2s->in, in->key, (void *) in);
