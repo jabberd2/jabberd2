@@ -93,7 +93,7 @@ int ap_base64decode_len(const char *bufcoded, int buflen)
     register int nprbytes;
 
     bufin = (const unsigned char *) bufcoded;
-    while ((pr2six[*bufin] <= 63) && (buflen != 0)) {
+    while ((buflen >= 0) && (pr2six[*bufin] <= 63)) {
         bufin++;
         buflen--;
     }
@@ -122,7 +122,7 @@ int ap_base64decode_binary(unsigned char *bufplain,
     register int nprbytes;
 
     bufin = (const unsigned char *) bufcoded;
-    while ((pr2six[*bufin] <= 63) && (buflen != 0)) {
+    while ((buflen >= 0) && (pr2six[*bufin] <= 63)) {
         bufin++;
         buflen--;
     }
