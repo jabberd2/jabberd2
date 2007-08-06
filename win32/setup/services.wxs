@@ -21,7 +21,7 @@
 				<Condition>NOT C2S.XML.EXISTS</Condition>
 				<File Id="c2s.xml" Name="c2s.xml" Vital="yes" KeyPath="yes" Source="$(var.TargetDir)\c2s.dist.xml" />
 				<util:XmlFile Id="c2s.configure" Action="setValue" ElementPath="/c2s/local/id"
-							  File="[INSTALLDIR]\c2s.dist.xml" Value="[DOMAIN]" />
+							  File="[INSTALLDIR]\c2s.xml" Value="[DOMAIN]" />
 			</Component>
 
 			<Component Id="resolver.exe" Guid="{460A1925-3F0C-4138-866B-BCE36087BEEB}">
@@ -117,7 +117,7 @@
 				<Condition>NOT SM.XML.EXISTS</Condition>
 				<File Id="sm.xml" Name="sm.xml" Vital="yes" KeyPath="yes" Source="$(var.TargetDir)\sm.dist.xml" />
 				<util:XmlFile Id="smConfigure" Action="setValue" ElementPath="/sm/id"
-							  File="[INSTALLDIR]\sm.dist.xml" Value="[DOMAIN]" />
+							  File="[INSTALLDIR]\sm.xml" Value="[DOMAIN]" />
 			</Component>
 
 			<Component Id="server.pem" Guid="{8AA5D8A8-A7EC-4F9F-BD19-FE0DD03BA620}">

@@ -29,7 +29,6 @@
 
 			<Publish Dialog="JabberWelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg">1</Publish>
 			<Publish Dialog="JabberWelcomeDlg" Control="Upgrade" Event="NewDialog" Value="LicenseAgreementDlg">1</Publish>
-			<Publish Dialog="JabberWelcomeDlg" Control="Reinstall" Event="NewDialog" Value="LicenseAgreementDlg">1</Publish>
 
 			<Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="JabberWelcomeDlg">1</Publish>
 			<Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg">LicenseAccepted = "1"</Publish>
@@ -83,13 +82,10 @@
 
 			<Dialog Id="JabberWelcomeDlg" Width="370" Height="270" Title="!(loc.WelcomeDlg_Title)">
 				<Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)">
-					<Condition Action="hide">NEWER_VER_FOUND OR OLDER_VER_FOUND</Condition>
+					<Condition Action="hide">OLDER_VER_FOUND</Condition>
 				</Control>
 				<Control Id="Upgrade" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="Upgrade">
 					<Condition Action="hide">NOT OLDER_VER_FOUND</Condition>
-				</Control>
-				<Control Id="Reinstall" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="Reinstall">
-					<Condition Action="hide">NOT NEWER_VER_FOUND</Condition>
 				</Control>
 				<Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
 					<Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
@@ -98,13 +94,10 @@
 				<Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Disabled="yes" Text="!(loc.WixUIBack)" />
 				<Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
 				<Control Id="Description" Type="Text" X="135" Y="80" Width="220" Height="60" Transparent="yes" NoPrefix="yes" Text="!(loc.WelcomeDlgDescription)">
-					<Condition Action="hide">NEWER_VER_FOUND OR OLDER_VER_FOUND</Condition>
+					<Condition Action="hide">OLDER_VER_FOUND</Condition>
 				</Control>
 				<Control Id="UpgradeDescription" Type="Text" X="135" Y="80" Width="220" Height="60" Transparent="yes" NoPrefix="yes" Text="jabberd2 is already installed on this computer.&#xA;&#xA;Setup will remove existing installation before installing this version, configuration files and database will not be removed.">
 					<Condition Action="hide">NOT OLDER_VER_FOUND</Condition>
-				</Control>
-				<Control Id="Warning" Type="Text" X="135" Y="190" Width="220" Height="26" Transparent="yes" NoPrefix="yes" Text="{\WixUI_Font_Description}Warning: You are about to install version that may be older than the version installed on this computer.">
-					<Condition Action="hide">NOT NEWER_VER_FOUND</Condition>
 				</Control>
 				<Control Id="Title" Type="Text" X="135" Y="20" Width="220" Height="60" Transparent="yes" NoPrefix="yes" Text="!(loc.WelcomeDlgTitle)" />
 			</Dialog>
