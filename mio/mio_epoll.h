@@ -70,7 +70,7 @@
 
 
 #define MIO_ALLOC_FD(m, rfd)    _mio_alloc_fd(m, rfd)
-#define MIO_FREE_FD(m, mfd)     if(mfd){free(mfd);mfd=NULL;}
+#define MIO_FREE_FD(m, mfd)     free(mfd);mfd=NULL
 
 #define MIO_REMOVE_FD(m, mfd) \
     do {                                                                \
