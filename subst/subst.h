@@ -106,6 +106,7 @@ JABBERD2_API char *strndup(char *str, size_t len);
 #endif
 
 #ifndef HAVE_TIMEGM
+#include <time.h>
 JABBERD2_API time_t timegm (struct tm *tm);
 #endif
 
