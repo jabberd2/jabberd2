@@ -1,3 +1,16 @@
+2007-08-07 Tomasz Sterna <tomek@xiaoka.com>
+	* compilation fix
+
+2007-08-06 Adam Strzelecki <ono@java.pl>
+	* * Fix configuration XML files domain update
+	* * Don't allow reinstalling on newer version
+
+2007-08-02 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed off-by-one error in base64
+
+2007-08-01 Adam Strzelecki <ono@java.pl>
+	* Force uninstall previous version on upgrade.
+
 2007-07-30 Tomasz Sterna <tomek@xiaoka.com>
 	* Fixed many memleaks
 	* Check if OpenSSL is already initialized in PostgreSQL backend, by Michael Krelin. Closes #122
