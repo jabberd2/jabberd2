@@ -102,6 +102,7 @@
     struct mio_priv_fd_st *next_free;                                   \
     long event;                                                         \
     long revent;                                                        \
+    int defer_free;                                                     \
     int idx;
 
 #define MIO_VARS \
@@ -115,6 +116,7 @@
     do {                                                                \
         int i;                                                          \
         HINSTANCE hInstance = GetModuleHandle(NULL);                    \
+        MIO(m)->defer_free = 0;                                         \
         if(mio_class == NULL) {                                         \
             WNDCLASS wndclass;                                          \
             memset(&wndclass, 0, sizeof(WNDCLASS));                     \
@@ -204,12 +206,13 @@
 
 #define MIO_CAN_READ(m, iter)   (iter->revent & (FD_READ|FD_ACCEPT|FD_CONNECT|FD_CLOSE))
 #define MIO_CAN_WRITE(m, iter)  ((iter->revent & FD_WRITE) || !(iter->revent & FD_READ) && (iter->revent & (FD_CONNECT|FD_CLOSE)))
+#define MIO_CAN_FREE(m)         (!MIO(m)->defer_free)
 
 #define MIO_INIT_ITERATOR(iter) \
     mio_priv_fd_t iter = NULL
 
 #define MIO_ITERATE_RESULTS(m, retval, iter) \
-    for(iter = MIO(m)->select_fd; iter; iter = _mio_peek(m))
+    for(MIO(m)->defer_free = 1, iter = MIO(m)->select_fd; iter || ((MIO(m)->defer_free = 0)); iter = _mio_peek(m))
 
 #define MIO_ITERATOR_FD(m, iter) \
     (&iter->mio_fd)

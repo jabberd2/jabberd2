@@ -51,11 +51,13 @@
     uint32_t events;
 
 #define MIO_VARS \
+    int defer_free;                                                     \
     int epoll_fd;                                                       \
     struct epoll_event res_event[32];
 
 #define MIO_INIT_VARS(m) \
     do {                                                                \
+        MIO(m)->defer_free = 0;                                         \
         if ((MIO(m)->epoll_fd = epoll_create(maxfd)) < 0)               \
         {                                                               \
             mio_debug(ZONE,"unable to initialize epoll mio");           \
@@ -134,12 +136,13 @@
 #define MIO_CAN_WRITE(m,iter) \
     (MIO(m)->res_event[iter].events & EPOLLOUT)
 
+#define MIO_CAN_FREE(m)         (!MIO(m)->defer_free)
 
 #define MIO_INIT_ITERATOR(iter) \
     int iter
 
 #define MIO_ITERATE_RESULTS(m, retval, iter) \
-    for(iter = 0; iter < retval; iter++)
+    for(MIO(m)->defer_free = 1, iter = 0; (iter < retval) || ((MIO(m)->defer_free = 0)); iter++)
 
 #define MIO_ITERATOR_FD(m, iter) \
     (MIO(m)->res_event[iter].data.ptr)

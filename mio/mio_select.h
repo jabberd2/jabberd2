@@ -102,6 +102,7 @@
 
 #define MIO_CAN_READ(m, iter)   FD_ISSET(iter, &MIO(m)->rfds_out)
 #define MIO_CAN_WRITE(m, iter)  FD_ISSET(iter, &MIO(m)->wfds_out)
+#define MIO_CAN_FREE(m)         1
 
 
 #define MIO_INIT_ITERATOR(iter) \

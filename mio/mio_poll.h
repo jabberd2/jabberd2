@@ -101,6 +101,7 @@
 #define MIO_CAN_READ(m, iter) \
     (MIO(m)->pfds[iter].revents & (POLLIN|POLLERR|POLLHUP|POLLNVAL))
 #define MIO_CAN_WRITE(m, iter)  (MIO(m)->pfds[iter].revents & POLLOUT)
+#define MIO_CAN_FREE(m)         1
 
 
 #define MIO_INIT_ITERATOR(iter) \
