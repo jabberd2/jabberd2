@@ -1,5 +1,13 @@
 This file contains upgrade instructions between different versions of jabberd2.
 
+* 2.1.13 to 2.1.14 upgrade:
+
+What had change:
+- Oracle authreg backend
+
+You may use Oracle backend to store your user data too. See c2s.xml.dist.
+
+
 * 2.1.12 to 2.1.13 upgrade:
 
 Only bug and compilation fixes. No configuration changes needed.
