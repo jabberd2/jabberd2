@@ -20,6 +20,10 @@ AC_DISABLE_STATIC
 AC_LIBTOOL_DLOPEN
 AC_PROG_LIBTOOL
 
+if test "x-$lt_cv_dlopen_libs" != "x-" ; then
+    LIBS="$LIBS $lt_cv_dlopen_libs"
+fi
+
 # extra paths
 AC_ARG_WITH([extra_include_path], AC_HELP_STRING([--with-extra-include-path],
                                            [use additional include paths]),
