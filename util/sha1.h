@@ -36,11 +36,13 @@
 # endif /* _WIN32 */
 #endif /* JABBERD2_API */
 
+#include <stdint.h>
+
 typedef struct sha1_state_s {
-  unsigned long H[5];
-  unsigned long W[80];
+  uint32_t H[5];
+  uint32_t W[80];
   int lenW;
-  unsigned long sizeHi,sizeLo;
+  uint32_t sizeHi,sizeLo;
 } sha1_state_t;
 
 JABBERD2_API void sha1_init(sha1_state_t *ctx);

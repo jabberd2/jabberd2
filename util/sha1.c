@@ -20,8 +20,6 @@
 
 /* modified for j2 by Robert Norris */
 
-/* XXX WARNING! This function works incorrectly on 64bit platform */
-
 #include "sha1.h"
 #include <string.h>
 
@@ -53,7 +51,7 @@ void sha1_append(sha1_state_t *ctx, const unsigned char *dataIn, int len) {
    */
   for (i = 0; i < len; i++) {
     ctx->W[ctx->lenW / 4] <<= 8;
-    ctx->W[ctx->lenW / 4] |= (unsigned long)dataIn[i];
+    ctx->W[ctx->lenW / 4] |= (uint32_t)dataIn[i];
     if ((++ctx->lenW) % 64 == 0) {
       sha1_hashblock(ctx);
       ctx->lenW = 0;
@@ -112,7 +110,7 @@ void sha1_hash(const unsigned char *dataIn, int len, unsigned char hashout[20]) 
 
 static void sha1_hashblock(sha1_state_t *ctx) {
   int t;
-  unsigned long A,B,C,D,E,TEMP;
+  uint32_t A,B,C,D,E,TEMP;
 
   for (t = 16; t <= 79; t++)
     ctx->W[t] =
