@@ -20,6 +20,8 @@
 
 /* modified for j2 by Robert Norris */
 
+/* XXX WARNING! This function works incorrectly on 64bit platform */
+
 #include "sha1.h"
 #include <string.h>
 

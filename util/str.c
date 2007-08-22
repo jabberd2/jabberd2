@@ -18,6 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
+#include "pool.h"
 #include "util.h"
 
 char *j_strdup(const char *str)
@@ -115,7 +116,7 @@ char *j_strnchr(const char *s, int c, int n) {
 	return NULL;
 }
 
-spool spool_new(pool p)
+spool spool_new(pool_t p)
 {
     spool s;
 
@@ -205,7 +206,7 @@ char *spool_print(spool s)
 }
 
 /** convenience :) */
-char *spools(pool p, ...)
+char *spools(pool_t p, ...)
 {
     va_list ap;
     spool s;
@@ -222,7 +223,7 @@ char *spools(pool p, ...)
     while(1)
     {
         arg = va_arg(ap,char *);
-        if((pool)arg == p)
+        if((pool_t)arg == p)
             break;
         else
             spool_add(s, arg);
@@ -234,7 +235,7 @@ char *spools(pool p, ...)
 }
 
 
-char *strunescape(pool p, char *buf)
+char *strunescape(pool_t p, char *buf)
 {
     int i,j=0;
     char *temp;
@@ -281,7 +282,7 @@ char *strunescape(pool p, char *buf)
 }
 
 
-char *strescape(pool p, char *buf, int len)
+char *strescape(pool_t p, char *buf, int len)
 {
     int i,j,newlen = len;
     char *temp;
@@ -368,7 +369,13 @@ static char *zonestr(char *file, int line)
 void shahash_r(const char* str, char hashbuf[41]) {
     unsigned char hashval[20];
     
+#ifdef HAVE_SSL
+    /* use OpenSSL functions when available */
+#   include <openssl/sha.h>
+    SHA1((unsigned char *)str, strlen(str), hashval);
+#else
     sha1_hash((unsigned char *)str, strlen(str), hashval);
+#endif
 
     hex_from_raw(hashval, 20, hashbuf);
 }
