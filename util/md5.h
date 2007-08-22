@@ -65,6 +65,16 @@
 # endif /* _WIN32 */
 #endif /* JABBERD2_API */
 
+/* use OpenSSL functions when available */
+#ifdef HAVE_SSL
+#include <openssl/md5.h>
+
+#define md5_state_t MD5_CTX
+#define md5_init(c) MD5_Init(c)
+#define md5_append(c, data, len) MD5_Update(c, data, len);
+#define md5_finish(c, md) MD5_Final(md, c)
+
+#else
 /*
  * This package supports both compile-time and run-time determination of CPU
  * byte order.  If ARCH_IS_BIG_ENDIAN is defined as 0, the code will be
@@ -104,3 +114,5 @@ JABBERD2_API void md5_finish(md5_state_t *pms, md5_byte_t digest[16]);
 #endif
 
 #endif /* md5_INCLUDED */
+
+#endif /* HAVE_SSL */
