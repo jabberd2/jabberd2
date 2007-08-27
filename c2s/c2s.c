@@ -175,11 +175,12 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
             sess->host = xhash_get(sess->c2s->hosts, s->req_to);
 
             if(sess->host == NULL) {
-                if(sess->c2s->vhost && s->req_to) {
-                    /* use default vHost as current vHost */
-                    sess->host = sess->c2s->vhost;
-                    /* and current "to" as realm */
-                    sess->host->realm = s->req_to;
+                /* check if we should dynamically create it */
+                if(sess->c2s->vhost) {
+                    sess->host = (host_t) pmalloco(xhash_pool(sess->c2s->hosts), sizeof(struct host_st));
+                    memcpy(sess->host, sess->c2s->vhost, sizeof(struct host_st));
+                    sess->host->realm = pstrdup(xhash_pool(sess->c2s->hosts), s->req_to);
+                    xhash_put(sess->c2s->hosts, pstrdup(xhash_pool(sess->c2s->hosts), s->req_to), sess->host);
                 } else {
                     log_debug(ZONE, "no host available for requested domain '%s'", s->req_to);
                     sx_error(s, stream_err_HOST_UNKNOWN, "service requested for unknown domain");
