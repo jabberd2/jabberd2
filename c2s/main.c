@@ -25,7 +25,6 @@
 static sig_atomic_t c2s_shutdown = 0;
 sig_atomic_t c2s_lost_router = 0;
 static sig_atomic_t c2s_logrotate = 0;
-static sig_atomic_t c2s_reloadhosts = 0;
 
 static void _c2s_signal(int signum)
 {
@@ -36,7 +35,6 @@ static void _c2s_signal(int signum)
 static void _c2s_signal_hup(int signum)
 {
     c2s_logrotate = 1;
-    c2s_reloadhosts = 1;
 }
 
 /** store the process id */
@@ -232,6 +230,7 @@ static void _c2s_hosts_expand(c2s_t c2s)
 
         host->host_pemfile = j_attr((const char **) elem->attrs[i], "pemfile");
 
+#ifdef HAVE_SSL
         if(c2s->sx_ssl == NULL && host->host_pemfile != NULL) {
             c2s->sx_ssl = sx_env_plugin(c2s->sx_env, sx_ssl_init, host->host_pemfile, NULL, c2s->local_verify_mode);
             if(c2s->sx_ssl == NULL) {
@@ -239,6 +238,7 @@ static void _c2s_hosts_expand(c2s_t c2s)
                 host->host_pemfile = NULL;
             }
         }
+#endif
 
         host->host_require_starttls = (j_attr((const char **) elem->attrs[i], "require-starttls") != NULL);
 
@@ -627,7 +627,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
         exit(1);
     }
 
-    sx_env_plugin(c2s->sx_env, bind_init);
+    sx_env_plugin(c2s->sx_env, bind_init, c2s);
 
     c2s->mio = mio_new(c2s->io_max_fds);
 
@@ -649,24 +649,6 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
             log_write(c2s->log, LOG_NOTICE, "log started");
 
             c2s_logrotate = 0;
-        }
-
-        if(c2s_reloadhosts) {
-            log_write(c2s->log, LOG_NOTICE, "reloading serviced hosts list ...");
-            config_free(c2s->config);
-            c2s->config = config_new();
-            if(config_load(c2s->config, config_file) != 0)
-            {
-                log_write(c2s->log, LOG_ERR, "couldn't reload config, aborting");
-                exit(2);
-            }
-            _c2s_config_expand(c2s);
-            xhash_free(c2s->hosts);
-            c2s->hosts = xhash_new(1021);
-            _c2s_hosts_expand(c2s);
-            log_write(c2s->log, LOG_NOTICE, "serviced hosts list reloaded");
-
-            c2s_reloadhosts = 0;
         }
 
         if(c2s_lost_router) {
