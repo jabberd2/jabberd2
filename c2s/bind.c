@@ -42,6 +42,7 @@ static void _bind_features(sx_t s, sx_plugin_t p, nad_t nad) {
     
         c2s = (c2s_t) p->private;
         host = xhash_get(c2s->hosts, s->req_to);
+        if(! host) host = c2s->vhost;
         if(host && host->ar_register_enable) {
             ns = nad_add_namespace(nad, uri_IQREGISTER, NULL);
             nad_append_elem(nad, ns, "register", 1);

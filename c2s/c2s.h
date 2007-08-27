@@ -239,6 +239,7 @@ struct c2s_st {
 
     /** hosts mapping */
     xht                 hosts;
+    host_t              vhost;
 
     /** availability of sms that we are servicing */
     xht                 sm_avail;

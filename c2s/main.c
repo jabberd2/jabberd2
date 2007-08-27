@@ -256,7 +256,21 @@ static void _c2s_hosts_expand(c2s_t c2s)
         } else
             host->ar_register_password = (j_attr((const char **) elem->attrs[i], "password-change") != NULL);
 
-        xhash_put(c2s->hosts, pstrdup(xhash_pool(c2s->hosts), id), host);
+        /* check for empty <id/> CDATA - XXX this "1" is VERY config.c dependant !!! */
+        if(! strcmp(id, "1")) {
+            /* remove the realm even if set */
+            host->realm = NULL;
+
+            /* skip if vHost already configured */
+            if(! c2s->vhost)
+                c2s->vhost = host;
+
+            /* add meaningful log "id" */
+            strcpy(id, "default vHost");
+        } else {
+            /* insert into vHosts xhash */
+            xhash_put(c2s->hosts, pstrdup(xhash_pool(c2s->hosts), id), host);
+        }
 
         log_write(c2s->log, LOG_NOTICE, "[%s] configured; realm=%s, registration %s",
                   id, realm, (host->ar_register_enable ? "enabled" : "disabled"));

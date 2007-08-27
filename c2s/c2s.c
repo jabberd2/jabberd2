@@ -175,11 +175,17 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
             sess->host = xhash_get(sess->c2s->hosts, s->req_to);
 
             if(sess->host == NULL) {
-                log_debug(ZONE, "no host available for requested domain '%s'", s->req_to);
-                sx_error(s, stream_err_HOST_UNKNOWN, "service requested for unknown domain");
-                sx_close(s);
-                
-                return 0;
+                if(sess->c2s->vhost && s->req_to) {
+                    /* use default vHost as current vHost */
+                    sess->host = sess->c2s->vhost;
+                    /* and current "to" as realm */
+                    sess->host->realm = s->req_to;
+                } else {
+                    log_debug(ZONE, "no host available for requested domain '%s'", s->req_to);
+                    sx_error(s, stream_err_HOST_UNKNOWN, "service requested for unknown domain");
+                    sx_close(s);
+                    return 0;
+                }
             }
 
             if(xhash_get(sess->c2s->sm_avail, s->req_to) == NULL) {
@@ -189,12 +195,13 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 
                 return 0;
             }
-            
+
+#ifdef HAVE_SSL
             if(sess->host->host_pemfile != NULL)
                 sess->s->flags |= SX_SSL_STARTTLS_OFFER;
             if(sess->host->host_require_starttls)
                 sess->s->flags |= SX_SSL_STARTTLS_REQUIRE;
-            
+#endif
             break;
 
         case event_PACKET:
@@ -442,7 +449,7 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
         case action_CLOSE:
             log_debug(ZONE, "close action on fd %d", fd->fd);
 
-            log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] disconnect jid=%s, packets: %i", sess->fd->fd, sess->ip, sess->port, sess->jid?jid_full(sess->jid):"unbound", sess->packet_count);
+            log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] disconnect jid=%s, packets: %i", sess->fd->fd, sess->ip, sess->port, ((sess->jid)?((char*) jid_full(sess->jid)):"unbound"), sess->packet_count);
 
             /* tell the sm to close their session */
             if(sess->active)

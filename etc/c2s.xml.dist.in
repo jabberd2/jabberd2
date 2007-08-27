@@ -72,6 +72,10 @@
          specify more than one to support virtual hosts, as long as you
          have additional session manager instances on the network to
          handle those hosts.
+
+         You may leave the content of the <id/> empty to setup default
+         virtual host setup, that will be used for all present but not
+         configured otherwise SM domains.
          
          realm
          attribute specifies the auth/reg or SASL authentication realm
@@ -121,6 +125,8 @@
         register-oob='http://example.org/register'
         password-change='true'
     >localhost</id> -->
+    <!-- or the default host
+    <id password-change='true' /> -->
 
     <!-- IP address to bind to (default: 0.0.0.0) -->
     <ip>0.0.0.0</ip>
@@ -325,8 +331,8 @@
 
     <!-- PostgreSQL module configuration -->
     <pgsql>
-      <!-- PostgreSQL connection info -->
-      <!-- For the rest of the options see
+      <!-- PostgreSQL connection info.
+           For the rest of the options see
            http://www.postgresql.org/docs/8.0/interactive/libpq.html -->
       <conninfo>dbname=jabberd2 user=jabberd2 password=secret</conninfo>
 
@@ -344,6 +350,34 @@
       <user>jabberd2</user>
       <pass>secret</pass>
     </pgsql>
+
+    <!-- Oracle driver configuration -->
+    <oracle>
+      <!-- Database server host and port. -->
+      <host>localhost</host>
+      <port>1521</port>
+
+      <!-- Database name -->
+      <dbname>jabberd2</dbname>
+
+      <!-- Database username and password -->
+      <user>jabberd2</user>
+      <pass>secret</pass>
+    </oracle>
+
+    <!-- SQLite driver configuration -->
+    <sqlite>
+      <!-- Database name -->
+      <dbname>@localstatedir@/jabberd/db/sqlite.db</dbname>
+
+      <!-- Transacation support. If this is commented out, transactions
+           will be disabled. This might make database accesses faster,
+           but data may be lost if jabberd crashes. -->
+      <transactions/>
+
+      <!-- SQLite busy-timeout in milliseconds. -->
+      <busy-timeout>2000</busy-timeout>
+    </sqlite>
 
     <!-- Berkeley DB module configuration -->
     <db>
@@ -414,20 +448,6 @@
       <!-- Program to execute -->
       <exec>@bindir@/pipe-auth.pl</exec>
     </pipe>
-
-    <!-- SQLite driver configuration -->
-    <sqlite>
-      <!-- Database name -->
-      <dbname>@localstatedir@/jabberd/db/sqlite.db</dbname>
-
-      <!-- Transacation support. If this is commented out, transactions
-           will be disabled. This might make database accesses faster,
-           but data may be lost if jabberd crashes. -->
-      <transactions/>
-
-      <!-- SQLite busy-timeout in milliseconds. -->
-      <busy-timeout>2000</busy-timeout>
-    </sqlite>
 
   </authreg>
 
