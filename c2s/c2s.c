@@ -177,7 +177,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
             if(sess->host == NULL) {
                 /* check if we should dynamically create it */
                 if(sess->c2s->vhost) {
-                    sess->host = (host_t) pmalloco(xhash_pool(sess->c2s->hosts), sizeof(struct host_st));
+                    sess->host = (host_t) pmalloc(xhash_pool(sess->c2s->hosts), sizeof(struct host_st));
                     memcpy(sess->host, sess->c2s->vhost, sizeof(struct host_st));
                     sess->host->realm = pstrdup(xhash_pool(sess->c2s->hosts), s->req_to);
                     xhash_put(sess->c2s->hosts, pstrdup(xhash_pool(sess->c2s->hosts), s->req_to), sess->host);
