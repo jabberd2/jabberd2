@@ -103,6 +103,12 @@ static int _sx_ssl_process(sx_t s, sx_plugin_t p, nad_t nad) {
                 return 0;
             }
 
+            /* can't go on if we're on compressed stream */
+            if(s->compressed > 0) {
+                _sx_debug(ZONE, "starttls requested on already compressed channel, dropping packet");
+                return 0;
+            }
+
             _sx_debug(ZONE, "starttls requested, setting up");
 
             /* go ahead */
@@ -174,8 +180,9 @@ static int _sx_ssl_process(sx_t s, sx_plugin_t p, nad_t nad) {
 static void _sx_ssl_features(sx_t s, sx_plugin_t p, nad_t nad) {
     int ns;
 
-    /* if the session is already encrypted, or the app told us not to, then we don't offer anything */
-    if(s->state > state_STREAM || s->ssf > 0 || !(s->flags & SX_SSL_STARTTLS_OFFER))
+    /* if the session is already encrypted, or the app told us not to,
+     * or session is compressed then we don't offer anything */
+    if(s->state > state_STREAM || s->ssf > 0 || !(s->flags & SX_SSL_STARTTLS_OFFER) || s->compressed)
         return;
 
     _sx_debug(ZONE, "offering starttls");
@@ -628,7 +635,9 @@ static void _sx_ssl_unload(sx_plugin_t p) {
     SSL_CTX_free((SSL_CTX *) p->private);
 }
 
-/** args: pemfile */
+int sx_openssl_initialized = 0;
+
+/** args: pemfile, cachain, mode */
 int sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args) {
     char *pemfile, *cachain;
     SSL_CTX *ctx;
@@ -652,6 +661,8 @@ int sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args) {
     /* openssl startup */
     SSL_library_init();
     SSL_load_error_strings();
+
+    sx_openssl_initialized = 1;
 
     /* create the context */
     ctx = SSL_CTX_new(SSLv23_method());
@@ -725,8 +736,8 @@ int sx_ssl_client_starttls(sx_plugin_t p, sx_t s, char *pemfile) {
         return 1;
     }
 
-    /* check if we're already encrypted */
-    if(s->ssf > 0) {
+    /* check if we're already encrypted or compressed */
+    if(s->ssf > 0 || s->compressed) {
         _sx_debug(ZONE, "encrypted channel already established");
         return 1;
     }
