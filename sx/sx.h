@@ -111,9 +111,9 @@ typedef void (*_sx_notify_t)(sx_t s, void *arg);
 /** utility: buffer */
 typedef struct _sx_buf_st *sx_buf_t;
 struct _sx_buf_st {
-    char                    *data;     /* pointer to buffer's data */
-    int                     len;       /* length of buffer's data */
-    char                    *heap;     /* beginning of malloc() block containing data, if non-NULL */
+    unsigned char           *data;     /* pointer to buffer's data */
+    unsigned int            len;       /* length of buffer's data */
+    unsigned char           *heap;     /* beginning of malloc() block containing data, if non-NULL */
 
     /* function to call when this buffer gets written */
     _sx_notify_t            notify;
@@ -313,6 +313,9 @@ struct _sx_st {
 
     /* security strength factor (in sasl parlance) - roughly equivalent to key strength */
     int                     ssf;
+
+    /* is stream compressed */
+    int                     compressed;
 };
 
 /** a plugin */

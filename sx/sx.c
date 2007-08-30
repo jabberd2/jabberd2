@@ -103,6 +103,7 @@ void sx_free(sx_t s) {
     if(s->auth_id != NULL) free(s->auth_id);
     
     if(s->env != NULL) {
+        _sx_debug(ZONE, "freeing %d env plugins", s->env->nplugins);
         for(i = 0; i < s->env->nplugins; i++)
             if(s->env->plugins[i]->free != NULL)
                 (s->env->plugins[i]->free)(s, s->env->plugins[i]);
@@ -161,6 +162,7 @@ void _sx_reset(sx_t s) {
     temp.flags = s->flags;
     temp.reentry = s->reentry;
     temp.ssf = s->ssf;
+    temp.compressed = s->compressed;
     temp.wio = s->wio;
     temp.rio = s->rio;
     temp.wnad = s->wnad;
@@ -186,6 +188,7 @@ void _sx_reset(sx_t s) {
     s->flags = temp.flags;
     s->reentry = temp.reentry;
     s->ssf = temp.ssf;
+    s->compressed = temp.compressed;
     s->wio = temp.wio;
     s->rio = temp.rio;
     s->wnad = temp.wnad;
@@ -193,6 +196,8 @@ void _sx_reset(sx_t s) {
     s->plugin_data = temp.plugin_data;
 
     s->has_reset = 1;
+
+    _sx_debug(ZONE, "finished resetting stream state");
 }
 
 /** utility: make a new buffer

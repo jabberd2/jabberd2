@@ -27,6 +27,7 @@
 #include "compress.h"
 
 static void _sx_compress_notify_compress(sx_t s, void *arg) {
+
     _sx_debug(ZONE, "preparing for compress");
 
     _sx_reset(s);
@@ -139,6 +140,10 @@ static int _sx_compress_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     int ret;
     sx_error_t sxe;
 
+    /* only bothering if they asked for wrappermode */
+    if(!(s->flags & SX_COMPRESS_WRAPPER) || !s->compressed)
+        return;
+
     _sx_debug(ZONE, "in _sx_compress_wio");
 
     /* move the data into the zlib write buffer */
@@ -146,16 +151,16 @@ static int _sx_compress_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
         _sx_debug(ZONE, "loading %d bytes into zlib write buffer", buf->len);
 
 	_sx_buffer_alloc_margin(sc->wbuf, 0, buf->len);
-	memcpy(sc->wbuf->data + buf->len, buf->data, buf->len);
+	memcpy(sc->wbuf->data + sc->wbuf->len, buf->data, buf->len);
 	sc->wbuf->len += buf->len;
 
         _sx_buffer_clear(buf);
     }
 
     /* compress the data */
-    if(sc->rbuf->len > 0) {
-	sc->rstrm.avail_in = sc->rbuf->len;
-	sc->rstrm.next_in = sc->rbuf->data;
+    if(sc->wbuf->len > 0) {
+	sc->wstrm.avail_in = sc->wbuf->len;
+	sc->wstrm.next_in = sc->wbuf->data;
 	/* deflate() on write buffer until there is data to compress */
 	do {
 	    /* make place for deflated data */
@@ -164,7 +169,7 @@ static int _sx_compress_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
             sc->wstrm.avail_out = sc->wbuf->len + SX_COMPRESS_CHUNK;
 	    sc->wstrm.next_out = buf->data + buf->len;
 
-	    ret = deflate(&(sc->rstrm), Z_SYNC_FLUSH);
+	    ret = deflate(&(sc->wstrm), Z_SYNC_FLUSH);
 	    assert(ret != Z_STREAM_ERROR);
             
 	    buf->len += sc->wbuf->len + SX_COMPRESS_CHUNK - sc->wstrm.avail_out;
@@ -186,19 +191,19 @@ static int _sx_compress_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
 	sc->wbuf->data = sc->wstrm.next_in;
     }
 
-    /* flag if we want to write */
-    if(buf->len > 0) {
-        s->want_write = 1;
-	return 1;
-    }
+    _sx_debug(ZONE, "passing %d bytes from zlib write buffer", buf->len);
 
-    return 0;
+    return 1;
 }
 
 static int _sx_compress_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     _sx_compress_conn_t sc = (_sx_compress_conn_t) s->plugin_data[p->index];
     int ret;
     sx_error_t sxe;
+
+    /* only bothering if they asked for wrappermode */
+    if(!(s->flags & SX_COMPRESS_WRAPPER) || !s->compressed)
+        return;
 
     _sx_debug(ZONE, "in _sx_compress_rio");
 
@@ -207,7 +212,7 @@ static int _sx_compress_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
         _sx_debug(ZONE, "loading %d bytes into zlib read buffer", buf->len);
 
 	_sx_buffer_alloc_margin(sc->rbuf, 0, buf->len);
-	memcpy(sc->rbuf->data + buf->len, buf->data, buf->len);
+	memcpy(sc->rbuf->data + sc->rbuf->len, buf->data, buf->len);
 	sc->rbuf->len += buf->len;
 
         _sx_buffer_clear(buf);
@@ -231,11 +236,6 @@ static int _sx_compress_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
 		case Z_NEED_DICT:
 		case Z_DATA_ERROR:
 		case Z_MEM_ERROR:
-                    /* something's wrong */
-		    inflateEnd(&(sc->rstrm));
-
-                    _sx_buffer_clear(buf);
-    
                     /* throw an error */
                     _sx_gen_error(sxe, SX_ERR_COMPRESS, "compression error", "Error during decompression");
                     _sx_event(s, event_ERROR, (void *) &sxe);
@@ -243,7 +243,7 @@ static int _sx_compress_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
                     _sx_error(s, stream_err_INVALID_XML, "Error during decompression");
                     _sx_close(s);
     
-                    return -1;
+                    return -2;
 	    }
             
 	    buf->len += SX_COMPRESS_CHUNK - sc->rstrm.avail_out;
@@ -253,6 +253,8 @@ static int _sx_compress_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
 	sc->rbuf->len = sc->rstrm.avail_in;
 	sc->rbuf->data = sc->rstrm.next_in;
     }
+
+    _sx_debug(ZONE, "passing %d bytes from zlib read buffer", buf->len);
 
     /* flag if we want to read */
     if(sc->rbuf->len > 0)
@@ -297,6 +299,9 @@ static void _sx_compress_new(sx_t s, sx_plugin_t p) {
 
     /* bring the plugin online */
     _sx_chain_io_plugin(s, p);
+
+    /* mark stream compressed */
+    s->compressed = 1;
 }
 
 /** cleanup */
@@ -353,7 +358,7 @@ int sx_compress_client_compress(sx_plugin_t p, sx_t s, char *pemfile) {
     }
 
     /* check if we're already compressed */
-    if(s->compressed > 0) {
+    if((s->flags & SX_COMPRESS_WRAPPER) || s->compressed) {
         _sx_debug(ZONE, "channel already compressed");
         return 1;
     }
