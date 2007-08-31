@@ -27,6 +27,7 @@
 #include "mio/mio.h"
 #include "sx/sx.h"
 #include "sx/ssl.h"
+#include "sx/compress.h"
 #ifdef HEADER_MD5_H
 #  define MD5_H
 #endif
@@ -143,6 +144,7 @@ struct c2s_st {
     sx_env_t            sx_env;
     sx_plugin_t         sx_ssl;
     sx_plugin_t         sx_sasl;
+    sx_plugin_t         sx_compress;
 
     /** router's conn */
     sx_t                router;
@@ -164,6 +166,10 @@ struct c2s_st {
     log_type_t          log_type;
     char                *log_facility;
     char                *log_ident;
+
+    /** packet counter */
+    long long int       packet_count;
+    char                *packet_stats;
 
     /** connect retry */
     int                 retry_init;

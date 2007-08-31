@@ -263,6 +263,14 @@
     
   </io>
 
+  <!-- Statistics -->
+  <stats>
+    <!-- file containing count of packets that went through -->
+    <!--
+    <packet>@localstatedir@/jabberd/stats/c2s.packets</packet>
+    -->
+  </stats>
+
   <!-- Authentication/registration database configuration -->
   <authreg>
     <!-- Dynamic authreg modules path -->

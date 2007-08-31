@@ -82,6 +82,10 @@ struct s2s_st {
     char                *log_facility;
     char                *log_ident;
 
+    /** packet counter */
+    long long int       packet_count;
+    char                *packet_stats;
+
     /** connect retry */
     int                 retry_init;
     int                 retry_lost;

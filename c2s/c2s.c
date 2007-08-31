@@ -209,6 +209,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
         case event_PACKET:
             /* we're counting packets */
             sess->packet_count++;
+            sess->c2s->packet_count++;
 
             nad = (nad_t) data;
 
@@ -426,7 +427,7 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
     sess_t sess = (sess_t) arg;
     c2s_t c2s = (c2s_t) arg;
     struct sockaddr_storage sa;
-    int namelen = sizeof(sa), port, nbytes;
+    int namelen = sizeof(sa), port, nbytes, flags = 0;
 
     switch(a) {
         case action_READ:
@@ -503,15 +504,17 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
             sprintf(sess->skey, "%d", fd->fd);
             xhash_put(c2s->sessions, sess->skey, (void *) sess);
 
+	    flags = SX_SASL_OFFER;
 #ifdef HAVE_SSL
             /* go ssl wrappermode if they're on the ssl port */
             if(port == c2s->local_ssl_port)
-                sx_server_init(sess->s, SX_SSL_WRAPPER | SX_SASL_OFFER);
-            else
-                sx_server_init(sess->s, SX_SASL_OFFER);
-#else
-            sx_server_init(sess->s, SX_SASL_OFFER);
+                flags |= SX_SSL_WRAPPER;
 #endif
+#ifdef HAVE_LIBZ
+	    flags |= SX_COMPRESS_OFFER;
+#endif
+            sx_server_init(sess->s, flags);
+
             break;
     }
 
@@ -1044,6 +1047,10 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     nad_free(nad);
                     return 0;
                 }
+
+                /* we're counting packets */
+                sess->packet_count++;
+                sess->c2s->packet_count++;
 
                 /* remove sm specifics */
                 nad_set_attr(nad, 1, ns, "c2s", NULL, 0);

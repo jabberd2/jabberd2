@@ -112,6 +112,8 @@ static void _c2s_config_expand(c2s_t c2s)
     } else if(c2s->log_type == log_FILE)
         c2s->log_ident = config_get_one(c2s->config, "log.file", 0);
 
+    c2s->packet_stats = config_get_one(c2s->config, "stats.packet", 0);
+
     c2s->local_ip = config_get_one(c2s->config, "local.ip", 0);
     if(c2s->local_ip == NULL)
         c2s->local_ip = "0.0.0.0";
@@ -494,9 +496,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     int optchar;
     sess_t sess;
     union xhashv xhv;
-#ifdef POOL_DEBUG
-    time_t pool_time = 0;
-#endif
+    time_t check_time = 0;
     
 #ifdef HAVE_UMASK
     umask((mode_t) 0027);
@@ -641,6 +641,15 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
         exit(1);
     }
 
+#ifdef HAVE_LIBZ
+    /* get compression up and running */
+    c2s->sx_compress = sx_env_plugin(c2s->sx_env, sx_compress_init);
+    if(c2s->sx_compress == NULL) {
+        log_write(c2s->log, LOG_ERR, "failed to initialise compression");
+    }
+#endif
+
+    /* get bind up */
     sx_env_plugin(c2s->sx_env, bind_init, c2s);
 
     c2s->mio = mio_new(c2s->io_max_fds);
@@ -713,12 +722,25 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
             log_debug(ZONE, "next time check at %d", c2s->next_check);
         }
 
+        if(time(NULL) > check_time + 60) {
 #ifdef POOL_DEBUG
-        if(time(NULL) > pool_time + 60) {
             pool_stat(1);
-            pool_time = time(NULL);
-        }
 #endif
+            if(c2s->packet_stats != NULL) {
+                int fd = open(c2s->packet_stats, O_TRUNC | O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP);
+                if(fd) {
+                    char buf[100];
+                    int len = snprintf(buf, 100, "%lld\n", c2s->packet_count);
+                    write(fd, buf, len);
+                    close(fd);
+                } else {
+                    log_write(c2s->log, LOG_ERR, "failed to write packet statistics to: %s", c2s->packet_stats);
+                    c2s_shutdown = 1;
+                }
+            }
+    
+            check_time = time(NULL);
+        }
     }
 
     log_write(c2s->log, LOG_NOTICE, "shutting down");

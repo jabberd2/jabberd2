@@ -109,6 +109,8 @@ static void _s2s_config_expand(s2s_t s2s) {
     } else if(s2s->log_type == log_FILE)
         s2s->log_ident = config_get_one(s2s->config, "log.file", 0);
 
+    s2s->packet_stats = config_get_one(s2s->config, "stats.packet", 0);
+
     s2s->local_ip = config_get_one(s2s->config, "local.ip", 0);
     if(s2s->local_ip == NULL)
         s2s->local_ip = "0.0.0.0";
@@ -380,9 +382,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
     jqueue_t q;
     dnscache_t dns;
     union xhashv xhv;
-#ifdef POOL_DEBUG
-    time_t pool_time = 0;
-#endif
+    time_t check_time = 0;
 
 #ifdef HAVE_UMASK
     umask((mode_t) 0027);
@@ -577,12 +577,25 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
             log_debug(ZONE, "next time check at %d", s2s->next_check);
         }
 
+        if(time(NULL) > check_time + 60) {
 #ifdef POOL_DEBUG
-        if(time(NULL) > pool_time + 60) {
             pool_stat(1);
-            pool_time = time(NULL);
-        }
 #endif
+            if(s2s->packet_stats != NULL) {
+                int fd = open(s2s->packet_stats, O_TRUNC | O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP);
+                if(fd) {
+                    char buf[100];
+                    int len = snprintf(buf, 100, "%lld\n", s2s->packet_count);
+                    write(fd, buf, len);
+                    close(fd);
+                } else {
+                    log_write(s2s->log, LOG_ERR, "failed to write packet statistics to: %s", s2s->packet_stats);
+                    s2s_shutdown = 1;
+                }
+            }
+    
+            check_time = time(NULL);
+        }
     }
 
     log_write(s2s->log, LOG_NOTICE, "shutting down");
