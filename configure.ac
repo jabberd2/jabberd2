@@ -34,7 +34,7 @@ for incpath in $split_includes ; do
 done
 
 AC_ARG_WITH([extra_library_path], AC_HELP_STRING([--with-extra-library-path],
-                                               [use additional library paths (remember /etc/ld.so.conf)]),
+                                               [use additional library paths (remember to update /etc/ld.so.conf too)]),
             extra_library_path=$withval)
 split_libs="`echo $extra_library_path | sed -e 's/:/ /g'`"
 for libpath in $split_libs ; do
