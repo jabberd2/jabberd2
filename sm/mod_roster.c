@@ -144,10 +144,11 @@ static void _roster_insert_item(pkt_t pkt, item_t item, int elem)
 }
 
 /** push this packet to all sessions except the given one */
-static void _roster_push(user_t user, pkt_t pkt, int mod_index)
+static int _roster_push(user_t user, pkt_t pkt, int mod_index)
 {
     sess_t scan;
     pkt_t push;
+    int pushes = 0;
 
     /* do the push */
     for(scan = user->sessions; scan != NULL; scan = scan->next)
@@ -158,7 +159,11 @@ static void _roster_push(user_t user, pkt_t pkt, int mod_index)
 
         push = pkt_dup(pkt, jid_full(scan->jid), NULL);
         pkt_sess(push, scan);
+        pushes++;
     }
+
+    /* return the pushed packets count */
+    return pushes;
 }
 
 static mod_ret_t _roster_in_sess_s10n(mod_instance_t mi, sess_t sess, pkt_t pkt)
@@ -539,11 +544,20 @@ static mod_ret_t _roster_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt)
     /* get the roster item */
     item = (item_t) xhash_get(user->roster, jid_full(pkt->from));
     if(item == NULL) {
-        /* subs go direct */
+        /* subs are handled by the client */
         if(pkt->type == pkt_S10N)
-            return mod_PASS;
+            /* if the user is online broadcast it like roster push */
+            if(user->top != NULL && _roster_push(user, pkt, mod->index) > 0) {
+                /* pushed, thus handled */
+                pkt_free(pkt);
+                return mod_HANDLED;
+            }
+            else {
+                /* not pushed to any online resource - pass it on (to mod_offline) */
+                return mod_PASS;
+            }
 
-        /* we didn't ask for this, so we don't care */
+        /* other S10Ns: we didn't ask for this, so we don't care */
         pkt_free(pkt);
         return mod_HANDLED;
     }

@@ -29,6 +29,7 @@
 
 typedef struct _mod_offline_st {
     int dropmessages;
+    int storeheadlines;
     int dropsubscriptions;
     int userquota;
 } *mod_offline_t;
@@ -108,8 +109,8 @@ static mod_ret_t _offline_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     st_ret_t ret;
     int queuesize;
 
-    /* send messages and s10ns to the top session */
-    if(user->top != NULL && (pkt->type & pkt_MESSAGE || pkt->type & pkt_S10N)) {
+    /* send messages to the top session */
+    if(user->top != NULL && (pkt->type & pkt_MESSAGE)) {
         pkt_sess(pkt, user->top);
         return mod_HANDLED;
     }
@@ -129,6 +130,14 @@ static mod_ret_t _offline_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     if((pkt->type & pkt_MESSAGE && !offline->dropmessages) ||
        (pkt->type & pkt_S10N && !offline->dropsubscriptions)) {
         log_debug(ZONE, "saving message for later");
+
+        /* check type of the message and drop headlines and groupchat */
+        if((pkt->type & pkt_MESSAGE_HEADLINE && !offline->storeheadlines) ||
+            pkt->type & pkt_MESSAGE_GROUPCHAT) {
+
+            pkt_free(pkt);
+            return mod_HANDLED;
+        }
 
         pkt_delay(pkt, time(NULL), user->sm->id);
 
@@ -151,7 +160,7 @@ static mod_ret_t _offline_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
             default:
                 os_free(os);
 
-                /* send offline events if they asked for it */
+                /* XEP-0022 - send offline events if they asked for it */
                 /* if there's an id element, then this is a notification, not a request, so ignore it */
 
                 if((ns = nad_find_scoped_namespace(pkt->nad, uri_EVENT, NULL)) >= 0 &&
@@ -260,6 +269,10 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     configval = config_get_one(mod->mm->sm->config, "offline.dropmessages", 0);
     if (configval != NULL)
         offline->dropmessages = 1;
+
+    configval = config_get_one(mod->mm->sm->config, "offline.storeheadlines", 0);
+    if (configval != NULL)
+        offline->storeheadlines = 1;
 
     configval = config_get_one(mod->mm->sm->config, "offline.dropsubscriptions", 0);
     if (configval != NULL)
