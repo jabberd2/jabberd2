@@ -28,22 +28,54 @@
 #ifndef INCL_UTIL_URI_H
 #define INCL_UTIL_URI_H 1
 
+#define uri_XML         "http://www.w3.org/XML/1998/namespace"
+
 /* known namespace uri */
 #define uri_STREAMS     "http://etherx.jabber.org/streams"
 #define uri_CLIENT      "jabber:client"
 #define uri_SERVER      "jabber:server"
 #define uri_DIALBACK    "jabber:server:dialback"
+#define uri_DIALBACK_L	22	/* strlen(uri_DIALBACK) */
 #define uri_TLS         "urn:ietf:params:xml:ns:xmpp-tls"
 #define uri_SASL        "urn:ietf:params:xml:ns:xmpp-sasl"
 #define uri_BIND        "urn:ietf:params:xml:ns:xmpp-bind"
 #define uri_XSESSION    "urn:ietf:params:xml:ns:xmpp-session"
+#define uri_COMPRESS    "http://jabber.org/protocol/compress"
+#define uri_IQAUTH      "http://jabber.org/features/iq-auth"
+#define uri_IQREGISTER  "http://jabber.org/features/iq-register"
 #define uri_STREAM_ERR  "urn:ietf:params:xml:ns:xmpp-streams"
 #define uri_STANZA_ERR  "urn:ietf:params:xml:ns:xmpp-stanzas"
 #define uri_COMPONENT   "http://jabberd.jabberstudio.org/ns/component/1.0"
 #define uri_SESSION     "http://jabberd.jabberstudio.org/ns/session/1.0"
 #define uri_RESOLVER    "http://jabberd.jabberstudio.org/ns/resolver/1.0"
 #define uri_XDATA       "jabber:x:data"
-#define uri_XML         "http://www.w3.org/XML/1998/namespace"
 #define uri_OOB         "jabber:x:oob"
+
+/* these are used by SM mainly */
+#define uri_AUTH        "jabber:iq:auth"
+#define uri_REGISTER    "jabber:iq:register"
+#define uri_ROSTER      "jabber:iq:roster"
+#define uri_AGENTS      "jabber:iq:agents"
+#define uri_DELAY       "jabber:x:delay"
+#define uri_URN_DELAY   "urn:xmpp:delay"
+#define uri_TIME        "jabber:iq:time"
+#define uri_URN_TIME    "urn:xmpp:time"
+#define uri_BROWSE      "jabber:iq:browse"
+#define uri_EVENT       "jabber:x:event"
+#define uri_GATEWAY     "jabber:iq:gateway"
+#define uri_EXPIRE      "jabber:x:expire"
+#define uri_SEARCH      "jabber:iq:search"
+#define uri_DISCO       "http://jabber.org/protocol/disco"
+#define uri_DISCO_ITEMS "http://jabber.org/protocol/disco#items"
+#define uri_DISCO_INFO  "http://jabber.org/protocol/disco#info"
+
+#define uri_AMP                         "http://jabber.org/protocol/amp"
+#define uri_AMP_ERRORS                  "http://jabber.org/protocol/amp#errors"
+#define uri_AMP_ACTION_DROP             "http://jabber.org/protocol/amp?action=drop"
+#define uri_AMP_ACTION_ERROR            "http://jabber.org/protocol/amp?action=error"
+#define uri_AMP_ACTION_NOTIFY           "http://jabber.org/protocol/amp?action=notify"
+#define uri_AMP_CONDITION_DELIVER       "http://jabber.org/protocol/amp?condition=deliver"
+#define uri_AMP_CONDITION_EXPIREAT      "http://jabber.org/protocol/amp?condition=expire-at"
+#define uri_AMP_CONDITION_MATCHRESOURCE "http://jabber.org/protocol/amp?condition=match-resource"
 
 #endif

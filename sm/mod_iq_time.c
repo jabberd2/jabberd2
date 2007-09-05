@@ -27,8 +27,10 @@
   * $Revision: 1.14 $
   */
 
-#define uri_TIME    "jabber:iq:time"
+#ifdef ENABLE_SUPERSEDED
 static int ns_TIME = 0;
+#endif
+static int ns_URN_TIME = 0;
 
 #ifdef HAVE_TZNAME
 extern char *tzname[];
@@ -42,29 +44,46 @@ static mod_ret_t _iq_time_pkt_sm(mod_instance_t mi, pkt_t pkt)
     char *c;
 
     /* we only want to play with iq:time gets */
-    if(pkt->type != pkt_IQ || pkt->ns != ns_TIME)
+#ifdef ENABLE_SUPERSEDED
+    if(pkt->type != pkt_IQ || (pkt->ns != ns_TIME && pkt->ns != ns_URN_TIME))
+#else
+    if(pkt->type != pkt_IQ || pkt->ns != ns_URN_TIME)
+#endif
         return mod_PASS;
 
     t = time(NULL);
-
-    sm_timestamp(t, buf);
-    nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "utc", buf);
-
     tm = localtime(&t);
-
-    strcpy(buf, asctime(tm));
-    c = strchr(buf, '\n');
-    if(c != NULL)
-        *c = '\0';
-    nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "display", buf);
-    
+#ifdef HAVE_TZSET
     tzset();
-#if defined(HAVE_STRUCT_TM_TM_ZONE)
-    nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "tz", (char *) tm->tm_zone);
-#elif defined(HAVE_TZNAME)
-    nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "tz", tzname[0]);
 #endif
 
+#ifdef ENABLE_SUPERSEDED
+    if(pkt->ns == ns_TIME) {
+        datetime_out(t, dt_LEGACY, buf, 64);
+        nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "utc", buf);
+
+        strcpy(buf, asctime(tm));
+        c = strchr(buf, '\n');
+        if(c != NULL)
+            *c = '\0';
+        nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "display", buf);
+#if defined(HAVE_STRUCT_TM_TM_ZONE)
+        nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "tz", (char *) tm->tm_zone);
+#elif defined(HAVE_TZNAME)
+        nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "tz", tzname[0]);
+#endif
+    } else {
+#endif /* ENABLE_SUPERSEDED */
+
+    datetime_out(t, dt_DATETIME, buf, 64);
+    nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "utc", buf);
+
+    snprintf(buf, 64, "%+03d:%02d", (int) -timezone/(60*60), (int) -timezone%(60*60));
+    nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "tzo", buf);
+
+#ifdef ENABLE_SUPERSEDED
+    }
+#endif
     /* tell them */
     nad_set_attr(pkt->nad, 1, -1, "type", "result", 6);
     pkt_router(pkt_tofrom(pkt));
@@ -85,8 +104,12 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     mod->pkt_sm = _iq_time_pkt_sm;
     mod->free = _iq_time_free;
 
+#ifdef ENABLE_SUPERSEDED
     ns_TIME = sm_register_ns(mod->mm->sm, uri_TIME);
     feature_register(mod->mm->sm, uri_TIME);
+#endif
+    ns_URN_TIME = sm_register_ns(mod->mm->sm, uri_URN_TIME);
+    feature_register(mod->mm->sm, uri_URN_TIME);
 
     return 0;
 }

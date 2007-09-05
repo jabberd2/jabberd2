@@ -261,17 +261,6 @@ int sm_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg)
     return 0;
 }
 
-/** this was jutil_timestamp in a former life */
-void sm_timestamp(time_t t, char timestamp[18])
-{
-    struct tm *gm = gmtime(&t);
-
-    snprintf(timestamp, 18, "%d%02d%02dT%02d:%02d:%02d", 1900 + gm->tm_year,
-             gm->tm_mon + 1, gm->tm_mday, gm->tm_hour, gm->tm_min, gm->tm_sec);
-
-    return;
-}
-
 /** send a new action route */
 void sm_c2s_action(sess_t dest, char *action, char *target) {
     nad_t nad;
