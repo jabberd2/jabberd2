@@ -34,7 +34,7 @@ for incpath in $split_includes ; do
 done
 
 AC_ARG_WITH([extra_library_path], AC_HELP_STRING([--with-extra-library-path],
-                                               [use additional library paths]),
+                                               [use additional library paths (remember /etc/ld.so.conf)]),
             extra_library_path=$withval)
 split_libs="`echo $extra_library_path | sed -e 's/:/ /g'`"
 for libpath in $split_libs ; do
@@ -460,6 +460,77 @@ if test "x-$want_ssl" = "x-yes" ; then
     AC_DEFINE(HAVE_SSL,1,[Define to 1 if OpenSSL is available.])
 fi
 
+dnl Check for & handle argument to --with-zlib.
+_cppflags=$CPPFLAGS
+_ldflags=$LDFLAGS
+AC_ARG_WITH(zlib,
+AC_HELP_STRING([--with-zlib=PATH],[search for zlib in PATH])
+AC_HELP_STRING([--without-zlib],[disable use of zlib]),
+               [OPT_ZLIB="$withval"])
+
+if test "$OPT_ZLIB" = "no" ; then
+    AC_MSG_WARN([zlib disabled])
+else
+  if test "$OPT_ZLIB" = "yes" ; then
+     OPT_ZLIB=""
+  fi
+
+  if test -z "$OPT_ZLIB" ; then
+    dnl check for the lib first without setting any new path, since many
+    dnl people have it in the default path
+
+    AC_CHECK_LIB(z, inflateEnd,
+                   dnl libz found, set the variable
+                   [HAVE_LIBZ="1"],
+                   dnl if no lib found, try /usr/local
+                   [OPT_ZLIB="/usr/local"])
+
+  fi
+
+  dnl Add a nonempty path to the compiler flags
+  if test -n "$OPT_ZLIB"; then
+     CPPFLAGS="$CPPFLAGS -I$OPT_ZLIB/include"
+     LDFLAGS="$LDFLAGS -L$OPT_ZLIB/lib$libsuff"
+  fi
+
+  AC_CHECK_HEADER(zlib.h,
+    [
+    dnl zlib.h was found
+    HAVE_ZLIB_H="1"
+    dnl if the lib wasn't found already, try again with the new paths
+    if test "$HAVE_LIBZ" != "1"; then
+      AC_CHECK_LIB(z, gzread,
+                   [
+                   dnl the lib was found!
+                   HAVE_LIBZ="1"
+                   ],
+                   [ CPPFLAGS=$_cppflags
+                   LDFLAGS=$_ldflags])
+    fi
+    ],
+    [
+      dnl zlib.h was not found, restore the flags
+      CPPFLAGS=$_cppflags
+      LDFLAGS=$_ldflags]
+    )
+
+  if test "$HAVE_LIBZ" = "1" && test "$HAVE_ZLIB_H" != "1"
+  then
+    AC_MSG_WARN([configure found only the libz lib, not the header file!])
+  elif test "$HAVE_LIBZ" != "1" && test "$HAVE_ZLIB_H" = "1"
+  then
+    AC_MSG_WARN([configure found only the libz header file, not the lib!])
+  elif test "$HAVE_LIBZ" = "1" && test "$HAVE_ZLIB_H" = "1"
+  then
+    dnl both header and lib were found!
+    AC_SUBST(HAVE_LIBZ)
+    AC_DEFINE(HAVE_ZLIB_H, 1, [if you have the zlib.h header file])
+    AC_DEFINE(HAVE_LIBZ, 1, [if zlib is available])
+
+    LIBS="$LIBS -lz"
+  fi
+fi
+
 # MySQL
 AC_ARG_ENABLE([mysql], 
         AC_HELP_STRING([--enable-mysql], [enable MySQL auth/reg/storage support (no)]),
@@ -609,7 +680,7 @@ AM_CONDITIONAL(STORAGE_DB, [test "x-$have_db_version" = "x-yes"])
 
 # Oracle
 AC_ARG_WITH(oracle-home,
-        [ --with-oracle-home=DIR   the Oracle home directory, for includes and libs. ],
+        AC_HELP_STRING([--with-oracle-home=DIR], [the Oracle home directory, for includes and libs]),
         [ ac_oracle_home="$withval" ])
 
 AC_ARG_ENABLE(oracle, AC_HELP_STRING([--enable-oracle], [enable Oracle auth/reg/storage support (no)]),
