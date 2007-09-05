@@ -39,7 +39,7 @@ static mod_ret_t _help_pkt_sm(mod_instance_t mi, pkt_t pkt)
     char *subject;
 
     /* we want messages addressed to the sm itself */
-    if(pkt->type != pkt_MESSAGE || pkt->to->resource[0] != '\0')
+    if(!(pkt->type & pkt_MESSAGE) || pkt->to->resource[0] != '\0')
         return mod_PASS;
 
     log_debug(ZONE, "help message from %s", jid_full(pkt->from));

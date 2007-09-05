@@ -105,12 +105,14 @@ static mod_ret_t _amp_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     mod_amp_config_t config = (mod_amp_config_t) mi->mod->private;
 
     /* only handle messages */
-    if (pkt->type != pkt_MESSAGE)
+    if (! pkt->type & pkt_MESSAGE)
         return mod_PASS;
 
     /* we're only interested in no to, to our host, or to us */
     if (pkt->to != NULL && jid_compare_user(sess->jid, pkt->to) != 0 && strcmp(sess->jid->domain, jid_user(pkt->to)) != 0)
         return mod_PASS;
+
+    /* TODO: implementation */
 
     return mod_PASS;
 }
@@ -122,7 +124,7 @@ static mod_ret_t _amp_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
 	int errormode = 0;
 
     /* only handle messages */
-    if (pkt->type != pkt_MESSAGE)
+    if (!(pkt->type & pkt_MESSAGE))
         return mod_PASS;
 
     /* does message have at least one rule for us? */
@@ -202,7 +204,7 @@ static mod_ret_t _amp_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
             /* exact */
             if (nad_find_attr(pkt->nad, elem, -1, "value", "exact") >= 0) {
                 rule_c->value = strdup("exact");
-                if (sess_match_exact(user, pkt->to->resource)) /* resource found */
+                if (sess_match(user, pkt->to->resource)) /* resource found */
                     rule_c->result = AMP_TRIGGERED;
             }
             
@@ -216,7 +218,7 @@ static mod_ret_t _amp_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
             /* other */
             else if (nad_find_attr(pkt->nad, elem, -1, "value", "other") >= 0) {
                 rule_c->value = strdup("other");
-                if (!sess_match_exact(user, pkt->to->resource)) /* resource not found */
+                if (!sess_match(user, pkt->to->resource)) /* resource not found */
                     rule_c->result = AMP_TRIGGERED;                
             }
 

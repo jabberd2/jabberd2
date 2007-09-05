@@ -30,7 +30,7 @@
 static mod_ret_t _echo_pkt_sm(mod_instance_t mi, pkt_t pkt)
 {
     /* we want messages addressed to /echo */
-    if(pkt->type != pkt_MESSAGE || strcmp(pkt->to->resource, "echo") != 0)
+    if(!(pkt->type & pkt_MESSAGE) || strcmp(pkt->to->resource, "echo") != 0)
         return mod_PASS;
 
     log_debug(ZONE, "echo request from %s", jid_full(pkt->from));
