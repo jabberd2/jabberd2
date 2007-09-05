@@ -893,6 +893,12 @@ if test "x-$mio_backend" = "x-" ; then
     AC_MSG_ERROR([no MIO backend available out of: $mio_check])
 fi
 
+# conditional features
+AC_ARG_ENABLE(superseded, AC_HELP_STRING([--enable-superseded], [enable superseded XEP support (yes)]),
+              want_superseded=$enableval, want_superseded=yes)
+if test "x-$want_superseded" = "x-yes" ; then
+    AC_DEFINE(ENABLE_SUPERSEDED,1,[Define to 1 if you want to compile-in superseded XEP handlers.])
+fi
 
 # Generate Makefiles
 AC_CONFIG_FILES([Doxyfile
