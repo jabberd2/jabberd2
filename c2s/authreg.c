@@ -131,7 +131,7 @@ static void _authreg_auth_get(c2s_t c2s, sess_t sess, nad_t nad) {
     }
 
     /* sort out the username */
-    ns = nad_find_scoped_namespace(nad, "jabber:iq:auth", NULL);
+    ns = nad_find_scoped_namespace(nad, uri_AUTH, NULL);
     elem = nad_find_elem(nad, 1, ns, "username", 1);
     if(elem < 0)
     {
@@ -183,7 +183,7 @@ static void _authreg_auth_get(c2s_t c2s, sess_t sess, nad_t nad) {
     if(attr >= 0)
         nad_append_attr(nad, -1, "id", id);
 
-    ns = nad_add_namespace(nad, "jabber:iq:auth", NULL);
+    ns = nad_add_namespace(nad, uri_AUTH, NULL);
     nad_append_elem(nad, ns, "query", 1);
     
     nad_append_elem(nad, ns, "username", 2);
@@ -216,7 +216,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
         return;
     }
 
-    ns = nad_find_scoped_namespace(nad, "jabber:iq:auth", NULL);
+    ns = nad_find_scoped_namespace(nad, uri_AUTH, NULL);
 
     /* sort out the username */
     elem = nad_find_elem(nad, 1, ns, "username", 1);
@@ -391,7 +391,7 @@ static void _authreg_register_get(c2s_t c2s, sess_t sess, nad_t nad) {
     if(attr >= 0)
         nad_append_attr(nad, -1, "id", id);
 
-    ns = nad_add_namespace(nad, "jabber:iq:register", NULL);
+    ns = nad_add_namespace(nad, uri_REGISTER, NULL);
     nad_append_elem(nad, ns, "query", 1);
     
     nad_append_elem(nad, ns, "instructions", 2);
@@ -403,7 +403,7 @@ static void _authreg_register_get(c2s_t c2s, sess_t sess, nad_t nad) {
     }
 
     if(sess->host->ar_register_oob) {
-        int ns = nad_add_namespace(nad, "jabber:x:oob", NULL);
+        int ns = nad_add_namespace(nad, uri_OOB, NULL);
         nad_append_elem(nad, ns, "x", 2);
         nad_append_elem(nad, ns, "url", 3);
         nad_append_cdata(nad, sess->host->ar_register_oob, strlen(sess->host->ar_register_oob), 4);
@@ -425,7 +425,7 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
         return;
     }
 
-    ns = nad_find_scoped_namespace(nad, "jabber:iq:register", NULL);
+    ns = nad_find_scoped_namespace(nad, uri_REGISTER, NULL);
 
     /* removals */
     if(sess->active && nad_find_elem(nad, 1, ns, "remove", 1) >= 0) {
@@ -609,9 +609,9 @@ int authreg_process(c2s_t c2s, sess_t sess, nad_t nad) {
         return 1;
 
     /* only want auth or register packets */
-    if((ns = nad_find_scoped_namespace(nad, "jabber:iq:auth", NULL)) >= 0 && (query = nad_find_elem(nad, 0, ns, "query", 1)) >= 0)
+    if((ns = nad_find_scoped_namespace(nad, uri_AUTH, NULL)) >= 0 && (query = nad_find_elem(nad, 0, ns, "query", 1)) >= 0)
         authreg = 0;
-    else if((ns = nad_find_scoped_namespace(nad, "jabber:iq:register", NULL)) >= 0 && (query = nad_find_elem(nad, 0, ns, "query", 1)) >= 0)
+    else if((ns = nad_find_scoped_namespace(nad, uri_REGISTER, NULL)) >= 0 && (query = nad_find_elem(nad, 0, ns, "query", 1)) >= 0)
         authreg = 1;
     else
         return 1;
