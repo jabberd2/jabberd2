@@ -109,9 +109,29 @@ static mod_ret_t _offline_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     st_ret_t ret;
     int queuesize;
 
-    /* send messages to the top session */
+    /* send messages to the top sessions */
     if(user->top != NULL && (pkt->type & pkt_MESSAGE)) {
-        pkt_sess(pkt, user->top);
+        sess_t scan;
+    
+        /* loop over each session */
+        for(scan = user->sessions; scan != NULL; scan = scan->next) {
+            /* don't deliver to unavailable sessions */
+            if(!scan->available)
+                continue;
+
+	    /* skip negative priorities */
+	    if(scan->pri < 0)
+		continue;
+
+	    /* headlines go to all, other to top priority */
+	    if(pkt->type != pkt_MESSAGE_HEADLINE && scan->pri < user->top->pri)
+		continue;
+    
+            /* deliver to session */
+            log_debug(ZONE, "delivering message to %s", jid_full(scan->jid));
+            pkt_sess(pkt_dup(pkt, jid_full(scan->jid), jid_full(pkt->from)), scan);
+        }
+
         return mod_HANDLED;
     }
 
