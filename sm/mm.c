@@ -140,6 +140,11 @@ mm_t mm_new(sm_t sm) {
             list = &mm->user_delete;
             nlist = &mm->nuser_delete;
         }
+        else if(strcmp(id, "disco-extend") == 0) {
+            chain = chain_DISCO_EXTEND;
+            list = &mm->disco_extend;
+            nlist = &mm->ndisco_extend;
+        }
 
         if(list == NULL) {
             log_write(sm->log, LOG_ERR, "unknown chain type '%s'", id);
@@ -680,4 +685,26 @@ void mm_user_delete(mm_t mm, jid_t jid) {
     }
 
     log_debug(ZONE, "user-delete chain returning");
+}
+
+/** disco extend */
+void mm_disco_extend(mm_t mm, pkt_t pkt) {
+    int n;
+    mod_instance_t mi;
+
+    log_debug(ZONE, "dispatching disco-extend chain");
+
+    for(n = 0; n < mm->ndisco_extend; n++) {
+        mi = mm->disco_extend[n];
+        if(mi == NULL || mi->mod->disco_extend == NULL) {
+            log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
+            continue;
+        }
+
+        log_debug(ZONE, "calling module %s", mi->mod->name);
+
+        (mi->mod->disco_extend)(mi, pkt);
+    }
+
+    log_debug(ZONE, "disco-extend chain returning");
 }

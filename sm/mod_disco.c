@@ -154,6 +154,10 @@ static pkt_t _disco_info_result(module_t mod, disco_t d) {
             nad_append_attr(pkt->nad, -1, "var", (char *) key);
         } while(xhash_iter_next(mod->mm->sm->features));
 
+    /* put it throuhg disco_extend chain to add
+     * XEP-0128 Service Discovery Extensions */
+    mm_disco_extend(mod->mm, pkt);
+
     return pkt;
 }
 

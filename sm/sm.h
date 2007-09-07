@@ -68,29 +68,7 @@ typedef struct storage_st   *storage_t;
 typedef struct mm_st        *mm_t;
 
 /* namespace uri strings */
-#define uri_AUTH        "jabber:iq:auth"
-#define uri_REGISTER    "jabber:iq:register"
-#define uri_ROSTER      "jabber:iq:roster"
-#define uri_AGENTS      "jabber:iq:agents"
-#define uri_DELAY       "jabber:x:delay"
-#define uri_BROWSE      "jabber:iq:browse"
-#define uri_EVENT       "jabber:x:event"
-#define uri_GATEWAY     "jabber:iq:gateway"
-#define uri_EXPIRE      "jabber:x:expire"
-#define uri_SEARCH      "jabber:iq:search"
-#define uri_DISCO       "http://jabber.org/protocol/disco"
-#define uri_DISCO_ITEMS "http://jabber.org/protocol/disco#items"
-#define uri_DISCO_INFO  "http://jabber.org/protocol/disco#info"
-
-#define uri_AMP                         "http://jabber.org/protocol/amp"
-#define uri_AMP_ERRORS                  "http://jabber.org/protocol/amp#errors"
-#define uri_AMP_ACTION_DROP             "http://jabber.org/protocol/amp?action=drop"
-#define uri_AMP_ACTION_ERROR            "http://jabber.org/protocol/amp?action=error"
-#define uri_AMP_ACTION_NOTIFY           "http://jabber.org/protocol/amp?action=notify"
-#define uri_AMP_CONDITION_DELIVER       "http://jabber.org/protocol/amp?condition=deliver"
-#define uri_AMP_CONDITION_EXPIREAT      "http://jabber.org/protocol/amp?condition=expire-at"
-#define uri_AMP_CONDITION_MATCHRESOURCE "http://jabber.org/protocol/amp?condition=match-resource"
-
+#include "util/uri.h"
 
 /* indexed known namespace values */
 #define ns_AUTH         (1)
@@ -120,6 +98,9 @@ typedef struct mm_st        *mm_t;
 typedef enum { 
     pkt_NONE = 0x00,            /**< no packet */
     pkt_MESSAGE = 0x10,         /**< message */
+    pkt_MESSAGE_CHAT = 0x11,    /**< message (chat) */
+    pkt_MESSAGE_HEADLINE = 0x12,/**< message (headline) */
+    pkt_MESSAGE_GROUPCHAT = 0x14,/**< message (groupchat) */
     pkt_PRESENCE = 0x20,        /**< presence */
     pkt_PRESENCE_UN = 0x21,     /**< presence (unavailable) */
     pkt_PRESENCE_PROBE = 0x24,  /**< presence (probe) */
@@ -245,7 +226,7 @@ struct sm_st {
 
 /** data for a single user */
 struct user_st {
-    pool                p;                  /**< memory pool this user is allocated off */
+    pool_t              p;                  /**< memory pool this user is allocated off */
 
     sm_t                sm;                 /**< sm context */
 
@@ -263,7 +244,7 @@ struct user_st {
 
 /** data for a single session */
 struct sess_st {
-    pool                p;                  /**< memory pool this session is allocated off */
+    pool_t              p;                  /**< memory pool this session is allocated off */
 
     user_t              user;               /**< user this session belongs to */
 
@@ -331,7 +312,6 @@ SM_API void            sess_route(sess_t sess, pkt_t pkt);
 SM_API sess_t          sess_start(sm_t sm, jid_t jid);
 SM_API void            sess_end(sess_t sess);
 SM_API sess_t          sess_match(user_t user, char *resource);
-SM_API sess_t          sess_match_exact(user_t user, char *resource);
 
 SM_API user_t          user_load(sm_t sm, jid_t jid);
 SM_API void            user_free(user_t user);
@@ -363,13 +343,14 @@ typedef enum {
     chain_PKT_ROUTER,           /**< packet from the router (special purpose) */
     chain_USER_LOAD,            /**< user loaded, load per-user data */
     chain_USER_CREATE,          /**< user creation, generate and save per-user data */
-    chain_USER_DELETE           /**< user deletion, delete saved per-user data */
+    chain_USER_DELETE,          /**< user deletion, delete saved per-user data */
+    chain_DISCO_EXTEND          /**< disco request, extend sm disco#info */
 } mod_chain_t;
 
 typedef struct module_st *module_t;
 typedef struct mod_instance_st *mod_instance_t;
 
-/** module manager date */
+/** module manager data */
 struct mm_st {
     sm_t                sm;         /**< sm context */
 
@@ -401,6 +382,8 @@ struct mm_st {
     mod_instance_t      *user_create;   int nuser_create;
     /** user-delete chain */
     mod_instance_t      *user_delete;   int nuser_delete;
+    /** disco-extend chain */
+    mod_instance_t      *disco_extend;  int ndisco_extend;
 };
 
 /** data for a single module */
@@ -439,6 +422,8 @@ struct module_st {
 
     int                 (*user_create)(mod_instance_t mi, jid_t jid);               /**< user-create handler */
     void                (*user_delete)(mod_instance_t mi, jid_t jid);               /**< user-delete handler */
+
+    void                (*disco_extend)(mod_instance_t mi, pkt_t pkt);              /**< disco-extend handler */
 
     void                (*free)(module_t mod);                                      /**< called when module is freed */
 };
@@ -492,6 +477,9 @@ SM_API int                     mm_user_create(mm_t mm, jid_t jid);
 /** fire user-delete chain */
 SM_API void                    mm_user_delete(mm_t mm, jid_t jid);
 
+/** fire disco-extend chain */
+SM_API void                    mm_disco_extend(mm_t mm, pkt_t pkt);
+
 
 /* object sets */
 
@@ -516,7 +504,7 @@ typedef struct os_object_st *os_object_t;
 
 /** object set (ie group of several objects) */
 struct os_st {
-    pool        p;              /**< pool the objects are allocated from */
+    pool_t      p;              /**< pool the objects are allocated from */
 
     os_object_t head;           /**< first object in the list */
     os_object_t tail;           /**< last object in the list */
@@ -667,7 +655,7 @@ typedef enum {
 typedef struct st_filter_st *st_filter_t;
 /** filter abstraction */
 struct st_filter_st {
-    pool                p;      /**< pool that filter is allocated from */
+    pool_t              p;      /**< pool that filter is allocated from */
 
     st_filter_type_t    type;   /**< type of this filter */
 
