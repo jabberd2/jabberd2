@@ -68,6 +68,7 @@
 #define uri_DISCO       "http://jabber.org/protocol/disco"
 #define uri_DISCO_ITEMS "http://jabber.org/protocol/disco#items"
 #define uri_DISCO_INFO  "http://jabber.org/protocol/disco#info"
+#define uri_SERVERINFO  "http://jabber.org/network/serverinfo"
 
 #define uri_AMP                         "http://jabber.org/protocol/amp"
 #define uri_AMP_ERRORS                  "http://jabber.org/protocol/amp#errors"

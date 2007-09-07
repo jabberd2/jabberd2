@@ -30,6 +30,17 @@
   * $Revision: 1.9 $
   */
 
+/* XEP-0157 serverinfo fields */
+static const char *_serverinfo_fields[] = {
+    "abuse-addresses",
+    "admin-addresses",
+    "feedback-addresses",
+    "sales-addresses",
+    "security-addresses",
+    "support-addresses",
+    NULL
+};
+
 static mod_ret_t _help_pkt_sm(mod_instance_t mi, pkt_t pkt)
 {
     module_t mod = mi->mod;
@@ -86,12 +97,53 @@ static mod_ret_t _help_pkt_sm(mod_instance_t mi, pkt_t pkt)
     return mod_HANDLED;
 }
 
+static void _help_disco_extend(mod_instance_t mi, pkt_t pkt)
+{
+    module_t mod = mi->mod;
+    int ns, i, n;
+    config_elem_t elem;
+    char confelem[64];
+
+    log_debug(ZONE, "in mod_help disco-extend");
+
+    if(config_get(mod->mm->sm->config, "discovery.serverinfo") == NULL)
+        return;
+
+    ns = nad_add_namespace(pkt->nad, uri_XDATA, NULL);
+    nad_append_elem(pkt->nad, ns, "x", 3);
+    nad_append_attr(pkt->nad, -1, "type", "result");
+    /* hidden form type field*/
+    nad_append_elem(pkt->nad, -1, "field", 4);
+    nad_append_attr(pkt->nad, -1, "var", "FORM_TYPE");
+    nad_append_attr(pkt->nad, -1, "type", "hidden");
+    nad_append_elem(pkt->nad, -1, "value", 5);
+    nad_append_cdata(pkt->nad, uri_SERVERINFO, strlen(uri_SERVERINFO), 6);
+
+    /* loop over serverinfo fields */
+    for(i = 0; _serverinfo_fields[i]; i++) {
+        snprintf(confelem, 64, "discovery.serverinfo.%s.value", _serverinfo_fields[i]);
+        elem = config_get(mod->mm->sm->config, confelem);
+
+        if(elem != NULL) {
+            nad_append_elem(pkt->nad, -1, "field", 4);
+            nad_append_attr(pkt->nad, -1, "var", _serverinfo_fields[i]);
+    
+            for(n = 0; n < elem->nvalues; n++) {
+                log_debug(ZONE, "adding %s: %s", confelem, elem->values[n]);
+                nad_append_elem(pkt->nad, -1, "value", 5);
+                nad_append_cdata(pkt->nad, elem->values[n], strlen(elem->values[n]), 6);
+            }
+        }
+    }
+}
+
 DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     module_t mod = mi->mod;
 
     if(mod->init) return 0;
 
     mod->pkt_sm = _help_pkt_sm;
+    mod->disco_extend = _help_disco_extend;
 
     return 0;
 }

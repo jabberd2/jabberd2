@@ -1,5 +1,23 @@
 This file contains upgrade instructions between different versions of jabberd2.
 
+* 2.1.15 to 2.1.16 upgrade:
+
+What had change:
+- Offline storage does not store headline messages by default
+- XEP-0157: Contact Addresses for XMPP Services
+
+If you want to store headline messages in offlinestorage, enable
+<storeheadlines/> in sm.xml. See etc/sm.xml.dist for reference.
+If you want to set XEP-0157: Contact Addresses please see
+etc/sm.xml.dist discovery.serverinfo section for example configuration
+to include in sm.xml.
+
+
+* 2.1.14 to 2.1.15 upgrade:
+
+Only bug and compilation fixes. No configuration changes needed.
+
+
 * 2.1.13 to 2.1.14 upgrade:
 
 What had change:

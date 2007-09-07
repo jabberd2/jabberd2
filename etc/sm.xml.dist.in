@@ -108,6 +108,14 @@
 
     <!-- PostgreSQL driver configuration -->
     <pgsql>
+      <!-- PostgreSQL connection info.
+           For the rest of the options see
+           http://www.postgresql.org/docs/8.0/interactive/libpq.html -->
+      <conninfo>dbname=jabberd2 user=jabberd2 password=secret</conninfo>
+
+      <!-- Alternatively you may set connection settings separately.
+           These are used only in absence of 'conninfo' -->
+
       <!-- Database server host and port -->
       <host>localhost</host>
       <port>5432</port>
@@ -401,6 +409,29 @@
 
     </items>
 
+    <!-- Server information added to server discovery information
+         in http://jabber.org/network/serverinfo jabber:x:data form. (XEP-0157)
+
+         May contain many values per item -->
+    <!--
+    <serverinfo>
+      <admin-addresses>
+        <value>mailto:xmpp@localhost</value>
+        <value>xmpp:admins@localhost</value>
+      </admin-addresses>
+      <abuse-addresses>
+        <value>mailto:abuse@localhost</value>
+        <value>xmpp:abuse@localhost</value>
+      </abuse-addresses>
+      <feedback-addresses>
+        <value>http://example.org/feedback.php</value>
+      </feedback-addresses>
+      <sales-addresses/>
+      <security-addresses/>
+      <support-addresses/>
+    </serverinfo>
+    -->
+
   </discovery>
 
   <!-- User options -->
@@ -459,6 +490,11 @@
     <!-- Do not store messages in offline store -->
     <!--
     <dropmessages/>
+    -->
+    
+    <!-- Store headline messages in offline store -->
+    <!--
+    <storeheadlines/>
     -->
     
     <!-- Do not store subscription requests in offline store -->
