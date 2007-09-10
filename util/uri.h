@@ -64,6 +64,8 @@
 #define uri_EVENT       "jabber:x:event"
 #define uri_GATEWAY     "jabber:iq:gateway"
 #define uri_EXPIRE      "jabber:x:expire"
+#define uri_PRIVACY     "jabber:iq:privacy"
+#define uri_BLOCKING    "urn:xmpp:blocking"
 #define uri_SEARCH      "jabber:iq:search"
 #define uri_DISCO       "http://jabber.org/protocol/disco"
 #define uri_DISCO_ITEMS "http://jabber.org/protocol/disco#items"

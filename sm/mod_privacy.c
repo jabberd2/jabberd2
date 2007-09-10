@@ -27,8 +27,8 @@
   * $Revision: 1.32 $
   */
 
-#define uri_PRIVACY    "jabber:iq:privacy"
 static int ns_PRIVACY = 0;
+static int ns_BLOCKING = 0;
 
 typedef struct zebra_st         *zebra_t;
 typedef struct zebra_list_st    *zebra_list_t;
@@ -82,6 +82,14 @@ struct zebra_item_st {
 
     zebra_item_t        next, prev;
 };
+
+typedef struct privacy_st {
+    /* currently active list */
+    zebra_list_t        active;
+
+    /* was blocklist requested */
+    int                 blocklist;
+} *privacy_t;
 
 /* union for xhash_iter_get to comply with strict-alias rules for gcc3 */
 union xhashv
@@ -191,7 +199,6 @@ static int _privacy_user_load(mod_instance_t mi, user_t user) {
                 if(zitem->type != zebra_NONE) {
                     if(!os_object_get_str(os, o, "value", &str)) {
                         log_debug(ZONE, "no value on non-fall-through item, dropping this item");
-                        free(zitem);
                         continue;
                     }
 
@@ -201,7 +208,6 @@ static int _privacy_user_load(mod_instance_t mi, user_t user) {
                             zitem->jid = jid_new(user->sm->pc, str, strlen(str));
                             if(zitem->jid == NULL) {
                                 log_debug(ZONE, "invalid jid '%s' on item, dropping this item", str);
-                                free(zitem);
                                 continue;
                             }
 
@@ -227,7 +233,6 @@ static int _privacy_user_load(mod_instance_t mi, user_t user) {
                                 zitem->to = zitem->from = 1;
                             else if(strcmp(str, "none") != 0) {
                                 log_debug(ZONE, "invalid value '%s' on s10n item, dropping this item", str);
-                                free(zitem);
                                 continue;
                             }
 
@@ -426,8 +431,8 @@ static mod_ret_t _privacy_in_router(mod_instance_t mi, pkt_t pkt) {
         sess = user->top;
 
     /* get the active list for the session */
-    if(sess != NULL)
-        zlist = (zebra_list_t) sess->module_data[mod->index];
+    if(sess != NULL && sess->module_data[mod->index] != NULL)
+        zlist = ((privacy_t) sess->module_data[mod->index])->active;
 
     /* no active list, so use the default list */
     if(zlist == NULL)
@@ -480,8 +485,8 @@ static mod_ret_t _privacy_out_router(mod_instance_t mi, pkt_t pkt) {
         sess = sess_match(user, pkt->from->resource);
 
     /* get the active list for the session */
-    if(sess != NULL)
-        zlist = (zebra_list_t) sess->module_data[mod->index];
+    if(sess != NULL && sess->module_data[mod->index] != NULL)
+        zlist = ((privacy_t) sess->module_data[mod->index])->active;
 
     /* no active list, so use the default list */
     if(zlist == NULL)
@@ -587,34 +592,266 @@ static void _privacy_lists_result_builder(xht zhash, const char *name, void *val
 /** list management requests */
 static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     module_t mod = mi->mod;
-    int ns, query, list, name, active, def, item, type, value, action, order;
-    char corder[14], str[256], filter[1024];
+    int ns, query, list, name, active, def, item, type, value, action, order, blocking, jid, push = 0;
+    char corder[14], str[256], filter[1024], domres[2048];
     zebra_t z;
     zebra_list_t zlist, old;
     pool_t p;
     zebra_item_t zitem, scan;
     sess_t sscan;
+    jid_t jidt;
     pkt_t result;
     os_t os;
     os_object_t o;
     st_ret_t ret;
 
-    /* we only want to play with iq:privacy packets */
-    if((pkt->type != pkt_IQ && pkt->type != pkt_IQ_SET) || pkt->ns != ns_PRIVACY)
+    /* we only want to play with iq:privacy and urn:xmpp:blocking packets */
+    if((pkt->type != pkt_IQ && pkt->type != pkt_IQ_SET) || (pkt->ns != ns_PRIVACY && pkt->ns != ns_BLOCKING))
         return mod_PASS;
 
     /* if it has a to, throw it out */
     if(pkt->to != NULL)
         return -stanza_err_BAD_REQUEST;
 
+    /* get our lists */
+    z = (zebra_t) sess->user->module_data[mod->index];
+
+    /* create session privacy description */
+    if(sess->module_data[mod->index] == NULL)
+        sess->module_data[mod->index] = (void *) pmalloco(sess->p, sizeof(struct privacy_st));
+
+    /* handle XEP-0191: Simple Communications Blocking
+     * as simplified frontend to default privacy list */
+    if(pkt->ns == ns_BLOCKING) {
+        if(pkt->type == pkt_IQ_SET) {
+            /* find out what to do */
+            int block;
+            ns = nad_find_scoped_namespace(pkt->nad, uri_BLOCKING, NULL);
+            blocking = nad_find_elem(pkt->nad, 1, ns, "block", 1);
+            if(blocking >= 0)
+                block = 1;
+            else {
+                blocking = nad_find_elem(pkt->nad, 1, ns, "unblock", 1);
+                if(blocking >= 0)
+                    block = 0;
+                else
+                    return -stanza_err_BAD_REQUEST;
+            }
+
+            /* if there is no default list, create one */
+            if(!z->def) {
+                /* remove any previous one */
+                if((zlist = xhash_get(z->lists, uri_BLOCKING))) {
+                    pool_free(zlist->p);
+                    sprintf(filter, "(list=%i:%s)", strlen(uri_BLOCKING), uri_BLOCKING);
+                    storage_delete(mod->mm->sm->st, "privacy-items", jid_user(sess->user->jid), filter);
+                }
+
+                /* create new zebra list with name 'urn:xmpp:blocking' */
+                p = pool_new();
+                zlist = (zebra_list_t) pmalloco(p, sizeof(struct zebra_list_st));
+                zlist->p = p;
+                zlist->name = pstrdup(p, uri_BLOCKING);
+                xhash_put(z->lists, zlist->name, (void *) zlist);
+                
+                /* make it default */
+                z->def = zlist;
+
+                /* and in the storage */
+                os = os_new();
+                o = os_object_new(os);
+                os_object_put(o, "default", zlist->name, os_type_STRING);
+                ret = storage_replace(mod->mm->sm->st, "privacy-default", jid_user(sess->user->jid), NULL, os);
+                os_free(os);
+                if(ret != st_SUCCESS)
+                    return -stanza_err_INTERNAL_SERVER_ERROR;
+
+                log_debug(ZONE, "blocking created '%s' privacy list and set it default", zlist->name);
+            } else {
+                /* use the default one */
+                zlist = z->def;
+            }
+            /* activate this list */
+            ((privacy_t) sess->module_data[mod->index])->active = zlist;
+            log_debug(ZONE, "session '%s' has now active list '%s'", jid_full(sess->jid), zlist->name);
+
+            /* loop over the items */
+            item = nad_find_elem(pkt->nad, blocking, ns, "item", 1);
+            if(item < 0)
+                return -stanza_err_BAD_REQUEST;
+
+            while(item >= 0) {
+                /* extract jid */
+                jid = nad_find_attr(pkt->nad, item, -1, "jid", 0);
+                if(jid < 0)
+                    return -stanza_err_BAD_REQUEST;
+
+                jidt = jid_new(sess->user->sm->pc, NAD_AVAL(pkt->nad, jid), NAD_AVAL_L(pkt->nad, jid));
+                if(jidt == NULL)
+                    return -stanza_err_BAD_REQUEST;
+
+                /* find this item in the list */
+                sprintf(domres, "%s/%s", jidt->domain, jidt->resource);
+                for(scan = zlist->items; scan != NULL; scan = scan->next)
+                    /* jid check - match node@dom/res, then node@dom, then dom/res, then dom */
+                    if(scan->type == zebra_JID &&
+                       (jid_compare_full(scan->jid, jidt) == 0 ||
+                        strcmp(jid_full(scan->jid), jid_user(jidt)) == 0 ||
+                        strcmp(jid_full(scan->jid), domres) == 0 ||
+                        strcmp(jid_full(scan->jid), jidt->domain) == 0))
+                        break;
+
+                /* take action */
+                if(block) {
+                    if(scan != NULL && scan->deny && scan->block == block_NONE) {
+                            push = 0;
+                    } else {
+                        /* new item */
+                        zitem = (zebra_item_t) pmalloco(zlist->p, sizeof(struct zebra_item_st));
+                        zitem->type = zebra_JID;
+
+                        zitem->jid = jid_new(sess->user->sm->pc, NAD_AVAL(pkt->nad, jid), NAD_AVAL_L(pkt->nad, jid));
+                        pool_cleanup(zlist->p, jid_free, zitem->jid);
+                        zitem->deny = 1;
+                        zitem->block = block_NONE;
+
+                        /* insert it in front of list */
+                        zitem->order = 0;
+                        if(zlist->last == NULL) {
+                            zlist->items = zlist->last = zitem;
+                        } else {
+                            zitem->next = zlist->items;
+                            zlist->items->prev = zitem;
+                            zlist->items = zitem;
+                        }
+
+                        /* and into the storage backend */
+                        os = os_new();
+                        o = os_object_new(os);
+                        os_object_put(o, "list", zlist->name, os_type_STRING);
+                        os_object_put(o, "type", "jid", os_type_STRING);
+                        os_object_put(o, "value", jid_full(zitem->jid), os_type_STRING);
+                        os_object_put(o, "deny", &zitem->deny, os_type_BOOLEAN);
+                        os_object_put(o, "order", &zitem->order, os_type_INTEGER);
+                        os_object_put(o, "block", &zitem->block, os_type_INTEGER);
+                        ret = storage_put(mod->mm->sm->st, "privacy-items", jid_user(sess->user->jid), os);
+                        os_free(os);
+                        if(ret != st_SUCCESS)
+                            return -stanza_err_INTERNAL_SERVER_ERROR;
+
+                        push = 1;
+                    }
+                } else {
+                    /* unblock action */
+                    if(scan != NULL && scan->deny) {
+                        /* remove all jid deny ocurrences from the privacy list */
+                        for(scan = zlist->items; scan != NULL; scan = scan->next)
+                            /* jid check - match node@dom/res, then node@dom, then dom/res, then dom */
+                            if(scan->type == zebra_JID && scan->deny && 
+                               (jid_compare_full(scan->jid, jidt) == 0 ||
+                                strcmp(jid_full(scan->jid), jid_user(jidt)) == 0 ||
+                                strcmp(jid_full(scan->jid), domres) == 0 ||
+                                strcmp(jid_full(scan->jid), jidt->domain) == 0)) {
+
+                                /* from the loaded list */
+                                if(zlist->items == scan) {
+                                    zlist->items = scan->next;
+                                    if(zlist->items != NULL)
+                                        zlist->items->prev = NULL;
+                                } else {
+                                    assert(scan->prev != NULL);
+                                    scan->prev->next = scan->next;
+                                    if(scan->next != NULL)
+                                        scan->next->prev = scan->prev;
+                                }
+                                /* and from the storage */
+                                sprintf(filter, "(&(type=3:jid)(value=%i:%s)(deny=1)", strlen(jid_full(scan->jid)), jid_full(scan->jid));
+                                storage_delete(mod->mm->sm->st, "privacy-items", jid_user(sess->user->jid), filter);
+                            }
+
+                        push = 1;
+                    } else {
+                        jid_free(jidt);
+                        return -stanza_err_ITEM_NOT_FOUND;
+                    }
+                }
+
+                jid_free(jidt);
+
+                /* next item */
+                item = nad_find_elem(pkt->nad, item, ns, "item", 0);
+            }
+
+            /* return empty result */
+            result = pkt_create(pkt->sm, "iq", "result", NULL, NULL);
+            pkt_id(pkt, result);
+            pkt_sess(result, sess);
+
+            /* blocklist push */
+            if(push) {
+                sess_t scan;
+                for(scan = sess->user->sessions; scan != NULL; scan = scan->next)
+                {
+                    /* don't push to us or to anyone who hasn't requested blocklist */
+                    if(scan->module_data[mod->index] == NULL || ((privacy_t) scan->module_data[mod->index])->blocklist == 0)
+                        continue;
+            
+                    result = pkt_dup(pkt, jid_full(scan->jid), NULL);
+                    if(result->from != NULL) {
+                        jid_free(result->from);
+                        nad_set_attr(result->nad, 1, -1, "from", NULL, 0);
+                    }
+                    pkt_id_new(result);
+                    pkt_sess(result, scan);
+                }
+            }
+
+            /* and done with request */
+            pkt_free(pkt);
+            return mod_HANDLED;
+        }
+
+        /* it's a get */
+        ns = nad_find_scoped_namespace(pkt->nad, uri_BLOCKING, NULL);
+        blocking = nad_find_elem(pkt->nad, 1, ns, "blocklist", 1);
+        if(blocking < 0)
+            return -stanza_err_BAD_REQUEST;
+
+        result = pkt_create(pkt->sm, "iq", "result", NULL, NULL);
+        pkt_id(pkt, result);
+        ns = nad_add_namespace(result->nad, uri_BLOCKING, NULL);
+        blocking = nad_insert_elem(result->nad, 1, ns, "blocklist", NULL);
+
+        /* insert items only from the default list */
+        if(z->def != NULL) {
+            log_debug(ZONE, "blocking list is '%s'", z->def->name);
+            zlist = xhash_get(z->lists, z->def->name);
+            /* run through the items and build the nad */
+            for(zitem = zlist->items; zitem != NULL; zitem = zitem->next) {
+                /* we're interested in items type 'jid' with action 'deny' only */
+                if(zitem->type == zebra_JID && zitem->deny) {
+                    item = nad_insert_elem(result->nad, blocking, -1, "item", NULL);
+                    nad_set_attr(result->nad, item, -1, "jid", jid_full(zitem->jid), 0);
+                }
+            }
+
+            /* mark that the blocklist was requested */
+            ((privacy_t) sess->module_data[mod->index])->blocklist = 1;
+        }
+
+        /* give it to the session */
+        pkt_sess(result, sess);
+        pkt_free(pkt);
+        return mod_HANDLED;
+    }
+
+    /* else handle XEP-0016: Privacy Lists */
+
     /* find the query */
     ns = nad_find_scoped_namespace(pkt->nad, uri_PRIVACY, NULL);
     query = nad_find_elem(pkt->nad, 1, ns, "query", 1);
     if(query < 0)
         return -stanza_err_BAD_REQUEST;
-
-    /* get our lists */
-    z = (zebra_t) sess->user->module_data[mod->index];
 
     /* update lists or set the active list */
     if(pkt->type == pkt_IQ_SET) {
@@ -630,13 +867,8 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
         /* loop over any/all lists and store them */
         if(list >= 0) {
             /* only allowed to change one list at a time */
-            if(nad_find_elem(pkt->nad, list, ns, "list", 0) >= 0) {
-                /* hack the error in */
-                pkt_error(pkt, stanza_err_BAD_REQUEST);
-
-                pkt_sess(pkt, sess);
-                return mod_HANDLED;
-            }
+            if(nad_find_elem(pkt->nad, list, ns, "list", 0) >= 0)
+                return -stanza_err_BAD_REQUEST;
 
             /* get the list name */
             name = nad_find_attr(pkt->nad, list, -1, "name", NULL);
@@ -849,8 +1081,8 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 
                 /* loop through sessions, relink */
                 for(sscan = sess->user->sessions; sscan != NULL; sscan = sscan->next)
-                    if(sscan->module_data[mod->index] == old) {
-                        sscan->module_data[mod->index] = (void *) zlist;
+                    if(((privacy_t) sscan->module_data[mod->index])->active == old) {
+                        ((privacy_t) sscan->module_data[mod->index])->active = zlist;
                         log_debug(ZONE, "session '%s' now has active list '%s'", jid_full(sscan->jid), (zlist != NULL) ? zlist->name : "(NONE)");
                     }
 
@@ -885,7 +1117,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
             if(name < 0) {
                 /* no name, no active list */
                 log_debug(ZONE, "clearing active list for session '%s'", jid_full(sess->jid));
-                sess->module_data[mod->index] = NULL;
+                ((privacy_t) sess->module_data[mod->index])->active = NULL;
             }
 
             else {
@@ -895,15 +1127,10 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                 zlist = xhash_get(z->lists, str);
                 if(zlist == NULL) {
                     log_debug(ZONE, "request to make list '%s' active, but there's no such list", str);
-
-                    /* hack the error in */
-                    pkt_error(pkt, stanza_err_ITEM_NOT_FOUND);
-
-                    pkt_sess(pkt, sess);
-                    return mod_HANDLED;
+                    return -stanza_err_ITEM_NOT_FOUND;
                 }
 
-                sess->module_data[mod->index] = zlist;
+                ((privacy_t) sess->module_data[mod->index])->active = zlist;
 
                 log_debug(ZONE, "session '%s' now has active list '%s'", jid_full(sess->jid), str);
             }
@@ -925,12 +1152,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                 zlist = xhash_get(z->lists, str);
                 if(zlist == NULL) {
                     log_debug(ZONE, "request to make list '%s' default, but there's no such list");
-
-                    /* hack the error in */
-                    pkt_error(pkt, stanza_err_ITEM_NOT_FOUND);
-
-                    pkt_sess(pkt, sess);
-                    return mod_HANDLED;
+                    return -stanza_err_ITEM_NOT_FOUND;
                 }
 
                 z->def = zlist;
@@ -967,13 +1189,8 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 
     /* only allowed to request one list, if any */
     list = nad_find_elem(pkt->nad, query, ns, "list", 1);
-    if(list >= 0 && nad_find_elem(pkt->nad, list, ns, "list", 0) >= 0) {
-        /* hack the error in */
-        pkt_error(pkt, stanza_err_BAD_REQUEST);
-
-        pkt_sess(pkt, sess);
-        return mod_HANDLED;
-    }
+    if(list >= 0 && nad_find_elem(pkt->nad, list, ns, "list", 0) >= 0)
+        return -stanza_err_BAD_REQUEST;
 
     result = pkt_create(pkt->sm, "iq", "result", NULL, NULL);
 
@@ -984,16 +1201,11 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 
     /* just do one */
     if(list >= 0) {
-      name = nad_find_attr(pkt->nad, list, -1, "name", NULL);
+        name = nad_find_attr(pkt->nad, list, -1, "name", NULL);
 
-      zlist = xhash_getx(z->lists, NAD_AVAL(pkt->nad, name), NAD_AVAL_L(pkt->nad, name));
-      if(zlist == NULL) {
-            /* hack the error in */
-            pkt_error(pkt, stanza_err_ITEM_NOT_FOUND);
-
-            pkt_sess(pkt, sess);
-            return mod_HANDLED;
-        }
+        zlist = xhash_getx(z->lists, NAD_AVAL(pkt->nad, name), NAD_AVAL_L(pkt->nad, name));
+        if(zlist == NULL)
+            return -stanza_err_ITEM_NOT_FOUND;
 
         _privacy_result_builder(z->lists, zlist->name, (void *) zlist, (void *) result);
     }
@@ -1006,9 +1218,9 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     /* tell them about current active and default list if they asked for everything */
     if(list < 0) {
         /* active */
-        if(sess->module_data[mod->index] != NULL) {
+        if(((privacy_t) sess->module_data[mod->index])->active != NULL) {
             active = nad_insert_elem(result->nad, query, ns, "active", NULL);
-            nad_set_attr(result->nad, active, -1, "name", ((zebra_list_t) sess->module_data[mod->index])->name, 0);
+            nad_set_attr(result->nad, active, -1, "name", ((privacy_t) sess->module_data[mod->index])->active->name, 0);
         }
 
         /* and the default list */
@@ -1054,6 +1266,8 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
 
     ns_PRIVACY = sm_register_ns(mod->mm->sm, uri_PRIVACY);
     feature_register(mod->mm->sm, uri_PRIVACY);
+    ns_BLOCKING = sm_register_ns(mod->mm->sm, uri_BLOCKING);
+    feature_register(mod->mm->sm, uri_BLOCKING);
 
     return 0;
 }
