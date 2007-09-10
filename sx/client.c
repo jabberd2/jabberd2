@@ -138,7 +138,7 @@ void sx_client_init(sx_t s, unsigned int flags, char *ns, char *to, char *from, 
     _sx_debug(ZONE, "stream request: ns %s to %s from %s version %s", ns, to, from, version);
 
     /* build the stream start */
-    len = strlen(uri_STREAMS) + 52;
+    len = strlen(uri_STREAMS) + strlen(uri_XML) + 65;
 
     if(ns != NULL) len += 9 + strlen(ns);
     if(to != NULL) len += 6 + strlen(to);
@@ -147,7 +147,10 @@ void sx_client_init(sx_t s, unsigned int flags, char *ns, char *to, char *from, 
 
     buf = _sx_buffer_new(NULL, len+1, _sx_client_notify_header, NULL);
     c = buf->data;
-    strcpy(c, "<?xml version='1.0'?><stream:stream xmlns:stream='" uri_STREAMS "'");
+    strcpy(c, "<?xml version='1.0'?>"
+              "<stream:stream "
+              "xmlns:stream='" uri_STREAMS "' "
+              "xmlns:xml='" uri_XML "'");
 
     if(ns != NULL) { c = strchr(c, '\0'); sprintf(c, " xmlns='%s'", ns); }
     if(to != NULL) { c = strchr(c, '\0'); sprintf(c, " to='%s'", to); }
