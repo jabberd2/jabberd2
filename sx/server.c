@@ -151,7 +151,7 @@ static void _sx_server_element_start(void *arg, const char *name, const char **a
     _sx_debug(ZONE, "stream id is %s", id);
 
     /* build the response */
-    len = strlen(uri_STREAMS) + strlen(uri_XML) + 112;
+    len = strlen(uri_STREAMS) + 99;
 
     if(s->ns != NULL) len += 9 + strlen(s->ns);
     if(s->res_to != NULL) len += 6 + strlen(s->res_to);
@@ -161,10 +161,7 @@ static void _sx_server_element_start(void *arg, const char *name, const char **a
     buf = _sx_buffer_new(NULL, len, _sx_server_notify_header, NULL);
 
     c = buf->data;
-    strcpy(c, "<?xml version='1.0'?>"
-              "<stream:stream "
-              "xmlns:stream='" uri_STREAMS "' "
-              "xmlns:xml='" uri_XML "'");
+    strcpy(c, "<?xml version='1.0'?><stream:stream xmlns:stream='" uri_STREAMS "'");
 
     if(s->ns != NULL) { c = strchr(c, '\0'); sprintf(c, " xmlns='%s'", s->ns); }
     if(s->res_to != NULL) { c = strchr(c, '\0'); sprintf(c, " to='%s'", s->res_to); }
