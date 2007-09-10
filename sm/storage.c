@@ -32,7 +32,7 @@
   #define LIBRARY_DIR "."
 #else
   #include <dlfcn.h>
-#endif
+#endif /* _WIN32 */
 
 
 storage_t storage_new(sm_t sm) {

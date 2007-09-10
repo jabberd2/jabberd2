@@ -160,23 +160,23 @@ mm_t mm_new(sm_t sm) {
                 continue;
             }
 
-                    arg[0] = '\0';
-                    attr = nad_find_attr(sm->config->nad, melem, -1, "arg", NULL);
-                    if(attr >= 0) {
-                        snprintf(arg, 1024, "%.*s", NAD_AVAL_L(sm->config->nad, attr), NAD_AVAL(sm->config->nad, attr));
-                        log_debug(ZONE, "module arg: %s", arg);
-                    }
+            arg[0] = '\0';
+            attr = nad_find_attr(sm->config->nad, melem, -1, "arg", NULL);
+            if(attr >= 0) {
+                snprintf(arg, 1024, "%.*s", NAD_AVAL_L(sm->config->nad, attr), NAD_AVAL(sm->config->nad, attr));
+                log_debug(ZONE, "module arg: %s", arg);
+            }
 
             snprintf(name, 32, "%.*s", NAD_CDATA_L(sm->config->nad, melem), NAD_CDATA(sm->config->nad, melem));
 
-                    mod = xhash_get(mm->modules, name);
-                    if(mod == NULL) {
-                        mod = (module_t) malloc(sizeof(struct module_st));
-                        memset(mod, 0, sizeof(struct module_st));
+            mod = xhash_get(mm->modules, name);
+            if(mod == NULL) {
+                mod = (module_t) malloc(sizeof(struct module_st));
+                memset(mod, 0, sizeof(struct module_st));
 
-                        mod->mm = mm;
-                        mod->index = mm->nindex;
-                        mod->name = strdup(name);
+                mod->mm = mm;
+                mod->index = mm->nindex;
+                mod->name = strdup(name);
                 #ifndef _WIN32
                   if (modules_path != NULL)
                       snprintf(mod_fullpath, PATH_MAX, "%s/mod_%s.so", modules_path, name);
@@ -213,23 +213,23 @@ mm_t mm_new(sm_t sm) {
                     melem = nad_find_elem(sm->config->nad, melem, -1, "module", 0);
                     continue;
                 }
-                    }
+            }
 
-                    mi = (mod_instance_t) malloc(sizeof(struct mod_instance_st));
-                    memset(mi, 0, sizeof(struct mod_instance_st));
+            mi = (mod_instance_t) malloc(sizeof(struct mod_instance_st));
+            memset(mi, 0, sizeof(struct mod_instance_st));
 
-                    mi->sm = sm;
-                    mi->mod = mod;
-                    mi->chain = chain;
-                    mi->arg = (arg[0] == '\0') ? NULL : strdup(arg);
-                    mi->seq = mod->init;
+            mi->sm = sm;
+            mi->mod = mod;
+            mi->chain = chain;
+            mi->arg = (arg[0] == '\0') ? NULL : strdup(arg);
+            mi->seq = mod->init;
 
             if(mod->module_init_fn(mi) != 0) {
                 log_write(sm->log, LOG_ERR, "init for module '%s' (seq %d) failed", name, mi->seq);
-                        free(mi);
+                free(mi);
 
-                        if(mod->init == 0) {
-                            xhash_zap(mm->modules, mod->name);
+                if(mod->init == 0) {
+                    xhash_zap(mm->modules, mod->name);
 
                     #ifndef _WIN32
                       if (mod->handle != NULL)
@@ -239,24 +239,24 @@ mm_t mm_new(sm_t sm) {
                           FreeLibrary((HMODULE) mod->handle);
                     #endif
 
-                            free(mod->name);
-                            free(mod);
+                    free(mod->name);
+                    free(mod);
 
-                            mm->nindex--;
+                    mm->nindex--;
 
-                            melem = nad_find_elem(sm->config->nad, melem, -1, "module", 0);
-                            continue;
-                        }
-                    }
+                    melem = nad_find_elem(sm->config->nad, melem, -1, "module", 0);
+                    continue;
+                }
+            }
 
-                    mod->init++;
+            mod->init++;
 
-                    *list = (mod_instance_t *) realloc(*list, sizeof(mod_instance_t) * (*nlist + 1));
-                    (*list)[*nlist] = mi;
+            *list = (mod_instance_t *) realloc(*list, sizeof(mod_instance_t) * (*nlist + 1));
+            (*list)[*nlist] = mi;
 
             log_write(sm->log, LOG_NOTICE, "module '%s' added to chain '%s' (order %d index %d seq %d)", mod->name, id, *nlist, mod->index, mi->seq);
 
-                    (*nlist)++;
+            (*nlist)++;
 
             melem = nad_find_elem(sm->config->nad, melem, -1, "module", 0);
         }
