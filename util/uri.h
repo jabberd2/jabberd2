@@ -36,6 +36,7 @@
 #define uri_SERVER      "jabber:server"
 #define uri_DIALBACK    "jabber:server:dialback"
 #define uri_DIALBACK_L	22	/* strlen(uri_DIALBACK) */
+#define uri_URN_DIALBACK "urn:xmpp:features:dialback"
 #define uri_TLS         "urn:ietf:params:xml:ns:xmpp-tls"
 #define uri_SASL        "urn:ietf:params:xml:ns:xmpp-sasl"
 #define uri_BIND        "urn:ietf:params:xml:ns:xmpp-bind"
@@ -66,6 +67,7 @@
 #define uri_EXPIRE      "jabber:x:expire"
 #define uri_PRIVACY     "jabber:iq:privacy"
 #define uri_BLOCKING    "urn:xmpp:blocking"
+#define uri_BLOCKING_ERR "urn:xmpp:blocking:errors"
 #define uri_SEARCH      "jabber:iq:search"
 #define uri_DISCO       "http://jabber.org/protocol/disco"
 #define uri_DISCO_ITEMS "http://jabber.org/protocol/disco#items"

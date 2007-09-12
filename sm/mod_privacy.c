@@ -21,7 +21,7 @@
 #include "sm.h"
 
 /** @file sm/mod_privacy.c
-  * @brief privacy lists
+  * @brief XEP-0016 Privacy Lists and XEP-0191 Simple Comunications Blocking
   * @author Robert Norris
   * $Date: 2005/08/17 07:48:28 $
   * $Revision: 1.32 $
@@ -211,7 +211,7 @@ static int _privacy_user_load(mod_instance_t mi, user_t user) {
                                 continue;
                             }
 
-                            pool_cleanup(zlist->p, jid_free, zitem->jid);
+                            pool_cleanup(zlist->p, (void *) jid_free, zitem->jid);
 
                             log_debug(ZONE, "jid item with value '%s'", jid_full(zitem->jid));
 
@@ -257,7 +257,7 @@ static int _privacy_user_load(mod_instance_t mi, user_t user) {
                 os_object_get_int(os, o, "order", &(zitem->order));
                 log_debug(ZONE, "order %d", zitem->order);
 
-                os_object_get_int(os, o, "block", (int *) &(zitem->block));
+                os_object_get_int(os, o, "block", &(zitem->block));
                 log_debug(ZONE, "block 0x%x", zitem->block);
 
                 /* insert it */
@@ -389,8 +389,10 @@ static int _privacy_action(user_t user, zebra_list_t zlist, jid_t jid, pkt_type_
                     return scan->deny;
                 if(ptype & pkt_IQ && scan->block & block_IQ)
                     return scan->deny;
-            } else if(ptype & pkt_PRESENCE && scan->block & block_PRES_OUT && ptype != pkt_PRESENCE_PROBE) {
-                /* outgoing check, just block_PRES_OUT */
+            } else if((ptype & pkt_PRESENCE && scan->block & block_PRES_OUT && ptype != pkt_PRESENCE_PROBE) ||
+                      (ptype & pkt_MESSAGE && scan->block & block_MESSAGE)) {
+                /* outgoing check, block_PRES_OUT */
+                /* XXX and block_MESSAGE for XEP-0191 while it violates XEP-0016 */
                 return scan->deny;
             }
         }
@@ -465,6 +467,7 @@ static mod_ret_t _privacy_out_router(mod_instance_t mi, pkt_t pkt) {
     zebra_t z;
     sess_t sess = NULL;
     zebra_list_t zlist = NULL;
+    int err, ns;
 
     /* if its coming from the sm, let it go */
     if(pkt->from == NULL || pkt->from->node[0] == '\0')
@@ -502,6 +505,17 @@ static mod_ret_t _privacy_out_router(mod_instance_t mi, pkt_t pkt) {
 
     /* deny */
     log_debug(ZONE, "denying outgoing packet based on privacy policy");
+
+    /* messages get special treatment */
+    if(pkt->type & pkt_MESSAGE) {
+        /* hack the XEP-0191 error in */
+        pkt_error(pkt, stanza_err_NOT_ACCEPTABLE);
+        err = nad_find_elem(pkt->nad, 1, -1, "error", 1);
+        ns = nad_add_namespace(pkt->nad, uri_BLOCKING_ERR, NULL);
+        nad_insert_elem(pkt->nad, err, ns, "blocked", NULL);
+        pkt_sess(pkt, sess);
+        return mod_HANDLED;
+    }
 
     /* drop it */
     pkt_free(pkt);
@@ -589,11 +603,58 @@ static void _privacy_lists_result_builder(xht zhash, const char *name, void *val
     nad_set_attr(pkt->nad, list, -1, "name", zlist->name, 0);
 }
 
+/** remove jid deny ocurrences from the privacy list,
+    unblock all if no jid given to match,
+    then update unblocked contact with presence information */
+static void _unblock_jid(user_t user, storage_t st, zebra_list_t zlist, jid_t jid) {
+    char filter[1024];
+    zebra_item_t scan;
+    sess_t sscan;
+    jid_t notify_jid = NULL;
+
+    for(scan = zlist->items; scan != NULL; scan = scan->next) {
+        if(scan->type == zebra_JID && scan->deny && (jid == NULL || jid_compare_full(scan->jid, jid) == 0)) {
+            if(zlist->items == scan) {
+                zlist->items = scan->next;
+                if(zlist->items != NULL)
+                    zlist->items->prev = NULL;
+            } else {
+                assert(scan->prev != NULL);
+                scan->prev->next = scan->next;
+                if(scan->next != NULL)
+                    scan->next->prev = scan->prev;
+            }
+            /* and from the storage */
+            sprintf(filter, "(&(type=3:jid)(value=%i:%s)(deny=1)", strlen(jid_full(scan->jid)), jid_full(scan->jid));
+            storage_delete(st, "privacy-items", jid_user(user->jid), filter);
+
+            /* set jid for notify */
+            notify_jid = scan->jid;
+        }
+
+        /* update unblocked contact with presence information of all sessions */
+
+        /* XXX NOTE !!! There is a possibility that we notify more than once
+         * if user edited the privacy list manually, not with XEP-0191.
+         * Well... We're going to live with it. ;-) */
+        if(notify_jid != NULL && pres_trust(user, notify_jid))
+            for(sscan = user->sessions; sscan != NULL; sscan = sscan->next) {
+                /* do not update if session is not available,
+                 * we sent presence direct or got error bounce */
+                if(!sscan->available || jid_search(sscan->A, notify_jid) || jid_search(sscan->E, notify_jid))
+                    continue;
+    
+                log_debug(ZONE, "updating unblocked %s with presence from %s", jid_full(notify_jid), jid_full(sscan->jid));
+                pkt_router(pkt_dup(sscan->pres, jid_full(notify_jid), jid_full(sscan->jid)));
+            }
+    }
+}
+
 /** list management requests */
 static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     module_t mod = mi->mod;
     int ns, query, list, name, active, def, item, type, value, action, order, blocking, jid, push = 0;
-    char corder[14], str[256], filter[1024], domres[2048];
+    char corder[14], str[256], filter[1024];
     zebra_t z;
     zebra_list_t zlist, old;
     pool_t p;
@@ -675,11 +736,21 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
             ((privacy_t) sess->module_data[mod->index])->active = zlist;
             log_debug(ZONE, "session '%s' has now active list '%s'", jid_full(sess->jid), zlist->name);
 
-            /* loop over the items */
             item = nad_find_elem(pkt->nad, blocking, ns, "item", 1);
-            if(item < 0)
-                return -stanza_err_BAD_REQUEST;
+            if(item < 0) {
+                if(block) {
+                    /* cannot block unknown */
+                    return -stanza_err_BAD_REQUEST;
+                } else {
+                    /* unblock all */
+                    _unblock_jid(sess->user, mod->mm->sm->st, zlist, NULL);
 
+                    /* mark to send blocklist push */
+                    push = 1;
+                }
+            }
+
+            /* loop over the items */
             while(item >= 0) {
                 /* extract jid */
                 jid = nad_find_attr(pkt->nad, item, -1, "jid", 0);
@@ -690,15 +761,9 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                 if(jidt == NULL)
                     return -stanza_err_BAD_REQUEST;
 
-                /* find this item in the list */
-                sprintf(domres, "%s/%s", jidt->domain, jidt->resource);
+                /* find blockitem in the list */
                 for(scan = zlist->items; scan != NULL; scan = scan->next)
-                    /* jid check - match node@dom/res, then node@dom, then dom/res, then dom */
-                    if(scan->type == zebra_JID &&
-                       (jid_compare_full(scan->jid, jidt) == 0 ||
-                        strcmp(jid_full(scan->jid), jid_user(jidt)) == 0 ||
-                        strcmp(jid_full(scan->jid), domres) == 0 ||
-                        strcmp(jid_full(scan->jid), jidt->domain) == 0))
+                    if(scan->type == zebra_JID && jid_compare_full(scan->jid, jidt) == 0)
                         break;
 
                 /* take action */
@@ -706,12 +771,24 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                     if(scan != NULL && scan->deny && scan->block == block_NONE) {
                             push = 0;
                     } else {
+                        /* first make us unavailable if user is on roster */
+                        if(pres_trust(sess->user, jidt))
+                            for(sscan = sess->user->sessions; sscan != NULL; sscan = sscan->next) {
+                                /* do not update if session is not available,
+                                 * we sent presence direct or got error bounce */
+                                if(!sscan->available || jid_search(sscan->A, jidt) || jid_search(sscan->E, jidt))
+                                    continue;
+                        
+                                log_debug(ZONE, "forcing unavailable to %s from %s after block", jid_full(jidt), jid_full(sscan->jid));
+                                pkt_router(pkt_create(sess->user->sm, "presence", "unavailable", jid_full(jidt), jid_full(sscan->jid)));
+                            }
+
                         /* new item */
                         zitem = (zebra_item_t) pmalloco(zlist->p, sizeof(struct zebra_item_st));
                         zitem->type = zebra_JID;
 
                         zitem->jid = jid_new(sess->user->sm->pc, NAD_AVAL(pkt->nad, jid), NAD_AVAL_L(pkt->nad, jid));
-                        pool_cleanup(zlist->p, jid_free, zitem->jid);
+                        pool_cleanup(zlist->p, (void *) jid_free, zitem->jid);
                         zitem->deny = 1;
                         zitem->block = block_NONE;
 
@@ -736,39 +813,21 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                         os_object_put(o, "block", &zitem->block, os_type_INTEGER);
                         ret = storage_put(mod->mm->sm->st, "privacy-items", jid_user(sess->user->jid), os);
                         os_free(os);
-                        if(ret != st_SUCCESS)
+                        if(ret != st_SUCCESS) {
+                            jid_free(jidt);
                             return -stanza_err_INTERNAL_SERVER_ERROR;
+                        }
 
+                        /* mark to send blocklist push */
                         push = 1;
                     }
                 } else {
                     /* unblock action */
                     if(scan != NULL && scan->deny) {
                         /* remove all jid deny ocurrences from the privacy list */
-                        for(scan = zlist->items; scan != NULL; scan = scan->next)
-                            /* jid check - match node@dom/res, then node@dom, then dom/res, then dom */
-                            if(scan->type == zebra_JID && scan->deny && 
-                               (jid_compare_full(scan->jid, jidt) == 0 ||
-                                strcmp(jid_full(scan->jid), jid_user(jidt)) == 0 ||
-                                strcmp(jid_full(scan->jid), domres) == 0 ||
-                                strcmp(jid_full(scan->jid), jidt->domain) == 0)) {
+                        _unblock_jid(sess->user, mod->mm->sm->st, zlist, jidt);
 
-                                /* from the loaded list */
-                                if(zlist->items == scan) {
-                                    zlist->items = scan->next;
-                                    if(zlist->items != NULL)
-                                        zlist->items->prev = NULL;
-                                } else {
-                                    assert(scan->prev != NULL);
-                                    scan->prev->next = scan->next;
-                                    if(scan->next != NULL)
-                                        scan->next->prev = scan->prev;
-                                }
-                                /* and from the storage */
-                                sprintf(filter, "(&(type=3:jid)(value=%i:%s)(deny=1)", strlen(jid_full(scan->jid)), jid_full(scan->jid));
-                                storage_delete(mod->mm->sm->st, "privacy-items", jid_user(sess->user->jid), filter);
-                            }
-
+                        /* mark to send blocklist push */
                         push = 1;
                     } else {
                         jid_free(jidt);
@@ -789,20 +848,18 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 
             /* blocklist push */
             if(push) {
-                sess_t scan;
-                for(scan = sess->user->sessions; scan != NULL; scan = scan->next)
-                {
+                for(sscan = sess->user->sessions; sscan != NULL; sscan = sscan->next) {
                     /* don't push to us or to anyone who hasn't requested blocklist */
-                    if(scan->module_data[mod->index] == NULL || ((privacy_t) scan->module_data[mod->index])->blocklist == 0)
+                    if(sscan->module_data[mod->index] == NULL || ((privacy_t) sscan->module_data[mod->index])->blocklist == 0)
                         continue;
             
-                    result = pkt_dup(pkt, jid_full(scan->jid), NULL);
+                    result = pkt_dup(pkt, jid_full(sscan->jid), NULL);
                     if(result->from != NULL) {
                         jid_free(result->from);
                         nad_set_attr(result->nad, 1, -1, "from", NULL, 0);
                     }
                     pkt_id_new(result);
-                    pkt_sess(result, scan);
+                    pkt_sess(result, sscan);
                 }
             }
 
@@ -928,7 +985,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                             return -stanza_err_BAD_REQUEST;
                         }
 
-                        pool_cleanup(p, jid_free, zitem->jid);
+                        pool_cleanup(p, (void *) jid_free, zitem->jid);
 
                         log_debug(ZONE, "jid item with value '%s'", jid_full(zitem->jid));
 
@@ -1008,6 +1065,13 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                     zitem->block |= block_PRES_OUT;
                 if(nad_find_elem(pkt->nad, item, ns, "iq", 1) >= 0)
                     zitem->block |= block_IQ;
+
+                /* merge block all */
+                if(zitem->block & block_MESSAGE &&
+                   zitem->block & block_PRES_IN &&
+                   zitem->block & block_PRES_OUT &&
+                   zitem->block & block_IQ)
+                    zitem->block = block_NONE;
 
                 os_object_put(o, "block", &zitem->block, os_type_INTEGER);
 
