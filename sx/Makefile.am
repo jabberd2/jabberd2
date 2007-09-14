@@ -1,5 +1,5 @@
 noinst_LTLIBRARIES = libsx.la
-noinst_HEADERS = plugins sasl.h sx.h
+noinst_HEADERS = plugins.h sasl.h sx.h
 
 SUBDIRS =
 
