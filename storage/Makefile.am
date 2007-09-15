@@ -49,7 +49,11 @@ storage_mysql_la_LIBADD  = $(MODULE_LIBADD) $(MYSQL_LIBS)
 endif
 
 if STORAGE_ORACLE
-pkglib_LTLIBRARIES += storage_oracle.la
+pkglib_LTLIBRARIES += authreg_oracle.la storage_oracle.la
+authreg_oracle_la_SOURCES = authreg_oracle.c
+authreg_oracle_la_CPPFLAGS = $(ORACLE_CPPFLAGS)
+authreg_oracle_la_LDFLAGS = $(MODULE_LDFLAGS) $(ORACLE_LDFLAGS)
+authreg_oracle_la_LIBADD  = $(MODULE_LIBADD) $(ORACLE_LIBS)
 storage_oracle_la_SOURCES = storage_oracle.c
 storage_oracle_la_CPPFLAGS = $(ORACLE_CPPFLAGS)
 storage_oracle_la_LDFLAGS = $(MODULE_LDFLAGS) $(ORACLE_LDFLAGS)
