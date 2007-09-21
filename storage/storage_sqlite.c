@@ -322,6 +322,11 @@ static st_ret_t _st_sqlite_put_guts (st_driver_t drv, const char *type,
 		      sqlite3_bind_text (stmt, i + 2,
 					 cval, xlen + 3, free);
 		      break;
+
+		     case os_type_UNKNOWN:
+		     default:
+		      log_write (drv->st->sm->log, LOG_ERR, "sqlite: unknown value in query");
+
 		    }
 
 		    i += 1;

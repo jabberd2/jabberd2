@@ -25,10 +25,6 @@
 
 #include "sx.h"
 
-#ifdef HAVE_SSL
-
-#include "ssl.h"
-
 /* code stolen from SSL_CTX_set_verify(3) */
 static int _sx_ssl_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 {
@@ -94,7 +90,7 @@ static int _sx_ssl_process(sx_t s, sx_plugin_t p, nad_t nad) {
 
     /* starttls from client */
     if(s->type == type_SERVER) {
-        if(NAD_ENAME_L(nad, 0) == 8 || strncmp(NAD_ENAME(nad, 0), "starttls", 8) == 0) {
+        if(NAD_ENAME_L(nad, 0) == 8 && strncmp(NAD_ENAME(nad, 0), "starttls", 8) == 0) {
             nad_free(nad);
     
             /* can't go on if we've been here before */
@@ -122,7 +118,7 @@ static int _sx_ssl_process(sx_t s, sx_plugin_t p, nad_t nad) {
 
     else if(s->type == type_CLIENT) {
         /* kick off the handshake */
-        if(NAD_ENAME_L(nad, 0) == 7 || strncmp(NAD_ENAME(nad, 0), "proceed", 7) == 0) {
+        if(NAD_ENAME_L(nad, 0) == 7 && strncmp(NAD_ENAME(nad, 0), "proceed", 7) == 0) {
             nad_free(nad);
 
             /* save interesting bits */
@@ -152,7 +148,7 @@ static int _sx_ssl_process(sx_t s, sx_plugin_t p, nad_t nad) {
         }
 
         /* busted server */
-        if(NAD_ENAME_L(nad, 0) == 7 || strncmp(NAD_ENAME(nad, 0), "failure", 7) == 0) {
+        if(NAD_ENAME_L(nad, 0) == 7 && strncmp(NAD_ENAME(nad, 0), "failure", 7) == 0) {
             nad_free(nad);
 
             /* free the pemfile arg */
@@ -758,5 +754,3 @@ int sx_ssl_client_starttls(sx_plugin_t p, sx_t s, char *pemfile) {
 
     return 0;
 }
-
-#endif

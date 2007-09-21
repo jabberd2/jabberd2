@@ -4,7 +4,7 @@
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
+ * the Free Software Foundation; version 2 of the License.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -21,10 +21,6 @@
  */
 
 #include "sx.h"
-
-#ifdef HAVE_LIBZ
-
-#include "compress.h"
 
 static void _sx_compress_notify_compress(sx_t s, void *arg) {
 
@@ -51,7 +47,7 @@ static int _sx_compress_process(sx_t s, sx_plugin_t p, nad_t nad) {
 
     /* compress from client */
     if(s->type == type_SERVER) {
-        if(NAD_ENAME_L(nad, 0) == 8 || strncmp(NAD_ENAME(nad, 0), "compress", 8) == 0) {
+        if(NAD_ENAME_L(nad, 0) == 8 && strncmp(NAD_ENAME(nad, 0), "compress", 8) == 0) {
             nad_free(nad);
     
             /* can't go on if we've been here before */
@@ -73,7 +69,7 @@ static int _sx_compress_process(sx_t s, sx_plugin_t p, nad_t nad) {
 
     else if(s->type == type_CLIENT) {
         /* kick off the handshake */
-        if(NAD_ENAME_L(nad, 0) == 7 || strncmp(NAD_ENAME(nad, 0), "compressed", 7) == 0) {
+        if(NAD_ENAME_L(nad, 0) == 7 && strncmp(NAD_ENAME(nad, 0), "compressed", 7) == 0) {
             nad_free(nad);
 
             /* save interesting bits */
@@ -103,7 +99,7 @@ static int _sx_compress_process(sx_t s, sx_plugin_t p, nad_t nad) {
         }
 
         /* busted server */
-        if(NAD_ENAME_L(nad, 0) == 7 || strncmp(NAD_ENAME(nad, 0), "failure", 7) == 0) {
+        if(NAD_ENAME_L(nad, 0) == 7 && strncmp(NAD_ENAME(nad, 0), "failure", 7) == 0) {
             nad_free(nad);
 
             _sx_debug(ZONE, "server can't handle compression, business as usual");
@@ -372,5 +368,3 @@ int sx_compress_client_compress(sx_plugin_t p, sx_t s, char *pemfile) {
 
     return 0;
 }
-
-#endif
