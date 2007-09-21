@@ -5,12 +5,21 @@ This file contains upgrade instructions between different versions of jabberd2.
 What had change:
 - Offline storage does not store headline messages by default
 - XEP-0157: Contact Addresses for XMPP Services
+- --enable-superseded ./configure option
+- Messages are delivered to all resources with highest priority number
+  in accordance to RFC3921bis changes
+- XEP-0138: Stream Compression
 
 If you want to store headline messages in offlinestorage, enable
 <storeheadlines/> in sm.xml. See etc/sm.xml.dist for reference.
 If you want to set XEP-0157: Contact Addresses please see
 etc/sm.xml.dist discovery.serverinfo section for example configuration
-to include in sm.xml.
+to include in sm.xml. You need to add new chain 'disco-extend' section
+and discovery/sserverinfo section to configuration.
+If you wish, you may use --disable-superseded option during ./configure
+to disable all features, that was superseded by newer ones.
+If you want to enable stream compression, please uncomment proper section
+in c2s.xml.
 
 
 * 2.1.14 to 2.1.15 upgrade:

@@ -26,12 +26,6 @@
 
 #include "mio/mio.h"
 #include "sx/sx.h"
-#include "sx/ssl.h"
-#include "sx/compress.h"
-#ifdef HEADER_MD5_H
-#  define MD5_H
-#endif
-#include "sx/sasl.h"
 #include "util/util.h"
 
 #ifdef HAVE_SIGNAL_H
@@ -57,8 +51,21 @@
 /* forward decl */
 typedef struct host_st      *host_t;
 typedef struct c2s_st       *c2s_t;
+typedef struct bres_st      *bres_t;
 typedef struct sess_st      *sess_t;
 typedef struct authreg_st   *authreg_t;
+
+/** list of resources bound to session */
+struct bres_st {
+    /** full bound jid */
+    jid_t               jid;
+    /** session id for this jid for us and them */
+    char                c2s_id[24], sm_id[41];
+    /** this holds the id of the current pending SM request */
+    char                sm_request[41];
+
+    bres_t              next;
+};
 
 struct sess_st {
     c2s_t               c2s;
@@ -72,30 +79,26 @@ struct sess_st {
 
     sx_t                s;
 
+    /** host this session belongs to */
+    host_t              host;
+
     rate_t              rate;
     int                 rate_log;
 
     time_t              last_activity;
     unsigned int        packet_count;
 
+    /* count of bound resources */
     int                 bound;
+    /* list of bound jids */
+    bres_t              resources;
+
     int                 active;
 
+    /* session related packet waiting for sm response */
     nad_t               result;
 
     int                 sasl_authd;     /* 1 = they did a sasl auth */
-
-    /** full jid of the session */
-    jid_t               jid;
-
-    /** session id for us and them */
-    char                c2s_id[24], sm_id[41];
-
-    /** host this session belongs to */
-    host_t              host;
-
-    /** this holds the id of the current pending SM request */
-    char                sm_request[41];
 };
 
 /* allowed mechanisms */
@@ -144,7 +147,6 @@ struct c2s_st {
     sx_env_t            sx_env;
     sx_plugin_t         sx_ssl;
     sx_plugin_t         sx_sasl;
-    sx_plugin_t         sx_compress;
 
     /** router's conn */
     sx_t                router;
@@ -197,6 +199,9 @@ struct c2s_st {
 
     /** max file descriptors */
     int                 io_max_fds;
+
+    /** enable Stream Compression */
+    int                 compression;
 
     /** time checks */
     int                 io_check_interval;
@@ -256,11 +261,11 @@ extern sig_atomic_t c2s_lost_router;
 C2S_API int             c2s_router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
 C2S_API int             c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg);
 
-C2S_API void            sm_start(sess_t sess);
-C2S_API void            sm_end(sess_t sess);
-C2S_API void            sm_create(sess_t sess);
-C2S_API void            sm_delete(sess_t sess);
-C2S_API void            sm_packet(sess_t sess, nad_t nad);
+C2S_API void            sm_start(sess_t sess, bres_t res);
+C2S_API void            sm_end(sess_t sess, bres_t res);
+C2S_API void            sm_create(sess_t sess, bres_t res);
+C2S_API void            sm_delete(sess_t sess, bres_t res);
+C2S_API void            sm_packet(sess_t sess, bres_t res, nad_t nad);
 
 C2S_API int             bind_init(sx_env_t env, sx_plugin_t p, va_list args);
 

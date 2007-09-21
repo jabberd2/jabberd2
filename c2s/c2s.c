@@ -19,6 +19,7 @@
  */
 
 #include "c2s.h"
+#include <stringprep.h>
 
 static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
     sess_t sess = (sess_t) arg;
@@ -27,6 +28,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
     sx_error_t *sxe;
     nad_t nad;
     char root[9];
+    bres_t bres, ires;
 
     switch(e) {
         case event_WANT_READ:
@@ -48,8 +50,8 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 
                     /* inform the app if we haven't already */
                     if(!sess->rate_log) {
-                        if(s->state >= state_STREAM && sess->jid != NULL)
-                            log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s] is being byte rate limited", sess->fd->fd, sess->jid);
+                        if(s->state >= state_STREAM && sess->resources != NULL)
+                            log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s] is being byte rate limited", sess->fd->fd, jid_user(sess->resources->jid));
                         else
                             log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] is being byte rate limited", sess->fd->fd, sess->ip, sess->port);
 
@@ -77,8 +79,8 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                     return 0;
                 }
 
-                if(s->state >= state_STREAM && sess->jid != NULL)
-                    log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s] read error: %s (%d)", sess->fd->fd, jid_full(sess->jid), MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+                if(s->state >= state_STREAM && sess->resources != NULL)
+                    log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s] read error: %s (%d)", sess->fd->fd, jid_user(sess->resources->jid), MIO_STRERROR(MIO_ERROR), MIO_ERROR);
                 else
                     log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] read error: %s (%d)", sess->fd->fd, sess->ip, sess->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
@@ -143,8 +145,8 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
             if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)
                 return 0;
             
-            if(s->state >= state_OPEN && sess->jid != NULL)
-                log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s] write error: %s (%d)", sess->fd->fd, jid_full(sess->jid), MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+            if(s->state >= state_OPEN && sess->resources != NULL)
+                log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s] write error: %s (%d)", sess->fd->fd, jid_user(sess->resources->jid), MIO_STRERROR(MIO_ERROR), MIO_ERROR);
             else
                 log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s. port=%d] write error: %s (%d)", sess->fd->fd, sess->ip, sess->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
         
@@ -154,8 +156,8 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 
         case event_ERROR:
             sxe = (sx_error_t *) data;
-            if(sess->jid != NULL)
-                log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s] error: %s (%s)", sess->fd->fd, jid_full(sess->jid), sxe->generic, sxe->specific);
+            if(sess->resources != NULL)
+                log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s] error: %s (%s)", sess->fd->fd, jid_user(sess->resources->jid), sxe->generic, sxe->specific);
             else
                 log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] error: %s (%s)", sess->fd->fd, sess->ip, sess->port, sxe->generic, sxe->specific);
 
@@ -221,109 +223,151 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                 return 0;
             }
 
+            /* resource bind */
+            if((ns = nad_find_scoped_namespace(nad, uri_BIND, NULL)) >= 0 && (elem = nad_find_elem(nad, 0, ns, "bind", 1)) >= 0 && nad_find_attr(nad, 0, -1, "type", "set") >= 0) {
+                bres_t bres;
+                jid_t jid = jid_new(sess->c2s->pc, sess->s->auth_id, -1);
+
+                /* get the resource */
+                elem = nad_find_elem(nad, elem, ns, "resource", 1);
+
+                /* user-specified resource */
+                if(elem >= 0) {
+                    char resource_buf[1024];
+
+                    if(NAD_CDATA_L(nad, elem) == 0) {
+                        log_debug(ZONE, "empty resource specified on bind");
+                        sx_nad_write(sess->s, stanza_error(nad, 0, stanza_err_BAD_REQUEST));
+
+                        return 0;
+                    }
+
+                    snprintf(resource_buf, 1024, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
+                    /* Put resource into JID */
+                    if (jid_reset_components(jid, jid->node, jid->domain, resource_buf) == NULL) {
+                        log_debug(ZONE, "invalid jid data");
+                        sx_nad_write(sess->s, stanza_error(nad, 0, stanza_err_BAD_REQUEST));
+                        
+                        return 0;
+                    }
+
+                    /* check if resource already bound */
+                    for(bres = sess->resources; bres != NULL; bres = bres->next)
+                        if(strcmp(bres->jid->resource, jid->resource) == 0){
+                            log_debug(ZONE, "resource /%s already bound - generating", jid->resource);
+                            jid_random_part(jid, jid_RESOURCE);
+                        }
+                }
+                else {
+                    /* generate random resource */
+                    log_debug(ZONE, "no resource given - generating");
+                    jid_random_part(jid, jid_RESOURCE);
+                }
+
+                /* attach new bound jid holder */
+                bres = (bres_t) malloc(sizeof(struct bres_st));
+                memset(bres, 0, sizeof(struct bres_st));
+                bres->jid = jid;
+                if(sess->resources != NULL) {
+                    for(ires = sess->resources; ires->next != NULL; ires = ires->next);
+                    ires->next = bres;
+                } else
+                    sess->resources = bres;
+
+                sess->bound += 1;
+
+                log_write(sess->c2s->log, LOG_NOTICE, "[%d] bound: jid=%s", sess->s->tag, jid_full(bres->jid));
+
+                /* build a result packet, we'll send this back to the client after we have a session for them */
+                sess->result = nad_new(sess->s->nad_cache);
+
+                ns = nad_add_namespace(sess->result, uri_CLIENT, NULL);
+
+                nad_append_elem(sess->result, ns, "iq", 0);
+                nad_set_attr(sess->result, 0, -1, "type", "result", 6);
+
+                attr = nad_find_attr(nad, 0, -1, "id", NULL);
+                if(attr >= 0)
+                    nad_set_attr(sess->result, 0, -1, "id", NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr));
+
+                ns = nad_add_namespace(sess->result, uri_BIND, NULL);
+
+                nad_append_elem(sess->result, ns, "bind", 1);
+                nad_append_elem(sess->result, ns, "jid", 2);
+                nad_append_cdata(sess->result, jid_full(bres->jid), strlen(jid_full(bres->jid)), 3);
+
+                /* our local id */
+                sprintf(bres->c2s_id, "%d", sess->s->tag);
+
+                /* start a session with the sm */
+                sm_start(sess, bres);
+
+                /* finished with the nad */
+                nad_free(nad);
+
+                /* handled */
+                return 0;
+            }
+
+            /* resource unbind */
+            if((ns = nad_find_scoped_namespace(nad, uri_BIND, NULL)) >= 0 && (elem = nad_find_elem(nad, 0, ns, "unbind", 1)) >= 0 && nad_find_attr(nad, 0, -1, "type", "set") >= 0) {
+                char resource_buf[1024];
+                bres_t bres;
+
+                /* get the resource */
+                elem = nad_find_elem(nad, elem, ns, "resource", 1);
+
+                if(elem < 0 || NAD_CDATA_L(nad, elem) == 0) {
+                    log_debug(ZONE, "no/empty resource given to unbind");
+                    sx_nad_write(sess->s, stanza_error(nad, 0, stanza_err_BAD_REQUEST));
+                        
+                    return 0;
+                }
+
+                snprintf(resource_buf, 1024, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
+                if(stringprep_xmpp_resourceprep(resource_buf, 1024) != 0) {
+                    log_debug(ZONE, "cannot resourceprep");
+                    sx_nad_write(sess->s, stanza_error(nad, 0, stanza_err_BAD_REQUEST));
+                    
+                    return 0;
+                }
+
+                /* check if resource bound */
+                for(bres = sess->resources; bres != NULL; bres = bres->next)
+                    if(strcmp(bres->jid->resource, resource_buf) == 0)
+                        break;
+
+                if(bres == NULL) {
+                    log_debug(ZONE, "resource /%s not bound", resource_buf);
+                    sx_nad_write(sess->s, stanza_error(nad, 0, stanza_err_ITEM_NOT_FOUND));
+                    
+                    return 0;
+                }
+
+                /* build a result packet, we'll send this back to the client after we close a session for them */
+                sess->result = nad_new(sess->s->nad_cache);
+
+                ns = nad_add_namespace(sess->result, uri_CLIENT, NULL);
+
+                nad_append_elem(sess->result, ns, "iq", 0);
+                nad_set_attr(sess->result, 0, -1, "type", "result", 6);
+
+                attr = nad_find_attr(nad, 0, -1, "id", NULL);
+                if(attr >= 0)
+                    nad_set_attr(sess->result, 0, -1, "id", NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr));
+
+                /* end a session with the sm */
+                sm_end(sess, bres);
+
+                /* finished with the nad */
+                nad_free(nad);
+
+                /* handled */
+                return 0;
+            }
+
             /* pre-session requests */
             if(!sess->active && sess->sasl_authd && sess->result == NULL && strcmp(root, "iq") == 0 && nad_find_attr(nad, 0, -1, "type", "set") >= 0) {
-                /* resource bind */
-                if(!sess->bound && (ns = nad_find_scoped_namespace(nad, uri_BIND, NULL)) >= 0 && (elem = nad_find_elem(nad, 0, ns, "bind", 1)) >= 0) {
-                    sess->jid = jid_new(sess->c2s->pc, sess->s->auth_id, -1);
-
-                    /* get the resource */
-                    elem = nad_find_elem(nad, elem, ns, "resource", 1);
-
-                    /* user-specified resource */
-                    if(elem >= 0) {
-                        char resource_buf[1024];
-
-                        if(NAD_CDATA_L(nad, elem) == 0) {
-                            log_debug(ZONE, "no resource specified on bind");
-                            sx_nad_write(sess->s, stanza_error(nad, 0, stanza_err_BAD_REQUEST));
-
-                            return 0;
-                        }
-
-                        /* Put resource into JID */
-                        snprintf(resource_buf, 1024, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
-                        if (jid_reset_components(sess->jid,sess->jid->node,sess->jid->domain,resource_buf) == NULL) {
-                            sess->jid = NULL;
-
-                            sx_nad_write(sess->s, stanza_error(nad, 0, stanza_err_BAD_REQUEST));
-                            
-                            return 0;
-                        }
-
-                        /* !!! xmpp-core-19 requires that the resource be unused, and that an
-                         *     error be returned if its not. this is hard for us todo, and
-                         *     might not be the right thing anyway (it basically gets rid
-                         *     of the session replacement functionality, though that is not
-                         *     as important now that resources can be generated). clarification
-                         *     sought from the xmppwg */
-                    }
-
-                    /* generated resource */
-                    else {
-                        /* generate random resource */
-                        jid_random_part(sess->jid, jid_RESOURCE);
-                    }
-
-                    log_write(sess->c2s->log, LOG_NOTICE, "[%d] bound: jid=%s", sess->s->tag, jid_full(sess->jid));
-
-                    sess->bound = 1;
-
-                    sess->result = nad_new(sess->s->nad_cache);
-
-                    ns = nad_add_namespace(sess->result, uri_CLIENT, NULL);
-
-                    nad_append_elem(sess->result, ns, "iq", 0);
-                    nad_set_attr(sess->result, 0, -1, "type", "result", 6);
-
-                    attr = nad_find_attr(nad, 0, -1, "id", NULL);
-                    if(attr >= 0)
-                        nad_set_attr(sess->result, 0, -1, "id", NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr));
-
-                    ns = nad_add_namespace(sess->result, uri_BIND, NULL);
-
-                    nad_append_elem(sess->result, ns, "bind", 1);
-                    nad_append_elem(sess->result, ns, "jid", 2);
-                    nad_append_cdata(sess->result, jid_full(sess->jid), strlen(jid_full(sess->jid)), 3);
-
-                    sx_nad_write(sess->s, stanza_tofrom(sess->result, 0));
-
-                    sess->result = NULL;
-
-                    nad_free(nad);
-
-                    return 0;
-                }
-
-                /* new-style session request */
-                else if(sess->bound && (ns = nad_find_scoped_namespace(nad, uri_XSESSION, NULL)) >= 0 && (elem = nad_find_elem(nad, 0, ns, "session", 1)) >= 0) {
-                    /* our local id */
-                    sprintf(sess->c2s_id, "%d", sess->s->tag);
-
-                    log_write(sess->c2s->log, LOG_NOTICE, "[%d] requesting session: jid=%s", sess->s->tag, jid_full(sess->jid));
-
-                    /* build a result packet, we'll send this back to the client after we have a session for them */
-                    sess->result = nad_new(sess->s->nad_cache);
-
-                    ns = nad_add_namespace(sess->result, uri_CLIENT, NULL);
-
-                    nad_append_elem(sess->result, ns, "iq", 0);
-                    nad_set_attr(sess->result, 0, -1, "type", "result", 6);
-
-                    attr = nad_find_attr(nad, 0, -1, "id", NULL);
-                    if(attr >= 0)
-                        nad_set_attr(sess->result, 0, -1, "id", NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr));
-
-                    /* start a session with the sm */
-                    sm_start(sess);
-
-                    /* finished with the nad */
-                    nad_free(nad);
-
-                    /* handled */
-                    return 0;
-                }
-
                 log_debug(ZONE, "unrecognised pre-session packet, bye");
                 log_write(sess->c2s->log, LOG_NOTICE, "[%d] unrecognized pre-session packet, closing stream", sess->s->tag);
 
@@ -340,7 +384,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                 log_debug(ZONE, "pre STARTTLS packet, dropping");
                 log_write(sess->c2s->log, LOG_NOTICE, "[%d] got pre STARTTLS packet, dropping", sess->s->tag);
 
-                sx_error(s, stream_err_POLICY_VIOLATION, "stanza sent before starttls");
+                sx_error(s, stream_err_NOT_AUTHORIZED, "stanza sent before starttls");
 
                 nad_free(nad);
                 return 0;
@@ -363,8 +407,31 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                 return 0;
             }
 
+            /* validate 'from' */
+            assert(sess->resources != NULL);
+            if(sess->bound > 1) {
+                bres = NULL;
+                if((attr = nad_find_attr(nad, 0, -1, "from", NULL)) >= 0)
+                    for(bres = sess->resources; bres != NULL; bres = bres->next)
+                        if(strncmp(jid_full(bres->jid), NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr)) == 0)
+                            break;
+
+                if(bres == NULL) {
+                    if(attr >= 0) {
+                        log_debug(ZONE, "packet from: %.*s that has not bound the resource", NAD_AVAL_L(nad, attr), NAD_AVAL(nad, attr));
+                    } else {
+                        log_debug(ZONE, "packet without 'from' on multiple resource stream");
+                    }
+    
+                    sx_nad_write(sess->s, stanza_error(nad, 0, stanza_err_UNKNOWN_SENDER));
+    
+                    return 0;
+                }
+            } else
+                bres = sess->resources;
+
             /* pass it on to the session manager */
-            sm_packet(sess, nad);
+            sm_packet(sess, bres, nad);
 
             break;
         
@@ -426,6 +493,7 @@ static int _c2s_client_accept_check(c2s_t c2s, mio_fd_t fd, char *ip) {
 static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg) {
     sess_t sess = (sess_t) arg;
     c2s_t c2s = (c2s_t) arg;
+    bres_t bres;
     struct sockaddr_storage sa;
     int namelen = sizeof(sa), port, nbytes, flags = 0;
 
@@ -452,11 +520,12 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
         case action_CLOSE:
             log_debug(ZONE, "close action on fd %d", fd->fd);
 
-            log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] disconnect jid=%s, packets: %i", sess->fd->fd, sess->ip, sess->port, ((sess->jid)?((char*) jid_full(sess->jid)):"unbound"), sess->packet_count);
+            log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] disconnect jid=%s, packets: %i", sess->fd->fd, sess->ip, sess->port, ((sess->resources)?((char*) jid_full(sess->resources->jid)):"unbound"), sess->packet_count);
 
             /* tell the sm to close their session */
             if(sess->active)
-                sm_end(sess);
+                for(bres = sess->resources; bres != NULL; bres = bres->next)
+                    sm_end(sess, bres);
 
             jqueue_push(sess->c2s->dead, (void *) sess->s, 0);
 
@@ -504,14 +573,15 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
             sprintf(sess->skey, "%d", fd->fd);
             xhash_put(c2s->sessions, sess->skey, (void *) sess);
 
-	    flags = SX_SASL_OFFER;
+            flags = SX_SASL_OFFER;
 #ifdef HAVE_SSL
             /* go ssl wrappermode if they're on the ssl port */
             if(port == c2s->local_ssl_port)
                 flags |= SX_SSL_WRAPPER;
 #endif
 #ifdef HAVE_LIBZ
-	    flags |= SX_COMPRESS_OFFER;
+            if(c2s->compression)
+                flags |= SX_COMPRESS_OFFER;
 #endif
             sx_server_init(sess->s, flags);
 
@@ -561,8 +631,8 @@ static void _c2s_component_presence(c2s_t c2s, nad_t nad) {
                 xhv.sess_val = &sess;
                 xhash_iter_get(c2s->sessions, NULL, xhv.val);
 
-                if(sess->jid != NULL && strcmp(sess->jid->domain, from) == 0) {
-                    log_debug(ZONE, "killing session %s", jid_full(sess->jid));
+                if(sess->resources != NULL && strcmp(sess->resources->jid->domain, from) == 0) {
+                    log_debug(ZONE, "killing session %s", jid_user(sess->resources->jid));
 
                     sess->active = 0;
                     sx_close(sess->s);
@@ -581,6 +651,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
     int len, elem, from, c2sid, smid, action, id, ns, attr, scan, replaced;
     char skey[10];
     sess_t sess;
+    bres_t bres, ires;
 
     switch(e) {
         case event_WANT_READ:
@@ -848,8 +919,17 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
             /* check the sm session id if they gave us one */
             smid = nad_find_attr(nad, 1, ns, "sm", NULL);
-            if(smid >= 0 && sess->sm_id[0] != '\0' && (strlen(sess->sm_id) != NAD_AVAL_L(nad, smid) || strncmp(sess->sm_id, NAD_AVAL(nad, smid), NAD_AVAL_L(nad, smid)) != 0)) {
-                log_debug(ZONE, "expected packet from sm session %s, but got one from %.*s, dropping", sess->sm_id, NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
+
+            /* find resource that we got packet for */
+            bres = NULL;
+            if(smid >= 0)
+                for(bres = sess->resources; bres != NULL; bres = bres->next){
+                log_debug(ZONE, "sm_id: %s", bres->sm_id);
+                    if(bres->sm_id[0] == '\0' || (strlen(bres->sm_id) == NAD_AVAL_L(nad, smid) && strncmp(bres->sm_id, NAD_AVAL(nad, smid), NAD_AVAL_L(nad, smid)) == 0))
+                        break;
+                }
+            if(bres == NULL) {
+                log_debug(ZONE, "expected packet from sm session %s, but got one from %.*s, dropping", sess->resources->sm_id, NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
                 nad_free(nad);
                 return 0;
             }
@@ -875,24 +955,81 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             /* session control packets */
             if(NAD_ENS(nad, 1) == ns) {
                 action = nad_find_attr(nad, 1, -1, "action", NULL);
-                id = nad_find_attr(nad, 1, -1, "id", NULL);
 
-                /* failed requests */
-                if(nad_find_attr(nad, 1, ns, "failed", NULL) >= 0) {
-                    /* make sure the id matches */
-                    if(id < 0 || sess->sm_request[0] == '\0' || strlen(sess->sm_request) != NAD_AVAL_L(nad, id) || strncmp(sess->sm_request, NAD_AVAL(nad, id), NAD_AVAL_L(nad, id)) != 0) {
-                        if(id >= 0) {
-                            log_debug(ZONE, "got a response with id %.*s, but we were expecting %s", NAD_AVAL_L(nad, id), NAD_AVAL(nad, id), sess->sm_request);
-                        } else {
-                            log_debug(ZONE, "got a response with no id, but we were expecting %s", sess->sm_request);
+                /* end responses */
+
+                /* !!! this "replaced" stuff is a hack - its really a subaction of "ended".
+                 *     hurrah, another control protocol rewrite is needed :(
+                 */
+
+                replaced = 0;
+                if(NAD_AVAL_L(nad, action) == 8 && strncmp("replaced", NAD_AVAL(nad, action), NAD_AVAL_L(nad, action)) == 0)
+                    replaced = 1;
+                if(sess->active &&
+                   (replaced || (NAD_AVAL_L(nad, action) == 5 && strncmp("ended", NAD_AVAL(nad, action), NAD_AVAL_L(nad, action)) == 0))) {
+
+                    sess->bound -= 1;
+                    /* no more resources bound? */
+                    if(sess->bound < 1){
+                        sess->active = 0;
+                    
+                        /* return the unbind result to the client */
+                        if(sess->result != NULL) {
+                            sx_nad_write(sess->s, sess->result);
+                            sess->result = NULL;
                         }
 
+                        if(replaced)
+                            sx_error(sess->s, stream_err_CONFLICT, NULL);
+                        
+                        /* close them */
+                        sx_close(sess->s);
+    
                         nad_free(nad);
                         return 0;
                     }
 
+                    /* else remove the bound resource */
+                    if(bres == sess->resources) {
+                        sess->resources = bres->next;
+                    } else {
+                        for(ires = sess->resources; ires != NULL; ires = ires->next)
+                            if(ires->next == bres)
+                                break;
+                        assert(ires != NULL);
+                        ires->next = bres->next;
+                    }
+
+                    log_write(sess->c2s->log, LOG_NOTICE, "[%d] unbound: jid=%s", sess->s->tag, jid_full(bres->jid));
+
+                    jid_free(bres->jid);
+                    free(bres);
+
+                    /* and return the unbind result to the client */
+                    sx_nad_write(sess->s, sess->result);
+                    sess->result = NULL;
+
+                    return 0;
+                }
+
+                id = nad_find_attr(nad, 1, -1, "id", NULL);
+
+                /* make sure the id matches */
+                if(id < 0 || bres->sm_request[0] == '\0' || strlen(bres->sm_request) != NAD_AVAL_L(nad, id) || strncmp(bres->sm_request, NAD_AVAL(nad, id), NAD_AVAL_L(nad, id)) != 0) {
+                    if(id >= 0) {
+                        log_debug(ZONE, "got a response with id %.*s, but we were expecting %s", NAD_AVAL_L(nad, id), NAD_AVAL(nad, id), bres->sm_request);
+                    } else {
+                        log_debug(ZONE, "got a response with no id, but we were expecting %s", bres->sm_request);
+                    }
+
+                    nad_free(nad);
+                    return 0;
+                }
+
+                /* failed requests */
+                if(nad_find_attr(nad, 1, ns, "failed", NULL) >= 0) {
                     /* handled request */
-                    sess->sm_request[0] = '\0';
+                    bres->sm_request[0] = '\0';
 
                     /* we only care about failed start and create */
                     if((NAD_AVAL_L(nad, action) == 5 && strncmp("start", NAD_AVAL(nad, action), 5) == 0) ||
@@ -900,18 +1037,29 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
                         /* create failed, so we need to remove them from authreg */
                         if(NAD_AVAL_L(nad, action) == 6 && c2s->ar->delete_user != NULL) {
-                            if((c2s->ar->delete_user)(c2s->ar, sess->jid->node, sess->host->realm) != 0)
-                                log_write(c2s->log, LOG_NOTICE, "[%d] user creation failed, and unable to delete user credentials: user=%s, realm=%s", sess->s->tag, sess->jid->node, sess->host->realm);
+                            if((c2s->ar->delete_user)(c2s->ar, bres->jid->node, sess->host->realm) != 0)
+                                log_write(c2s->log, LOG_NOTICE, "[%d] user creation failed, and unable to delete user credentials: user=%s, realm=%s", sess->s->tag, bres->jid->node, sess->host->realm);
                             else
-                                log_write(c2s->log, LOG_NOTICE, "[%d] user creation failed, so deleted user credentials: user=%s, realm=%s", sess->s->tag, sess->jid->node, sess->host->realm);
+                                log_write(c2s->log, LOG_NOTICE, "[%d] user creation failed, so deleted user credentials: user=%s, realm=%s", sess->s->tag, bres->jid->node, sess->host->realm);
                         }
 
                         /* error the result and return it to the client */
                         sx_nad_write(sess->s, stanza_error(sess->result, 0, stanza_err_INTERNAL_SERVER_ERROR));
                         sess->result = NULL;
 
-                        jid_free(sess->jid);
-                        sess->jid = NULL;
+                        /* remove the bound resource */
+                        if(bres == sess->resources) {
+                            sess->resources = bres->next;
+                        } else {
+                            for(ires = sess->resources; ires != NULL; ires = ires->next)
+                                if(ires->next == bres)
+                                    break;
+                            assert(ires != NULL);
+                            ires->next = bres->next;
+                        }
+    
+                        jid_free(bres->jid);
+                        free(bres);
 
                         nad_free(nad);
                         return 0;
@@ -923,105 +1071,49 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     return 0;
                 }
 
-                /* if we're not active yet, then we only want "started" or "created" responses */
-                if(!sess->active) {
-                    /* make sure the id matches */
-                    if(id < 0 || sess->sm_request[0] == '\0' || strlen(sess->sm_request) != NAD_AVAL_L(nad, id) || strncmp(sess->sm_request, NAD_AVAL(nad, id), NAD_AVAL_L(nad, id)) != 0) {
-                        if(id >= 0) {
-                            log_debug(ZONE, "got a response with id %.*s, but we were expecting %s", NAD_AVAL_L(nad, id), NAD_AVAL(nad, id), sess->sm_request);
-                        } else {
-                            log_debug(ZONE, "got a response with no id, but we were expecting %s", sess->sm_request);
-                        }
-
-                        nad_free(nad);
-                        return 0;
-                    }
-
-                    /* session started */
-                    if(NAD_AVAL_L(nad, action) == 7 && strncmp("started", NAD_AVAL(nad, action), 7) == 0) {
-                        /* handled request */
-                        sess->sm_request[0] = '\0';
-
-                        /* copy the sm id */
-                        if(smid >= 0)
-                            snprintf(sess->sm_id, 41, "%.*s", NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
-
-                        nad_free(nad);
-
-                        /* bring them online, old-skool */
-                        if(!sess->sasl_authd) {
-                            sx_auth(sess->s, "traditional", jid_user(sess->jid));
-                            return 0;
-                        }
-
-                        /* return the auth result to the client */
-                        sx_nad_write(sess->s, sess->result);
-                        sess->result = NULL;
-
-                        /* we're good to go */
-                        sess->active = 1;
-
-                        return 0;
-                    }
-
-                    /* user created */
-                    if(NAD_AVAL_L(nad, action) == 7 && strncmp("created", NAD_AVAL(nad, action), 7) == 0) {
-                        /* handled request */
-                        sess->sm_request[0] = '\0';
-
-                        nad_free(nad);
-
-                        /* return the result to the client */
-                        sx_nad_write(sess->s, sess->result);
-                        sess->result = NULL;
-
-                        return 0;
-                    }
-
-                    /* anything else gets thrown out */
-                    log_debug(ZONE, "got a packet for %s, but they don't have an active session yes", jid_full(sess->jid));
+                /* user created */
+                if(NAD_AVAL_L(nad, action) == 7 && strncmp("created", NAD_AVAL(nad, action), 7) == 0) {
+                    /* handled request */
+                    bres->sm_request[0] = '\0';
 
                     nad_free(nad);
+
+                    /* return the result to the client */
+                    sx_nad_write(sess->s, sess->result);
+                    sess->result = NULL;
 
                     return 0;
                 }
 
-                /* end responses */
+                /* session started */
+                if(NAD_AVAL_L(nad, action) == 7 && strncmp("started", NAD_AVAL(nad, action), 7) == 0) {
+                    /* handled request */
+                    bres->sm_request[0] = '\0';
 
-                /* !!! this "replaced" stuff is a hack - its really a subaction of "ended".
-                 *     hurrah, another control protocol rewrite is needed :(
-                 */
-
-                replaced = 0;
-                if(NAD_AVAL_L(nad, action) == 8 && strncmp("replaced", NAD_AVAL(nad, action), NAD_AVAL_L(nad, action)) == 0)
-                    replaced = 1;
-                if(replaced || (NAD_AVAL_L(nad, action) == 5 && strncmp("ended", NAD_AVAL(nad, action), NAD_AVAL_L(nad, action)) == 0)) {
-                    sess->active = 0;
-                
-                    if(replaced)
-                        sx_error(sess->s, stream_err_CONFLICT, NULL);
-                    
-                    /* close them */
-                    sx_close(sess->s);
+                    /* copy the sm id */
+                    if(smid >= 0)
+                        snprintf(bres->sm_id, 41, "%.*s", NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
 
                     nad_free(nad);
-                    return 0;
-                }
 
-                /* make sure the id matches */
-                if(id < 0 || sess->sm_request[0] == '\0' || strncmp(sess->sm_request, NAD_AVAL(nad, id), NAD_AVAL_L(nad, id)) != 0) {
-                    if(id >= 0) {
-                        log_debug(ZONE, "got a response with id %.*s, but we were expecting %s", NAD_AVAL_L(nad, id), NAD_AVAL(nad, id), sess->sm_request);
-                    } else {
-                        log_debug(ZONE, "got a response with no id, but we were expecting %s", sess->sm_request);
+                    /* bring them online, old-skool */
+                    if(!sess->sasl_authd) {
+                        sx_auth(sess->s, "traditional", jid_full(bres->jid));
+                        return 0;
                     }
 
-                    nad_free(nad);
+                    /* return the auth result to the client */
+                    sx_nad_write(sess->s, sess->result);
+                    sess->result = NULL;
+
+                    /* we're good to go */
+                    sess->active = 1;
+
                     return 0;
                 }
 
                 /* handled request */
-                sess->sm_request[0] = '\0';
+                bres->sm_request[0] = '\0';
 
                 log_debug(ZONE, "unknown action %.*s", NAD_AVAL_L(nad, id), NAD_AVAL(nad, id));
 

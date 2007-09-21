@@ -130,6 +130,8 @@ static void _c2s_config_expand(c2s_t c2s)
 
     c2s->io_max_fds = j_atoi(config_get_one(c2s->config, "io.max_fds", 0), 1024);
 
+    c2s->compression = (config_get(c2s->config, "io.compression") != NULL);
+
     c2s->io_check_interval = j_atoi(config_get_one(c2s->config, "io.check.interval", 0), 0);
     c2s->io_check_idle = j_atoi(config_get_one(c2s->config, "io.check.idle", 0), 0);
     c2s->io_check_keepalive = j_atoi(config_get_one(c2s->config, "io.check.keepalive", 0), 0);
@@ -250,11 +252,12 @@ static void _c2s_hosts_expand(c2s_t c2s)
         host->ar_register_oob = j_attr((const char **) elem->attrs[i], "register-oob");
         if(host->ar_register_enable || host->ar_register_oob) {
             host->ar_register_instructions = j_attr((const char **) elem->attrs[i], "instructions");
-            if(host->ar_register_instructions == NULL)
+            if(host->ar_register_instructions == NULL) {
                 if(host->ar_register_oob)
                     host->ar_register_instructions = "Only web based registration is possible with this server.";
                 else
                     host->ar_register_instructions = "Enter a username and password to register with this server.";
+            }
         } else
             host->ar_register_password = (j_attr((const char **) elem->attrs[i], "password-change") != NULL);
 
@@ -392,15 +395,15 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
             if(jid.resource[0] != '\0')
                 return sx_sasl_ret_FAIL;
 
-	    /* and user has right to authorize as */
-	    if (c2s->ar->user_authz_allowed) {
-		if (c2s->ar->user_authz_allowed(c2s->ar, (char *)creds->authnid, (char *)creds->realm, (char *)creds->authzid))
-    		    return sx_sasl_ret_OK;
-	    } else {
-		if (strcmp(creds->authnid, jid.node) == 0 &&
-		    (c2s->ar->user_exists)(c2s->ar, jid.node, jid.domain))
-		    return sx_sasl_ret_OK;
-	    }
+            /* and user has right to authorize as */
+            if (c2s->ar->user_authz_allowed) {
+                if (c2s->ar->user_authz_allowed(c2s->ar, (char *)creds->authnid, (char *)creds->realm, (char *)creds->authzid))
+                        return sx_sasl_ret_OK;
+            } else {
+                if (strcmp(creds->authnid, jid.node) == 0 &&
+                    (c2s->ar->user_exists)(c2s->ar, jid.node, jid.domain))
+                    return sx_sasl_ret_OK;
+            }
 
             return sx_sasl_ret_FAIL;
 
@@ -495,6 +498,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     char *config_file;
     int optchar;
     sess_t sess;
+    bres_t res;
     union xhashv xhv;
     time_t check_time = 0;
     
@@ -643,10 +647,13 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
 
 #ifdef HAVE_LIBZ
     /* get compression up and running */
-    c2s->sx_compress = sx_env_plugin(c2s->sx_env, sx_compress_init);
-    if(c2s->sx_compress == NULL) {
-        log_write(c2s->log, LOG_ERR, "failed to initialise compression");
-    }
+    if(c2s->compression)
+        sx_env_plugin(c2s->sx_env, sx_compress_init);
+#endif
+
+#ifdef ENABLE_EXPERIMENTAL
+    /* get stanza ack up */
+    sx_env_plugin(c2s->sx_env, sx_ack_init);
 #endif
 
     /* get bind up */
@@ -702,7 +709,13 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
             /* free sess data */
             if(sess->ip != NULL) free(sess->ip);
             if(sess->result != NULL) nad_free(sess->result);
-            if(sess->jid != NULL) jid_free(sess->jid);
+            if(sess->resources != NULL)
+                for(res = sess->resources; res != NULL;) {
+                    bres_t tmp = res->next;
+                    jid_free(res->jid);
+                    free(res);
+                    res = tmp;
+                }
             if(sess->rate != NULL) rate_free(sess->rate);
 
             free(sess);
@@ -762,7 +775,11 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
         /* free sess data */
         if(sess->ip != NULL) free(sess->ip);
         if(sess->result != NULL) nad_free(sess->result);
-        if(sess->jid != NULL) jid_free(sess->jid);
+        if(sess->resources != NULL)
+            for(res = sess->resources; res != NULL; res = res->next) {
+                jid_free(res->jid);
+                free(res);
+            }
 
         free(sess);
     }
