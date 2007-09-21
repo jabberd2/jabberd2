@@ -41,9 +41,12 @@ for libpath in $split_libs ; do
     LDFLAGS="-L$libpath $LDFLAGS"
 done
 
+# set type of "char" to be "unsigned char"
+CFLAGS="$CFLAGS -funsigned-char"
+
 # developer flags
 AC_ARG_ENABLE([developer], AC_HELP_STRING([--enable-developer], [Compile with warnings and debugging symbols]),
-              CFLAGS="-Wall -g $CFLAGS")
+              CFLAGS="-Wall -Wno-pointer-sign -g $CFLAGS")
 # debugging
 AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug], [enable debug messages]),
               want_debug=$enableval, want_debug=no)
@@ -459,6 +462,7 @@ if test "x-$want_ssl" = "x-yes" ; then
 
     AC_DEFINE(HAVE_SSL,1,[Define to 1 if OpenSSL is available.])
 fi
+AM_CONDITIONAL(HAVE_SSL, [test "x-$have_openssl" = "x-yes"])
 
 dnl Check for & handle argument to --with-zlib.
 _cppflags=$CPPFLAGS
@@ -526,7 +530,7 @@ else
     AC_SUBST(HAVE_LIBZ)
     AC_DEFINE(HAVE_ZLIB_H, 1, [if you have the zlib.h header file])
     AC_DEFINE(HAVE_LIBZ, 1, [if zlib is available])
-
+    AM_CONDITIONAL(HAVE_LIBZ, [test "$HAVE_LIBZ" = "1"])
     LIBS="$LIBS -lz"
   fi
 fi
@@ -899,6 +903,13 @@ AC_ARG_ENABLE(superseded, AC_HELP_STRING([--enable-superseded], [enable supersed
 if test "x-$want_superseded" = "x-yes" ; then
     AC_DEFINE(ENABLE_SUPERSEDED,1,[Define to 1 if you want to compile-in superseded XEP handlers.])
 fi
+
+AC_ARG_ENABLE(experimental, AC_HELP_STRING([--enable-experimental], [enable experimental XEP support (no)]),
+              want_experimental=$enableval, want_experimental=no)
+if test "x-$want_experimental" = "x-yes" ; then
+    AC_DEFINE(ENABLE_EXPERIMENTAL,1,[Define to 1 if you want to compile-in experimental XEP handlers.])
+fi
+AM_CONDITIONAL(ENABLE_EXPERIMENTAL, [test "x-$want_experimental" = "x-yes"])
 
 # Generate Makefiles
 AC_CONFIG_FILES([Doxyfile
