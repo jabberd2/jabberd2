@@ -9,6 +9,10 @@ What had change:
 - Messages are delivered to all resources with highest priority number
   in accordance to RFC3921bis changes
 - XEP-0138: Stream Compression
+- XEP-0198: Stanza Acknowledgements
+- Dynamic virtual hosts support
+- Packet througput counters implemented
+- XEP-0202: Entity Time, XEP-0203: Delayed Delivery
 
 If you want to store headline messages in offlinestorage, enable
 <storeheadlines/> in sm.xml. See etc/sm.xml.dist for reference.
@@ -20,6 +24,12 @@ If you wish, you may use --disable-superseded option during ./configure
 to disable all features, that was superseded by newer ones.
 If you want to enable stream compression, please uncomment proper section
 in c2s.xml.
+If you want to enable XEP-0198, please give --enable-experimental parameter
+to ./configure script.
+If you configure an <id/> in c2s.xml with no hostname, it will be used as
+a fallback default configuration for running SM with no configured <id/>.
+See <stats/> sections in c2s.xml and s2s.xml for reference how to configure
+packet counters.
 
 
 * 2.1.14 to 2.1.15 upgrade:

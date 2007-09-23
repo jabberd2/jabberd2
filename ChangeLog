@@ -1,3 +1,66 @@
+2007-09-21 Tomasz Sterna <tomek@xiaoka.com>
+	* Offering ack only on authenticated stream
+	* Implemented XEP-0198: Stanza Acknowledgements
+	* Made stream compression configurable
+	* Made use of util/jid.h
+	* Added --enable-experimental ./configure switch
+	* Implemented XEP-0193: Proposed Resource Binding Improvements (rfc3920bis 8.5.)
+
+2007-09-20 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed offline message handling
+
+2007-09-12 Tomasz Sterna <tomek@xiaoka.com>
+	* Finished implementing XEP-0191: Simple Communications Blocking
+
+2007-09-11 Tomasz Sterna <tomek@xiaoka.com>
+	* SX compilation refactoring
+
+2007-09-10 Tomasz Sterna <tomek@xiaoka.com>
+	* Revised code for XEP-0192: Proposed Stream Feature Improvements and parallel RFC3920bis changes compliance
+	* Cosmetics. Closes #146
+	* Implemented XEP-0191: Simple Communications Blocking
+
+2007-09-07 Tomasz Sterna <tomek@xiaoka.com>
+	* Implemented XEP-0157 Contact Addresses for XMPP Services with mod_help. Fixes #142
+	* Implemented disco-extend chain to support XEP-0128 Service Discovery Extensions
+
+2007-09-05 Tomasz Sterna <tomek@xiaoka.com>
+	* Implemented XEP-0202: Entity Time. Closes #144
+	* Implemented XEP-0203: Delayed Delivery. Closes #143
+	* Added --enable-superseded ./configure switch
+	* Integrated util/uri.h in the code. Fixes #110
+	* Delivering headline messages to all available resources and normal messages to all top priority resources according to RFC3921bis 8.3.1.1.
+	* Moving S10N request handling to mod_roster
+	* Do not store headline and groupchat messages in offline storage. Closes #145
+	* Distinguish pkt between different message types
+	* note about /etc/ld.so.conf in ./configure --help
+
+2007-08-31 Tomasz Sterna <tomek@xiaoka.com>
+	* c2s and s2s packet throughput counter implemented
+	* Implemented XEP-0138 Stream Compression support
+	* Create host on-fly only if SM is online. Refs #140
+	* There is no need to zero before overwrite. Refs #140
+	* Fix for dynamic vHost realm unambiguity. Refs #140
+	* Implemented default virtual host support to handle present SM domains that are not configured on C2S. Fixes #140
+	* Removed c2s_reloadhosts support. It refs #140
+
+2007-08-26 Tomasz Sterna <tomek@xiaoka.com>
+	* Removed session_match_exact()
+	* Check for SASL <response/> before <auth/> - fixes #139
+
+2007-08-22 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed sha1 generation on 64 bit platforms
+	* Using OpenSSL MD5() implementation when available
+	* Using OpenSSL SHA1() implementation when available
+
+2007-08-19 Tomasz Sterna <tomek@xiaoka.com>
+	* Removed ZeroK support in Oracle AuthReg
+
+2007-08-14 Tomasz Sterna <tomek@xiaoka.com>
+	* Added missing checks for compilation without SSL which fixes #130
+	* Pulling in -ldl manually not indirectly via -lssl. This refs #130
+	* Oracle backend configuration
+
 2007-08-13 Tomasz Sterna <tomek@xiaoka.com>
 	* Integrated authreg_oracle by fundy. Closes #129
 
