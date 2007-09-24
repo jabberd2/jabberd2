@@ -530,10 +530,10 @@ else
     AC_SUBST(HAVE_LIBZ)
     AC_DEFINE(HAVE_ZLIB_H, 1, [if you have the zlib.h header file])
     AC_DEFINE(HAVE_LIBZ, 1, [if zlib is available])
-    AM_CONDITIONAL(HAVE_LIBZ, [test "$HAVE_LIBZ" = "1"])
     LIBS="$LIBS -lz"
   fi
 fi
+AM_CONDITIONAL(HAVE_LIBZ, [test "$HAVE_LIBZ" = "1"])
 
 # MySQL
 AC_ARG_ENABLE([mysql], 
