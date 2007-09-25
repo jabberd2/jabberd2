@@ -121,6 +121,16 @@
 
   </local>
 
+  <!-- input/output settings -->
+  <io>
+    <!-- Maximum number of file descriptors. Note that the number of
+         possible connections will be slightly less than this, because
+         s2s itself can use some on its own. If the supply of file
+         descriptors is exhausted, new incoming connections will be
+         denied (default: 1024) -->
+    <max_fds>1024</max_fds>
+  </io>
+
   <!-- Timed checks -->
   <check>
     <!-- Interval between checks.

@@ -140,6 +140,8 @@ static void _s2s_config_expand(s2s_t s2s) {
     if (s2s->local_pemfile != NULL)
  	log_debug(ZONE,"loaded local pemfile for peer s2s connections");
 
+    s2s->io_max_fds = j_atoi(config_get_one(s2s->config, "io.max_fds", 0), 1024);
+
     s2s->check_interval = j_atoi(config_get_one(s2s->config, "check.interval", 0), 60);
     s2s->check_queue = j_atoi(config_get_one(s2s->config, "check.queue", 0), 60);
     s2s->check_keepalive = j_atoi(config_get_one(s2s->config, "check.keepalive", 0), 0);
@@ -514,7 +516,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
             
     s2s->sx_db = sx_env_plugin(s2s->sx_env, s2s_db_init);
 
-    s2s->mio = mio_new(MIO_MAXFD);
+    s2s->mio = mio_new(s2s->io_max_fds);
 
     s2s->retry_left = s2s->retry_init;
     _s2s_router_connect(s2s);

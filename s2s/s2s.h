@@ -24,11 +24,6 @@
 
 #include "mio/mio.h"
 #include "sx/sx.h"
-#include "sx/ssl.h"
-#ifdef HEADER_MD5_H
-#  define MD5_H
-#endif
-#include "sx/sasl.h"
 
 #ifdef HAVE_SIGNAL_H
 # include <signal.h>
@@ -110,6 +105,9 @@ struct s2s_st {
 
     /** verify-mode  */
     int                 local_verify_mode;
+
+    /** max file descriptors */
+    int                 io_max_fds;
 
     /** time checks */
     int                 check_interval;
