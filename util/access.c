@@ -44,7 +44,11 @@ static int _access_calc_netsize(const char *mask, int defaultsize)
     struct in_addr legacy_mask;
     int netsize;
 
-    if(inet_aton(mask, &legacy_mask))
+#ifndef HAVE_INET_PTON
+    if(strchr(mask, '.') && inet_aton(mask, &legacy_mask))
+#else
+    if(inet_pton(AF_INET, mask, &legacy_mask.s_addr) > 0)
+#endif
     {
         /* netmask has been given in dotted decimal form */
         int temp = ntohl(legacy_mask.s_addr);
