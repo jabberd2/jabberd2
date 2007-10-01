@@ -110,7 +110,7 @@ static mod_ret_t _offline_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     int queuesize;
 
     /* send messages to the top sessions */
-    if(user->top != NULL && (pkt->type & pkt_MESSAGE)) {
+    if(user->top != NULL && (pkt->type & pkt_MESSAGE || pkt->type & pkt_S10N)) {
         sess_t scan;
     
         /* loop over each session */
@@ -119,19 +119,20 @@ static mod_ret_t _offline_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
             if(!scan->available)
                 continue;
 
-	    /* skip negative priorities */
-	    if(scan->pri < 0)
-		continue;
+            /* skip negative priorities */
+            if(scan->pri < 0)
+                continue;
 
-	    /* headlines go to all, other to top priority */
-	    if(pkt->type != pkt_MESSAGE_HEADLINE && scan->pri < user->top->pri)
-		continue;
+            /* headlines go to all, other to top priority */
+            if(pkt->type != pkt_MESSAGE_HEADLINE && scan->pri < user->top->pri)
+                continue;
     
             /* deliver to session */
             log_debug(ZONE, "delivering message to %s", jid_full(scan->jid));
             pkt_sess(pkt_dup(pkt, jid_full(scan->jid), jid_full(pkt->from)), scan);
         }
 
+        pkt_free(pkt);
         return mod_HANDLED;
     }
 
@@ -149,15 +150,16 @@ static mod_ret_t _offline_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     /* save messages and s10ns for later */
     if((pkt->type & pkt_MESSAGE && !offline->dropmessages) ||
        (pkt->type & pkt_S10N && !offline->dropsubscriptions)) {
-        log_debug(ZONE, "saving message for later");
 
         /* check type of the message and drop headlines and groupchat */
-        if((pkt->type & pkt_MESSAGE_HEADLINE && !offline->storeheadlines) ||
-            pkt->type & pkt_MESSAGE_GROUPCHAT) {
-
+        if((((pkt->type & pkt_MESSAGE_HEADLINE) == pkt_MESSAGE_HEADLINE) && !offline->storeheadlines) ||
+            (pkt->type & pkt_MESSAGE_GROUPCHAT) == pkt_MESSAGE_GROUPCHAT) {
+            log_debug(ZONE, "not saving message (type 0x%X) for later", pkt->type);
             pkt_free(pkt);
             return mod_HANDLED;
         }
+
+	log_debug(ZONE, "saving packet for later");
 
         pkt_delay(pkt, time(NULL), user->sm->id);
 
