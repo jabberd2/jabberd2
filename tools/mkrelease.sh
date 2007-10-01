@@ -18,7 +18,7 @@ libtoolize --copy --force
 ./configure
 make dist
 gzip -dc < "$APPNAME-$APPVER.tar.gz" | bzip2 -z9c > "$DSTDIR/$APPNAME-$APPVER.tar.bz2"
-mv "$APPNAME-$APPVER.tar.gz" "$DSTDIR/"
+mv -f "$APPNAME-$APPVER.tar.gz" "$DSTDIR/"
 cd "$DSTDIR"
 ls -l "$APPNAME-$APPVER.tar."{gz,bz2}
 
