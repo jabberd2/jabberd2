@@ -1,6 +1,6 @@
 This file contains upgrade instructions between different versions of jabberd2.
 
-* 2.1.15 to 2.1.16 upgrade:
+* 2.1.16 to 2.1.17 upgrade:
 
 What had change:
 - s2s maximum fds option implemented
