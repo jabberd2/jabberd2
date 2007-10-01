@@ -3,6 +3,15 @@ This file contains upgrade instructions between different versions of jabberd2.
 * 2.1.15 to 2.1.16 upgrade:
 
 What had change:
+- s2s maximum fds option implemented
+
+If you want to configure maximum file descriptors for s2s, look in s2s.xml.dist
+for io/max_fds option, that mirrors the same option from c2s.xml.
+
+
+* 2.1.15 to 2.1.16 upgrade:
+
+What had change:
 - Offline storage does not store headline messages by default
 - XEP-0157: Contact Addresses for XMPP Services
 - --enable-superseded ./configure option

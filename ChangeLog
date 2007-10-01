@@ -1,3 +1,20 @@
+2007-10-02 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed S10N handling
+
+2007-10-01 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed in-band registration
+
+2007-09-25 Christof Meerwald <cmeerw@cmeerw.org>
+	* make max_fds configurable for s2s
+	* fixing IP based access rules for IPv6
+
+2007-09-25 Tomasz Sterna <tomek@xiaoka.com>
+	* Using tm_gmtoff when timezone not available
+
+2007-09-24 Tomasz Sterna <tomek@xiaoka.com>
+	* Added note about zlib
+	* Fixed HAVE_LIBZ conditional macro
+
 2007-09-21 Tomasz Sterna <tomek@xiaoka.com>
 	* Offering ack only on authenticated stream
 	* Implemented XEP-0198: Stanza Acknowledgements
