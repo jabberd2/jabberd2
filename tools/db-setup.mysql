@@ -197,3 +197,15 @@ CREATE TABLE `vacation-settings` (
     `start` INT,
     `end` INT,
     `message` TEXT ) DEFAULT CHARSET=UTF8;
+
+--
+-- Users statuses
+-- Used by: mod_status
+--
+CREATE TABLE `status` (
+    `collection-owner` TEXT NOT NULL,
+    `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, KEY(`object-sequence`),
+    `status` TEXT NOT NULL,
+    `show` TEXT NOT NULL,
+    `last-login` INT DEFAULT '0',
+    `last-logout` INT DEFAULT '0');

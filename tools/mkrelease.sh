@@ -12,12 +12,10 @@ cd "$TMPDIR"
 svn -q copy "$1" `dirname "$1"`"/tags/$APPNAME-$APPVER" -m "Tagging $APPVER release"
 svn -q export "$1" "$APPNAME-$APPVER"
 cd "$APPNAME-$APPVER"
-sed -i "s/^AC_INIT(.*$/AC_INIT($APPNAME, $APPVER, jabberd2@xiaoka.com)/" configure.ac
+sed -i "s/^AC_INIT(.*$/AC_INIT(\[$APPNAME\], \[$APPVER\], \[jabberd2@xiaoka.com\])/" configure.ac
 autoreconf --install --force
 libtoolize --copy --force
-cd ..
-tar -zchf "$DSTDIR/$APPNAME-$APPVER.tar.gz" "$APPNAME-$APPVER"
-tar -jchf "$DSTDIR/$APPNAME-$APPVER.tar.bz2" "$APPNAME-$APPVER"
-cd "$DSTDIR"
+make dist
+gzip -dc "$DSTDIR/$APPNAME-$APPVER.tar.gz" | tar -jchf "$DSTDIR/$APPNAME-$APPVER.tar.bz2"
 ls -l "$APPNAME-$APPVER.tar."{gz,bz2}
 
