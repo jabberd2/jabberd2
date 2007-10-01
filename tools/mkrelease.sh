@@ -15,7 +15,10 @@ cd "$APPNAME-$APPVER"
 sed -i "s/^AC_INIT(.*$/AC_INIT(\[$APPNAME\], \[$APPVER\], \[jabberd2@xiaoka.com\])/" configure.ac
 autoreconf --install --force
 libtoolize --copy --force
+./configure
 make dist
-gzip -dc "$DSTDIR/$APPNAME-$APPVER.tar.gz" | tar -jchf "$DSTDIR/$APPNAME-$APPVER.tar.bz2"
+gzip -dc < "$APPNAME-$APPVER.tar.gz" | bzip2 -z9c > "$DSTDIR/$APPNAME-$APPVER.tar.bz2"
+mv "$APPNAME-$APPVER.tar.gz" "$DSTDIR/"
+cd "$DSTDIR"
 ls -l "$APPNAME-$APPVER.tar."{gz,bz2}
 
