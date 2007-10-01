@@ -920,11 +920,25 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             /* check the sm session id if they gave us one */
             smid = nad_find_attr(nad, 1, ns, "sm", NULL);
 
+            /* get the action attribute */
+	    action = nad_find_attr(nad, 1, -1, "action", NULL);
+
+            /* first user created packets - these are out of session */
+            if(action >= 0 && NAD_AVAL_L(nad, action) == 7 && strncmp("created", NAD_AVAL(nad, action), 7) == 0) {
+
+                nad_free(nad);
+
+                /* return the result to the client */
+                sx_nad_write(sess->s, sess->result);
+                sess->result = NULL;
+
+                return 0;
+            }
+
             /* find resource that we got packet for */
             bres = NULL;
             if(smid >= 0)
                 for(bres = sess->resources; bres != NULL; bres = bres->next){
-                log_debug(ZONE, "sm_id: %s", bres->sm_id);
                     if(bres->sm_id[0] == '\0' || (strlen(bres->sm_id) == NAD_AVAL_L(nad, smid) && strncmp(bres->sm_id, NAD_AVAL(nad, smid), NAD_AVAL_L(nad, smid)) == 0))
                         break;
                 }
@@ -953,9 +967,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             }
 
             /* session control packets */
-            if(NAD_ENS(nad, 1) == ns) {
-                action = nad_find_attr(nad, 1, -1, "action", NULL);
-
+            if(NAD_ENS(nad, 1) == ns && action >= 0) {
                 /* end responses */
 
                 /* !!! this "replaced" stuff is a hack - its really a subaction of "ended".
@@ -1068,20 +1080,6 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     log_debug(ZONE, "weird, got a failed session response, with a matching id, but the action is bogus *shrug*");
 
                     nad_free(nad);
-                    return 0;
-                }
-
-                /* user created */
-                if(NAD_AVAL_L(nad, action) == 7 && strncmp("created", NAD_AVAL(nad, action), 7) == 0) {
-                    /* handled request */
-                    bres->sm_request[0] = '\0';
-
-                    nad_free(nad);
-
-                    /* return the result to the client */
-                    sx_nad_write(sess->s, sess->result);
-                    sess->result = NULL;
-
                     return 0;
                 }
 

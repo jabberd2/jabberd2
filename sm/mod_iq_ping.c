@@ -27,18 +27,17 @@
   * $Revision: 1.0 $
   */
 
-#define uri_PING "urn:xmpp:ping"
 static int ns_PING = 0;
 
 void _iq_ping_reply(pkt_t pkt) {
-    int ns,elem;
+    int ns, elem;
 
     log_debug(ZONE, "xmpp-ping request from %s", jid_full(pkt->from));
 
     ns = nad_find_scoped_namespace(pkt->nad, uri_PING, NULL);
     elem = nad_find_elem(pkt->nad, 1, ns, "ping", 1);
     if (elem>=0)
-        nad_drop_elem(pkt->nad,elem);
+        nad_drop_elem(pkt->nad, elem);
 
     nad_set_attr(pkt->nad, 1, -1, "type", "result", 6);
 
