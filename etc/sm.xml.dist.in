@@ -520,7 +520,7 @@
 
   <!-- status module configuration -->
   <status>
-    <!-- presence service resource -->
+    <!-- presence service resource
          disabled when commented out -->
     <!--
     <resource>webstatus</resource>
