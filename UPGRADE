@@ -1,5 +1,15 @@
 This file contains upgrade instructions between different versions of jabberd2.
 
+* 2.1.17 to 2.1.18 upgrade:
+
+What had change:
+- implemented /webstatus service
+
+If you want to allow users of other servers to store their presence information
+in your "status" database table, add status.resource section and status module
+in 'pkt-sm' chain in sm.xml. See sm.xml.dist for reference.
+
+
 * 2.1.16 to 2.1.17 upgrade:
 
 What had change:
