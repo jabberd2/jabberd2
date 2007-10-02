@@ -296,6 +296,7 @@
       <module>announce</module>         <!-- send broadcast messages (announce, motd, etc) -->
       <module>help</module>             <!-- resend sm messages to administrators -->
       <module>echo</module>             <!-- echo messages sent to /echo -->
+      <module>status</module>           <!-- store others status information -->
     </chain>
 
     <!-- pkt-user. The modules in this chain are called when a packet
@@ -516,5 +517,14 @@
     <maxitems>100</maxitems>
     -->
   </roster>
+
+  <!-- status module configuration -->
+  <status>
+    <!-- presence service resource -->
+         disabled when commented out -->
+    <!--
+    <resource>webstatus</resource>
+    -->
+  </status>
 
 </sm>

@@ -91,7 +91,7 @@ void pres_update(sess_t sess, pkt_t pkt) {
                 xhash_iter_get(sess->user->roster, NULL, (void *) &item);
 
 		/* Is the user local ? */
-                user_is_local = (strcmp(pkt->sm->id, item->jid->domain)==0);
+                user_is_local = (item->jid->node[0] != '\0' && strcmp(pkt->sm->id, item->jid->domain) == 0);
                 if (user_is_local) {
                   user = xhash_get(pkt->sm->users, jid_user(item->jid));
                   user_connected = ((user!=NULL) && (user->sessions != NULL));
@@ -239,7 +239,7 @@ void pres_update(sess_t sess, pkt_t pkt) {
 void pres_in(user_t user, pkt_t pkt) {
     sess_t scan;
 
-    log_debug(ZONE, "type %d presence packet from %s", pkt->type, jid_full(pkt->from));
+    log_debug(ZONE, "type 0x%X presence packet from %s", pkt->type, jid_full(pkt->from));
 
     /* loop over each session */
     for(scan = user->sessions; scan != NULL; scan = scan->next) {

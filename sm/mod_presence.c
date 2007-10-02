@@ -59,8 +59,8 @@ mod_ret_t _presence_in_router(mod_instance_t mi, pkt_t pkt) {
     user_t user;
     sess_t sess;
 
-    /* only check presence */
-    if(!(pkt->type & pkt_PRESENCE))
+    /* only check presence to users, pass presence to sm */
+    if(!(pkt->type & pkt_PRESENCE) || pkt->to->node[0] == '\0')
         return mod_PASS;
 
     /* get the user _without_ doing a load */
