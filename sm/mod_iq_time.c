@@ -78,7 +78,7 @@ static mod_ret_t _iq_time_pkt_sm(mod_instance_t mi, pkt_t pkt)
     datetime_out(t, dt_DATETIME, buf, 64);
     nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "utc", buf);
 #ifdef HAVE_TZSET
-    snprintf(buf, 64, "%+03d:%02d", (int) -timezone/(60*60), (int) -timezone%(60*60));
+    snprintf(buf, 64, "%+03d:%02d", -((int)timezone)/(60*60), -((int)timezone)%(60*60));
 #else
     snprintf(buf, 64, "%+03d:%02d", (int) tm->tm_gmtoff/(60*60), (int) tm->tm_gmtoff%(60*60));
 #endif
