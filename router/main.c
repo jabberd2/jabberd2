@@ -52,6 +52,7 @@ static void _router_pidfile(router_t r) {
 
     if(fprintf(f, "%d", pid) < 0) {
         log_write(r->log, LOG_ERR, "couldn't write to %s: %s", pidfile, strerror(errno));
+        fclose(f);
         return;
     }
 

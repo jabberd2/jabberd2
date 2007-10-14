@@ -52,6 +52,7 @@ static void _s2s_pidfile(s2s_t s2s) {
 
     if(fprintf(f, "%d", pid) < 0) {
         log_write(s2s->log, LOG_ERR, "couldn't write to %s: %s", pidfile, strerror(errno));
+        fclose(f);
         return;
     }
 

@@ -84,6 +84,7 @@ static void _mio_debug(int line, const char *msgfmt, ...)
     va_start(ap,msgfmt);
     fprintf(stderr,"mio.c#%d: ",line);
     vfprintf(stderr,msgfmt,ap);
+    va_end(ap);
     fprintf(stderr,"\n");
 }
 

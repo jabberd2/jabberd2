@@ -89,7 +89,7 @@ static void _disco_unify_walker(xht list, const char *key, void *val, void *arg)
     xhash_put(dest, jid_full(svc->jid), (void *) svc);
 }
 
-/** unify the contest of dyn and stat */
+/** unify the contents of dyn and stat */
 static void _disco_unify_lists(disco_t d) {
     log_debug(ZONE, "unifying lists");
 
@@ -333,7 +333,7 @@ static mod_ret_t _disco_pkt_sm_populate(mod_instance_t mi, pkt_t pkt)
 
         svc->jid = jid_dup(pkt->from);
 
-        svc->features = xhash_new(9);
+        svc->features = xhash_new(11);
 
         /* link it in */
         xhash_put(d->dyn, jid_full(svc->jid), (void *) svc);
@@ -478,7 +478,7 @@ static mod_ret_t _disco_pkt_sm(mod_instance_t mi, pkt_t pkt) {
         pkt_id(pkt, result);
         pkt_free(pkt);
 
-        /* if they have privs, them show them any administrative things they can disco to */
+        /* if they have privs, then show them any administrative things they can disco to */
         if(aci_check(mod->mm->sm->acls, "disco", result->to)) {
             nad_append_elem(result->nad, NAD_ENS(result->nad, 2), "item", 3);
             nad_append_attr(result->nad, -1, "jid", mod->mm->sm->id);

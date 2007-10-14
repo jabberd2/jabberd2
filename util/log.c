@@ -198,6 +198,7 @@ void debug_log(const char *file, int line, const char *msgfmt, ...)
     sz = pos - message;
     va_start(ap, msgfmt);
     vsnprintf(pos, MAX_DEBUG - sz, msgfmt, ap);
+    va_end(ap);
     fprintf(stderr,"%s", message);
     fprintf(stderr, "\n");
     fflush(stderr);

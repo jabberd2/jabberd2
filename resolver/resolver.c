@@ -54,6 +54,7 @@ static void _resolver_pidfile(resolver_t r) {
 
     if(fprintf(f, "%d", pid) < 0) {
         log_write(r->log, LOG_ERR, "couldn't write to %s: %s", pidfile, strerror(errno));
+        fclose(f);
         return;
     }
 
@@ -251,7 +252,7 @@ static int _resolver_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 }
 #endif
 
-                /* !!! pull the list of mechanirs, and choose the best one.
+                /* !!! pull the list of mechanisms, and choose the best one.
                  *     if there isn't an appropriate one, error and bail */
 
                 /* authenticate */

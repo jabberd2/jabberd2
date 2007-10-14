@@ -80,6 +80,7 @@ static void _sm_pidfile(sm_t sm) {
 
     if(fprintf(f, "%d", pid) < 0) {
         log_write(sm->log, LOG_ERR, "couldn't write to %s: %s", pidfile, strerror(errno));
+        fclose(f);
         return;
     }
 
