@@ -220,6 +220,10 @@ static void _c2s_hosts_expand(c2s_t c2s)
     elem = config_get(c2s->config, "local.id");
     for(i = 0; i < elem->nvalues; i++) {
         host_t host = (host_t) pmalloco(xhash_pool(c2s->hosts), sizeof(struct host_st));
+	if(!host) {
+            log_write(c2s->log, LOG_ERR, "cannot allocate memory for new host, aborting");
+            exit(1);
+        }
 
         realm = j_attr((const char **) elem->attrs[i], "realm");
 
@@ -279,7 +283,7 @@ static void _c2s_hosts_expand(c2s_t c2s)
         }
 
         log_write(c2s->log, LOG_NOTICE, "[%s] configured; realm=%s, registration %s",
-                  id, realm, (host->ar_register_enable ? "enabled" : "disabled"));
+                  id, (host->realm != NULL ? host->realm : "no realm set"), (host->ar_register_enable ? "enabled" : "disabled"));
     }
 }
 
