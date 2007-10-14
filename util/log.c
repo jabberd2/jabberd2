@@ -104,17 +104,19 @@ void log_write(log_t log, int level, const char *msgfmt, ...)
 {
     va_list ap;
     char *pos, message[MAX_LOG_LINE+1];
-    int sz;
+    int sz, len;
     time_t t;
-
-    memset(&message, '\0', MAX_LOG_LINE+1);
 
     if(log->type == log_SYSLOG) {
         va_start(ap, msgfmt);
 #ifdef HAVE_VSYSLOG
         vsyslog(level, msgfmt, ap);
 #else
-        vsnprintf(message, MAX_LOG_LINE, msgfmt, ap);
+        len = vsnprintf(message, MAX_LOG_LINE, msgfmt, ap);
+        if (len > MAX_LOG_LINE)
+            message[MAX_LOG_LINE] = '\0';
+        else
+            message[len] = '\0';
         syslog(level, "%s", message);
 #endif
         va_end(ap);
@@ -132,7 +134,11 @@ void log_write(log_t log, int level, const char *msgfmt, ...)
     pos[sz-1]=' ';
 
     /* insert the header */
-    snprintf(message, MAX_LOG_LINE, "%s[%s] ", pos, _log_level[level]);
+    len = snprintf(message, MAX_LOG_LINE, "%s[%s] ", pos, _log_level[level]);
+    if (len > MAX_LOG_LINE)
+        message[MAX_LOG_LINE] = '\0';
+    else
+        message[len] = '\0';
 
     /* find the end and attach the rest of the msg */
     for (pos = message; *pos != '\0'; pos++); /*empty statement */

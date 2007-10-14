@@ -1,5 +1,8 @@
 #!/bin/bash
 
+echo "TODO: tagowanie kopii roboczej po modyfikacji wersji"
+exit 1
+
 [[ $# -ne 2 ]] && { echo "Usage: `basename $0` http://...svn/path RELEASE_NUMBER" >&2; exit 1;}
 
 APPNAME=jabberd
