@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.61)
-AC_INIT(jabberd, 2.1, jabberd2@xiaoka.com)
+AC_INIT([jabberd], [2.1dev], [jabberd2@xiaoka.com])
 AC_CONFIG_SRCDIR([sx/sx.h])
 AC_CONFIG_HEADER([config.h])
 AM_INIT_AUTOMAKE
@@ -450,7 +450,7 @@ if test "x-$want_ssl" = "x-yes" ; then
     fi
     if test "x-$ac_cv_lib_ssl_SSL_connect" = "x-yes" ; then
         AC_MSG_CHECKING(for OpenSSL version >= 0.9.6b)
-        AC_RUN_IFELSE([AC_LANG_PROGRAM([[#include <openssl/opensslv.h>]],
+        AC_RUN_IFELSE([AC_LANG_PROGRAM([[#include <openssl/crypto.h>]],
                                        [[return !(SSLeay() >= 0x000906020L)]])],
                       [AC_MSG_RESULT(yes)
                        have_openssl=yes],
