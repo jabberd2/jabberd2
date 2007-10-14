@@ -305,7 +305,7 @@ static int _sx_sasl_proxy_policy(sasl_conn_t *conn, void *ctx, const char *reque
       len = rlen;
       if (sd->stream->req_to)
           len+=strlen(sd->stream->req_to) + 2;
-      buf = malloc(len);
+      buf = malloc(len + 1);
       strncpy(buf, requested_user, rlen);
       buf[rlen] = '\0';
       c = strrchr(buf, '@');
@@ -442,7 +442,7 @@ void _sx_sasl_open(sx_t s, sasl_conn_t *sasl) {
       len = strlen(buf);
       if (s->req_to)
           len+=strlen(s->req_to) + 2;
-        authzid = malloc(len);
+        authzid = malloc(len + 1);
         strcpy(authzid, buf);
 
         sasl_getprop(sasl, SASL_DEFUSERREALM, (const void **) &buf);
