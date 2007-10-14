@@ -244,7 +244,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 
                     snprintf(resource_buf, 1024, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
                     /* Put resource into JID */
-                    if (jid_reset_components(jid, jid->node, jid->domain, resource_buf) == NULL) {
+                    if (jid == NULL || jid_reset_components(jid, jid->node, jid->domain, resource_buf) == NULL) {
                         log_debug(ZONE, "invalid jid data");
                         sx_nad_write(sess->s, stanza_error(nad, 0, stanza_err_BAD_REQUEST));
                         
@@ -921,7 +921,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             smid = nad_find_attr(nad, 1, ns, "sm", NULL);
 
             /* get the action attribute */
-	    action = nad_find_attr(nad, 1, -1, "action", NULL);
+            action = nad_find_attr(nad, 1, -1, "action", NULL);
 
             /* first user created packets - these are out of session */
             if(action >= 0 && NAD_AVAL_L(nad, action) == 7 && strncmp("created", NAD_AVAL(nad, action), 7) == 0) {

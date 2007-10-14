@@ -21,7 +21,6 @@
 /* SASL authentication handler */
 
 #include "sx.h"
-#include "ssl.h"
 #include "sasl.h"
 #include <gsasl.h>
 #include <gsasl-mech.h>
@@ -153,7 +152,7 @@ static void _sx_sasl_encode(char *in, int inlen, char **out, int *outlen) {
 
 /** move the stream to the auth state */
 void _sx_sasl_open(sx_t s, Gsasl_session *sd) {
-    char *method, *authzid = NULL;
+    char *method, *authzid, *realm = NULL;
     struct sx_sasl_creds_st creds = {NULL, NULL, NULL, NULL};
     _sx_sasl_t ctx = gsasl_session_hook_get(sd);
     
@@ -174,13 +173,14 @@ void _sx_sasl_open(sx_t s, Gsasl_session *sd) {
         }
     } else {
         /* override unchecked arbitrary authzid */
-        if(creds.realm) {
-            authzid = (char *) malloc(sizeof(char) * (strlen(creds.authnid) + strlen(creds.realm) + 2));
-            sprintf(authzid, "%s@%s", creds.authnid, creds.realm);
-            creds.authzid = authzid;
+        if(creds.realm && creds.realm[0] != '\0') {
+            realm = creds.realm;
         } else {
-            creds.authzid = creds.authnid;
+            realm = s->req_to;
         }
+        authzid = (char *) malloc(sizeof(char) * (strlen(creds.authnid) + strlen(realm) + 2));
+        sprintf(authzid, "%s@%s", creds.authnid, realm);
+        creds.authzid = authzid;
     }
 
     /* proceed stream to authenticated state */
@@ -319,14 +319,16 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
 
         /* get EXTERNAL data from the ssl plugin */
         ext_id = NULL;
+#ifdef HAVE_SSL
         for(i = 0; i < s->env->nplugins; i++)
-            if(s->env->plugins[i]->magic == SX_SASL_SSL_MAGIC && s->plugin_data[s->env->plugins[i]->index] != NULL)
+            if(s->env->plugins[i]->magic == SX_SSL_MAGIC && s->plugin_data[s->env->plugins[i]->index] != NULL)
                 ext_id = ((_sx_ssl_conn_t) s->plugin_data[s->env->plugins[i]->index])->external_id;
 
         /* if there is, store it for later */
         if(ext_id != NULL) {
             ctx->ext_id = strdup(ext_id);
         }
+#endif
 
         _sx_debug(ZONE, "sasl context initialised for %d", s->tag);
 
@@ -338,6 +340,7 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
         if(ret != GSASL_OK && ret != GSASL_NEEDS_MORE) {
             _sx_debug(ZONE, "gsasl_step failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
             _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_MALFORMED_REQUEST), 0);
+            if(out != NULL) free(out);
             if(buf != NULL) free(buf);
             return;
         }
@@ -346,15 +349,14 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
     else {
         /* decode and process */
         _sx_sasl_decode(in, inlen, &buf, &buflen);
-        _sx_debug(ZONE, "response from client (decoded: %.*s)", buflen, buf);
-        ret = gsasl_step(sd, buf, buflen, &out, (size_t *) &outlen);
-        if(ret != GSASL_OK && ret != GSASL_NEEDS_MORE) {
-            _sx_debug(ZONE, "gsasl_step failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
-            _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_MALFORMED_REQUEST), 0);
+        if(!sd) {
+            _sx_debug(ZONE, "response send before auth request enabling mechanism (decoded: %.*s)", buflen, buf);
+            _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_MECH_TOO_WEAK), 0);
             if(buf != NULL) free(buf);
             return;
         }
-
+        _sx_debug(ZONE, "response from client (decoded: %.*s)", buflen, buf);
+        ret = gsasl_step(sd, buf, buflen, &out, (size_t *) &outlen);
     }
 
     if(buf != NULL) free(buf);
