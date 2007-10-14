@@ -34,7 +34,7 @@ JABBERD2_API time_t timegm(struct tm *tm)
     if(tz)
     {
         char buf[256];
-        _snprintf(buf, sizeof(buf), "TZ=%s", tz);
+        snprintf(buf, sizeof(buf), "TZ=%s", tz);
         putenv(buf);
     } else
         putenv("TZ=");
