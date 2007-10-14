@@ -21,7 +21,6 @@
 /* SASL authentication handler */
 
 #include "sx.h"
-#include "ssl.h"
 #include "sasl.h"
 
 /* Gack - need this otherwise SASL's MD5 definitions conflict with OpenSSLs */
@@ -526,8 +525,9 @@ static void _sx_sasl_stream(sx_t s, sx_plugin_t p) {
 
             /* get external data from the ssl plugin */
             ext_id = NULL;
+#ifdef HAVE_SSL
             for(i = 0; i < s->env->nplugins; i++)
-                if(s->env->plugins[i]->magic == SX_SASL_SSL_MAGIC && s->plugin_data[s->env->plugins[i]->index] != NULL)
+                if(s->env->plugins[i]->magic == SX_SSL_MAGIC && s->plugin_data[s->env->plugins[i]->index] != NULL)
                     ext_id = ((_sx_ssl_conn_t) s->plugin_data[s->env->plugins[i]->index])->external_id;
 
             /* if we've got some, setup for external auth */
@@ -536,6 +536,7 @@ static void _sx_sasl_stream(sx_t s, sx_plugin_t p) {
                 if(ret == SASL_OK) 
                     ret = sasl_setprop(sasl, SASL_SSF_EXTERNAL, &s->ssf);
             }
+#endif /* HAVE_SSL */
 
             /* security properties */
             sec_props = ctx->sec_props;
@@ -745,7 +746,7 @@ static void _sx_sasl_notify_success(sx_t s, void *arg) {
 /** process handshake packets from the client */
 static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, char *mech, char *in, int inlen) {
     _sx_sasl_data_t sd = (_sx_sasl_data_t) s->plugin_data[p->index];
-    char *buf, *out;
+    char *buf = NULL, *out = NULL;
     int buflen, outlen, ret;
 
     /* decode the response */
@@ -760,8 +761,15 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, char *mech, char *in,
     /* process the data */
     if(mech != NULL)
         ret = sasl_server_start(sd->sasl, mech, buf, buflen, (const char **) &out, &outlen);
-    else
+    else {
+        if(!sd->sasl) {
+            _sx_debug(ZONE, "response send before auth request enabling mechanism (decoded: %.*s)", buflen, buf);
+            _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_MECH_TOO_WEAK), 0);
+            if(buf != NULL) free(buf);
+            return;
+        }
         ret = sasl_server_step(sd->sasl, buf, buflen, (const char **) &out, &outlen);
+    }
 
     if(buf != NULL) free(buf);
 
@@ -1216,8 +1224,9 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, c
 
     /* get external data from the ssl plugin */
     ext_id = NULL;
+#ifdef HAVE_SSL
     for(i = 0; i < s->env->nplugins; i++)
-        if(s->env->plugins[i]->magic == SX_SASL_SSL_MAGIC && s->plugin_data[s->env->plugins[i]->index] != NULL)
+        if(s->env->plugins[i]->magic == SX_SSL_MAGIC && s->plugin_data[s->env->plugins[i]->index] != NULL)
             ext_id = ((_sx_ssl_conn_t) s->plugin_data[s->env->plugins[i]->index])->external_id;
 
     /* !!! XXX certs */
@@ -1233,6 +1242,7 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, c
         ret = sasl_setprop(sd->sasl, SASL_AUTH_EXTERNAL, ext_id);
         if(ret == SASL_OK) ret = sasl_setprop(sd->sasl, SASL_SSF_EXTERNAL, &s->ssf);
     }
+#endif /* HAVE_SSL */
 
     /* setup security properties */
     sec_props = ctx->sec_props;
