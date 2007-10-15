@@ -322,14 +322,14 @@ void out_packet(s2s_t s2s, pkt_t pkt) {
 
         /* send it straight out */
         if(pkt->db) {
-            /* dialback packet */
-            sx_nad_write(out->s, pkt->nad);
-
             /* if this is a db:verify packet, increment counter and set timestamp */
             if(NAD_ENAME_L(pkt->nad, 0) == 6 && strncmp("verify", NAD_ENAME(pkt->nad, 0), 6) == 0) {
                 out->verify++;
                 out->last_verify = time(NULL);
             }
+
+            /* dialback packet */
+            sx_nad_write(out->s, pkt->nad);
         } else {
             /* if the outgoing stanza has a jabber:client namespace, remove it so that the stream jabber:server namespaces will apply (XMPP 11.2.2) */
             int ns = nad_find_namespace(pkt->nad, 1, uri_CLIENT, NULL);
