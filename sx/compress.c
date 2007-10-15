@@ -138,7 +138,7 @@ static int _sx_compress_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
 
     /* only bothering if they asked for wrappermode */
     if(!(s->flags & SX_COMPRESS_WRAPPER) || !s->compressed)
-        return;
+        return 1;
 
     _sx_debug(ZONE, "in _sx_compress_wio");
 
@@ -199,7 +199,7 @@ static int _sx_compress_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
 
     /* only bothering if they asked for wrappermode */
     if(!(s->flags & SX_COMPRESS_WRAPPER) || !s->compressed)
-        return;
+        return 1;
 
     _sx_debug(ZONE, "in _sx_compress_rio");
 

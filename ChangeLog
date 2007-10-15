@@ -1,4 +1,25 @@
+2007-10-14 Harald Braumann <harry@unheit.net>
+	* Fixes #155 - PAM + SASL problems
+
+2007-10-14 Mark Doliner <mark@meebo.com>
+	* Fixes #165 - Buffers are too small in sasl_cyrus.c
+	* Fix compiling with cyrus sasl without ssl. Fixes #164
+	* Fix a few missing calls to fclose and va_end. Fixes #163
+	* Don't clear out the full buffer when constructing a log message. Fixes #162
+	* Don't initialize variables in header files. Fixes #161
+	* Fix compile error in subst/timegm.c. Fixes #160
+	* Fix configure check for OpenSSL version. Fixes #159
+
+2007-10-14 Tomasz Sterna <tomek@xiaoka.com>
+	* Using dev suffix for development version
+	* Better c2s.xml configured hosts handling
+
+2007-10-08 Tomasz Sterna <tomek@xiaoka.com>
+	* Changed timezone typecasting. Fixes #158
+
 2007-10-02 Tomasz Sterna <tomek@xiaoka.com>
+	* Implemented /webstatus service
+	* Added make dist infrastructure
 	* Fixed S10N handling
 
 2007-10-01 Tomasz Sterna <tomek@xiaoka.com>
