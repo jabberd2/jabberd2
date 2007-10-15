@@ -150,8 +150,11 @@
          certificate), followed by intermediate CA certificates if
          applicable, and ending at the highest level (root) CA"
          (the latter one being optional).
-         If this is commented out, clients will not be offered
-         the STARTTLS stream extension -->
+
+         Note: This certificate is ONLY used for old style SSL
+         connections on port 5223 (pre-STARTTLS).  If you want to
+         use STARTTLS over the standard XMPP port 5222 then you
+         MUST specify the pemfile in the 'id' tag above. -->
     <!--
     <pemfile>@sysconfdir@/server.pem</pemfile>
     -->
