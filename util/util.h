@@ -100,74 +100,9 @@ extern "C" {
 #include "sha1.h"
 #include "md5.h"
 
-
-/* --------------------------------------------------------- */
-/*                                                           */
-/* Pool-based memory management routines                     */
-/*                                                           */
-/* --------------------------------------------------------- */
-
-#ifdef POOL_DEBUG
-/* prime number for top # of pools debugging */
-#define POOL_NUM 40009
-#endif
-
-/** pheap - singular allocation of memory */
-struct pheap
-{
-    void *block;
-    int size, used;
-};
-
-/** pool_cleaner - callback type which is associated
-   with a pool entry; invoked when the pool entry is 
-   free'd */
-typedef void (*pool_cleaner)(void *arg);
-
-/** pfree - a linked list node which stores an
-   allocation chunk, plus a callback */
-struct pfree
-{
-    pool_cleaner f;
-    void *arg;
-    struct pheap *heap;
-    struct pfree *next;
-};
-
-/** pool - base node for a pool. Maintains a linked list
-   of pool entries (pfree) */
-typedef struct pool_struct
-{
-    int size;
-    struct pfree *cleanup;
-    struct pfree *cleanup_tail;
-    struct pheap *heap;
-#ifdef POOL_DEBUG
-    char name[8], zone[32];
-    int lsize;
-} _pool, *pool;
-#define pool_new() _pool_new(ZONE) 
-#define pool_heap(i) _pool_new_heap(i,ZONE) 
-#else
-} _pool, *pool;
-#define pool_heap(i) _pool_new_heap(i,NULL,0) 
-#define pool_new() _pool_new(NULL,0)
-#endif
-
-JABBERD2_API pool _pool_new(char *zone, int line); /* new pool :) */
-JABBERD2_API pool _pool_new_heap(int size, char *zone, int line); /* creates a new memory pool with an initial heap size */
-JABBERD2_API void *pmalloc(pool p, int size); /* wrapper around malloc, takes from the pool, cleaned up automatically */
-JABBERD2_API void *pmalloc_x(pool p, int size, char c); /* Wrapper around pmalloc which prefils buffer with c */
-JABBERD2_API void *pmalloco(pool p, int size); /* YAPW for zeroing the block */
-JABBERD2_API char *pstrdup(pool p, const char *src); /* wrapper around strdup, gains mem from pool */
-JABBERD2_API void pool_stat(int full); /* print to stderr the changed pools and reset */
-JABBERD2_API char *pstrdupx(pool p, const char *src, int len); /* use given len */
-JABBERD2_API void pool_cleanup(pool p, pool_cleaner f, void *arg); /* calls f(arg) before the pool is freed during cleanup */
-JABBERD2_API void pool_free(pool p); /* calls the cleanup functions, frees all the data on the pool, and deletes the pool itself */
-JABBERD2_API int pool_size(pool p); /* returns total bytes allocated in this pool */
-
-
-
+#include <util/nad.h>
+#include <util/pool.h>
+#include <util/xhash.h>
 
 /* --------------------------------------------------------- */
 /*                                                           */
@@ -190,54 +125,11 @@ JABBERD2_API void shahash_r(const char* str, char hashbuf[41]);
 
 /* --------------------------------------------------------- */
 /*                                                           */
-/* Hashtable functions                                       */
-/*                                                           */
-/* --------------------------------------------------------- */
-typedef struct xhn_struct
-{
-    struct xhn_struct *next;
-    const char *key;
-    void *val;
-} *xhn, _xhn;
-
-typedef struct xht_struct
-{
-    pool p;
-    int prime;
-    int dirty;
-    int count;
-    struct xhn_struct *zen;
-    int iter_bucket;
-    xhn iter_node;
-} *xht, _xht;
-
-JABBERD2_API xht xhash_new(int prime);
-JABBERD2_API void xhash_put(xht h, const char *key, void *val);
-JABBERD2_API void xhash_putx(xht h, const char *key, int len, void *val);
-JABBERD2_API void *xhash_get(xht h, const char *key);
-JABBERD2_API void *xhash_getx(xht h, const char *key, int len);
-JABBERD2_API void xhash_zap(xht h, const char *key);
-JABBERD2_API void xhash_zapx(xht h, const char *key, int len);
-JABBERD2_API void xhash_free(xht h);
-typedef void (*xhash_walker)(xht h, const char *key, void *val, void *arg);
-JABBERD2_API void xhash_walk(xht h, xhash_walker w, void *arg);
-JABBERD2_API int xhash_dirty(xht h);
-JABBERD2_API int xhash_count(xht h);
-JABBERD2_API pool xhash_pool(xht h);
-
-/* iteration functions */
-JABBERD2_API int xhash_iter_first(xht h);
-JABBERD2_API int xhash_iter_next(xht h);
-JABBERD2_API void xhash_iter_zap(xht h);
-JABBERD2_API int xhash_iter_get(xht h, const char **key, void **val);
-
-/* --------------------------------------------------------- */
-/*                                                           */
 /* XML escaping utils                                        */
 /*                                                           */
 /* --------------------------------------------------------- */
-JABBERD2_API char *strescape(pool p, char *buf, int len); /* Escape <>&'" chars */
-JABBERD2_API char *strunescape(pool p, char *buf);
+JABBERD2_API char *strescape(pool_t p, char *buf, int len); /* Escape <>&'" chars */
+JABBERD2_API char *strunescape(pool_t p, char *buf);
 
 
 /* --------------------------------------------------------- */
@@ -253,155 +145,25 @@ struct spool_node
 
 typedef struct spool_struct
 {
-    pool p;
+    pool_t p;
     int len;
     struct spool_node *last;
     struct spool_node *first;
 } *spool;
 
-JABBERD2_API spool spool_new(pool p); /* create a string pool */
+JABBERD2_API spool spool_new(pool_t p); /* create a string pool */
 JABBERD2_API void spooler(spool s, ...); /* append all the char * args to the pool, terminate args with s again */
 JABBERD2_API char *spool_print(spool s); /* return a big string */
 JABBERD2_API void spool_add(spool s, char *str); /* add a single string to the pool */
 JABBERD2_API void spool_escape(spool s, char *raw, int len); /* add and xml escape a single string to the pool */
-JABBERD2_API char *spools(pool p, ...); /* wrap all the spooler stuff in one function, the happy fun ball! */
+JABBERD2_API char *spools(pool_t p, ...); /* wrap all the spooler stuff in one function, the happy fun ball! */
 
 
 /* known namespace uri */
-#define uri_STREAMS     "http://etherx.jabber.org/streams"
-#define uri_CLIENT      "jabber:client"
-#define uri_SERVER      "jabber:server"
-#define uri_DIALBACK    "jabber:server:dialback"
-#define uri_TLS         "urn:ietf:params:xml:ns:xmpp-tls"
-#define uri_SASL        "urn:ietf:params:xml:ns:xmpp-sasl"
-#define uri_BIND        "urn:ietf:params:xml:ns:xmpp-bind"
-#define uri_XSESSION    "urn:ietf:params:xml:ns:xmpp-session"
-#define uri_STREAM_ERR  "urn:ietf:params:xml:ns:xmpp-streams"
-#define uri_STANZA_ERR  "urn:ietf:params:xml:ns:xmpp-stanzas"
-#define uri_COMPONENT   "http://jabberd.jabberstudio.org/ns/component/1.0"
-#define uri_SESSION     "http://jabberd.jabberstudio.org/ns/session/1.0"
-#define uri_RESOLVER    "http://jabberd.jabberstudio.org/ns/resolver/1.0"
-#define uri_XDATA       "jabber:x:data"
-#define uri_XML         "http://www.w3.org/XML/1998/namespace"
+#include "util/uri.h"
 
-#define uri_DIALBACK_L	22	/* strlen(uri_DIALBACK) */
-
-/*
- * JID manipulation. Validity is checked via stringprep, using the "nodeprep",
- * "nameprep" and "resourceprep" profiles (see xmpp-core section 3).
- *
- * The provided functions are mainly for convenience. The application should
- * fill out node, domain and resource directly. When they modify these, they
- * should either call jid_expand(), or set the dirty flag.
- */
-
-/** preparation cache, for speed */
-typedef struct prep_cache_st {
-    xht             node;
-    xht             domain;
-    xht             resource;
-} *prep_cache_t;
-
-JABBERD2_API prep_cache_t    prep_cache_new(void);
-JABBERD2_API void            prep_cache_free(prep_cache_t pc);
-JABBERD2_API char            *prep_cache_node_get(prep_cache_t pc, char *from);
-JABBERD2_API void            prep_cache_node_set(prep_cache_t pc, char *from, char *to);
-JABBERD2_API char            *prep_cache_domain_get(prep_cache_t pc, char *from);
-JABBERD2_API void            prep_cache_domain_set(prep_cache_t pc, char *from, char *to);
-JABBERD2_API char            *prep_cache_resource_get(prep_cache_t pc, char *from);
-JABBERD2_API void            prep_cache_resource_set(prep_cache_t pc, char *from, char *to);
-
-/** these sizings come from xmpp-core */
-#define MAXLEN_JID_COMP  1023    /* XMPP (RFC3920) 3.1 */
-#define MAXLEN_JID       3071    /* nodename (1023) + '@' + domain (1023) + '/' + resource (1023) = 3071 */
-
-typedef struct jid_st {
-    /* cache for prep, if any */
-    prep_cache_t    pc;
-
-    /* basic components of the jid */
-    unsigned char   *node;
-    unsigned char   *domain;
-    unsigned char   *resource;
-
-    /* Points to jid broken with \0s into componets. node/domain/resource point
-     * into this string (or to statically allocated empty string, if they are
-     * empty) */
-    unsigned char   *jid_data;
-    /* Valid only when jid_data != NULL. When = 0, jid_data is statically
-     * allocated. Otherwise it tells length of the allocated data. Used to
-     * implement jid_dup() */
-    size_t          jid_data_len;
-
-    /* the "user" part of the jid (sans resource) */
-    unsigned char   *_user;
-
-    /* the complete jid */
-    unsigned char   *_full;
-
-    /* application should set to 1 if user/full need regenerating */
-    int             dirty;
-
-    /* for lists of jids */
-    struct jid_st    *next;
-} *jid_t;
-
-typedef enum {
-    jid_NODE    = 1,
-    jid_DOMAIN  = 2,
-    jid_RESOURCE = 3
-} jid_part_t;
-
-/** JID static buffer **/
-typedef char jid_static_buf[3*1025];
-
-/** make a new jid, and call jid_reset() to populate it */
-JABBERD2_API jid_t               jid_new(prep_cache_t pc, const unsigned char *id, int len);
-
-/** Make jid to use static buffer (jid data won't be allocated dynamically, but
- * given buffer will be always used. */
-JABBERD2_API void                jid_static(jid_t jid, jid_static_buf *buf);
-
-/** clear and populate the jid with the given id. if id == NULL, just clears the jid to 0 */
-JABBERD2_API jid_t               jid_reset(jid_t jid, const unsigned char *id, int len);
-JABBERD2_API jid_t               jid_reset_components(jid_t jid, const unsigned char *node, const unsigned char *domain, const unsigned char *resource);
-
-/** free the jid */
-JABBERD2_API void                jid_free(jid_t jid);
-
-/** do string preparation on a jid */
-JABBERD2_API int                 jid_prep(jid_t jid);
-
-/** fill jid's resource with a random string **/
-JABBERD2_API void                jid_random_part(jid_t jid, jid_part_t part);
-
-/** expands user and full if the dirty flag is set */
-JABBERD2_API void                jid_expand(jid_t jid);
-
-/** return the user or full jid. these call jid_expand to make sure the user and
- * full jid are up to date */
-JABBERD2_API const unsigned char *jid_user(jid_t jid);
-JABBERD2_API const unsigned char *jid_full(jid_t jid);
-
-/** compare two user or full jids. these call jid_expand, then strcmp. returns
- * 0 if they're the same, < 0 if a < b, > 0 if a > b */
-JABBERD2_API int                 jid_compare_user(jid_t a, jid_t b);
-JABBERD2_API int                 jid_compare_full(jid_t a, jid_t b);
-
-/** duplicate a jid */
-JABBERD2_API jid_t               jid_dup(jid_t jid);
-
-/** list helpers */
-
-/** see if a jid is present in a list */
-JABBERD2_API int                 jid_search(jid_t list, jid_t jid);
-
-/** remove a jid from a list, and return the new list */
-JABBERD2_API jid_t               jid_zap(jid_t list, jid_t jid);
-
-/** insert of a copy of jid into list, avoiding dups */
-JABBERD2_API jid_t               jid_append(jid_t list, jid_t jid);
-
+/* JID manipulation */
+#include "util/jid.h"
 
 /* logging */
 
@@ -426,155 +188,6 @@ typedef struct log_facility_st
 JABBERD2_API log_t    log_new(log_type_t type, const char *ident, const char *facility);
 JABBERD2_API void     log_write(log_t log, int level, const char *msgfmt, ...);
 JABBERD2_API void     log_free(log_t log);
-
-
-/* Not A DOM */
-
-/* using nad:
- * 
- * nad is very simplistic, and requires all string handling to use a length.
- * Apps using this must be aware of the structure and access it directly for
- * most information. nads can only be built by successively using the _append_
- * functions correctly. After built, they can be modified using other functions,
- * or by direct access. To access cdata on an elem or attr, use nad->cdata +
- * nad->xxx[index].ixxx for the start, and .lxxx for len.
- *
- * Namespace support seems to work, but hasn't been thoroughly tested. in
- * particular, editing the nad after its creation might have quirks. use at
- * your own risk! Note that nad_add_namespace() brings a namespace into scope
- * for the next element added with nad_append_elem(), nad_insert_elem() or
- * nad_wrap_elem() (and by extension, any of its subelements). This is the same
- * way that Expat does things, so nad_add_namespace() can be driven from the
- * Expat's StartNamespaceDeclHandler.
- */
-
-typedef struct nad_st **nad_cache_t;
-
-struct nad_elem_st
-{
-    int parent;
-    int iname, lname;
-    int icdata, lcdata; /* cdata within this elem (up to first child) */
-    int itail, ltail; /* cdata after this elem */
-    int attr;
-    int ns;
-    int my_ns;
-    int depth;
-};
-
-struct nad_attr_st
-{
-    int iname, lname;
-    int ival, lval;
-    int my_ns;
-    int next;
-};
-
-struct nad_ns_st
-{
-    int iuri, luri;
-    int iprefix, lprefix;
-    int next;
-};
-
-typedef struct nad_st
-{
-    nad_cache_t cache;   /* he who gave us life */
-    struct nad_elem_st *elems;
-    struct nad_attr_st *attrs;
-    struct nad_ns_st *nss;
-    char *cdata;
-    int *depths; /* for tracking the last elem at a depth */
-    int elen, alen, nlen, clen, dlen;
-    int ecur, acur, ncur, ccur;
-    int scope; /* currently scoped namespaces, get attached to the next element */
-    struct nad_st *next; /* for keeping a list of nads */
-} *nad_t;
-
-/** create a new cache for nads */
-JABBERD2_API nad_cache_t nad_cache_new(void);
-
-/** free the cache */
-JABBERD2_API void nad_cache_free(nad_cache_t cache);
-
-/** create a new nad */
-JABBERD2_API nad_t nad_new(nad_cache_t cache);
-
-/** copy a nad */
-JABBERD2_API nad_t nad_copy(nad_t nad);
-
-/** free that nad */
-JABBERD2_API void nad_free(nad_t nad);
-
-/** find the next element with this name/depth */
-/** 0 for siblings, 1 for children and so on */
-JABBERD2_API int nad_find_elem(nad_t nad, int elem, int ns, const char *name, int depth);
-
-/** find the first matching attribute (and optionally value) */
-JABBERD2_API int nad_find_attr(nad_t nad, int elem, int ns, const char *name, const char *val);
-
-/** find the first matching namespace (and optionally prefix) */
-JABBERD2_API int nad_find_namespace(nad_t nad, int elem, const char *uri, const char *prefix);
-
-/** find a namespace in scope (and optionally prefix) */
-JABBERD2_API int nad_find_scoped_namespace(nad_t nad, const char *uri, const char *prefix);
-
-/** reset or store the given attribute */
-JABBERD2_API void nad_set_attr(nad_t nad, int elem, int ns, const char *name, const char *val, int vallen);
-
-/** insert and return a new element as a child of this one */
-JABBERD2_API int nad_insert_elem(nad_t nad, int elem, int ns, const char *name, const char *cdata);
-
-/** remove an element (and its subelements) */
-JABBERD2_API void nad_drop_elem(nad_t nad, int elem);
-
-/** wrap an element with another element */
-JABBERD2_API void nad_wrap_elem(nad_t nad, int elem, int ns, const char *name);
-
-/** append and return a new element */
-JABBERD2_API int nad_append_elem(nad_t nad, int ns, const char *name, int depth);
-
-/** append attribs to the last element */
-JABBERD2_API int nad_append_attr(nad_t nad, int ns, const char *name, const char *val);
-
-/** append more cdata to the last element */
-JABBERD2_API void nad_append_cdata(nad_t nad, const char *cdata, int len, int depth);
-
-/** add a namespace to the next element (ie, called when the namespace comes into scope) */
-JABBERD2_API int nad_add_namespace(nad_t nad, const char *uri, const char *prefix);
-
-/** declare a namespace on an already existing element */
-JABBERD2_API int nad_append_namespace(nad_t nad, int elem, const char *uri, const char *prefix);
-
-/** create a string representation of the given element (and children), point references to it */
-JABBERD2_API void nad_print(nad_t nad, int elem, char **xml, int *len);
-
-/** serialize and deserialize a nad */
-JABBERD2_API void nad_serialize(nad_t nad, char **buf, int *len);
-JABBERD2_API nad_t nad_deserialize(nad_cache_t cache, const char *buf);
-
-/** create a nad from raw xml */
-JABBERD2_API nad_t nad_parse(nad_cache_t cache, const char *buf, int len);
-
-JABBERD2_API int nad_find_elem_path(nad_t nad, int elem, int ns, const char *name);
-
-/* these are some helpful macros */
-#define NAD_ENAME(N,E) (N->cdata + N->elems[E].iname)
-#define NAD_ENAME_L(N,E) (N->elems[E].lname)
-#define NAD_CDATA(N,E) (N->cdata + N->elems[E].icdata)
-#define NAD_CDATA_L(N,E) (N->elems[E].lcdata)
-#define NAD_ANAME(N,A) (N->cdata + N->attrs[A].iname)
-#define NAD_ANAME_L(N,A) (N->attrs[A].lname)
-#define NAD_AVAL(N,A) (N->cdata + N->attrs[A].ival)
-#define NAD_AVAL_L(N,A) (N->attrs[A].lval)
-#define NAD_NURI(N,NS) (N->cdata + N->nss[NS].iuri)
-#define NAD_NURI_L(N,NS) (N->nss[NS].luri)
-#define NAD_NPREFIX(N,NS) (N->cdata + N->nss[NS].iprefix)
-#define NAD_NPREFIX_L(N,NS) (N->nss[NS].lprefix)
-
-#define NAD_ENS(N,E) (N->elems[E].my_ns)
-#define NAD_ANS(N,A) (N->attrs[A].my_ns)
-
 
 /* config files */
 typedef struct config_elem_st   *config_elem_t;
@@ -686,7 +299,7 @@ struct _jqueue_node_st {
 };
 
 typedef struct _jqueue_st {
-    pool            p;
+    pool_t          p;
     _jqueue_node_t  cache;
 
     _jqueue_node_t  front;
@@ -750,7 +363,8 @@ JABBERD2_API char *b64_decode(char *buf);
 #define stanza_err_UNDEFINED_CONDITION      (119)
 #define stanza_err_UNEXPECTED_REQUEST       (120)
 #define stanza_err_OLD_UNAUTH               (121)
-#define stanza_err_LAST                     (122)
+#define stanza_err_UNKNOWN_SENDER           (122)
+#define stanza_err_LAST                     (123)
 
 JABBERD2_API nad_t stanza_error(nad_t nad, int elem, int err);
 JABBERD2_API nad_t stanza_tofrom(nad_t nad, int elem);
@@ -761,32 +375,7 @@ typedef struct _stanza_error_st {
     const char  *code;
 } *stanza_error_t;
 
-/** if you change these, reflect your changes in the defines above */
-static struct _stanza_error_st _stanza_errors[] = {
-    { "bad-request",                "modify",   "400" },    /* stanza_err_BAD_REQUEST */
-    { "conflict",                   "cancel",   "409" },    /* stanza_err_CONFLICT */
-    { "feature-not-implemented",    "cancel",   "501" },    /* stanza_err_FEATURE_NOT_IMPLEMENTED */
-    { "forbidden",                  "auth",     "403" },    /* stanza_err_FORBIDDEN */
-    { "gone",                       "modify",   "302" },    /* stanza_err_GONE */
-    { "internal-server-error",      "wait",     "500" },    /* stanza_err_INTERNAL_SERVER_ERROR */
-    { "item-not-found",             "cancel",   "404" },    /* stanza_err_ITEM_NOT_FOUND */
-    { "jid-malformed",              "modify",   "400" },    /* stanza_err_JID_MALFORMED */
-    { "not-acceptable",             "cancel",   "406" },    /* stanza_err_NOT_ACCEPTABLE */
-    { "not-allowed",                "cancel",   "405" },    /* stanza_err_NOT_ALLOWED */
-    { "payment-required",           "auth",     "402" },    /* stanza_err_PAYMENT_REQUIRED */
-    { "recipient-unavailable",      "wait",     "404" },    /* stanza_err_RECIPIENT_UNAVAILABLE */
-    { "redirect",                   "modify",   "302" },    /* stanza_err_REDIRECT */
-    { "registration-required",      "auth",     "407" },    /* stanza_err_REGISTRATION_REQUIRED */
-    { "remote-server-not-found",    "cancel",   "404" },    /* stanza_err_REMOTE_SERVER_NOT_FOUND */
-    { "remote-server-timeout",      "wait",     "502" },    /* stanza_err_REMOTE_SERVER_TIMEOUT */
-    { "resource-constraint",        "wait",     "500" },    /* stanza_err_RESOURCE_CONSTRAINT */
-    { "service-unavailable",        "cancel",   "503" },    /* stanza_err_SERVICE_UNAVAILABLE */
-    { "subscription-required",      "auth",     "407" },    /* stanza_err_SUBSCRIPTION_REQUIRED */
-    { "undefined-condition",        NULL,       "500" },    /* stanza_err_UNDEFINED_CONDITION */
-    { "unexpected-request",         "wait",     "400" },    /* stanza_err_UNEXPECTED_REQUEST */
-    { NULL,                         NULL,       "401" },    /* stanza_err_OLD_UNAUTH */
-    { NULL,                         NULL,       NULL  }
-};
+extern struct _stanza_error_st _stanza_errors[];
 
 
 /* hex conversion utils */
@@ -824,7 +413,7 @@ JABBERD2_API int jabber_wrap_service(int argc, char** argv, jmainhandler_t *wrap
                     main(int argc, char** argv) { return jabber_wrap_service(argc, argv, jabber_main, name, display, description, depends); } \
                     jabber_main(int argc, char** argv)
 #else /* _WIN32 */
-#define JABBER_MAIN(name, display, description, depends) main(int argc, char** argv)
+#define JABBER_MAIN(name, display, description, depends) int main(int argc, char** argv)
 #endif /* _WIN32 */
 
 #ifdef __cplusplus

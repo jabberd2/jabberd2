@@ -49,6 +49,10 @@
 # include <config.h>
 #endif
 
+#ifdef HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+
 /* jabberd2 Windows DLL */
 #ifndef JABBERD2_API
 # ifdef _WIN32
@@ -62,7 +66,7 @@
 # endif /* _WIN32 */
 #endif /* JABBERD2_API */
 
-typedef struct nad_st **nad_cache_t;
+typedef struct nad_cache_st *nad_cache_t;
 
 struct nad_elem_st {
     int parent;
@@ -96,11 +100,22 @@ typedef struct nad_st
     struct nad_ns_st *nss;
     char *cdata;
     int *depths; /* for tracking the last elem at a depth */
+
+    /* The size in bytes of the elems, attrs, nss and cdata buffers, respectively. */
     int elen, alen, nlen, clen, dlen;
+
+    /* The number of elements of each type of that data that are actually stored in the elems, attrs, nss and cdata buffers, respectively. */
     int ecur, acur, ncur, ccur;
+
     int scope; /* currently scoped namespaces, get attached to the next element */
     struct nad_st *next; /* for keeping a list of nads */
 } *nad_t;
+
+struct nad_cache_st
+{
+    struct nad_st *nads;
+    size_t len;
+};
 
 /** create a new cache, simple pointer to a list of nads */
 JABBERD2_API nad_cache_t nad_cache_new(void);

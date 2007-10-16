@@ -20,7 +20,7 @@
 
 #include "util.h"
 
-/** if you change these, reflect your changes in the defines above */
+/** if you change these, reflect your changes in the defines in util.h */
 struct _stanza_error_st _stanza_errors[] = {
     { "bad-request",                "modify",   "400" },    /* stanza_err_BAD_REQUEST */
     { "conflict",                   "cancel",   "409" },    /* stanza_err_CONFLICT */

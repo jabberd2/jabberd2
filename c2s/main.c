@@ -220,7 +220,7 @@ static void _c2s_hosts_expand(c2s_t c2s)
     elem = config_get(c2s->config, "local.id");
     for(i = 0; i < elem->nvalues; i++) {
         host_t host = (host_t) pmalloco(xhash_pool(c2s->hosts), sizeof(struct host_st));
-	if(!host) {
+        if(!host) {
             log_write(c2s->log, LOG_ERR, "cannot allocate memory for new host, aborting");
             exit(1);
         }
