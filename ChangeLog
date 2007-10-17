@@ -1,3 +1,12 @@
+2007-10-16 Mark Doliner <mark@meebo.com>
+	* Minor comments and whitespace changes
+	* Fix a few compile warnings:
+
+2007-10-15 Mark Doliner <mark@meebo.com>
+	* Limitted size of nad cache
+	* Fixed #167 function return values for compress rio/wio.
+	* Update comment in c2s.xml
+
 2007-10-14 Harald Braumann <harry@unheit.net>
 	* Fixes #155 - PAM + SASL problems
 

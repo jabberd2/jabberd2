@@ -1,25 +1,26 @@
 #!/bin/bash
 
-echo "TODO: tagowanie kopii roboczej po modyfikacji wersji"
-exit 1
-
 [[ $# -ne 2 ]] && { echo "Usage: `basename $0` http://...svn/path RELEASE_NUMBER" >&2; exit 1;}
 
 APPNAME=jabberd
 APPVER=$2
 TMPDIR=`mktemp`
 DSTDIR=`pwd`
+SVNPATH=$1
+SVNBASE=`echo "$SVNPATH" | sed 's/\(trunk\|branches\|tags\).*//'`
+set -e
+
 rm -rf "$TMPDIR"
 mkdir "$TMPDIR"
 cd "$TMPDIR"
-svn -q copy "$1" `dirname "$1"`"/tags/$APPNAME-$APPVER" -m "Tagging $APPVER release"
-svn -q export "$1" "$APPNAME-$APPVER"
+svn -q checkout "$SVNPATH" "$APPNAME-$APPVER"
 cd "$APPNAME-$APPVER"
 sed -i "s/^AC_INIT(.*$/AC_INIT(\[$APPNAME\], \[$APPVER\], \[jabberd2@xiaoka.com\])/" configure.ac
 autoreconf --install --force
 libtoolize --copy --force
 ./configure
 make dist
+svn -q copy . "$SVNBASE/tags/$APPNAME-$APPVER" -m "Tagging $APPVER release"
 gzip -dc < "$APPNAME-$APPVER.tar.gz" | bzip2 -z9c > "$DSTDIR/$APPNAME-$APPVER.tar.bz2"
 mv -f "$APPNAME-$APPVER.tar.gz" "$DSTDIR/"
 cd "$DSTDIR"
