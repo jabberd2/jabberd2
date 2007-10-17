@@ -30,7 +30,7 @@
  * the latest protocol revisions.
  *
  * The project web page:\n
- * http://jabberd.jabberstudio.org/
+ * http://jabberd2.xiaoka.com/
  */
 
 #ifdef HAVE_CONFIG_H
@@ -38,11 +38,6 @@
 #endif
 
 #include "sx/sx.h"
-#include "sx/ssl.h"
-#ifdef HEADER_MD5_H
-#  define MD5_H
-#endif
-#include "sx/sasl.h"
 #include "mio/mio.h"
 #include "util/util.h"
 
