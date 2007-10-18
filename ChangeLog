@@ -1,3 +1,6 @@
+2007-10-18 Mark Doliner <mark@meebo.com>
+	* Fix gsasl ANONYMOUS login
+
 2007-10-16 Mark Doliner <mark@meebo.com>
 	* Minor comments and whitespace changes
 	* Fix a few compile warnings:

@@ -152,7 +152,8 @@ static void _sx_sasl_encode(char *in, int inlen, char **out, int *outlen) {
 
 /** move the stream to the auth state */
 void _sx_sasl_open(sx_t s, Gsasl_session *sd) {
-    char *method, *authzid, *realm = NULL;
+    char *method, *authzid;
+    const char *realm = NULL;
     struct sx_sasl_creds_st creds = {NULL, NULL, NULL, NULL};
     _sx_sasl_t ctx = gsasl_session_hook_get(sd);
     
@@ -336,6 +337,12 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
 
         /* decode and process */
         _sx_sasl_decode(in, inlen, &buf, &buflen);
+        if(buflen == 0 && strcmp(mech, "ANONYMOUS") == 0) {
+            if(buf != NULL) free(buf);
+            (ctx->cb)(sx_sasl_cb_GEN_AUTHZID, NULL, (void **)&out, s, ctx->cbarg);
+            buf = strdup(out);
+            buflen = strlen(buf);
+        }
         ret = gsasl_step(sd, buf, buflen, &out, (size_t *) &outlen);
         if(ret != GSASL_OK && ret != GSASL_NEEDS_MORE) {
             _sx_debug(ZONE, "gsasl_step failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
