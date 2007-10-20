@@ -153,9 +153,6 @@ static void _s2s_config_expand(s2s_t s2s) {
 static int _s2s_router_connect(s2s_t s2s) {
     log_write(s2s->log, LOG_NOTICE, "attempting connection to router at %s, port=%d", s2s->router_ip, s2s->router_port);
 
-    if(s2s->fd != NULL)
-        mio_close(s2s->mio, s2s->fd);
-
     s2s->fd = mio_connect(s2s->mio, s2s->router_port, s2s->router_ip, s2s_router_mio_callback, (void *) s2s);
     if(s2s->fd == NULL) {
         if(errno == ECONNREFUSED)

@@ -1,3 +1,7 @@
+2007-10-19 Mark Doliner <mark@meebo.com>
+	* Fix crash in s2s when attempting to reconnect to the router
+	  after losing our connection.
+
 2007-10-18 Mark Doliner <mark@meebo.com>
 	* Fix gsasl ANONYMOUS login
 
