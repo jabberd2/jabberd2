@@ -335,14 +335,27 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
 
         s->plugin_data[p->index] = (void *) sd;
 
-        /* decode and process */
-        _sx_sasl_decode(in, inlen, &buf, &buflen);
-        if(buflen == 0 && strcmp(mech, "ANONYMOUS") == 0) {
-            if(buf != NULL) free(buf);
+        if(strcmp(mech, "ANONYMOUS") == 0) {
+            /* special case for SASL ANONYMOUS */
+            if (inlen > 0) {
+                /* clients are not allowed to provide any initial
+                 * response for SASL ANONYMOUS, as specified in
+                 * section 7.5.5 of draft-saintandre-rfc3920bis-04
+                 * and example 4 of XEP-0175 */
+                _sx_debug(ZONE, "client provided initial response for SASL ANONYMOUS but they aren't allowed to");
+                _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_MALFORMED_REQUEST), 0);
+                return;
+            }
+
+            /* Generate a random authzid for this anonymous user */
             (ctx->cb)(sx_sasl_cb_GEN_AUTHZID, NULL, (void **)&out, s, ctx->cbarg);
             buf = strdup(out);
             buflen = strlen(buf);
+        } else {
+            /* decode and process */
+            _sx_sasl_decode(in, inlen, &buf, &buflen);
         }
+
         ret = gsasl_step(sd, buf, buflen, &out, (size_t *) &outlen);
         if(ret != GSASL_OK && ret != GSASL_NEEDS_MORE) {
             _sx_debug(ZONE, "gsasl_step failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
