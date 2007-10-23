@@ -1,0 +1,63 @@
+jabberd2 (2.1.18-1.2) experimental; urgency=low
+
+  * NMU
+  * fix dependency to libgsasl7. must be >= 0.2.14.
+
+ --  Harald Braumann <harry@unheit.net>  Sun, 21 Oct 2007 21:18:02 +0200
+
+jabberd2 (2.1.18-1.1) experimental; urgency=low
+
+  * NMU
+  * new upstream
+
+ --  Harald Braumann <harry@unheit.net>  Sat, 20 Oct 2007 21:45:44 +0200
+
+jabberd2 (2.1.17-1.1) experimental; urgency=low
+
+  * NMU
+  * new upstream
+  * create valid jid without realm for gsasl. closes #155.
+  * fix depends for config.status
+  * make Build-Depends version independent
+  * add Homepage: to control file
+  * remov BUGS files. not supplied by upstream
+  * remove remnants of dpatch
+  * don't install README.win32
+  * change jabber's home dir to /var/lib/jabberd2
+  * fix synopsis of jabberd2-common
+  * fix upstream authors in copyright
+	
+ --  Harald Braumann <harry@unheit.net>  Fri, 05 Oct 2007 13:19:59 +0200
+
+jabberd2 (2.1.16-1) unstable; urgency=low
+
+  * new upstream
+  * don't use dpatch anymore
+  * move <filter> inside <aci> (bug in upstream) (formerly dpatch)
+  * add entry for the fs storage driver (formerly dpatch)
+  * make path names more sensible in example config files (formerly dpatch)
+  * switch to GnuSASL
+  * add stats dir
+  * switch to PAM authentication as default
+  * switch to BerkeleyDB as default storage
+  * fix start stop scripts. add --oknodo to start-stop-daemon
+
+ --  Harald Braumann <harry@unheit.net>  Wed, 26 Sep 2007 17:44:06 +0200
+
+jabberd2 (2.1.15-2) unstable; urgency=low
+
+  * added watch file
+  * removed dh_make example files
+  * added package descriptions to the control file
+  * added #DEBHELPER# stanzas to maintainer scripts and fixed a double entry in the control file
+  * call make distclean on the condition that Makefile exists
+  * added default alternative to dependencies
+	
+ --  Harald Braumann <harry@unheit.net>  Sat, 15 Sep 2007 20:06:16 +0200
+
+jabberd2 (2.1.15-1) unstable; urgency=low
+
+  * Initial release
+
+ --  Harald Braumann <harry@unheit.net>  Wed, 29 Aug 2007 18:37:15 +0200
+

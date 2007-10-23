@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+
+PATH=/usr/sbin:$PATH
+export PATH
+
+if [ "$1" = "purge" ] ; then
+    userdel jabber || true
+fi
+
+#DEBHELPER#

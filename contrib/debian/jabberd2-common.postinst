@@ -1,0 +1,18 @@
+#!/bin/sh
+set -e
+
+PATH=/usr/sbin:$PATH
+export PATH
+
+
+if [ "$1" = "configure" ]; then
+
+    if [ -z "`id -u jabber 2> /dev/null`" ]; then
+        /usr/sbin/adduser --system --group --home /var/lib/jabberd2 
+          --gecos "Jabber daemon" --disabled-password --quiet jabber || true
+    fi
+
+    chown jabber:jabber /var/run/jabberd2 /var/lib/jabberd2 /var/log/jabberd2 
+fi
+
+#DEBHELPER#

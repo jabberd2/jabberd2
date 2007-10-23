@@ -1,0 +1,13 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "configure" ]; then
+
+# in order for PAM authenticateion to work, shadow has to readable.
+# add user jabber to the shadow group
+    
+    adduser jabber shadow
+
+fi
+
+#DEBHELPER#

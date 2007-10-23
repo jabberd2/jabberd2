@@ -1,0 +1,13 @@
+#!/bin/sh
+set -e
+
+PATH=/usr/sbin:$PATH
+export PATH
+
+
+if [ "$1" = "configure" ]; then
+
+    chown jabber:jabber /var/lib/jabberd2 || true
+fi
+
+#DEBHELPER#

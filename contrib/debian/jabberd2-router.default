@@ -1,0 +1,19 @@
+# Defaults for jabberd2-router initscript
+# sourced by /etc/init.d/jabberd2-router
+# installed at /etc/default/jabberd2-router by the maintainer scripts
+
+#
+# This is a POSIX shell fragment
+#
+
+# Run the daemon
+RUN_DAEMON="yes"
+
+# Configuration
+RCFILE=/etc/jabberd2/router.xml
+
+# PID file
+PIDFILE=/var/run/jabberd2/router.pid
+
+# User as which to run the process
+USER=jabber

@@ -1,0 +1,12 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "purge" ] ; then
+
+# remove user jabber from the shadow group
+
+deluser jabber shadow || true
+
+fi
+
+#DEBHELPER#
