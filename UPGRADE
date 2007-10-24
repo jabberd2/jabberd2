@@ -1,5 +1,16 @@
 This file contains upgrade instructions between different versions of jabberd2.
 
+* 2.1.18 to 2.1.19 upgrade:
+
+What had change:
+- mod_status stores full last presence stanza
+- so called "offline status" support
+  (sending last unavailable presence stanza for unavailable users)
+
+You need to add "xml" column to "status" table:
+ALTER TABLE "status" ADD COLUMN "xml" TEXT;
+
+
 * 2.1.17 to 2.1.18 upgrade:
 
 What had change:

@@ -90,7 +90,7 @@ void pres_update(sess_t sess, pkt_t pkt) {
             do {
                 xhash_iter_get(sess->user->roster, NULL, (void *) &item);
 
-		/* Is the user local ? */
+                /* Is the user local ? */
                 user_is_local = (item->jid->node[0] != '\0' && strcmp(pkt->sm->id, item->jid->domain) == 0);
                 if (user_is_local) {
                   user = xhash_get(pkt->sm->users, jid_user(item->jid));
@@ -99,13 +99,8 @@ void pres_update(sess_t sess, pkt_t pkt) {
 
                 /* if we're coming available, and we can see them, we need to probe them */
                 if(!sess->available && item->to) {
-
-                    /* Shortcut */
-                    if ((!user_is_local) || (user_is_local && user_connected)) {
-                       log_debug(ZONE, "probing %s", jid_full(item->jid));
-                       pkt_router(pkt_create(sess->user->sm, "presence", "probe", jid_full(item->jid), jid_user(sess->jid))); 
-                    } else 
-                       log_debug(ZONE, "skipping probe to local user %s - not connected", jid_full(item->jid));
+                    log_debug(ZONE, "probing %s", jid_full(item->jid));
+                    pkt_router(pkt_create(sess->user->sm, "presence", "probe", jid_full(item->jid), jid_user(sess->jid))); 
 
                     /* flag if we probed ourselves */
                     if(strcmp(jid_user(sess->jid), jid_full(item->jid)) == 0)
@@ -114,9 +109,8 @@ void pres_update(sess_t sess, pkt_t pkt) {
 
                 /* if they can see us, forward */
                 if(item->from && !jid_search(sess->E, item->jid)) {
-		    /* Shortcut: if the domain of this user's jid is the same as this sm,
-			and the user has no active sessions, don't send presence update */
-
+                    /* Shortcut: if the domain of this user's jid is the same as this sm,
+                       and the user has no active sessions, don't send presence update */
                     if ((!user_is_local) || (user_is_local && user_connected)) {
                        log_debug(ZONE, "forwarding available to %s", jid_full(item->jid));
                        pkt_router(pkt_dup(pkt, jid_full(item->jid), jid_full(sess->jid)));
@@ -166,7 +160,7 @@ void pres_update(sess_t sess, pkt_t pkt) {
             do {
                 xhash_iter_get(sess->user->roster, NULL, (void *) &item);
 
-		/* Is the user local ? */
+                /* Is the user local ? */
                 user_is_local = (strcmp(pkt->sm->id, item->jid->domain)==0);
                 if (user_is_local) {
                   user = xhash_get(pkt->sm->users, jid_user(item->jid));
@@ -226,7 +220,7 @@ void pres_update(sess_t sess, pkt_t pkt) {
             break;
 
         default:
-            log_debug(ZONE, "pres_update got packet type %d, this shouldn't happen", pkt->type);
+            log_debug(ZONE, "pres_update got packet type 0x%X, this shouldn't happen", pkt->type);
             pkt_free(pkt);
             return;
     }
@@ -235,11 +229,43 @@ void pres_update(sess_t sess, pkt_t pkt) {
     _pres_top(sess->user);
 }
 
-/** presence updates from a remote jid */
+/** presence updates from a remote jid - RFC 3921bis 4.3.2. */
 void pres_in(user_t user, pkt_t pkt) {
     sess_t scan;
 
-    log_debug(ZONE, "type 0x%X presence packet from %s", pkt->type, jid_full(pkt->from));
+    log_debug(ZONE, "\n\n===\n\ntype 0x%X presence packet from %s\n\n", pkt->type, jid_full(pkt->from));
+
+    /* handle probes */
+    if(pkt->type == pkt_PRESENCE_PROBE) {
+        /* unsubscribe untrusted users */
+        if(!pres_trust(user, pkt->from)) {
+            log_debug(ZONE, "unsubscribing untrusted %s", jid_full(pkt->from));
+            pkt_router(pkt_create(user->sm, "presence", "unsubscribe", jid_full(pkt->from), jid_full(pkt->to)));
+
+            pkt_free(pkt);
+            return;
+        }
+
+        /* respond with last unavailable presence if no available session */
+        if(user->top == NULL) {
+            os_t os;
+            os_object_t o;
+            nad_t nad;
+            pkt_t pres;
+
+            /* get user last presence stanza */
+            if(storage_get(user->sm->st, "status", jid_user(user->jid), NULL, &os) == st_SUCCESS && os_iter_first(os)) {
+                o = os_iter_object(os);
+                os_object_get_nad(os, o, "xml", &nad);
+                pres = pkt_new(pkt->sm, nad_copy(nad));
+                pkt_router(pkt_dup(pres, jid_full(pkt->from), jid_user(user->jid)));
+                os_free(os);
+                pkt_free(pres);
+            }
+            pkt_free(pkt);
+            return;
+        }
+    }
 
     /* loop over each session */
     for(scan = user->sessions; scan != NULL; scan = scan->next) {
@@ -255,15 +281,9 @@ void pres_in(user_t user, pkt_t pkt) {
         if(pkt->type == pkt_PRESENCE_PROBE) {
             log_debug(ZONE, "probe from %s for %s", jid_full(pkt->from), jid_full(scan->jid));
 
-            /* B3: respond if in T */
-            if(pres_trust(user, pkt->from)) {
-                log_debug(ZONE, "responding with last presence update");
-                pkt_router(pkt_dup(scan->pres, jid_full(pkt->from), jid_full(scan->jid)));
-            }
-
-            else {
-                log_debug(ZONE, "probe not authorised, ignoring");
-            }
+            /* B3: respond (already checked for T) */
+            log_debug(ZONE, "responding with last presence update");
+            pkt_router(pkt_dup(scan->pres, jid_full(pkt->from), jid_full(scan->jid)));
 
             /* remove from E */
             scan->E = jid_zap(scan->E, pkt->from);
