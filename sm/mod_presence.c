@@ -59,8 +59,8 @@ mod_ret_t _presence_in_router(mod_instance_t mi, pkt_t pkt) {
     user_t user;
     sess_t sess;
 
-    /* only check presence to users, pass presence to sm */
-    if(!(pkt->type & pkt_PRESENCE) || pkt->to->node[0] == '\0')
+    /* only check presence to users, pass presence to sm and probes */
+    if(!(pkt->type & pkt_PRESENCE) || pkt->to->node[0] == '\0' || pkt->type == pkt_PRESENCE_PROBE)
         return mod_PASS;
 
     /* get the user _without_ doing a load */
@@ -116,9 +116,9 @@ static mod_ret_t _presence_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
         sess = sess_match(user, pkt->to->resource);
         if(sess == NULL) {
             /* resource isn't online - XMPP-IM 11.3 requires we ignore it*/
-	    pkt_free(pkt);
+            pkt_free(pkt);
             return mod_HANDLED;
-	}
+        }
 
         pkt_sess(pkt, sess);
         return mod_HANDLED;

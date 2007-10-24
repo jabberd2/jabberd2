@@ -34,77 +34,19 @@ typedef struct _status_st {
     char    *resource;
 } *status_t;
 
-static void _status_os_replace(storage_t st, const unsigned char *jid, char *status, char *show, time_t *lastlogin, time_t *lastlogout) {
+static void _status_os_replace(storage_t st, const unsigned char *jid, char *status, char *show, time_t *lastlogin, time_t *lastlogout, nad_t nad) {
     os_t os = os_new();
     os_object_t o = os_object_new(os);
     os_object_put(o, "status", status, os_type_STRING);
     os_object_put(o, "show", show, os_type_STRING);
     os_object_put(o, "last-login", (void **) lastlogin, os_type_INTEGER);
     os_object_put(o, "last-logout", (void **) lastlogout, os_type_INTEGER);
+    if(nad != NULL) os_object_put(o, "xml", nad, os_type_NAD);
     storage_replace(st, "status", jid, NULL, os);
     os_free(os);
 }
 
-static int _status_sess_start(mod_instance_t mi, sess_t sess) {
-    module_t mod = mi->mod;
-    status_t st = (status_t) mod->private;
-    time_t t, lastlogout;
-    os_t os;
-    os_object_t o;
-    st_ret_t ret;
-
-    ret = storage_get(sess->user->sm->st, "status", jid_user(sess->jid), NULL, &os);
-    if (ret == st_SUCCESS)
-    {
-        if (os_iter_first(os))
-        {
-            o = os_iter_object(os);
-            os_object_get_time(os, o, "last-logout", &lastlogout);
-        }
-        os_free(os);
-    }
-    else
-    {
-        lastlogout = (time_t) 0;
-    }
-    
-    t = time(NULL);
-    _status_os_replace(sess->user->sm->st, jid_user(sess->jid), "online", "", &t, &lastlogout);
-
-    return mod_PASS;
-}
-
-static void _status_sess_end(mod_instance_t mi, sess_t sess) {
-    module_t mod = mi->mod;
-    status_t st = (status_t) mod->private;
-    time_t t, lastlogin;
-    os_t os;
-    os_object_t o;
-    st_ret_t ret;
-
-    ret = storage_get(sess->user->sm->st, "status", jid_user(sess->jid), NULL, &os);
-    if (ret == st_SUCCESS)
-    {
-        if (os_iter_first(os))
-        {
-            o = os_iter_object(os);
-            os_object_get_time(os, o, "last-login", &lastlogin);
-        }
-        os_free(os);
-    }
-    else
-    {
-        lastlogin = (time_t) 0;
-    }
-
-    t = time(NULL);
-    _status_os_replace(sess->user->sm->st, jid_user(sess->jid), "offline", "", &lastlogin, &t);
-}
-
 static void _status_user_delete(mod_instance_t mi, jid_t jid) {
-    module_t mod = mi->mod;
-    status_t st = (status_t) mod->private;
-
     storage_delete(mi->sm->st, "status", jid_user(jid), NULL);
 }
 
@@ -136,13 +78,83 @@ static void _status_store(storage_t st, const unsigned char *jid, pkt_t pkt, tim
             }
     }
 
-    _status_os_replace(st, jid, "online", show, lastlogin, lastlogout);
+    _status_os_replace(st, jid, "online", show, lastlogin, lastlogout, pkt->nad);
     if(show_free) free(show);
 }
 
+static int _status_sess_start(mod_instance_t mi, sess_t sess) {
+    time_t t, lastlogout;
+    os_t os;
+    os_object_t o;
+    st_ret_t ret;
+    nad_t nad;
+
+    /* not interested if there is other top session */
+    if(sess->user->top != NULL && sess != sess->user->top)
+        return;
+
+    ret = storage_get(sess->user->sm->st, "status", jid_user(sess->jid), NULL, &os);
+    if (ret == st_SUCCESS)
+    {
+        if (os_iter_first(os))
+        {
+            o = os_iter_object(os);
+            os_object_get_time(os, o, "last-logout", &lastlogout);
+	    os_object_get_nad(os, o, "xml", &nad);
+	    nad = nad_copy(nad);
+        }
+        os_free(os);
+    }
+    else
+    {
+        lastlogout = (time_t) 0;
+	nad = NULL;
+    }
+    
+    t = time(NULL);
+    _status_os_replace(sess->user->sm->st, jid_user(sess->jid), "online", "", &t, &lastlogout, nad);
+
+    if(nad != NULL) nad_free(nad);
+
+    return mod_PASS;
+}
+
+static void _status_sess_end(mod_instance_t mi, sess_t sess) {
+    time_t t, lastlogin;
+    os_t os;
+    os_object_t o;
+    st_ret_t ret;
+    nad_t nad;
+
+    /* not interested if there is other top session */
+    if(sess->user->top != NULL && sess != sess->user->top)
+        return;
+
+    ret = storage_get(sess->user->sm->st, "status", jid_user(sess->jid), NULL, &os);
+    if (ret == st_SUCCESS)
+    {
+        if (os_iter_first(os))
+        {
+            o = os_iter_object(os);
+            os_object_get_time(os, o, "last-login", &lastlogin);
+	    os_object_get_nad(os, o, "xml", &nad);
+	    nad = nad_copy(nad);
+        }
+        os_free(os);
+    }
+    else
+    {
+        lastlogin = (time_t) 0;
+	nad = NULL;
+    }
+
+    t = time(NULL);
+    _status_os_replace(sess->user->sm->st, jid_user(sess->jid), "offline", "", &lastlogin, &t, nad);
+
+    if(nad != NULL) nad_free(nad);
+}
+
 static mod_ret_t _status_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
-    module_t mod = mi->mod;
-    status_t st = (status_t) mod->private;
     time_t lastlogin, lastlogout;
     os_t os;
     os_object_t o;
@@ -182,7 +194,6 @@ static mod_ret_t _status_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     module_t mod = mi->mod;
     status_t st = (status_t) mod->private;
 
-    log_debug(ZONE, "\n\n\n=======\npkt from %s, type 0x%X, to: %s, res: %s\n\n\n========", jid_full(pkt->from), pkt->type, jid_full(pkt->to), st->resource);
     /* only check presence/subs to configured resource */
     if(!(pkt->type & pkt_PRESENCE || pkt->type & pkt_S10N) || st->resource == NULL || strcmp(pkt->to->resource, st->resource) != 0)
         return mod_PASS;

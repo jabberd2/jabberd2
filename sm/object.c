@@ -35,7 +35,7 @@ union xhashv
 };
 
 os_t os_new(void) {
-    pool p;
+    pool_t p;
     os_t os;
 
     p = pool_new();
@@ -90,7 +90,7 @@ os_object_t os_object_new(os_t os) {
     o->hash = xhash_new(51);
 
     /* make sure that the hash gets freed when the os pool gets freed */
-    pool_cleanup(os->p, (pool_cleaner) pool_free, (void *) xhash_pool(o->hash));
+    pool_cleanup(os->p, (pool_cleanup_t) pool_free, (void *) xhash_pool(o->hash));
 
     /* insert at the end, we have to preserve order */
     o->prev = os->tail;
@@ -153,12 +153,12 @@ void os_object_put(os_object_t o, const char *key, const void *val, os_type_t ty
             nad = nad_copy((nad_t) val);
 
             /* make sure that the nad gets freed when the os pool gets freed */
-            pool_cleanup(o->os->p, (pool_cleaner) nad_free, (void *) nad);
+            pool_cleanup(o->os->p, (pool_cleanup_t) nad_free, (void *) nad);
 
             osf->val = (void *) nad;
             break;
 
-	case os_type_UNKNOWN:
+        case os_type_UNKNOWN:
             break;
     }
 
@@ -256,18 +256,19 @@ int os_object_get(os_t os, os_object_t o, const char *key, void **val, os_type_t
             if (osf->type == os_type_NAD) {
                    *val = osf->val;  
             } else {
-	           /* parse the string into a NAD */
+                   /* parse the string into a NAD */
                    nad = nad_parse(NULL, ((char *) osf->val) + 3, strlen(osf->val) - 3); 
                    if(nad == NULL) {
                             /* unparseable NAD */
-                            log_debug(ZONE, "cell returned from storage for key %s has unparseable XML content (%lu bytes)", key, strlen(osf->val)-3); 
+                            log_debug(ZONE, "cell returned from storage for key %s has unparseable XML content (%lu bytes)", key, strlen(osf->val)-3);
+                            *val = NULL;
                             return 0;
                    } 
 
                    /* replace the string with a NAD */
                    osf->val = (void *) nad;
 
-                   pool_cleanup(os->p, (pool_cleaner) nad_free, (void *) nad);
+                   pool_cleanup(os->p, (pool_cleanup_t) nad_free, (void *) nad);
 
                    *val = osf->val;
                    osf->type = os_type_NAD;
