@@ -230,4 +230,5 @@ CREATE TABLE "status" (
     "status" text NOT NULL,
     "show" text,
     "last-login" int DEFAULT '0',
-    "last-logout" int DEFAULT '0' );
+    "last-logout" int DEFAULT '0',
+    "xml" text );
