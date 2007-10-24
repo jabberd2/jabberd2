@@ -233,7 +233,7 @@ void pres_update(sess_t sess, pkt_t pkt) {
 void pres_in(user_t user, pkt_t pkt) {
     sess_t scan;
 
-    log_debug(ZONE, "\n\n===\n\ntype 0x%X presence packet from %s\n\n", pkt->type, jid_full(pkt->from));
+    log_debug(ZONE, "type 0x%X presence packet from %s", pkt->type, jid_full(pkt->from));
 
     /* handle probes */
     if(pkt->type == pkt_PRESENCE_PROBE) {
@@ -257,10 +257,13 @@ void pres_in(user_t user, pkt_t pkt) {
             if(storage_get(user->sm->st, "status", jid_user(user->jid), NULL, &os) == st_SUCCESS && os_iter_first(os)) {
                 o = os_iter_object(os);
                 os_object_get_nad(os, o, "xml", &nad);
-                pres = pkt_new(pkt->sm, nad_copy(nad));
-                pkt_router(pkt_dup(pres, jid_full(pkt->from), jid_user(user->jid)));
+                if(nad != NULL) {
+                    pres = pkt_new(pkt->sm, nad_copy(nad));
+                    nad_set_attr(pres->nad, 1, -1, "type", "unavailable", 11);
+                    pkt_router(pkt_dup(pres, jid_full(pkt->from), jid_user(user->jid)));
+                    pkt_free(pres);
+                }
                 os_free(os);
-                pkt_free(pres);
             }
             pkt_free(pkt);
             return;
