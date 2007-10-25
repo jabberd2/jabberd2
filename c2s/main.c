@@ -439,7 +439,17 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
 
             /* Determine if our configuration will let us use this mechanism.
              * We support different mechanisms for both SSL and normal use */
-             
+
+            if (strcmp(mechbuf, "digest-md5") == 0) {
+                /* digest-md5 requires that our authreg support get_password */
+                if (c2s->ar->get_password == NULL)
+                    return sx_sasl_ret_FAIL;
+            } else if (strcmp(mechbuf, "plain") == 0) {
+                /* plain requires either get_password or check_password */
+                if (c2s->ar->get_password == NULL && c2s->ar->check_password == NULL)
+                    return sx_sasl_ret_FAIL;
+            }
+
             /* Using SSF is potentially dangerous, as SASL can alse set the
              * SSF of the connection. However, SASL shouldn't do so until after
              * we've finished mechanism establishment 
