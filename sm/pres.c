@@ -237,10 +237,10 @@ void pres_in(user_t user, pkt_t pkt) {
 
     /* handle probes */
     if(pkt->type == pkt_PRESENCE_PROBE) {
-        /* unsubscribe untrusted users */
+        /* unsubscribed for untrusted users */
         if(!pres_trust(user, pkt->from)) {
-            log_debug(ZONE, "unsubscribing untrusted %s", jid_full(pkt->from));
-            pkt_router(pkt_create(user->sm, "presence", "unsubscribe", jid_full(pkt->from), jid_full(pkt->to)));
+            log_debug(ZONE, "unsubscribed untrusted %s", jid_full(pkt->from));
+            pkt_router(pkt_create(user->sm, "presence", "unsubscribed", jid_full(pkt->from), jid_full(pkt->to)));
 
             pkt_free(pkt);
             return;
