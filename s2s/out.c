@@ -389,7 +389,7 @@ void out_resolve(s2s_t s2s, nad_t nad) {
      * We need to postpone all timeouts each time we get a response from resolver,
      * to allow processing requests waiting in queue. */
     if(xhash_iter_first(s2s->outq)) {
-	tm = time(NULL);
+        tm = time(NULL);
 
         do {
             xhv.jq_val = &q;
@@ -402,19 +402,19 @@ void out_resolve(s2s_t s2s, nad_t nad) {
             if(dns->pending) {
                 log_debug(ZONE, "resetting dns lookup timeout for %s", domain);
                 dns->init_time = tm;
-	    }
+            }
 
             /* generate the ip/port pair */
             snprintf(ipport, INET6_ADDRSTRLEN + 16, "%s/%d", dns->ip, dns->port);
 
             conn = xhash_get(s2s->out, ipport);
-            if(dns == NULL)
+            if(conn == NULL)
                 continue;
 
             if(!conn->online) {
                 log_debug(ZONE, "resetting outgoing connection timeout for %s", domain);
                 conn->init_time = tm;
-	    }
+            }
 
         } while(xhash_iter_next(s2s->outq));
     }
