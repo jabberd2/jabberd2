@@ -263,7 +263,7 @@ void out_packet(s2s_t s2s, pkt_t pkt) {
 
         out->fd = mio_connect(s2s->mio, pkt->port, pkt->ip, _out_mio_callback, (void *) out);
 
-	if (out->fd == NULL) {
+        if (out->fd == NULL) {
             log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] mio_connect error: %s (%d)", -1, out->ip, out->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
             /* bounce queues */
@@ -278,13 +278,13 @@ void out_packet(s2s_t s2s, pkt_t pkt) {
 
             free(out->key);
             free(out);
-	} else {
+        } else {
             log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] outgoing connection", out->fd->fd, out->ip, out->port);
 
             out->s = sx_new(s2s->sx_env, out->fd->fd, _out_sx_callback, (void *) out);
 
 #ifdef HAVE_SSL
-	    /* Send a stream version of 1.0 if we can do STARTTLS */
+            /* Send a stream version of 1.0 if we can do STARTTLS */
             if(out->s2s->sx_ssl != NULL && out->s2s->local_pemfile != NULL) {
                 sx_client_init(out->s, S2S_DB_HEADER, uri_SERVER, pkt->to->domain, NULL, "1.0");
             } else {
@@ -378,8 +378,46 @@ void out_resolve(s2s_t s2s, nad_t nad) {
     jid_t name;
     char ip[INET6_ADDRSTRLEN], str[16];
     dnscache_t dns;
+    conn_t conn;
     jqueue_t q;
     pkt_t pkt;
+    char *domain, ipport[INET6_ADDRSTRLEN + 17];
+    union xhashv xhv;
+    time_t tm;
+
+    /* Resolver is single threaded, processes all requests one at a time and blocks on res_query().
+     * We need to postpone all timeouts each time we get a response from resolver,
+     * to allow processing requests waiting in queue. */
+    if(xhash_iter_first(s2s->outq)) {
+	tm = time(NULL);
+
+        do {
+            xhv.jq_val = &q;
+            xhash_iter_get(s2s->outq, (const char **) &domain, xhv.val);
+
+            dns = xhash_get(s2s->dnscache, domain);
+            if(dns == NULL)
+                continue;
+
+            if(dns->pending) {
+                log_debug(ZONE, "resetting dns lookup timeout for %s", domain);
+                dns->init_time = tm;
+	    }
+
+            /* generate the ip/port pair */
+            snprintf(ipport, INET6_ADDRSTRLEN + 16, "%s/%d", dns->ip, dns->port);
+
+            conn = xhash_get(s2s->out, ipport);
+            if(dns == NULL)
+                continue;
+
+            if(!conn->online) {
+                log_debug(ZONE, "resetting outgoing connection timeout for %s", domain);
+                conn->init_time = tm;
+	    }
+
+        } while(xhash_iter_next(s2s->outq));
+    }
 
     attr = nad_find_attr(nad, 1, -1, "name", NULL);
     name = jid_new(s2s->pc, NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr));
@@ -605,8 +643,8 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
             break;
 
-	case event_OPEN:
-	    log_debug(ZONE, "OPEN event for %s", out->key);
+        case event_OPEN:
+            log_debug(ZONE, "OPEN event for %s", out->key);
             break;
 
         case event_STREAM:
@@ -622,7 +660,7 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 if ((out->s->res_version==NULL) || (out->s2s->sx_ssl == NULL) || (out->s2s->local_pemfile == NULL)) {
                      log_debug(ZONE, "no stream version, sending dialbacks for %s immediately", out->key);
                      out->online = 1;
-	             send_dialbacks(out);
+                     send_dialbacks(out);
                 } else
                      log_debug(ZONE, "outgoing conn to %s - waiting for STREAM features", out->key);
             }
@@ -632,7 +670,7 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
         case event_PACKET:
             /* we're counting packets */
             out->packet_count++;
-	    out->s2s->packet_count++;
+            out->s2s->packet_count++;
 
             nad = (nad_t) data;
 
