@@ -1,3 +1,24 @@
+2007-10-28 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed probes for untrusted users handling
+
+2007-10-25 Tomasz Sterna <tomek@xiaoka.com>
+	* presence-offline fixes
+	* offline-status support
+
+2007-10-25 Mark Doliner <mark@meebo.com>
+	* Don't advertise that we support the digest-md5 sasl mechanism if our authreg doesn't support "get password"
+	* Don't advertise that we support the plain sasl mechanism if our authreg doesn't support either get password or check password.
+	* Reverted #171 r450 change to SASL ANONYMOUS
+
+2007-10-24 Tomasz Sterna <tomek@xiaoka.com>
+	* mod_status is storing the full xml of last presence stanza
+
+2007-10-23 Mark Doliner <mark@meebo.com>
+	* SASL ANONYMOUS rejects any initial response data sent by the client. Fixes ticket #171.
+
+2007-10-20 Mark Doliner <mark@meebo.com>
+	* fix s2s crash by closing free'd mio
+
 2007-10-19 Mark Doliner <mark@meebo.com>
 	* Fix crash in s2s when attempting to reconnect to the router
 	  after losing our connection.
