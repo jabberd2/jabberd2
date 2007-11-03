@@ -51,7 +51,7 @@ union xhashv
 
 static mod_ret_t _session_in_router(mod_instance_t mi, pkt_t pkt) {
     sm_t sm = mi->mod->mm->sm;
-    int ns, attr;
+    int ns, iq, elem, attr;
     jid_t jid;
     sess_t sess = (sess_t) NULL;
     mod_ret_t ret;
@@ -225,6 +225,28 @@ static mod_ret_t _session_in_router(mod_instance_t mi, pkt_t pkt) {
 
     /* otherwise, its a normal packet for the session */
 
+#ifdef ENABLE_SUPERSEDED
+        /* check for RFC3920 session request *
+         * with RFC3920bis it is unneeded *
+         * session is activated by bind, so we just return back result */
+        if((ns = nad_find_scoped_namespace(pkt->nad, uri_XSESSION, NULL)) >= 0 &&
+           (iq = nad_find_elem(pkt->nad, 0, -1, "iq", 1)) >= 0 &&
+           (elem = nad_find_elem(pkt->nad, iq, ns, "session", 1)) >= 0) {
+            log_debug(ZONE, "session create request");
+    
+            /* build a result packet */
+            nad_drop_elem(pkt->nad, elem);
+            nad_set_attr(pkt->nad, iq, -1, "type", "result", 6);
+    
+            /* return the result */
+            sx_nad_write(sm->router, stanza_tofrom(pkt->nad, 0));
+    
+            pkt->nad = NULL;
+            pkt_free(pkt);
+    
+            return mod_HANDLED;
+        }
+#endif
     /* get the session id */
     attr = nad_find_attr(pkt->nad, 1, ns, "sm", NULL);
     if(attr < 0) {
@@ -296,7 +318,7 @@ static mod_ret_t _session_pkt_router(mod_instance_t mi, pkt_t pkt) {
 
     log_debug(ZONE, "component '%s' went offline, checking for sessions held there", jid_full(pkt->from));
 
-    /* this fairly inefficient, especially if we have a lot of sessions
+    /* this is fairly inefficient, especially if we have a lot of sessions
      * online, but it shouldn't be called that often (components are usually
      * long-running) */
 

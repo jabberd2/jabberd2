@@ -52,9 +52,13 @@ static void _bind_features(sx_t s, sx_plugin_t p, nad_t nad) {
     
         ns = nad_add_namespace(nad, uri_BIND, NULL);
         nad_append_elem(nad, ns, "bind", 1);
-    
+        nad_append_elem(nad, -1, "required", 2);
+        nad->scope = ns;
+        nad_append_elem(nad, ns, "unbind", 1);
+#ifdef ENABLE_SUPERSEDED    
         ns = nad_add_namespace(nad, uri_XSESSION, NULL);
         nad_append_elem(nad, ns, "session", 1);
+#endif
     }
 }
 

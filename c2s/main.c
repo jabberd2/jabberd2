@@ -792,10 +792,10 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
         if(sess->result != NULL) nad_free(sess->result);
         if(sess->resources != NULL)
             for(res = sess->resources; res != NULL;) {
-		bres_t tmp = res->next;
+                bres_t tmp = res->next;
                 jid_free(res->jid);
                 free(res);
-		res = tmp;
+                res = tmp;
             }
 
         free(sess);
