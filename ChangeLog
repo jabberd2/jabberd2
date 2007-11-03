@@ -1,6 +1,7 @@
 2007-11-02 Mark Doliner <mark@meebo.com>
 	* Remove unused storage.xml.dist config file and storage.8 man page
 	* Extremely minor optimization when removing an item from a roster
+	* Handle routing errors better in c2s.  The client is now disconnected.
 
 2007-10-28 Tomasz Sterna <tomek@xiaoka.com>
 	* Fixed probes for untrusted users handling

@@ -935,6 +935,24 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 return 0;
             }
 
+            /* route errors */
+            if(nad_find_attr(nad, 0, -1, "error", NULL) >= 0) {
+                log_debug(ZONE, "routing error");
+
+                sx_error(sess->s, stream_err_INTERNAL_SERVER_ERROR, "internal server error");
+                sx_close(sess->s);
+
+                nad_free(nad);
+                return 0;
+            }
+
+            /* all other packets need to contain an sm ID */
+            if (smid < 0) {
+                log_debug(ZONE, "received packet from sm without an sm ID, dropping");
+                nad_free(nad);
+                return 0;
+            }
+
             /* find resource that we got packet for */
             bres = NULL;
             if(smid >= 0)
@@ -952,16 +970,6 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             from = nad_find_attr(nad, 0, -1, "from", NULL);
             if(!sess->s->req_to || strlen(sess->s->req_to) != NAD_AVAL_L(nad, from) || strncmp(sess->s->req_to, NAD_AVAL(nad, from), NAD_AVAL_L(nad, from)) != 0) {
                 log_debug(ZONE, "packet from '%.*s' for %s, but they're not the sm for this sess", NAD_AVAL_L(nad, from), NAD_AVAL(nad, from), skey);
-                nad_free(nad);
-                return 0;
-            }
-
-            /* route errors */
-            if(nad_find_attr(nad, 0, -1, "error", NULL) >= 0) {
-                log_debug(ZONE, "routing error");
-
-                /* !!! kill the session */
-
                 nad_free(nad);
                 return 0;
             }
