@@ -1,3 +1,6 @@
+2007-11-02 Mark Doliner <mark@meebo.com>
+	* Remove unused storage.xml.dist config file and storage.8 man page
+
 2007-10-28 Tomasz Sterna <tomek@xiaoka.com>
 	* Fixed probes for untrusted users handling
 
