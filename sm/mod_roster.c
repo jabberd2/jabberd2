@@ -319,8 +319,6 @@ static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi
 
             snprintf(filter, 4096, "(jid=%i:%s)", strlen(jid_full(jid)), jid_full(jid));
             storage_delete(sess->user->sm->st, "roster-items", jid_user(sess->jid), filter);
-
-            snprintf(filter, 4096, "(jid=%i:%s)", strlen(jid_full(jid)), jid_full(jid));
             storage_delete(sess->user->sm->st, "roster-groups", jid_user(sess->jid), filter);
         }
 
@@ -545,7 +543,7 @@ static mod_ret_t _roster_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt)
     item = (item_t) xhash_get(user->roster, jid_full(pkt->from));
     if(item == NULL) {
         /* subs are handled by the client */
-        if(pkt->type == pkt_S10N)
+        if(pkt->type == pkt_S10N) {
             /* if the user is online broadcast it like roster push */
             if(user->top != NULL && _roster_push(user, pkt, mod->index) > 0) {
                 /* pushed, thus handled */
@@ -556,6 +554,7 @@ static mod_ret_t _roster_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt)
                 /* not pushed to any online resource - pass it on (to mod_offline) */
                 return mod_PASS;
             }
+        }
 
         /* other S10Ns: we didn't ask for this, so we don't care */
         pkt_free(pkt);
