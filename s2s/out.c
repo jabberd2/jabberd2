@@ -378,46 +378,8 @@ void out_resolve(s2s_t s2s, nad_t nad) {
     jid_t name;
     char ip[INET6_ADDRSTRLEN], str[16];
     dnscache_t dns;
-    conn_t conn;
     jqueue_t q;
     pkt_t pkt;
-    char *domain, ipport[INET6_ADDRSTRLEN + 17];
-    union xhashv xhv;
-    time_t tm;
-
-    /* Resolver is single threaded, processes all requests one at a time and blocks on res_query().
-     * We need to postpone all timeouts each time we get a response from resolver,
-     * to allow processing requests waiting in queue. */
-    if(xhash_iter_first(s2s->outq)) {
-        tm = time(NULL);
-
-        do {
-            xhv.jq_val = &q;
-            xhash_iter_get(s2s->outq, (const char **) &domain, xhv.val);
-
-            dns = xhash_get(s2s->dnscache, domain);
-            if(dns == NULL)
-                continue;
-
-            if(dns->pending) {
-                log_debug(ZONE, "resetting dns lookup timeout for %s", domain);
-                dns->init_time = tm;
-            }
-
-            /* generate the ip/port pair */
-            snprintf(ipport, INET6_ADDRSTRLEN + 16, "%s/%d", dns->ip, dns->port);
-
-            conn = xhash_get(s2s->out, ipport);
-            if(conn == NULL)
-                continue;
-
-            if(!conn->online) {
-                log_debug(ZONE, "resetting outgoing connection timeout for %s", domain);
-                conn->init_time = tm;
-            }
-
-        } while(xhash_iter_next(s2s->outq));
-    }
 
     attr = nad_find_attr(nad, 1, -1, "name", NULL);
     name = jid_new(s2s->pc, NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr));
