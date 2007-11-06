@@ -20,6 +20,8 @@
 
 /* SASL authentication handler */
 
+#error Cyrus SASL implementation is not supported! It is included here only for the brave ones, that do know what they are doing. You need to remove this line to compile it.
+
 #include "sx.h"
 #include "sasl.h"
 
