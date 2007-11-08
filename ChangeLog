@@ -1,3 +1,6 @@
+2007-11-08 Mark Doliner <mark@meebo.com>
+	* Performance optimization for users with large rosters.
+
 2007-11-02 Mark Doliner <mark@meebo.com>
 	* Remove unused storage.xml.dist config file and storage.8 man page
 	* Extremely minor optimization when removing an item from a roster

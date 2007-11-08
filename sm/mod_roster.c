@@ -117,7 +117,7 @@ static void _roster_insert_item(pkt_t pkt, item_t item, int elem)
     char *sub;
 
     ns = nad_add_namespace(pkt->nad, uri_CLIENT, NULL);
-    elem = nad_insert_elem(pkt->nad, elem, ns, "item", NULL);
+    elem = nad_append_elem(pkt->nad, ns, "item", 3);
     nad_set_attr(pkt->nad, elem, -1, "jid", jid_full(item->jid), 0);
 
     if(item->to && item->from)
@@ -139,8 +139,10 @@ static void _roster_insert_item(pkt_t pkt, item_t item, int elem)
     if(item->name != NULL)
         nad_set_attr(pkt->nad, elem, -1, "name", item->name, 0);
 
-    for(i = 0; i < item->ngroups; i++)
-        nad_insert_elem(pkt->nad, elem, NAD_ENS(pkt->nad, elem), "group", item->groups[i]);
+    for(i = 0; i < item->ngroups; i++){
+        nad_append_elem(pkt->nad, NAD_ENS(pkt->nad, elem), "group", 4);
+        nad_append_cdata(pkt->nad, item->groups[i], strlen(item->groups[i]), 5);
+    }
 }
 
 /** push this packet to all sessions except the given one */
