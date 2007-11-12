@@ -1026,8 +1026,10 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     free(bres);
 
                     /* and return the unbind result to the client */
-                    sx_nad_write(sess->s, sess->result);
-                    sess->result = NULL;
+                    if(sess->result != NULL) {
+                        sx_nad_write(sess->s, sess->result);
+                        sess->result = NULL;
+                    }
 
                     return 0;
                 }
