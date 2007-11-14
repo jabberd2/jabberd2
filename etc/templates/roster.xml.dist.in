@@ -2,6 +2,6 @@
      get this roster by default. -->
 <query xmlns='jabber:iq:roster'>
   <!--
-  <item name='Helpdesk' jid='helpdesk@localhost' subscription='both'><group>Support</group></item>
+  <item name='Helpdesk' jid='helpdesk@localhost' subscription='none'><group>Support</group></item>
   -->
 </query>
