@@ -37,10 +37,10 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
         /* parse error */
         errstring = (char *) XML_ErrorString(XML_GetErrorCode(s->expat));
 
-        _sx_gen_error(sxe, SX_ERR_XML_PARSE, "XML parse error", errstring);
+        _sx_gen_error(sxe, SX_ERR_XML_PARSE, "Maximum stanza size exceeded", errstring);
         _sx_event(s, event_ERROR, (void *) &sxe);
 
-        _sx_error(s, stream_err_XML_NOT_WELL_FORMED, errstring);
+        _sx_error(s, stream_err_POLICY_VIOLATION, errstring);
         _sx_close(s);
 
         _sx_buffer_free(buf);
