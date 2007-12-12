@@ -32,6 +32,25 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
        the socket but the plugin didn't return anything to us (e.g. a
        SSL packet was split across a tcp segment boundary) */
 
+    /* check if the stanza size limit is exceeded */
+    if(s->rbytes > SX_MAX_STANZA_SIZE) {
+        /* parse error */
+        errstring = (char *) XML_ErrorString(XML_GetErrorCode(s->expat));
+
+        _sx_gen_error(sxe, SX_ERR_XML_PARSE, "XML parse error", errstring);
+        _sx_event(s, event_ERROR, (void *) &sxe);
+
+        _sx_error(s, stream_err_XML_NOT_WELL_FORMED, errstring);
+        _sx_close(s);
+
+        _sx_buffer_free(buf);
+
+        return;
+    }
+
+    /* count bytes read for this stanza */
+    s->rbytes += buf->len;
+
     /* parse it */
     if(XML_Parse(s->expat, buf->data, buf->len, 0) == 0) {
         /* only report error we haven't already */

@@ -47,6 +47,9 @@
 extern "C" {
 #endif
 
+/** maximum stanza size we want to let through */
+#define SX_MAX_STANZA_SIZE      (0xffff)
+
 /* forward declarations */
 typedef struct _sx_st           *sx_t;
 typedef struct _sx_env_st       *sx_env_t;
@@ -244,7 +247,7 @@ struct _sx_st {
     sx_env_t                 env;
 
     /* tag, for logging */
-    int                     tag;
+    int                      tag;
 
     /* callback */
     sx_callback_t            cb;
@@ -254,7 +257,7 @@ struct _sx_st {
     _sx_type_t               type;
 
     /* flags */
-    unsigned int          flags;
+    unsigned int             flags;
 
     /* application namespace */
     char                    *ns;
@@ -284,22 +287,25 @@ struct _sx_st {
     jqueue_t                 rnadq;              /* completed nads waiting to go to rnad */
 
     /* do we want to read or write? */
-    int                     want_read, want_write;
+    int                      want_read, want_write;
+
+    /* bytes read from socket */
+    int                      rbytes;
 
     /* current state */
     _sx_state_t              state;
 
     /* parser */
     XML_Parser               expat;
-    int                     depth;
-    int                     fail;
+    int                      depth;
+    int                      fail;
 
     /* nad cache and nad currently being built */
     nad_cache_t              nad_cache;
     nad_t                    nad;
 
     /* plugin storage */
-    void                    **plugin_data;
+    void                   **plugin_data;
 
     /* type and id of auth */
     char                    *auth_method;
@@ -320,7 +326,7 @@ struct _sx_st {
 
 /** a plugin */
 struct _sx_plugin_st {
-    sx_env_t                 env;
+    sx_env_t                env;
 
     int                     magic;              /* unique id so that plugins can find each other */
 
@@ -388,5 +394,8 @@ JABBERD2_API int         __sx_event(const char *file, int line, sx_t s, sx_event
 #ifdef __cplusplus
 }
 #endif
+
+/* now include sx envplugins datatypes */
+#include "plugins.h"
 
 #endif
