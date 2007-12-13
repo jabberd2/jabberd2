@@ -265,8 +265,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                 }
 
                 /* attach new bound jid holder */
-                bres = (bres_t) malloc(sizeof(struct bres_st));
-                memset(bres, 0, sizeof(struct bres_st));
+                bres = (bres_t) calloc(1, sizeof(struct bres_st));
                 bres->jid = jid;
                 if(sess->resources != NULL) {
                     for(ires = sess->resources; ires->next != NULL; ires = ires->next);
@@ -546,8 +545,7 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
             if(_c2s_client_accept_check(c2s, fd, (char *) data) != 0)
                 return 1;
 
-            sess = (sess_t) malloc(sizeof(struct sess_st));
-            memset(sess, 0, sizeof(struct sess_st));
+            sess = (sess_t) calloc(1, sizeof(struct sess_st));
 
             sess->c2s = c2s;
 
@@ -961,8 +959,28 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                         break;
                 }
             if(bres == NULL) {
-                log_debug(ZONE, "expected packet from sm session %s, but got one from %.*s, dropping", sess->resources->sm_id, NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
+                /* build temporary resource to close session for */
+                jid_t jid = jid_new(sess->c2s->pc, sess->s->auth_id, -1);
+                bres_t tres = (bres_t) calloc(1, sizeof(struct bres_st));
+                tres->jid = jid;
+                sprintf(tres->c2s_id, "%d", sess->s->tag);
+                snprintf(tres->sm_id, 41, "%.*s", NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
+
+                if(sess->resources)
+                    log_debug(ZONE, "expected packet from sm session %s, but got one from %.*s, ending sm session", sess->resources->sm_id, NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
+                else
+                    log_debug(ZONE, "no resource bound yet, but got packet from sm session %.*s, ending sm session", NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
+
+                /* end a session with the sm */
+                sm_end(sess, tres);
+
+                /* finished with the nad */
                 nad_free(nad);
+
+                /* free temp objects */
+                jid_free(jid);
+                free(tres);
+
                 return 0;
             }
 
