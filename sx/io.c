@@ -32,23 +32,7 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
        the socket but the plugin didn't return anything to us (e.g. a
        SSL packet was split across a tcp segment boundary) */
 
-    /* check if the stanza size limit is exceeded */
-    if(s->rbytes > SX_MAX_STANZA_SIZE) {
-        /* parse error */
-        errstring = (char *) XML_ErrorString(XML_GetErrorCode(s->expat));
-
-        _sx_gen_error(sxe, SX_ERR_XML_PARSE, "stream read error", "Maximum stanza size exceeded");
-        _sx_event(s, event_ERROR, (void *) &sxe);
-
-        _sx_error(s, stream_err_POLICY_VIOLATION, errstring);
-        _sx_close(s);
-
-        _sx_buffer_free(buf);
-
-        return;
-    }
-
-    /* count bytes read for this stanza */
+    /* count bytes read */
     s->rbytes += buf->len;
 
     /* parse it */
@@ -71,6 +55,22 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
 
         /* !!! is this the right thing to do? we should probably set
          *     s->fail and let the code further down handle it. */
+        _sx_buffer_free(buf);
+
+        return;
+    }
+
+    /* check if the stanza size limit is exceeded (it wasn't reset by parser) */
+    if(s->rbytes > SX_MAX_STANZA_SIZE) {
+        /* parse error */
+        errstring = (char *) XML_ErrorString(XML_GetErrorCode(s->expat));
+
+        _sx_gen_error(sxe, SX_ERR_XML_PARSE, "stream read error", "Maximum stanza size exceeded");
+        _sx_event(s, event_ERROR, (void *) &sxe);
+
+        _sx_error(s, stream_err_POLICY_VIOLATION, errstring);
+        _sx_close(s);
+
         _sx_buffer_free(buf);
 
         return;
