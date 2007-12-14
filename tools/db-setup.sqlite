@@ -77,6 +77,8 @@ CREATE TABLE "vcard" (
     "url" TEXT,
     "tel" TEXT,
     "email" TEXT,
+    "jabberid" TEXT,
+    "mailer" TEXT,
     "title" TEXT,
     "role" TEXT,
     "bday" TEXT,
@@ -101,6 +103,7 @@ CREATE TABLE "vcard" (
     "sort-string" TEXT,
     "desc" TEXT,
     "note" TEXT,
+    "uid" TEXT,
     
     "photo-type" TEXT,
     "photo-binval" TEXT,

@@ -44,52 +44,49 @@ static int ns_VCARD = 0;
 
 static const char *_iq_vcard_map[] = {
     "FN",           "fn",
-    "NICKNAME",     "nickname",
-    "URL",          "url",
-    "TEL/NUMBER",   "tel",
-    "EMAIL/USERID", "email",
-    "TITLE",        "title",
-    "ROLE",         "role",
-    "BDAY",         "bday",
-    "DESC",         "desc",
     "N/FAMILY",     "n-family",
     "N/GIVEN",      "n-given",
     "N/MIDDLE",     "n-middle",
     "N/PREFIX",     "n-prefix",
     "N/SUFFIX",     "n-suffix",
-    "ADR/STREET",   "adr-street",
+    "NICKNAME",     "nickname",
+    "PHOTO/TYPE",   "photo-type",
+    "PHOTO/BINVAL", "photo-binval",
+    "PHOTO/EXTVAL", "photo-extval",
+    "BDAY",         "bday",
     "ADR/POBOX",    "adr-pobox",
     "ADR/EXTADD",   "adr-extadd",
+    "ADR/STREET",   "adr-street",
     "ADR/LOCALITY", "adr-locality",
     "ADR/REGION",   "adr-region",
     "ADR/PCODE",    "adr-pcode",
     "ADR/CTRY",     "adr-country",
-    "ORG/ORGNAME",  "org-orgname",
-    "ORG/ORGUNIT",  "org-orgunit",
-    
+    "TEL/NUMBER",   "tel",
+    "EMAIL/USERID", "email",
+    "JABBERID",     "jabberid",
+    "MAILER",       "mailer",
     "TZ",           "tz",
     "GEO/LAT",      "geo-lat",
     "GEO/LON",      "geo-lon",
-    "AGENT/EXTVAL", "agent-extval",
-    "NOTE",         "note",
-    "REV",          "rev",
-    "SORT-STRING",  "sort-string",
-
-    "KEY/TYPE",     "key-type",
-    "KEY/CRED",     "key-cred",
-    
-    "PHOTO/TYPE",   "photo-type",
-    "PHOTO/BINVAL", "photo-binval",
-    "PHOTO/EXTVAL", "photo-extval",
-    
+    "TITLE",        "title",
+    "ROLE",         "role",
     "LOGO/TYPE",    "logo-type",
     "LOGO/BINVAL",  "logo-binval",
     "LOGO/EXTVAL",  "logo-extval",
-    
+    "AGENT/EXTVAL", "agent-extval",
+    "ORG/ORGNAME",  "org-orgname",
+    "ORG/ORGUNIT",  "org-orgunit",
+    "NOTE",         "note",
+    "REV",          "rev",
+    "SORT-STRING",  "sort-string",
     "SOUND/PHONETIC","sound-phonetic",
     "SOUND/BINVAL", "sound-binval",
     "SOUND/EXTVAL", "sound-extval",
-    
+    "UID",          "uid",
+    "URL",          "url",
+    "DESC",         "desc",
+    "KEY/TYPE",     "key-type",
+    "KEY/CRED",     "key-cred",
     NULL,           NULL
 };
 
@@ -258,6 +255,59 @@ static mod_ret_t _iq_vcard_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     return mod_HANDLED;
 }
 
+/* for the special JID of your jabber server bare domain.
+ * You can have one for every virtual host
+ * you can populate it using your DBMS frontend
+ */
+static mod_ret_t _iq_vcard_pkt_sm(mod_instance_t mi, pkt_t pkt) {
+    os_t os;
+    st_ret_t ret;
+    pkt_t result;
+
+    /* only handle vcard sets and gets */
+    if((pkt->type != pkt_IQ && pkt->type != pkt_IQ_SET) || pkt->ns != ns_VCARD)
+        return mod_PASS;
+
+    /* error them if they're trying to do a set */
+    if(pkt->type == pkt_IQ_SET)
+        return -stanza_err_FORBIDDEN;
+
+    /* a vcard for the server */
+    ret = storage_get(mi->sm->st, "vcard", pkt->to->domain, NULL, &os);
+    switch(ret) {
+        case st_FAILED:
+            return -stanza_err_INTERNAL_SERVER_ERROR;
+
+        case st_NOTIMPL:
+            return -stanza_err_FEATURE_NOT_IMPLEMENTED;
+
+        case st_NOTFOUND:
+            return -stanza_err_ITEM_NOT_FOUND;
+
+        case st_SUCCESS:
+            result = _iq_vcard_to_pkt(mi->sm, os);
+            os_free(os);
+
+            result->to = jid_dup(pkt->from);
+            result->from = jid_dup(pkt->to);
+
+            nad_set_attr(result->nad, 1, -1, "to", jid_full(result->to), 0);
+            nad_set_attr(result->nad, 1, -1, "from", jid_full(result->from), 0);
+
+            pkt_id(pkt, result);
+
+            pkt_router(result);
+
+            pkt_free(pkt);
+
+            return mod_HANDLED;
+    }
+
+    /* we never get here */
+    pkt_free(pkt);
+    return mod_HANDLED;
+}
+
 static mod_ret_t _iq_vcard_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     os_t os;
     st_ret_t ret;
@@ -322,6 +372,7 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
 
     if(mod->init) return 0;
 
+    mod->pkt_sm = _iq_vcard_pkt_sm;
     mod->in_sess = _iq_vcard_in_sess;
     mod->pkt_user = _iq_vcard_pkt_user;
     mod->user_delete = _iq_vcard_user_delete;

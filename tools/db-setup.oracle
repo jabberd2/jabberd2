@@ -173,6 +173,8 @@ CREATE TABLE "vcard" (
     "url" varchar2(4000),
     "tel" varchar2(4000),
     "email" varchar2(4000),
+    "jabberid" varchar2(4000),
+    "mailer" varchar2(4000),
     "title" varchar2(4000),
     "role" varchar2(4000),
     "bday" varchar2(4000),
@@ -186,7 +188,8 @@ CREATE TABLE "vcard" (
     "adr-pcode" varchar2(4000),
     "adr-country" varchar2(4000),
     "org-orgname" varchar2(4000),
-    "org-orgunit" varchar2(4000) );
+    "org-orgunit" varchar2(4000),
+    "uid" varchar2(4000) );
 
 CREATE OR REPLACE TRIGGER "vcard-object-sequence"
 BEFORE INSERT

@@ -73,6 +73,8 @@ CREATE TABLE `vcard` (
     `url` VARCHAR(255),
     `tel` VARCHAR(255),
     `email` VARCHAR(255),
+    `jabberid` VARCHAR(3071),
+    `mailer` VARCHAR(1023),
     `title` VARCHAR(255),
     `role` VARCHAR(255),
     `bday` VARCHAR(255),        # Shouldn't this be a DATE?
@@ -97,6 +99,7 @@ CREATE TABLE `vcard` (
     `sort-string` VARCHAR(255),
     `desc` TEXT,
     `note` TEXT,
+    `uid` VARCHAR(255),
     
     `photo-type` VARCHAR(127),
     `photo-binval` TEXT,

@@ -1,5 +1,15 @@
 This file contains upgrade instructions between different versions of jabberd2.
 
+* 2.1.19 to 2.1.20 upgrade:
+
+What had change:
+- added missing XEP-0054 fields
+- server vcard support
+
+You need to add missing columns to "vcard" table:
+ALTER TABLE vcard ADD "jabberid" text, ADD "mailer" text, ADD "uid" text;
+
+
 * 2.1.18 to 2.1.19 upgrade:
 
 What had change:
