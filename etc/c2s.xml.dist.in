@@ -3,9 +3,8 @@
   <!-- Our ID on the network (default: c2s) -->
   <id>c2s</id>
 
-  <!-- The process ID file. comment this out if you don't need to know
-       to know the process ID from outside the process (eg for control
-       scripts) -->
+  <!-- The process ID file. Comment this out if you don't need to know
+       the process ID from outside the process (eg for control scripts) -->
   <pidfile>@localstatedir@/jabberd/pid/c2s.pid</pidfile>
 
   <!-- Router connection configuration -->
@@ -58,7 +57,7 @@
     <!-- If logging to syslog, this is the log facility
          (local0 - local7)                        [default: local3] -->
     <facility>local3</facility>
-    
+
     <!-- If logging to file, this is the filename of the logfile -->
     <!--
     <file>@localstatedir@/jabberd/log/c2s.log</file>
@@ -76,7 +75,7 @@
          You may leave the content of the <id/> empty to setup default
          virtual host setup, that will be used for all present but not
          configured otherwise SM domains.
-         
+
          realm
          attribute specifies the auth/reg or SASL authentication realm
          for the host. If the attribute is not specified, the realm will
@@ -84,23 +83,23 @@
          itself. Be aware that users are assigned to a realm, not a host,
          so two hosts in the same realm will have the same users. If no
          realm is specified, it will be set to be the same as the ID.
-         
+
          pemfile
          attribute specifies the file containing a SSL certificate and
          private key for client connections. If this is non existant,
          clients will not be offered the STARTTLS stream extension
-         
+
          verify-mode
          SSL verify mode - see SSL_CTX_set_verify(3), mode parameter
-         
+
          require-starttls
          If this is enabled, clients must do STARTTLS
          before they can authenticate. Until the stream is encrypted,
          all packets will be dropped.
-         
+
          register-enable
          Remove this attribute to disable account registrations.
-         
+
          instructions
          Human-readable instructions to be returned to client when
          registration is requested.
@@ -199,6 +198,14 @@
 
            Default Y is 5, default Z is 5. set X to 0 to disable. -->
       <connects>0</connects>
+
+      <!-- Maximum stanza size - if more than given number of bytes
+           are read in one incoming stanza, the stream is closed
+	   with policy-violation error.
+
+           Set to 0 to disable.
+           Values less than 16384 might not work. -->
+      <stanzasize>65535</stanzasize>
     </limits>
 
     <!-- Enable XEP-0138: Stream Compression -->
@@ -214,7 +221,7 @@
          determines what happens. -->
     <access>
       <!-- Rule check order (default: allow,deny)
-           
+
            allow,deny - Check allow rules, then check deny rules.
                         Allow by default.
            deny,allow - Check deny rules, then check allow rules.
@@ -258,7 +265,7 @@
       <idle>0</idle>
 
       <!-- Keepalives.
-           
+
            Connections that have not sent data for longer than this many
            seconds will have a single whitespace character sent to them.
            This will force the TCP connection to be closed if they have
@@ -268,7 +275,7 @@
       <keepalive>0</keepalive>
 
     </check>
-    
+
   </io>
 
   <!-- Statistics -->
@@ -399,7 +406,7 @@
     <db>
       <!-- Directory to store database files under -->
       <path>@localstatedir@/jabberd/db</path>
-      
+
       <!-- Synchronize the database to disk after each write. If you
            disable this, database accesses may be faster, but data may
            be lost if jabberd crashes. -->
@@ -407,6 +414,7 @@
     </db>
 
     <!-- LDAP module configuration -->
+    <!-- Remember that you need to use PLAIN auth with LDAP backend -->
     <ldap>
       <!-- LDAP server host and port (default: 389) -->
       <host>ldap.example.com</host>
@@ -430,7 +438,7 @@
       <!--
       <ssl/>
       -->
-      
+
       <!-- DN to bind as for searches. If unspecified, the searches
            will be done anonymously. -->
       <!--
@@ -455,7 +463,7 @@
     <!-- if you want to configure more than one LDAP server
          create ldap1, ldap2 etc. sections
     <ldap1>
-      
+
     </ldap1>
     -->
 

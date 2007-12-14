@@ -560,6 +560,9 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
             sess->s = sx_new(c2s->sx_env, fd->fd, _c2s_client_sx_callback, (void *) sess);
             mio_app(m, fd, _c2s_client_mio_callback, (void *) sess);
 
+            if(c2s->stanza_size_limit != 0)
+                sess->s->rbytesmax = c2s->stanza_size_limit;
+
             if(c2s->byte_rate_total != 0)
                 sess->rate = rate_new(c2s->byte_rate_total, c2s->byte_rate_seconds, c2s->byte_rate_wait);
 
@@ -966,10 +969,11 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 sprintf(tres->c2s_id, "%d", sess->s->tag);
                 snprintf(tres->sm_id, 41, "%.*s", NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
 
-                if(sess->resources)
+                if(sess->resources) {
                     log_debug(ZONE, "expected packet from sm session %s, but got one from %.*s, ending sm session", sess->resources->sm_id, NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
-                else
+                } else {
                     log_debug(ZONE, "no resource bound yet, but got packet from sm session %.*s, ending sm session", NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
+                }
 
                 /* end a session with the sm */
                 sm_end(sess, tres);

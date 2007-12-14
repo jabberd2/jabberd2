@@ -230,6 +230,9 @@ struct c2s_st {
     int                 byte_rate_seconds;
     int                 byte_rate_wait;
 
+    /** maximum stanza size */
+    int                 stanza_size_limit;
+
     /** stringprep cache */
     prep_cache_t        pc;
 

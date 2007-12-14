@@ -167,6 +167,8 @@ static void _c2s_config_expand(c2s_t c2s)
         }
     }
 
+    c2s->stanza_size_limit = j_atoi(config_get_one(c2s->config, "io.limits.stanzasize", 0), 0);
+
     str = config_get_one(c2s->config, "io.access.order", 0);
     if(str == NULL || strcmp(str, "deny,allow") != 0)
         c2s->access = access_new(0);
@@ -549,8 +551,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     jabber_signal(SIGPIPE, SIG_IGN);
 #endif
 
-    c2s = (c2s_t) malloc(sizeof(struct c2s_st));
-    memset(c2s, 0, sizeof(struct c2s_st));
+    c2s = (c2s_t) calloc(1, sizeof(struct c2s_st));
 
     /* load our config */
     c2s->config = config_new();
