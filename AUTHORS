@@ -152,6 +152,12 @@ Other people who chipped in:
   Michael Krelin        <hacker klever.net>
     - PostgreSQL related fixes
 
+  Nikita Smirnov	<nsmirnov@gmail.com>
+    - LDAPfull and LDAPvCard backends
+
+  Michael John Wensley
+    - XEP-0054 completness, server vcards
+
 Thanks also go to the testers and bug reporters out there - you know who
 you are. Special thanks in this capacity to Justin Kirby, whose many
 failed efforts to compile j2 helped get much of the build system to

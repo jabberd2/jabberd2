@@ -30,10 +30,16 @@ storage_fs_la_LIBADD  = $(MODULE_LIBADD)
 endif
 
 if STORAGE_LDAP
-pkglib_LTLIBRARIES += authreg_ldap.la
+pkglib_LTLIBRARIES += authreg_ldap.la authreg_ldapfull.la storage_ldapvcard.la
 authreg_ldap_la_SOURCES = authreg_ldap.c
 authreg_ldap_la_LDFLAGS = $(MODULE_LDFLAGS)
 authreg_ldap_la_LIBADD  = $(MODULE_LIBADD) $(LDAP_LIBS)
+authreg_ldapfull_la_SOURCES = authreg_ldapfull.c
+authreg_ldapfull_la_LDFLAGS = $(MODULE_LDFLAGS)
+authreg_ldapfull_la_LIBADD  = $(MODULE_LIBADD) $(LDAP_LIBS)
+authreg_ldapvcard_la_SOURCES = storage_ldapvcard.c
+authreg_ldapvcard_la_LDFLAGS = $(MODULE_LDFLAGS)
+authreg_ldapvcard_la_LIBADD  = $(MODULE_LIBADD) $(LDAP_LIBS)
 endif
 
 if STORAGE_MYSQL

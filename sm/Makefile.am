@@ -18,6 +18,7 @@ pkglib_LTLIBRARIES = mod_active.la \
                   mod_presence.la \
                   mod_privacy.la \
                   mod_roster.la \
+                  mod_roster_publish.la \
                   mod_session.la \
                   mod_status.la \
                   mod_template-roster.la \
@@ -117,6 +118,10 @@ mod_privacy_la_LIBADD = $(top_builddir)/subst/libsubst.la
 mod_roster_la_SOURCES = mod_roster.c
 mod_roster_la_LDFLAGS = -module -export-dynamic
 mod_roster_la_LIBADD = $(top_builddir)/subst/libsubst.la
+
+mod_roster_publish_la_SOURCES = mod_roster_publish.c
+mod_roster_publish_la_LDFLAGS = -module -export-dynamic
+mod_roster_publish_la_LIBADD = $(top_builddir)/subst/libsubst.la
 
 mod_session_la_SOURCES = mod_session.c
 mod_session_la_LDFLAGS = -module -export-dynamic

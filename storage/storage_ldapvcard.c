@@ -1,0 +1,577 @@
+/*
+ * jabberd - Jabber Open Source Server
+ * Copyright (c) 2002 Jeremie Miller, Thomas Muldowney,
+ *                    Ryan Eatmon, Robert Norris
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
+ */
+
+/*
+ * Written by Nikita Smirnov in 2004
+ * on basis of authreg_ldap.c and storage_fs.c
+ */
+
+#include "sm.h"
+
+#ifdef STORAGE_LDAP
+
+#include <ldap.h>
+#include <time.h>
+
+#define LDAPVCARD_SRVTYPE_LDAP 1
+#define LDAPVCARD_SRVTYPE_AD 2
+
+#define LDAPVCARD_SEARCH_MAX_RETRIES 1
+
+/** internal structure, holds our data */
+typedef struct drvdata_st {
+    LDAP *ld;
+    char *uri;
+
+    char *binddn;
+    char *bindpw;
+    char *basedn;
+
+    char *objectclass; // objectclass of jabber users
+    char *uidattr; // search attribute for users
+    char *validattr; // search attribute for valid
+    char *pwattr; // attribute which holds password
+    char *groupattr; // attribute with group name for published-roster in jabberuser entry
+    char *publishedattr; // can we publish it?
+
+    char *groupsdn; // base dn for group names search
+    char *groupsoc; // objectclass for group names search
+    char *groupsidattr; // search attribute for group names
+    char *groupnameattr; // attribute with text group name
+
+    int srvtype;
+    int mappedgroups;
+
+#ifndef NO_SM_CACHE
+    os_t cache;
+    time_t cache_time;
+    time_t cache_ttl;
+#endif
+} *drvdata_t;
+
+typedef struct {
+    char *ldapentry, *vcardentry;
+    os_type_t ot;
+} ldapvcard_entry_st;
+
+ldapvcard_entry_st ldapvcard_entry[] =
+{
+    {"displayName","fn",os_type_STRING},
+    {"cn","nickname",os_type_STRING},
+    {"labeledURI","url",os_type_STRING},
+    {"telephoneNumber","tel",os_type_STRING},
+    {"mail","email",os_type_STRING},
+    {"title","title",os_type_STRING},
+//    {"","role",os_type_STRING},
+//    {"","bday",os_type_STRING},
+    {"description","desc",os_type_STRING},
+    {"givenName","n-given",os_type_STRING},
+    {"sn","n-family",os_type_STRING},
+    {"st","adr-street",os_type_STRING},
+    {"l","adr-locality",os_type_STRING},
+//    {"","adr-region",os_type_STRING},
+    {"postalCode","adr-pcode",os_type_STRING},
+    {"c","adr-country",os_type_STRING},
+    {"o","org-orgname",os_type_STRING},
+    {"ou","org-orgunit",os_type_STRING},
+    {NULL,NULL,0}
+};
+
+#ifndef NO_SM_CACHE
+os_t os_copy(os_t src, os_t dst) {
+    os_object_t o,dsto;
+    char *key;
+    void *val, *cval;
+    os_type_t ot;
+
+    if(os_iter_first(src)) {
+        do {
+            //log_write(log, LOG_ERR, "reading object");
+            o = os_iter_object(src);
+            dsto = os_object_new(dst);
+            if( os_object_iter_first(o)) {
+                do {
+                    os_object_iter_get(o,&key,&val,&ot);
+                    switch(ot) {
+                        case os_type_BOOLEAN:
+                        case os_type_INTEGER:
+                            cval = &val;
+                            break;
+                        default:
+                            cval = val;
+                    }
+                    os_object_put(dsto,key,cval,ot);
+                    //log_write(log, LOG_ERR, "wrote.");
+                } while(os_object_iter_next(o));
+            }
+        } while(os_iter_next(src));
+    } else { // ! os_iter_first(src)
+        log_debug(ZONE,"os_copy: cannot read source object");
+    }
+}
+#endif
+
+/** utility function to get ld_errno */
+static int _st_ldapvcard_get_lderrno(LDAP *ld)
+{
+  int ld_errno;
+  ldap_get_option(ld, LDAP_OPT_ERROR_NUMBER, &ld_errno);
+  return ld_errno;
+}
+
+/** connect to the ldap host */
+static int _st_ldapvcard_connect(st_driver_t drv)
+{
+  drvdata_t data = (drvdata_t) drv->private;
+  int ldapversion = LDAP_VERSION3;
+  int rc;
+
+  if(data->ld != NULL)
+    ldap_unbind_s(data->ld);
+
+  rc = ldap_initialize( &(data->ld), data->uri);
+  if( rc != LDAP_SUCCESS )
+  {
+    log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: ldap_initialize failed (uri=%s): %s", data->uri, ldap_err2string(rc));
+    return 1;
+  }
+
+  if (ldap_set_option(data->ld, LDAP_OPT_PROTOCOL_VERSION, &ldapversion) != LDAP_SUCCESS)
+  {
+    log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: couldn't set v3 protocol");
+    return 1;
+  }
+  if (ldap_set_option(data->ld, LDAP_OPT_REFERRALS, LDAP_OPT_ON) != LDAP_SUCCESS)
+  {
+    log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: couldn't set LDAP_OPT_REFERRALS");
+  }
+
+  return 0;
+}
+
+/** unbind and clear variables */
+static int _st_ldapvcard_unbind(st_driver_t drv) {
+  drvdata_t data = (drvdata_t) drv->private;
+  ldap_unbind_s(data->ld);
+  data->ld = NULL;
+  return 0;
+}
+
+/** connect to ldap and bind as data->binddn */
+static int _st_ldapvcard_connect_bind(st_driver_t drv) {
+  drvdata_t data = (drvdata_t) drv->private;
+
+  if(data->ld != NULL ) {
+    return 0;
+  }
+
+  if( _st_ldapvcard_connect(drv) ) {
+    return 1;
+  }
+  if(ldap_simple_bind_s(data->ld, data->binddn, data->bindpw))
+  {
+    log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: bind as %s failed: %s", data->binddn, ldap_err2string(_st_ldapvcard_get_lderrno(data->ld)));
+    _st_ldapvcard_unbind(drv);
+    return 1;
+  }
+  return 0;
+}
+
+static st_ret_t _st_ldapvcard_add_type(st_driver_t drv, const char *type) {
+    drvdata_t data = (drvdata_t) drv->private;
+
+    if( strncmp(type,"vcard",6) &&
+        strncmp(type,"published-roster",17) &&
+        strncmp(type,"published-roster-groups",24)
+        ) {
+        log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: only vcard,published-roster,published-roster-groups types supperted for now");
+        return st_FAILED;
+    } else {
+        if( !strncmp(type,"published-roster-groups",24) ) {
+            if( !data->mappedgroups ) {
+                log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: published-roster-groups is not enabled by map-groups config option in ldapvcard section");
+                return st_FAILED;
+            }
+        }
+        return st_SUCCESS;
+    }
+
+    return st_SUCCESS;
+}
+
+static st_ret_t _st_ldapvcard_get(st_driver_t drv, const char *type, const char *owner, const char *filter, os_t *os) {
+    drvdata_t data = (drvdata_t) drv->private;
+    os_object_t o;
+    char validfilter[256], ldapfilter[1024], **vals;
+    char *attrs_vcard[sizeof(ldapvcard_entry)/sizeof(ldapvcard_entry_st)];
+    char *attrs_pr[] = { data->uidattr, data->groupattr, "sn", "displayName", "initials", NULL };
+    char *attrs_prg[] = { data->groupnameattr, NULL };
+    LDAPMessage *result, *entry;
+    ldapvcard_entry_st le;
+    int i,ival;
+    int tried = 0;
+    char jid[2048], group[1024], name[2048]; // name is sn[1024] + ' ' + initials[1024]
+
+    if( _st_ldapvcard_connect_bind(drv) ) {
+        return st_FAILED;
+    }
+
+    if( strncmp(type,"vcard",6) == 0 ) {
+        // prepare need attributes
+        i = 0;
+        do {
+            le = ldapvcard_entry[i];
+            attrs_vcard[++i] = le.ldapentry;
+        } while ( le.ldapentry != NULL );
+
+        snprintf(ldapfilter, 1024, "(&(objectClass=%s)(%s=%s))", data->objectclass, data->uidattr, owner);
+        log_debug(ZONE, "search filter: %s", ldapfilter);
+retry_vcard:
+        if(ldap_search_s(data->ld, data->basedn, LDAP_SCOPE_SUBTREE, ldapfilter, attrs_vcard, 0, &result))
+        {
+            if( tried++ < LDAPVCARD_SEARCH_MAX_RETRIES ) {
+                log_debug(ZONE, "ldapvcard: search fail, will retry; %s: %s", ldapfilter, ldap_err2string(_st_ldapvcard_get_lderrno(data->ld)));
+                _st_ldapvcard_unbind(drv);
+                if( _st_ldapvcard_connect_bind(drv) == 0 ) {
+                    goto retry_vcard;
+                } else {
+                    return st_FAILED;
+                }
+            }
+            log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: search %s failed: %s", ldapfilter, ldap_err2string(_st_ldapvcard_get_lderrno(data->ld)));
+            _st_ldapvcard_unbind(drv);
+            return st_FAILED;
+        }
+
+        entry = ldap_first_entry(data->ld, result);
+        if(entry == NULL)
+        {
+            ldap_msgfree(result);
+            return st_FAILED;
+        }
+
+        *os = os_new();
+
+        o = os_object_new(*os);
+
+        i = 0;
+        le = ldapvcard_entry[i];
+        while( le.ldapentry != NULL ) {
+            vals=(char **)ldap_get_values(data->ld,entry,le.ldapentry);
+            if( ldap_count_values(vals) > 0 ) {
+                switch(le.ot) {
+                    case os_type_BOOLEAN:
+                    case os_type_INTEGER:
+                        ival=atoi(vals[0]);
+                        os_object_put(o, le.vcardentry, &ival, le.ot);
+                        break;
+                    case os_type_STRING:
+                        os_object_put(o, le.vcardentry, vals[0], le.ot);
+                        break;
+
+                }
+            }
+            ldap_value_free(vals);
+            le = ldapvcard_entry[++i];
+        }
+        ldap_msgfree(result);
+    } else if( strncmp(type,"published-roster",17) == 0 ) {
+#ifndef NO_SM_CACHE
+        if( data->cache_ttl && data->cache && (time(NULL) - data->cache_time < data->cache_ttl) ) {
+            *os = os_new();
+            os_copy(data->cache, *os);
+        } else {
+#endif
+            validfilter[0] = '\0';
+            if( data->srvtype == LDAPVCARD_SRVTYPE_AD ) {
+                if( data->validattr ) {
+                    snprintf(validfilter, 256, "(%s=TRUE)(%s=TRUE)", data->publishedattr, data->validattr);
+                } else {
+                    snprintf(validfilter, 256, "(%s=TRUE)", data->publishedattr);
+                }
+            } else {
+                if( data->validattr ) {
+                    snprintf(validfilter, 256, "(&(%s=*)(!(%s=0)))(%s=1)", data->publishedattr, data->publishedattr, data->validattr);
+                } else {
+                    snprintf(validfilter, 256, "(&(%s=*)(!(%s=0)))", data->publishedattr, data->publishedattr);
+                }
+            }
+                
+            snprintf(ldapfilter, 1024, "(&%s(objectClass=%s)(%s=*))", validfilter, data->objectclass, data->uidattr);
+
+            log_debug(ZONE, "search filter: %s", ldapfilter);
+
+retry_pubrost:
+            if(ldap_search_s(data->ld, data->basedn, LDAP_SCOPE_SUBTREE, ldapfilter, attrs_pr, 0, &result))
+            {
+                if( tried++ < LDAPVCARD_SEARCH_MAX_RETRIES ) {
+                    log_debug(ZONE, "ldapvcard: search fail, will retry; %s: %s", ldapfilter, ldap_err2string(_st_ldapvcard_get_lderrno(data->ld)));
+                    _st_ldapvcard_unbind(drv);
+                    if( _st_ldapvcard_connect_bind(drv) == 0 ) {
+                        goto retry_pubrost;
+                    } else {
+                        return st_FAILED;
+                    }
+                }
+                log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: search %s failed: %s", ldapfilter, ldap_err2string(_st_ldapvcard_get_lderrno(data->ld)));
+                _st_ldapvcard_unbind(drv);
+                return st_FAILED;
+            }
+
+            entry = ldap_first_entry(data->ld, result);
+            if(entry == NULL)
+            {
+                ldap_msgfree(result);
+                return st_FAILED;
+            }
+
+            *os = os_new();
+
+            do {
+                vals = (char **)ldap_get_values(data->ld,entry,data->groupattr);
+                if( ldap_count_values(vals) <= 0 ) {
+                    ldap_value_free(vals);
+                    continue;
+                }
+                strncpy(group,vals[0],sizeof(group)-1); group[sizeof(group)-1]='\0';
+                ldap_value_free(vals);
+
+                vals = (char **)ldap_get_values(data->ld,entry,data->uidattr);
+                if( ldap_count_values(vals) <= 0 ) {
+                    ldap_value_free(vals);
+                    free(group);
+                    continue;
+                }
+                strncpy(jid,vals[0],sizeof(jid)-1); jid[sizeof(jid)-1]='\0';
+                ldap_value_free(vals);
+
+                vals = (char **)ldap_get_values(data->ld,entry,"sn");
+                if( ldap_count_values(vals) <= 0 ) {
+                    ldap_value_free(vals);
+                    vals = (char **)ldap_get_values(data->ld,entry,"displayName");
+                    if( ldap_count_values(vals) <= 0 ) {
+                        strncpy(name,jid,sizeof(name)-1); name[sizeof(name)-1]='\0';
+                    } else {
+                        strncpy(name,vals[0],sizeof(name)-1); name[sizeof(name)-1]='\0';
+                    }
+                } else {
+                    strncpy(name,vals[0],1023); name[1023]='\0';
+                    ldap_value_free(vals);
+                    vals = (char **)ldap_get_values(data->ld,entry,"initials");
+                    if( ldap_count_values(vals) > 0 ) {
+                        strcat(name," ");
+                        strncat(name,vals[0],1023);
+                    }
+                }
+                ldap_value_free(vals);
+
+                o = os_object_new(*os);
+                os_object_put(o,"jid",jid,os_type_STRING);
+                os_object_put(o,"group",group,os_type_STRING);
+                os_object_put(o,"name",name,os_type_STRING);
+                ival=1;
+                os_object_put(o,"to",&ival,os_type_BOOLEAN);
+                os_object_put(o,"from",&ival,os_type_BOOLEAN);
+                ival=0;
+                os_object_put(o,"ask",&ival,os_type_INTEGER);
+            } while( entry = ldap_next_entry(data->ld, entry) );
+            ldap_msgfree(result);
+#ifndef NO_SM_CACHE
+            if( data->cache_ttl ) {
+                if( data->cache ) {
+                    os_free(data->cache);
+                }
+                data->cache = os_new();
+                os_copy(*os, data->cache);
+                data->cache_time = time(NULL);
+            }
+#endif
+#ifndef NO_SM_CACHE
+        } // if !cached
+#endif
+    } else if( strncmp(type,"published-roster-groups",24) == 0 ) {
+        snprintf(ldapfilter, 1024, "(&(objectClass=%s)(%s=%s))", data->groupsoc, data->groupsidattr, owner);
+        log_debug(ZONE, "search filter: %s", ldapfilter);
+retry_pubrostgr:
+        if(ldap_search_s(data->ld, data->basedn, LDAP_SCOPE_SUBTREE, ldapfilter, attrs_prg, 0, &result))
+        {
+            if( tried++ < LDAPVCARD_SEARCH_MAX_RETRIES ) {
+                log_debug(ZONE, "ldapvcard: search fail, will retry; %s: %s", ldapfilter, ldap_err2string(_st_ldapvcard_get_lderrno(data->ld)));
+                _st_ldapvcard_unbind(drv);
+                if( _st_ldapvcard_connect_bind(drv) == 0 ) {
+                    goto retry_pubrostgr;
+                } else {
+                    return st_FAILED;
+                }
+            }
+            log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: search %s failed: %s", ldapfilter, ldap_err2string(_st_ldapvcard_get_lderrno(data->ld)));
+            _st_ldapvcard_unbind(drv);
+            return st_FAILED;
+        }
+
+        entry = ldap_first_entry(data->ld, result);
+        if(entry == NULL)
+        {
+            ldap_msgfree(result);
+            return st_FAILED;
+        }
+
+        *os = os_new();
+
+        // use only the first found entry and the first found attribute value
+        vals = (char **)ldap_get_values(data->ld,entry,data->groupnameattr);
+        if( ldap_count_values(vals) <= 0 ) {
+            ldap_value_free(vals);
+            ldap_msgfree(result);
+            return st_FAILED;
+        }
+        strncpy(group,vals[0],sizeof(group)-1); group[sizeof(group)-1]='\0';
+        ldap_value_free(vals);
+        ldap_msgfree(result);
+
+        o = os_object_new(*os);
+        os_object_put(o,"groupname",group,os_type_STRING);
+    } else {
+        log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: unknown storage type: '%s'", type);
+        return st_FAILED;
+    }
+
+    return st_SUCCESS;
+}
+
+static st_ret_t _st_ldapvcard_put(st_driver_t drv, const char *type, const char *owner, os_t os) {
+    return st_FAILED;
+}
+static st_ret_t _st_ldapvcard_delete(st_driver_t drv, const char *type, const char *owner, const char *filter) {
+    return st_SUCCESS;
+}
+static st_ret_t _st_ldapvcard_replace(st_driver_t drv, const char *type, const char *owner, const char *filter, os_t os) {
+    return st_FAILED;
+}
+
+static void _st_ldapvcard_free(st_driver_t drv) {
+    drvdata_t data = (drvdata_t) drv->private;
+    if( data->ld ) {
+        _st_ldapvcard_unbind(drv);
+    }
+    free(data);
+}
+
+DLLEXPORT st_ret_t st_init(st_driver_t drv)
+{
+    drvdata_t data;
+    char *uri, *basedn, *srvtype_s;
+    int srvtype_i;
+
+    log_write(drv->st->sm->log, LOG_NOTICE, "ldapvcard: initializing");
+
+    uri = config_get_one(drv->st->sm->config, "storage.ldapvcard.uri", 0);
+    if(uri == NULL) {
+        log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: no uri specified in config file");
+        return st_FAILED;
+    }
+
+    basedn = config_get_one(drv->st->sm->config, "storage.ldapvcard.basedn", 0);
+    if(basedn == NULL) {
+        log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: no basedns specified in config file");
+        return st_FAILED;
+    }
+
+    srvtype_s = config_get_one(drv->st->sm->config, "storage.ldapvcard.type", 0);
+    if( srvtype_s == NULL ) {
+        srvtype_i = LDAPVCARD_SRVTYPE_LDAP;
+    } else if( !strcmp(srvtype_s, "ldap") ) {
+        srvtype_i = LDAPVCARD_SRVTYPE_LDAP;
+    } else if( !strcmp(srvtype_s, "ad") ) {
+        srvtype_i = LDAPVCARD_SRVTYPE_AD;
+    } else {
+        log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: unknown server type: %s", srvtype_s);
+        return 1;
+    }
+
+    data = (drvdata_t) malloc(sizeof(struct drvdata_st));
+    memset(data, 0, sizeof(struct drvdata_st));
+
+    drv->private = (void *) data;
+
+    data->uri = uri;
+    data->basedn = basedn;
+    data->srvtype = srvtype_i;
+
+    data->binddn = config_get_one(drv->st->sm->config, "storage.ldapvcard.binddn", 0);
+    if(data->binddn != NULL)
+        data->bindpw = config_get_one(drv->st->sm->config, "storage.ldapvcard.bindpw", 0);
+
+    data->uidattr = config_get_one(drv->st->sm->config, "storage.ldapvcard.uidattr", 0);
+    if(data->uidattr == NULL)
+        data->uidattr = "uid";
+
+    data->validattr = config_get_one(drv->st->sm->config, "storage.ldapvcard.validattr", 0);
+
+    data->groupattr = config_get_one(drv->st->sm->config, "storage.ldapvcard.groupattr", 0);
+    if(data->groupattr == NULL)
+        data->groupattr = "jabberPublishedGroup";
+    
+    data->publishedattr = config_get_one(drv->st->sm->config, "storage.ldapvcard.publishedattr", 0);
+    if(data->publishedattr == NULL)
+        data->publishedattr = "jabberPublishedItem";
+    
+#ifndef NO_SM_CACHE
+    data->cache_ttl = j_atoi(config_get_one(drv->st->sm->config, "storage.ldapvcard.publishedcachettl", 0), 0);
+    data->cache = NULL;
+    data->cache_time = 0;
+#endif
+
+    data->objectclass = config_get_one(drv->st->sm->config, "storage.ldapvcard.objectclass", 0);
+    if(data->objectclass == NULL)
+        data->objectclass = "jabberUser";
+
+    data->mappedgroups = j_atoi(config_get_one(drv->st->sm->config, "storage.ldapvcard.mapped-groups.map-groups", 0), 0);
+    if( data->mappedgroups ) {
+        data->groupsdn = config_get_one(drv->st->sm->config, "storage.ldapvcard.mapped-groups.basedn", 0);
+        if(data->groupsdn == NULL) {
+            log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: no basedn for mapped-groups specified in config file");
+            return st_FAILED;
+        }
+
+        data->groupsoc = config_get_one(drv->st->sm->config, "storage.ldapvcard.mapped-groups.objectclass", 0);
+        if(data->groupsoc == NULL)
+            data->groupsoc = "jabberGroup";
+
+        data->groupsidattr = config_get_one(drv->st->sm->config, "storage.ldapvcard.mapped-groups.idattr", 0);
+        if(data->groupsidattr == NULL)
+            data->groupsidattr = "cn";
+
+        data->groupnameattr = config_get_one(drv->st->sm->config, "storage.ldapvcard.mapped-groups.nameattr", 0);
+        if(data->groupnameattr == NULL)
+            data->groupnameattr = "description";
+    }
+
+    drv->add_type = _st_ldapvcard_add_type;
+    drv->put = _st_ldapvcard_put;
+    drv->get = _st_ldapvcard_get;
+    drv->delete = _st_ldapvcard_delete;
+    drv->replace = _st_ldapvcard_replace;
+    drv->free = _st_ldapvcard_free;
+
+    return st_SUCCESS;
+}
+
+#endif

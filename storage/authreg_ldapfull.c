@@ -1,0 +1,934 @@
+/*
+ * jabberd - Jabber Open Source Server
+ * Copyright (c) 2002 Jeremie Miller, Thomas Muldowney,
+ *                    Ryan Eatmon, Robert Norris
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
+ */
+
+/*
+ * Written by Nikita Smirnov in 2004
+ * on basis of authreg_ldap.c
+ */
+
+/*
+ * !!! this doesn't do any caching. It really should.
+ *
+ * !!! this blocks for every auth.
+ */
+
+#include "c2s.h"
+
+#ifdef STORAGE_LDAP
+
+#include <lber.h>
+#include <ldap.h>
+
+#define LDAPFULL_PASSBUF_MAX 257
+#define LDAPFULL_DN_MAX 4096
+
+#define LDAPFULL_SRVTYPE_LDAP 1
+#define LDAPFULL_SRVTYPE_AD 2
+
+#define LDAPFULL_SEARCH_MAX_RETRIES 1
+
+/** internal structure, holds our data */
+typedef struct moddata_st
+{
+    authreg_t ar;
+
+    LDAP *ld;
+
+    char *uri;
+
+    char *binddn;
+    char *bindpw;
+
+    char *objectclass;
+    char *uidattr;
+    char *validattr;
+    char *pwattr;
+    char *pwscheme;
+
+    int fulluid; // use "uid@realm" in ldap searches (1) or just use "uid" (0)
+    int binded; // if we are binded with binddn and bindpw, then 1, otherwise 0
+
+    int srvtype;
+
+    xht basedn;
+    char *default_basedn;
+} *moddata_t;
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// Here is stuff for hashing passwords
+// ideas and some part of code are taken from cyrus-sasl/saslauthd
+//
+//////////////////////////////////////////////////////////////////////////////
+
+#ifdef HAVE_SSL
+#include <openssl/evp.h>
+#include <openssl/des.h>
+#endif
+
+typedef struct _ldapfull_pw_scheme {
+    char *name;
+    char *scheme;
+    char *prefix;
+    int saltlen;
+    int (*check) (moddata_t data, const char *scheme, int salted, const char *hash, const char *passwd);
+    int (*set) (moddata_t data, const char *scheme, const char *prefix, int saltlen, const char *passwd, char *buf, int buflen);
+} ldapfull_pw_scheme;
+
+int _ldapfull_hash_init(); // call it before use of other stuff
+#ifdef HAVE_SSL
+int _ldapfull_chk_hashed(moddata_t data, const char *scheme, int salted, const char *hash, const char *passwd);
+int _ldapfull_set_hashed(moddata_t data, const char *scheme, const char *prefix, int saltlen, const char *passwd, char *buf, int buflen);
+#endif
+int _ldapfull_chk_clear(moddata_t data, const char *scheme, int salted, const char *hash, const char *passwd);
+int _ldapfull_set_clear(moddata_t data, const char *scheme, const char *prefix, int saltlen, const char *passwd, char *buf, int buflen);
+
+int _ldapfull_check_passhash(moddata_t data, const char *hash, const char *passwd);
+int _ldapfull_set_passhash(moddata_t data, char *scheme_name, const char *passwd, char *buf, int buflen);
+
+ldapfull_pw_scheme _ldapfull_pw_schemas[] = {
+#ifdef HAVE_SSL
+    { "sha", "sha1", "{SHA}", 0, _ldapfull_chk_hashed, _ldapfull_set_hashed },
+    { "ssha", "sha1", "{SSHA}", 4, _ldapfull_chk_hashed, _ldapfull_set_hashed },
+#endif
+    { "clear", "", "", 0, _ldapfull_chk_clear, _ldapfull_set_clear },
+    { NULL, NULL, NULL, 0, NULL, NULL }
+};
+
+
+// general check_password
+// returns 1 if password is checked, 0 otherwise
+int _ldapfull_check_passhash(moddata_t data, const char *hash, const char *passwd) {
+    int n;
+    int plen;
+    int hlen;
+
+    if( ! hash ) {
+        log_write(data->ar->c2s->log,LOG_ERR,"_ldapfull_check_passhash: hash is NULL");
+        return 0;
+    }
+    if( ! passwd ) {
+        log_write(data->ar->c2s->log,LOG_ERR,"_ldapfull_check_passhash: passwd is NULL");
+        return 0;
+    }
+
+    hlen = strlen(hash);
+
+    for( n=0 ; _ldapfull_pw_schemas[n].name != NULL ; n++ ) {
+        plen = strlen(_ldapfull_pw_schemas[n].prefix);
+        if( (plen <= hlen) && !strncmp(hash,_ldapfull_pw_schemas[n].prefix,plen) ) {
+            // if scheme found is cleartext and hash begins with '{', than maybe it is
+            // unknown scheme, so don't pass it
+            if( ! strlen(_ldapfull_pw_schemas[n].scheme) && hlen ) {
+                if( hash[0] == '{' ) {
+                    continue;
+                }
+            }
+            if( _ldapfull_pw_schemas[n].check ) {
+              return _ldapfull_pw_schemas[n].check(
+                  data,
+                  _ldapfull_pw_schemas[n].scheme,
+                  _ldapfull_pw_schemas[n].saltlen,
+                  hash + plen,passwd);
+            } else {
+                log_write(data->ar->c2s->log,LOG_ERR,"_ldapfull_check_passhash: no check function for schema %s",
+                        _ldapfull_pw_schemas[n].name);
+                return 0;
+            }
+        }
+    }
+    return 0;
+}
+
+// general set_password
+// returns 1 if password in buf is set, 0 otherwise
+// must provide with buffer of sufficient length, or it will fail
+int _ldapfull_set_passhash(moddata_t data, char *scheme_name, const char *passwd, char *buf, int buflen) {
+    int n;
+    int plen;
+    int nlen;
+
+    if( ! passwd ) {
+        log_write(data->ar->c2s->log,LOG_ERR,"_ldapfull_set_passhash: passwd is NULL");
+        return 0;
+    }
+    if( ! buf ) {
+        log_write(data->ar->c2s->log,LOG_ERR,"_ldapfull_set_passhash: buf is NULL");
+        return 0;
+    }
+
+    for( n=0 ; _ldapfull_pw_schemas[n].name != NULL ; n++ ) {
+        if( !strcmp(scheme_name,_ldapfull_pw_schemas[n].name) ) {
+            if( _ldapfull_pw_schemas[n].set ) {
+              return _ldapfull_pw_schemas[n].set(
+                  data,
+                  _ldapfull_pw_schemas[n].scheme,
+                  _ldapfull_pw_schemas[n].prefix,
+                  _ldapfull_pw_schemas[n].saltlen,
+                  passwd, buf, buflen);
+            } else {
+                log_write(data->ar->c2s->log,LOG_ERR,"_ldapfull_set_passhash: no set function for schema %s",
+                        _ldapfull_pw_schemas[n].name);
+                return 0;
+            }
+        }
+    }
+    return 0;
+}
+
+int _ldapfull_chk_clear(moddata_t data, const char *scheme, int salted, const char *hash, const char *passwd) {
+    return !strcmp(hash,passwd);
+}
+
+int _ldapfull_set_clear(moddata_t data, const char *scheme, const char *prefix, int saltlen, const char *passwd, char *buf, int buflen) {
+    if( buflen <= strlen(passwd) ) {
+        log_write(data->ar->c2s->log,LOG_ERR,"_ldapfull_set_clear: buffer is too short (%i bytes)",buflen);
+        return 0;
+    }
+    strcpy(buf,passwd);
+    return 1;
+}
+
+#ifdef HAVE_SSL
+int _ldapfull_base64_decode( const char *src, char **ret, int *rlen ) {
+    unsigned int rc, i, tlen = 0;
+    char *text;
+    EVP_ENCODE_CTX EVP_ctx;
+
+    text = (char *)malloc(((strlen(src)+3)/4 * 3) + 1);
+    if (text == NULL) {
+        return 0;
+    }
+
+    EVP_DecodeInit(&EVP_ctx);
+    rc = EVP_DecodeUpdate(&EVP_ctx, text, &i, (char *)src, strlen(src));
+    if (rc < 0) {
+        free(text);
+        return 0;
+    }
+    tlen+=i;
+    EVP_DecodeFinal(&EVP_ctx, text, &i); 
+
+    *ret = text;
+    if (rlen != NULL) {
+        *rlen = tlen;
+    }
+
+    return 1;
+}
+
+int _ldapfull_base64_encode( const char *src, int srclen, char **ret, int *rlen ) {
+    int tlen = 0;
+    char *text;
+    EVP_ENCODE_CTX EVP_ctx;
+
+    text = (char *)malloc((srclen*4/3) + 1 );
+    if (text == NULL) {
+        return 0;
+    }
+
+    EVP_EncodeInit(&EVP_ctx);
+    EVP_EncodeUpdate(&EVP_ctx, text, &tlen, (char *)src, srclen);
+    EVP_EncodeFinal(&EVP_ctx, text, &tlen); 
+
+    *ret = text; 
+    if (rlen != NULL) {
+        *rlen = tlen;
+    }
+
+    return 1;
+}
+
+int _ldapfull_chk_hashed(moddata_t data, const char *scheme, int salted, const char *hash, const char *passwd) {
+    char *bhash; // binary hash, will get it from base64
+    EVP_MD_CTX mdctx;
+    const EVP_MD *md;
+    unsigned char digest[EVP_MAX_MD_SIZE];
+    int bhlen, rc;
+
+    md = EVP_get_digestbyname(scheme);
+    if (!md) {
+        return 0;
+    }
+    if( ! _ldapfull_base64_decode(hash, &bhash, &bhlen) ) {
+        return 0;
+    }
+
+    EVP_DigestInit(&mdctx, md);
+    EVP_DigestUpdate(&mdctx, passwd, strlen(passwd));
+    if (salted) {
+        EVP_DigestUpdate(&mdctx, &bhash[EVP_MD_size(md)],
+                bhlen - EVP_MD_size(md));
+    }
+    EVP_DigestFinal(&mdctx, digest, NULL);
+
+    rc = memcmp((char *)bhash, (char *)digest, EVP_MD_size(md));
+    free(bhash);
+    return !rc;
+}
+
+int _ldapfull_set_hashed(moddata_t data, const char *scheme, const char *prefix, int saltlen, const char *passwd, char *buf, int buflen) {
+    char *hash; // base64 hash
+    EVP_MD_CTX mdctx;
+    const EVP_MD *md;
+    unsigned char *digest;
+    unsigned char *salt;
+    int hlen, plen, dlen, rc;
+
+    md = EVP_get_digestbyname(scheme);
+    if (!md) {
+        return 0;
+    }
+    EVP_DigestInit(&mdctx, md);
+    EVP_DigestUpdate(&mdctx, passwd, strlen(passwd));
+    if (saltlen) {
+        salt = (unsigned char *)malloc(saltlen);
+        if( !salt ) {
+            EVP_MD_CTX_cleanup(&mdctx);
+            return 0;
+        }
+        if( !RAND_bytes(salt,saltlen) ) {
+            EVP_MD_CTX_cleanup(&mdctx);
+            free(salt);
+        }
+        EVP_DigestUpdate(&mdctx, salt, saltlen);
+    }
+    digest = (unsigned char *)malloc(EVP_MD_size(md) + saltlen);
+    if( !digest ) {
+        if (saltlen) {
+            free(salt);
+        }
+        EVP_MD_CTX_cleanup(&mdctx);
+        return 0;
+    }
+    EVP_DigestFinal(&mdctx, digest, &dlen);
+
+    memcpy(digest+dlen,salt,saltlen);
+    if (saltlen) {
+        free(salt);
+    }
+    rc = _ldapfull_base64_encode(digest, dlen+saltlen, &hash, &hlen);
+    if( hash[hlen-1] == '\n' ) {
+        hash[--hlen] = '\0';
+    }
+    free(digest);
+    if( !rc ) {
+        free(hash);
+        return 0;
+    }
+
+    plen = strlen(prefix);
+    if( hlen + plen >= buflen ) {
+        log_write(data->ar->c2s->log,LOG_ERR,"_ldapfull_set_hashed: buffer is too short (%i bytes)",buflen);
+        free(hash);
+        return 0;
+    }
+    memcpy(buf,prefix,plen);
+    memcpy(buf+plen,hash,hlen);
+    buf[hlen+plen]='\0';
+    free(hash);
+
+    return 1;
+}
+#endif // HAVE_SSL
+
+int _ldapfull_hash_init() {
+#ifdef HAVE_SSL
+    OpenSSL_add_all_digests();
+#endif
+    return 1;
+}
+//////////////////////////////////////////////////////////////////////////////
+//
+// end of stuff for hashing passwords
+//
+//////////////////////////////////////////////////////////////////////////////
+
+
+/** utility function to get ld_errno */
+static int _ldapfull_get_lderrno(LDAP *ld)
+{
+    int ld_errno;
+
+    ldap_get_option(ld, LDAP_OPT_ERROR_NUMBER, &ld_errno);
+
+    return ld_errno;
+}
+
+/** connect to the ldap host */
+static int _ldapfull_connect(moddata_t data)
+{
+    int ldapversion = LDAP_VERSION3;
+    int rc;
+
+    if(data->ld != NULL)
+        ldap_unbind_s(data->ld);
+
+    data->binded=0;
+
+    rc = ldap_initialize(&(data->ld), data->uri);
+    if( rc != LDAP_SUCCESS )
+    {
+        log_write(data->ar->c2s->log, LOG_ERR, "ldap: ldap_initialize failed, uri=%s (%d): %s", data->uri, rc, ldap_err2string(rc));
+        return 1;
+    }
+
+    if (ldap_set_option(data->ld, LDAP_OPT_PROTOCOL_VERSION, &ldapversion) != LDAP_SUCCESS)
+    {
+        log_write(data->ar->c2s->log, LOG_ERR, "ldap: couldn't set v3 protocol");
+        return 1;
+    }
+
+    if (ldap_set_option(data->ld, LDAP_OPT_REFERRALS, LDAP_OPT_ON) != LDAP_SUCCESS) {
+        log_write(data->ar->c2s->log, LOG_ERR, "ldap: couldn't set LDAP_OPT_REFERRALS");
+    }
+
+    log_debug(ZONE, "connected to ldap server");
+
+    return 0;
+}
+
+/** unbind and clear variables */
+static int _ldapfull_unbind(moddata_t data) {
+    ldap_unbind_s(data->ld);
+    data->ld = NULL;
+    data->binded = 0;
+    log_debug(ZONE, "unbinded from ldap server");
+    return 0;
+}
+
+/** connect to ldap and bind as data->binddn */
+static int _ldapfull_connect_bind(moddata_t data)
+{
+    if(data->ld != NULL && data->binded ) {
+        return 0;
+    }
+
+    if( _ldapfull_connect(data) ) {
+        return 1;
+    }
+
+    if(ldap_simple_bind_s(data->ld, data->binddn, data->bindpw))
+    {
+        log_write(data->ar->c2s->log, LOG_ERR, "ldap: bind as '%s' failed: %s", data->binddn, ldap_err2string(_ldapfull_get_lderrno(data->ld)));
+        _ldapfull_unbind(data);
+        return 1;
+    }
+
+    log_debug(ZONE, "binded to ldap server");
+    data->binded = 1;
+    return 0;
+}
+
+/** do a search, return the dn */
+static char *_ldapfull_search(moddata_t data, char *realm, char *username)
+{
+    char validfilter[256], filter[1024], *dn, *no_attrs[] = { NULL }, *basedn;
+    LDAPMessage *result, *entry;
+    int tried = 0;
+
+    log_debug(ZONE, "searching for %s", username);
+
+    basedn = xhash_get(data->basedn, realm);
+    if(basedn == NULL)
+        basedn = data->default_basedn;
+
+    if(basedn == NULL) {
+        log_write(data->ar->c2s->log, LOG_ERR, "ldap: no basedn specified for realm '%s'", realm);
+        _ldapfull_unbind(data);
+        return NULL;
+    }
+
+    // for AD validattr should be =TRUE, for [open]ldap =1
+    if( data->validattr ) {
+        validfilter[0] = '\0';
+        if( data->srvtype == LDAPFULL_SRVTYPE_AD ) {
+            snprintf(validfilter, 256, "(%s=TRUE)", data->validattr);
+        } else {
+            snprintf(validfilter, 256, "(%s=1)", data->validattr);
+        }
+        if( data->fulluid ) {
+            snprintf(filter, 1024, "(&(objectClass=%s)%s(%s=%s@%s))", data->objectclass, validfilter, data->uidattr, username, realm);
+        } else {
+            snprintf(filter, 1024, "(&(objectClass=%s)%s(%s=%s))", data->objectclass, validfilter, data->uidattr, username);
+        }
+    } else {
+        if( data->fulluid ) {
+            snprintf(filter, 1024, "(&(objectClass=%s)(%s=%s@%s))", data->objectclass, data->uidattr, username, realm);
+        } else {
+            snprintf(filter, 1024, "(&(objectClass=%s)(%s=%s))", data->objectclass, data->uidattr, username);
+        }
+    }
+
+    log_debug(ZONE, "search filter: %s", filter);
+
+retry:
+    if(ldap_search_s(data->ld, basedn, LDAP_SCOPE_SUBTREE, filter, no_attrs, 0, &result))
+    {
+        if( tried++ < LDAPFULL_SEARCH_MAX_RETRIES ) {
+            log_debug(ZONE, "ldap: search fail, will retry; %s: %s", filter, ldap_err2string(_ldapfull_get_lderrno(data->ld)));
+            _ldapfull_unbind(data);
+            if( _ldapfull_connect_bind(data) == 0 ) {
+                goto retry;
+            } else {
+                return NULL;
+            }
+        }
+        log_write(data->ar->c2s->log, LOG_ERR, "ldap: search %s failed: %s", filter, ldap_err2string(_ldapfull_get_lderrno(data->ld)));
+        _ldapfull_unbind(data);
+        return NULL;
+    }
+
+    entry = ldap_first_entry(data->ld, result);
+    if(entry == NULL)
+    {
+        ldap_msgfree(result);
+
+        return NULL;
+    }
+
+    dn = ldap_get_dn(data->ld, entry);
+
+    ldap_msgfree(result);
+
+    log_debug(ZONE, "found user %s: dn=%s", username, dn);
+
+    return dn;
+}
+
+/** do we have this user? */
+static int _ldapfull_user_exists(authreg_t ar, char *username, char *realm)
+{
+    moddata_t data = (moddata_t) ar->private;
+    char *dn;
+
+    if(_ldapfull_connect_bind(data))
+        return 0;
+
+    log_debug(ZONE, "checking existance of %s", username);
+    
+    if( dn = _ldapfull_search(data, realm, username) ) {
+        ldap_memfree(dn);
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+// get password from jabberPassword attribute
+static int _ldapfull_get_password(authreg_t ar, char *username, char *realm, char password[LDAPFULL_PASSBUF_MAX]) {
+    moddata_t data = (moddata_t) ar->private;
+    LDAPMessage *result, *entry;
+    char *dn, *no_attrs[] = { data->pwattr, NULL }, **vals;
+
+    log_debug(ZONE, "getting password for %s", username);
+
+    if( _ldapfull_connect_bind(data) ) {
+        return 1;
+    }
+
+    dn = _ldapfull_search(data, realm, username);
+    if(dn == NULL)
+        return 1;
+
+    if(ldap_search_s(data->ld, dn, LDAP_SCOPE_BASE, "(objectClass=*)", no_attrs, 0, &result))
+    {
+        log_write(data->ar->c2s->log, LOG_ERR, "ldap: search %s failed: %s", dn, ldap_err2string(_ldapfull_get_lderrno(data->ld)));
+        ldap_memfree(dn);
+        _ldapfull_unbind(data);
+        return 1;
+    }
+
+    ldap_memfree(dn);
+
+    entry = ldap_first_entry(data->ld, result);
+    if(entry == NULL)
+    {
+        ldap_msgfree(result);
+        return 1;
+    }
+    
+    vals=(char **)ldap_get_values(data->ld,entry,data->pwattr);
+    if( ldap_count_values(vals) <= 0 ) {
+        ldap_value_free(vals);
+        ldap_msgfree(result);
+        return 1;
+    }
+    strncpy(password,vals[0],LDAPFULL_PASSBUF_MAX-1);
+    password[LDAPFULL_PASSBUF_MAX-1] = '\0';
+    ldap_value_free(vals);
+
+    ldap_msgfree(result);
+
+    log_debug(ZONE, "found password for %s", username);
+
+    return 0;
+}
+
+// set password from jabberPassword attribute
+static int _ldapfull_set_password(authreg_t ar, char *username, char *realm, char password[LDAPFULL_PASSBUF_MAX]) {
+    moddata_t data = (moddata_t) ar->private;
+    LDAPMessage *result, *entry;
+    LDAPMod *mods[2], attr_pw;
+    char buf[LDAPFULL_PASSBUF_MAX];
+    char *pdn, *attrs[] = { NULL }, *pw_mod_vals[] = { buf, NULL };
+    char dn[LDAPFULL_DN_MAX];
+
+    log_debug(ZONE, "setting password for %s", username);
+
+    if( ! _ldapfull_set_passhash(data,data->pwscheme,password,buf,LDAPFULL_PASSBUF_MAX) ) {
+        log_debug(ZONE, "password scheme is not defined");
+        return 1;
+    }
+    
+    if( _ldapfull_connect_bind(data) ) {
+        return 1;
+    }
+
+    pdn = _ldapfull_search(data, realm, username);
+    if(pdn == NULL)
+        return 1;
+
+    strncpy(dn, pdn, LDAPFULL_DN_MAX-1); dn[LDAPFULL_DN_MAX-1] = '\0';
+    ldap_memfree(pdn);
+
+    if(ldap_search_s(data->ld, dn, LDAP_SCOPE_BASE, "(objectClass=*)", attrs, 0, &result))
+    {
+        log_write(data->ar->c2s->log, LOG_ERR, "ldap: search %s failed: %s", dn, ldap_err2string(_ldapfull_get_lderrno(data->ld)));
+        _ldapfull_unbind(data);
+        return 1;
+    }
+
+    entry = ldap_first_entry(data->ld, result);
+    if(entry == NULL)
+    {
+        ldap_msgfree(result);
+        return 1;
+    }
+    ldap_msgfree(result);
+
+    attr_pw.mod_op = LDAP_MOD_REPLACE;
+    attr_pw.mod_type = data->pwattr;
+    attr_pw.mod_values = pw_mod_vals;
+
+    mods[0] = &attr_pw;
+    mods[1] = NULL;
+
+    if( ldap_modify_s(data->ld, dn, mods) != LDAP_SUCCESS ) {
+        log_write(data->ar->c2s->log, LOG_ERR, "ldap: error modifying %s: %s", dn, ldap_err2string(_ldapfull_get_lderrno(data->ld)));
+        _ldapfull_unbind(data);
+        return 1;
+    }
+
+    log_debug(ZONE, "password was set for %s", username);
+
+    return 0;
+}
+
+/** check the password */
+static int _ldapfull_check_password(authreg_t ar, char *username, char *realm, char password[LDAPFULL_PASSBUF_MAX])
+{
+    moddata_t data = (moddata_t) ar->private;
+    char buf[LDAPFULL_PASSBUF_MAX];
+
+    log_debug(ZONE, "checking password for %s", username);
+
+    if(password[0] == '\0')
+        return 1;
+
+    if( _ldapfull_get_password(ar,username,realm,buf) != 0  ) {
+        return 1;
+    }
+
+    return ! _ldapfull_check_passhash(data,buf,password);
+}
+
+
+// get zero knowlege data from ldap
+static int _ldapfull_get_zerok(authreg_t ar, char *username, char *realm, char hash[41], char token[11], int *sequence) {
+    moddata_t data = (moddata_t) ar->private;
+    LDAPMessage *result, *entry;
+    char *dn, *attrs[] = { "hash", "token", "sequence", NULL }, **vals;
+
+    if( _ldapfull_connect_bind(data) ) {
+        return 1;
+    }
+
+    dn = _ldapfull_search(data, realm, username);
+    if(dn == NULL)
+        return 1;
+
+    if(ldap_search_s(data->ld, dn, LDAP_SCOPE_BASE, "(objectClass=*)", attrs, 0, &result))
+    {
+        log_write(data->ar->c2s->log, LOG_ERR, "ldap: search %s failed: %s", dn, ldap_err2string(_ldapfull_get_lderrno(data->ld)));
+        ldap_memfree(dn);
+        _ldapfull_unbind(data);
+        return 1;
+    }
+
+    ldap_memfree(dn);
+
+    entry = ldap_first_entry(data->ld, result);
+    if(entry == NULL)
+    {
+        ldap_msgfree(result);
+        return 1;
+    }
+    
+    vals=(char **)ldap_get_values(data->ld,entry,"hash");
+    if( ldap_count_values(vals) <= 0 ) {
+        ldap_value_free(vals);
+        ldap_msgfree(result);
+        return 1;
+    }
+    strncpy(hash,vals[0],40);
+    hash[40] = '\0';
+    ldap_value_free(vals);
+
+    vals=(char **)ldap_get_values(data->ld,entry,"token");
+    if( ldap_count_values(vals) <= 0 ) {
+        ldap_value_free(vals);
+        ldap_msgfree(result);
+        return 1;
+    }
+    strncpy(token,vals[0],10);
+    token[10] = '\0';
+    ldap_value_free(vals);
+
+    vals=(char **)ldap_get_values(data->ld,entry,"sequence");
+    if( ldap_count_values(vals) <= 0 ) {
+        ldap_value_free(vals);
+        ldap_msgfree(result);
+        return 1;
+    }
+    *sequence=atoi(vals[0]);
+    ldap_value_free(vals);
+
+    ldap_msgfree(result);
+
+    return 0;
+}
+
+// save zero knowlege data to ldap
+static int _ldapfull_set_zerok(authreg_t ar, char *username, char *realm, char hash[41], char token[11], int sequence) {
+    moddata_t data = (moddata_t) ar->private;
+    LDAPMessage *result, *entry;
+    LDAPMod *mods[4], attr_hash, attr_token, attr_seq;
+    char *pdn, *no_attrs[] = { NULL }, seq_str[12];
+    char dn[LDAPFULL_DN_MAX];
+    char *hash_mod_vals[] = { hash, NULL };
+    char *token_mod_vals[] = { token, NULL };
+    char *seq_mod_vals[] = { seq_str, NULL };
+
+    if( _ldapfull_connect_bind(data) ) {
+        return 1;
+    }
+
+    pdn = _ldapfull_search(data, realm, username);
+    if(pdn == NULL)
+        return 1;
+
+    strncpy(dn, pdn, LDAPFULL_DN_MAX-1); dn[LDAPFULL_DN_MAX-1] = '\0';
+    ldap_memfree(pdn);
+
+    if(ldap_search_s(data->ld, dn, LDAP_SCOPE_BASE, "(objectClass=*)", no_attrs, 0, &result))
+    {
+        log_write(data->ar->c2s->log, LOG_ERR, "ldap: search %s failed: %s", dn, ldap_err2string(_ldapfull_get_lderrno(data->ld)));
+        _ldapfull_unbind(data);
+        return 1;
+    }
+
+    entry = ldap_first_entry(data->ld, result);
+    if(entry == NULL)
+    {
+        ldap_msgfree(result);
+        return 1;
+    }
+    ldap_msgfree(result);
+
+    attr_hash.mod_op = LDAP_MOD_REPLACE;
+    attr_hash.mod_type = "hash";
+    attr_hash.mod_values = hash_mod_vals;
+    
+    attr_token.mod_op = LDAP_MOD_REPLACE;
+    attr_token.mod_type = "token";
+    attr_token.mod_values = token_mod_vals;
+    
+    snprintf(seq_str,sizeof(seq_str),"%i",sequence);
+    attr_seq.mod_op = LDAP_MOD_REPLACE;
+    attr_seq.mod_type = "sequence";
+    attr_seq.mod_values = seq_mod_vals;
+
+    mods[0] = &attr_hash;
+    mods[1] = &attr_token;
+    mods[2] = &attr_seq;
+    mods[3] = NULL;
+
+    if( ldap_modify_s(data->ld, dn, mods) != LDAP_SUCCESS ) {
+        log_write(data->ar->c2s->log, LOG_ERR, "ldap: error modifying %s: %s", dn, ldap_err2string(_ldapfull_get_lderrno(data->ld)));
+        _ldapfull_unbind(data);
+        return 1;
+    }
+
+    return 0;
+}
+
+static int _ldapfull_create_user(authreg_t ar, char *username, char *realm) {
+    if( _ldapfull_user_exists(ar,username,realm) ) {
+        return 0;
+    } else {
+        return 1;
+    }
+}
+
+static int _ldapfull_delete_user(authreg_t ar, char *username, char *realm) {
+    return 0;
+}
+
+/** shut me down */
+static void _ldapfull_free(authreg_t ar)
+{
+    moddata_t data = (moddata_t) ar->private;
+
+    _ldapfull_unbind(data);
+
+    xhash_free(data->basedn);
+    free(data);
+
+    return;
+}
+
+/** start me up */
+DLLEXPORT int ar_init(authreg_t ar)
+{
+    moddata_t data;
+    char *uri, *realm, *srvtype_s;
+    config_elem_t basedn;
+    int i,hascheck,srvtype_i;
+
+    uri = config_get_one(ar->c2s->config, "authreg.ldapfull.uri", 0);
+    if(uri == NULL)
+    {
+        log_write(ar->c2s->log, LOG_ERR, "ldap: no uri specified in config file");
+        return 1;
+    }
+
+    basedn = config_get(ar->c2s->config, "authreg.ldapfull.basedn");
+    if(basedn == NULL)
+    {
+        log_write(ar->c2s->log, LOG_ERR, "ldap: no basedns specified in config file");
+        return 1;
+    }
+
+    srvtype_s = config_get_one(ar->c2s->config, "authreg.ldapfull.type", 0);
+    if( srvtype_s == NULL ) {
+        srvtype_i = LDAPFULL_SRVTYPE_LDAP;
+    } else if( !strcmp(srvtype_s, "ldap") ) {
+        srvtype_i = LDAPFULL_SRVTYPE_LDAP;
+    } else if( !strcmp(srvtype_s, "ad") ) {
+        srvtype_i = LDAPFULL_SRVTYPE_AD;
+    } else {
+        log_write(ar->c2s->log, LOG_ERR, "ldap: unknown server type: %s", srvtype_s);
+        return 1;
+    }
+
+    data = (moddata_t) malloc(sizeof(struct moddata_st));
+    memset(data, 0, sizeof(struct moddata_st));
+
+    data->basedn = xhash_new(101);
+
+    for(i = 0; i < basedn->nvalues; i++)
+    {
+        realm = (basedn->attrs[i] != NULL) ? j_attr((const char **) basedn->attrs[i], "realm") : NULL;
+        if(realm == NULL)
+            data->default_basedn = basedn->values[i];
+        else
+            xhash_put(data->basedn, realm, basedn->values[i]);
+
+        log_debug(ZONE, "realm '%s' has base dn '%s'", realm, basedn->values[i]);
+    }
+
+    log_write(ar->c2s->log, LOG_NOTICE, "ldap: configured %d realms", i);
+
+    data->uri = uri;
+
+    data->srvtype = srvtype_i;
+
+    data->binddn = config_get_one(ar->c2s->config, "authreg.ldapfull.binddn", 0);
+    if(data->binddn != NULL)
+        data->bindpw = config_get_one(ar->c2s->config, "authreg.ldapfull.bindpw", 0);
+
+    data->uidattr = config_get_one(ar->c2s->config, "authreg.ldapfull.uidattr", 0);
+    if(data->uidattr == NULL)
+        data->uidattr = "uid";
+    
+    data->validattr = config_get_one(ar->c2s->config, "authreg.ldapfull.validattr", 0);
+
+    data->pwattr = config_get_one(ar->c2s->config, "authreg.ldapfull.pwattr", 0);
+    if(data->pwattr == NULL)
+        data->pwattr = "jabberPassword";
+
+    data->pwscheme = config_get_one(ar->c2s->config, "authreg.ldapfull.pwscheme", 0);
+    if(data->pwscheme == NULL) {
+        data->pwscheme = "clear";
+        hascheck=0;
+    } else {
+        hascheck=1;
+    }
+
+    data->objectclass = config_get_one(ar->c2s->config, "authreg.ldapfull.objectclass", 0);
+    if(data->objectclass == NULL)
+        data->objectclass = "jabberUser";
+
+    if( (char *)config_get_one(ar->c2s->config, "authreg.ldapfull.fulluid", 0) != NULL ) {
+      data->fulluid = 1;
+    }
+
+    data->ar = ar;
+    
+    if(_ldapfull_connect_bind(data))
+    {
+        xhash_free(data->basedn);
+        free(data);
+        return 1;
+    }
+
+    _ldapfull_hash_init();
+
+    ar->private = data;
+
+    ar->user_exists = _ldapfull_user_exists;
+    ar->create_user = _ldapfull_create_user;
+    ar->delete_user = _ldapfull_delete_user;
+    ar->get_zerok = _ldapfull_get_zerok;
+    ar->set_zerok = _ldapfull_set_zerok;
+    ar->set_password = _ldapfull_set_password;
+    if( hascheck ) {
+        ar->check_password = _ldapfull_check_password;
+    } else {
+        ar->get_password = _ldapfull_get_password;
+    }
+
+    ar->free = _ldapfull_free;
+
+    return 0;
+}
+
+#endif

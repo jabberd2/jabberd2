@@ -6,9 +6,8 @@
        (default: localhost) -->
   <id>localhost</id>
 
-  <!-- The process ID file. comment this out if you don't need to know
-       to know the process ID from outside the process (eg for control
-       scripts) -->
+  <!-- The process ID file. Comment this out if you don't need to know
+       the process ID from outside the process (eg for control scripts) -->
   <pidfile>@localstatedir@/jabberd/pid/sm.pid</pidfile>
 
   <!-- Router connection configuration -->
@@ -78,10 +77,104 @@
 
     <!-- Its also possible to explicitly list alternate drivers for
          specific data types. -->
-    <!-- Store vcards in a PostgreSQL database instead -->
+
+    <!-- Store vcards in a ldapvcard database instead -->
     <!--
-    <driver type='vcard'>pgsql</driver>
+    <driver type='vcard'>ldapvcard</driver>
     -->
+
+    <!-- Read mapping for group id <-> group name from ldap.
+         Used by mod_published_roster.
+         See ldapvcard section for options.
+         When resolving group id to group name, it searches for
+         groupsobjectclass objects at groupsdn base using group id
+         (in groupsidattr) as key and returns the first value of 
+         groupattr of first found entry.
+         E.g.. in general case, if group id is "some-dep", and groupsdn
+         is o=org, and class is jabberGroup, it searches for
+         (&(objectClass=jabberGroup)(cn=some-dep)) and returns value of
+         jabberPublishedItem attribute, which may contain textual description.
+         -->
+    <!--
+    <driver type='published-roster-groups'>ldapvcard</driver>
+    -->
+
+    <!-- LDAPVCARD driver configuration -->
+    <ldapvcard>
+      <!-- LDAP server host and port (default: 389) -->
+      <uri>ldap://localhost/ ldaps://ldap.example.com/</uri>
+      
+      <!-- DN to bind as for searches. If unspecified, the searches
+           will be done anonymously. -->
+      <!--
+      <binddn>cn=Directory Manager</binddn>
+      <bindpw>secret</bindpw>
+      -->
+
+      <!-- see authreg.ldapfull int c2s.xml for description. -->
+      <!--
+      <type>ad</type>
+      -->
+
+      <!-- LDAP attribute that holds the user ID (default: uid) -->
+      <uidattr>jid</uidattr>
+
+      <objectclass>jabberUser</objectclass>
+
+      <!-- see authreg.ldapfull int c2s.xml for description. -->
+      <!--
+      <validattr>valid</validattr>
+      -->
+
+      <!-- base DN of the tree. You should specify a DN for each
+           authentication realm declared in the <local/> section above,
+           by using the realm attribute. -->
+      <basedn>o=Example Corp.</basedn>
+
+      <!-- attribute that holds published group name or id,
+           jabberPublishedGroup if not set -->
+      <!--
+      <groupattr>jabberPublishedGroup</groupattr>
+      -->
+
+      <!-- boolean attribute that tells, publish or not this user
+           jabberPublishedItem by default -->
+      <!--
+      <publishedattr>jabberPublishedItem</publishedattr>
+      -->
+
+      <!-- If value specified, then keep cache of "published-roster"
+           database. Cache is renewed when kept more seconds than value
+           specified. Setting this value increases perfomance of publishing
+           roster. If not specified, then we don't keep cache. -->
+      <publishedcachettl>60</publishedcachettl>
+
+      <mapped-groups>
+        <!-- If turned on, then reading mapping of group ids to names with
+             LDAP will works. -->
+        <!--
+        <map-groups/>
+        -->
+
+        <!-- base for searches for group id to group name mappings -->
+        <basedn>ou=jabbergroups, o=Example Corp.</basedn>
+
+        <!-- what objectclass to search, jabberGroup by default -->
+        <!--
+        <objectclass>jabberGroup</objectclass>
+        -->
+
+        <!-- what attribute to search, cn by default -->
+        <!--
+        <idattr>cn</idattr>
+        -->
+
+        <!-- attribute with text group name, description by default -->
+        <!--
+        <nameattr>description</nameattr>
+        -->
+      </mapped-groups>
+    </ldapvcard>
 
     <!-- MySQL driver configuration -->
     <mysql>
@@ -99,7 +192,7 @@
       <!-- Transacation support. If this is commented out, transactions
            will be disabled. This might make database accesses faster,
            but data may be lost if jabberd crashes.
-           
+
            This will need to be disabled if you are using a MySQL
            earlier than v3.23.xx, as transaction support did not appear
            until this version. -->
@@ -172,7 +265,7 @@
       <busy-timeout>2000</busy-timeout>
     </sqlite>
   </storage>
-  
+
   <!-- Access control information -->
   <aci>
     <!-- The JIDs listed here will get access to all restricted
@@ -320,7 +413,7 @@
          special-purpose packet arrives from the router (eg domain
          advertisements). -->
     <chain id='pkt-router'>
-      <module>session</module>          <!-- take sessions offline their c2s disappears -->
+      <module>session</module>          <!-- take sessions offline if their c2s disappears -->
       <module>disco</module>            <!-- query new components for service information -->
     </chain>
 
@@ -330,6 +423,7 @@
     <chain id='user-load'>
       <module>active</module>           <!-- get active status -->
       <module>roster</module>           <!-- load the roster and trust list -->
+      <module>roster-publish</module>   <!-- load the published roster -->
       <module>privacy</module>          <!-- load privacy lists -->
       <module>disco-publish</module>    <!-- load published information -->
       <module>vacation</module>         <!-- load vacation settings -->
@@ -384,7 +478,7 @@
     <!-- Static service list.
 
          The discover module can discover disco-capable services
-         automatically as they come online. Most legacy services,
+         automatically as they come online. Most XEP-0114 components,
          however, will not support discovery. In order to get them to
          appear in disco/agents lists returned to the client, they
          should be listed here.
@@ -453,6 +547,77 @@
     <!-- Templates. If defined, the contents of these files will be
          stored in the users data store when they are created. -->
     <template>
+      <!-- Uncomment <publish> if you wish to forcely publish
+           roster template from ldap on each user login -->
+      <!--
+      <publish>
+      -->
+        <!-- If <check-remove-domain> given, then published contact checked
+               against sm user database and if user is unknown to sm, contact
+               will be deleted from user's roster (if it is in roster). -->
+        <!--
+        <check-remove-domain>jabber.example.com</check-remove-domain>
+        -->
+        <!-- Keep cache of "active" database specified number of seconds.
+             This will significantly speed up publishing of roster.
+             If unspecified or 0, no cache is used. -->
+        <active-cache-ttl>60</active-cache-ttl>
+        <!-- If <fix-subscriptions/> is not commented, set subscriptions of
+             user's contacts to subscriptions of corresponding published
+             contacts. As for now, "both". -->
+        <!--
+        <fix-subscriptions/>
+        -->
+        <!-- If <override-names/> is not commented, then displayed names of
+             contacts in user's roster will be updated accordingly to
+             published roster (if they differ). If commented, then user can
+             rename contacs in roster -->
+        <!--
+        <override-names/>
+        -->
+        <!-- when mapped-groups is on (<map-groups/> is uncommented, the actual
+             group names for published contacts are read from
+             published-roster-groups storage type, which in turn may be mapped
+             to ldapvcard driver. The key for searching is published user's
+             group, and returned value is used as group name. So you can assign
+             textual group IDs to users rather then group names.
+             group-cache-ttl keeps cache of mapping group id <-> group name for
+             specified number of seconds. If unspecified or 0, no cache is used.
+             -->
+        <!--
+        <mapped-groups/>
+          <map-groups/>
+          <group-cache-ttl>120</group-cache-ttl>
+        </mapped-groups>
+        -->
+        <!-- If <force-groups> is commented out, published roster's contact
+             added to user's roster only when user does not have this contact.
+             If <force-groups> is not commented out, then these checks performed
+             against roster item when publishing roster item that already in
+             user's roster:
+               If user already has added his roster's contact to group of
+               published contact, no changes are made with this group (note
+               that contact may be in more than one group).
+               If <prefix> given, then prefix of each group of user's compared
+               whith given prefix, and if it matches, user's contact removed from
+               matched group (see below).
+               Same for <suffix>.
+               After that, user's contact added to a group of published roster's
+               contact.
+             In other words, all groups of updated contact, that match prefix
+             or suffix, replaced with group of published contact.
+             This is done because there is no way to determine that group was
+             published or greated by user. -->
+        <!--
+        <force-groups>
+          <prefix>MyOrg.</prefix>
+          <suffix>(MyOrg)</suffix>
+        </force-groups>
+        -->
+      <!--
+      </publish>
+      -->
+      <!-- If you defined publish, you should comment <roster> -->
       <!--
       <roster>@sysconfdir@/templates/roster.xml</roster>
       -->
@@ -479,7 +644,7 @@
       <deliver/>
     </disableconditions>
     -->
-    
+
     <!-- You need to enable this if your server has offline storage disabled -->
     <!--
     <offlinestoragedisabled/>
@@ -492,17 +657,17 @@
     <!--
     <dropmessages/>
     -->
-    
+
     <!-- Store headline messages in offline store -->
     <!--
     <storeheadlines/>
     -->
-    
+
     <!-- Do not store subscription requests in offline store -->
     <!--
     <dropsubscriptions/>
     -->
-    
+
     <!-- Offline storage message quota.
          Specifies how many messages will be stored in user offline store -->
     <!--
@@ -528,3 +693,6 @@
   </status>
 
 </sm>
+<!--
+  vim: syntax=xml
+-->

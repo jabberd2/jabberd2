@@ -413,6 +413,48 @@
       <sync/>
     </db>
 
+    <!-- LDAPFULL module configuration -->
+    <ldapfull>
+      <!-- LDAP server host and port (default: 389) -->
+      <uri>ldap://localhost/ ldaps://ldap.example.com/</uri>
+      
+      <!-- DN to bind as for searches. If unspecified, the searches
+           will be done anonymously. -->
+      <!--
+      <binddn>cn=Directory Manager</binddn>
+      <bindpw>secret</bindpw>
+      -->
+
+      <!-- Type of LDAP server. Currently "ad" for active directory and "ldap"
+           for other ldap servers. If not specified, then it is ldap. -->
+      <!--
+      <type>ad</type>
+      -->
+      <!-- LDAP attribute that holds the user ID (default: uid) -->
+      <uidattr>jid</uidattr>
+      <!-- Attribute that holds jabber account status. Must be TRUE for AD,
+           and 1 for other LDAP server.
+           If not specified, then it will not be used. -->
+      <!--
+      <validattr>valid</validattr>
+      -->
+      <fulluid/>
+      <pwattr>jabberPassword</pwattr>
+      <!-- If pwscheme is not defined, then passwords are stored in clear
+           text and digest authentication may be done.
+           If passwords are hashed, then you cannot use digest authentication
+           and should use plain text authentication.
+           For now, sha, ssha and plain may be specified -->
+      <!-- <pwscheme>ssha</pwscheme> -->
+      <objectclass>jabberUser</objectclass>
+
+      <!-- base DN of the tree. You should specify a DN for each
+           authentication realm declared in the <local/> section above,
+           by using the realm attribute. -->
+      <basedn realm='company'>o=Company.com</basedn>
+      <basedn>o=Example Corp.</basedn>
+    </ldapfull>
+
     <!-- LDAP module configuration -->
     <!-- Remember that you need to use PLAIN auth with LDAP backend -->
     <ldap>
@@ -476,3 +518,6 @@
   </authreg>
 
 </c2s>
+<!--
+  vim: syntax=xml
+-->

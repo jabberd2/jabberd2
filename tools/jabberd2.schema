@@ -1,0 +1,38 @@
+# attribyte types
+attributetype ( 1.3.6.1.4.1.8381.2.7
+    NAME 'jabberPassword'
+    DESC 'Password of Jabber user when using LDAPFULL authreg module'
+    SYNTAX 1.3.6.1.4.1.1466.115.121.1.40{128}
+    SINGLE-VALUE )
+
+attributetype ( 1.3.6.1.4.1.8381.2.8
+    NAME 'jabberPublishedGroup'
+    DESC 'Name of group to add to when publishing user with roster template'
+    EQUALITY caseExactMatch
+    SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )
+
+attributetype ( 1.3.6.1.4.1.8381.2.9
+    NAME 'jabberPublishedItem'
+    DESC 'If set and has non-zero value, permit publishing Jabber user with template'
+    EQUALITY integerMatch 
+    SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+    SINGLE-VALUE )
+
+# objectclasses
+objectclass ( 1.3.6.1.4.1.8381.1.3
+    NAME 'descriptionObject'
+        DESC 'Object with description attribute'
+    SUP top AUXILIARY
+    MAY ( description )
+    )
+objectclass ( 1.3.6.1.4.1.8381.1.5
+    NAME 'structuralObject'
+        DESC 'Structural object'
+    SUP top STRUCTURAL
+    )
+objectclass ( 1.3.6.1.4.1.8381.1.6
+    NAME 'jabberExtendedObject'
+        DESC 'Extended Jabber entry'
+    SUP top AUXILIARY
+    MAY ( jabberPassword $ jabberPublishedItem $ jabberPublishedGroup ) )
+
