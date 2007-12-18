@@ -37,9 +37,9 @@ authreg_ldap_la_LIBADD  = $(MODULE_LIBADD) $(LDAP_LIBS)
 authreg_ldapfull_la_SOURCES = authreg_ldapfull.c
 authreg_ldapfull_la_LDFLAGS = $(MODULE_LDFLAGS)
 authreg_ldapfull_la_LIBADD  = $(MODULE_LIBADD) $(LDAP_LIBS)
-authreg_ldapvcard_la_SOURCES = storage_ldapvcard.c
-authreg_ldapvcard_la_LDFLAGS = $(MODULE_LDFLAGS)
-authreg_ldapvcard_la_LIBADD  = $(MODULE_LIBADD) $(LDAP_LIBS)
+storage_ldapvcard_la_SOURCES = storage_ldapvcard.c
+storage_ldapvcard_la_LDFLAGS = $(MODULE_LDFLAGS)
+storage_ldapvcard_la_LIBADD  = $(MODULE_LIBADD) $(LDAP_LIBS)
 endif
 
 if STORAGE_MYSQL
