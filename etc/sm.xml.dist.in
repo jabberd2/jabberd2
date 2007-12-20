@@ -423,7 +423,7 @@
     <chain id='user-load'>
       <module>active</module>           <!-- get active status -->
       <module>roster</module>           <!-- load the roster and trust list -->
-      <module>roster-publish</module>   <!-- load the published roster -->
+      <!-- <module>roster-publish</module> -->   <!-- load the published roster -->
       <module>privacy</module>          <!-- load privacy lists -->
       <module>disco-publish</module>    <!-- load published information -->
       <module>vacation</module>         <!-- load vacation settings -->
