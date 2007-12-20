@@ -99,83 +99,6 @@
     <driver type='published-roster-groups'>ldapvcard</driver>
     -->
 
-    <!-- LDAPVCARD driver configuration -->
-    <ldapvcard>
-      <!-- LDAP server host and port (default: 389) -->
-      <uri>ldap://localhost/ ldaps://ldap.example.com/</uri>
-      
-      <!-- DN to bind as for searches. If unspecified, the searches
-           will be done anonymously. -->
-      <!--
-      <binddn>cn=Directory Manager</binddn>
-      <bindpw>secret</bindpw>
-      -->
-
-      <!-- see authreg.ldapfull int c2s.xml for description. -->
-      <!--
-      <type>ad</type>
-      -->
-
-      <!-- LDAP attribute that holds the user ID (default: uid) -->
-      <uidattr>jid</uidattr>
-
-      <objectclass>jabberUser</objectclass>
-
-      <!-- see authreg.ldapfull int c2s.xml for description. -->
-      <!--
-      <validattr>valid</validattr>
-      -->
-
-      <!-- base DN of the tree. You should specify a DN for each
-           authentication realm declared in the <local/> section above,
-           by using the realm attribute. -->
-      <basedn>o=Example Corp.</basedn>
-
-      <!-- attribute that holds published group name or id,
-           jabberPublishedGroup if not set -->
-      <!--
-      <groupattr>jabberPublishedGroup</groupattr>
-      -->
-
-      <!-- boolean attribute that tells, publish or not this user
-           jabberPublishedItem by default -->
-      <!--
-      <publishedattr>jabberPublishedItem</publishedattr>
-      -->
-
-      <!-- If value specified, then keep cache of "published-roster"
-           database. Cache is renewed when kept more seconds than value
-           specified. Setting this value increases perfomance of publishing
-           roster. If not specified, then we don't keep cache. -->
-      <publishedcachettl>60</publishedcachettl>
-
-      <mapped-groups>
-        <!-- If turned on, then reading mapping of group ids to names with
-             LDAP will works. -->
-        <!--
-        <map-groups/>
-        -->
-
-        <!-- base for searches for group id to group name mappings -->
-        <basedn>ou=jabbergroups, o=Example Corp.</basedn>
-
-        <!-- what objectclass to search, jabberGroup by default -->
-        <!--
-        <objectclass>jabberGroup</objectclass>
-        -->
-
-        <!-- what attribute to search, cn by default -->
-        <!--
-        <idattr>cn</idattr>
-        -->
-
-        <!-- attribute with text group name, description by default -->
-        <!--
-        <nameattr>description</nameattr>
-        -->
-      </mapped-groups>
-    </ldapvcard>
-
     <!-- MySQL driver configuration -->
     <mysql>
       <!-- Database server host and port -->
@@ -264,6 +187,83 @@
       <!-- SQLite busy-timeout in milliseconds. -->
       <busy-timeout>2000</busy-timeout>
     </sqlite>
+
+    <!-- LDAPVCARD driver configuration -->
+    <ldapvcard>
+      <!-- LDAP server host and port (default: 389) -->
+      <uri>ldap://localhost/ ldaps://ldap.example.com/</uri>
+      
+      <!-- DN to bind as for searches. If unspecified, the searches
+           will be done anonymously. -->
+      <!--
+      <binddn>cn=Directory Manager</binddn>
+      <bindpw>secret</bindpw>
+      -->
+
+      <!-- see authreg.ldapfull int c2s.xml for description. -->
+      <!--
+      <type>ad</type>
+      -->
+
+      <!-- LDAP attribute that holds the user ID (default: uid) -->
+      <uidattr>jid</uidattr>
+
+      <objectclass>jabberUser</objectclass>
+
+      <!-- see authreg.ldapfull int c2s.xml for description. -->
+      <!--
+      <validattr>valid</validattr>
+      -->
+
+      <!-- base DN of the tree. You should specify a DN for each
+           authentication realm declared in the <local/> section above,
+           by using the realm attribute. -->
+      <basedn>o=Example Corp.</basedn>
+
+      <!-- attribute that holds published group name or id,
+           jabberPublishedGroup if not set -->
+      <!--
+      <groupattr>jabberPublishedGroup</groupattr>
+      -->
+
+      <!-- boolean attribute that tells, publish or not this user
+           jabberPublishedItem by default -->
+      <!--
+      <publishedattr>jabberPublishedItem</publishedattr>
+      -->
+
+      <!-- If value specified, then keep cache of "published-roster"
+           database. Cache is renewed when kept more seconds than value
+           specified. Setting this value increases perfomance of publishing
+           roster. If not specified, then we don't keep cache. -->
+      <publishedcachettl>60</publishedcachettl>
+
+      <mapped-groups>
+        <!-- If turned on, then reading mapping of group ids to names with
+             LDAP will works. -->
+        <!--
+        <map-groups/>
+        -->
+
+        <!-- base for searches for group id to group name mappings -->
+        <basedn>ou=jabbergroups, o=Example Corp.</basedn>
+
+        <!-- what objectclass to search, jabberGroup by default -->
+        <!--
+        <objectclass>jabberGroup</objectclass>
+        -->
+
+        <!-- what attribute to search, cn by default -->
+        <!--
+        <idattr>cn</idattr>
+        -->
+
+        <!-- attribute with text group name, description by default -->
+        <!--
+        <nameattr>description</nameattr>
+        -->
+      </mapped-groups>
+    </ldapvcard>
   </storage>
 
   <!-- Access control information -->
