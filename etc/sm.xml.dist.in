@@ -206,9 +206,14 @@
       -->
 
       <!-- LDAP attribute that holds the user ID (default: uid) -->
+      <uidattr>uid</uidattr>
+      <objectclass>posixAccount</objectclass>
+      <pwattr>userPassword</pwattr>
+      <!-- if you use included jabberd.schema use this:
       <uidattr>jid</uidattr>
-
       <objectclass>jabberUser</objectclass>
+      <pwattr>jabberPassword</pwattr>
+      -->
 
       <!-- see authreg.ldapfull int c2s.xml for description. -->
       <!--

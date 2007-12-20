@@ -430,8 +430,17 @@
       <!--
       <type>ad</type>
       -->
+
       <!-- LDAP attribute that holds the user ID (default: uid) -->
+      <uidattr>uid</uidattr>
+      <objectclass>posixAccount</objectclass>
+      <pwattr>userPassword</pwattr>
+      <!-- if you use included jabberd.schema use this:
       <uidattr>jid</uidattr>
+      <objectclass>jabberUser</objectclass>
+      <pwattr>jabberPassword</pwattr>
+      -->
+
       <!-- Attribute that holds jabber account status. Must be TRUE for AD,
            and 1 for other LDAP server.
            If not specified, then it will not be used. -->
@@ -439,14 +448,12 @@
       <validattr>valid</validattr>
       -->
       <fulluid/>
-      <pwattr>jabberPassword</pwattr>
       <!-- If pwscheme is not defined, then passwords are stored in clear
            text and digest authentication may be done.
            If passwords are hashed, then you cannot use digest authentication
            and should use plain text authentication.
            For now, sha, ssha and plain may be specified -->
       <!-- <pwscheme>ssha</pwscheme> -->
-      <objectclass>jabberUser</objectclass>
 
       <!-- base DN of the tree. You should specify a DN for each
            authentication realm declared in the <local/> section above,
