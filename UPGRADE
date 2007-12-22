@@ -2,7 +2,7 @@ This file contains upgrade instructions between different versions of jabberd2.
 
 * 2.1.19 to 2.1.20 upgrade:
 
-What had change:
+What changed:
 - added missing XEP-0054 fields
 - server vcard support
 
@@ -12,7 +12,7 @@ ALTER TABLE vcard ADD "jabberid" text, ADD "mailer" text, ADD "uid" text;
 
 * 2.1.18 to 2.1.19 upgrade:
 
-What had change:
+What changed:
 - mod_status stores full last presence stanza
 - so called "offline status" support
   (sending last unavailable presence stanza for unavailable users)
@@ -23,7 +23,7 @@ ALTER TABLE "status" ADD COLUMN "xml" TEXT;
 
 * 2.1.17 to 2.1.18 upgrade:
 
-What had change:
+What changed:
 - implemented /webstatus service
 
 If you want to allow users of other servers to store their presence information
@@ -33,7 +33,7 @@ in 'pkt-sm' chain in sm.xml. See sm.xml.dist for reference.
 
 * 2.1.16 to 2.1.17 upgrade:
 
-What had change:
+What changed:
 - s2s maximum fds option implemented
 
 If you want to configure maximum file descriptors for s2s, look in s2s.xml.dist
@@ -42,7 +42,7 @@ for io/max_fds option, that mirrors the same option from c2s.xml.
 
 * 2.1.15 to 2.1.16 upgrade:
 
-What had change:
+What changed:
 - Offline storage does not store headline messages by default
 - XEP-0157: Contact Addresses for XMPP Services
 - --enable-superseded ./configure option
@@ -79,7 +79,7 @@ Only bug and compilation fixes. No configuration changes needed.
 
 * 2.1.13 to 2.1.14 upgrade:
 
-What had change:
+What changed:
 - Oracle authreg backend
 
 You may use Oracle backend to store your user data too. See c2s.xml.dist.
@@ -92,7 +92,7 @@ Only bug and compilation fixes. No configuration changes needed.
 
 * 2.1.11 to 2.1.12 upgrade:
 
-What had change:
+What changed:
 - PQconnectdb PostgreSQL connection method
 - using pg_config to find PostgreSQL
 
@@ -108,7 +108,7 @@ Only bug and compliance fixes. No configuration changes needed.
 
 * 2.1.9 to 2.1.10 upgrade:
 
-What had change:
+What changed:
 - configure SASL backend fallback removed
 - user roster items limit support
 
@@ -120,7 +120,7 @@ If you want to limit user roster items, please see etc/sm.xml.dist for reference
 
 * 2.1.8 to 2.1.9 upgrade:
 
-What had change:
+What changed:
 - logging formats
 - oob redirection during registration
 
@@ -133,7 +133,7 @@ etc/c2s.xml.dist for reference.
 
 * 2.1.7 to 2.1.8 upgrade:
 
-What had change:
+What changed:
 - SASL backend selection method
 
 During ./configure use --with-sasl=BACKEND instead of --enable-gsasl
@@ -142,7 +142,7 @@ and --enable-cyrus.
 
 * 2.1.6 to 2.1.7 upgrade:
 
-What had change:
+What changed:
 - MySQL connection defaults to UTF-8 now
 - Removed support for ZeroK authentication
 
@@ -153,7 +153,7 @@ You may remove the 'token', 'sequence' and 'hash' columns in authreg table.
 
 * 2.1.5 to 2.1.6 upgrade:
 
-What had change:
+What changed:
 - implemented XEP-0199: XMPP ping
 - sysconfdir isn't changed to .../etc/jabberd anymore
 - SASL backend is now GnuSASL by default with Cyrus as an alternative
@@ -169,7 +169,7 @@ Remove all source dependant patches for missing functions if you have ones.
 
 * 2.1.4 to 2.1.5 upgrade:
 
-What had change:
+What changed:
 - auth/reg/storage modules are now loaded dynamically at runtime
 - MySQL storage backend is not enabled by default
 
@@ -182,7 +182,7 @@ use MySQL backends.
 
 * 2.1.3 to 2.1.4 upgrade:
 
-What had change:
+What changed:
 - full SQLite support
 - PostgreSQL NULL parameters handling
 - more than one LDAP server support
@@ -198,7 +198,7 @@ You may remove hostname form PostgreSQL setup to access it via unix socket.
 
 * 2.1 to 2.1.3 upgrade:
 
-What had change:
+What changed:
 - c2s.xml added <ssl-mechanisms/> section
 - c2s PAM authenticator now handles realm setting
 - libjabberd moved from /usr/lib to /usr/lib/jabberd
@@ -213,7 +213,7 @@ If you use modules.path in sm.xml, add .../jabberd/ at the end.
 
 * 2.0 to 2.1 upgrade:
 
-What had change:
+What changed:
 - c2s.xml local/id syntax:
 - DB schema
 - amp and status modules
