@@ -660,136 +660,6 @@ static int _ldapfull_check_password(authreg_t ar, char *username, char *realm, c
     return ! _ldapfull_check_passhash(data,buf,password);
 }
 
-
-// get zero knowlege data from ldap
-static int _ldapfull_get_zerok(authreg_t ar, char *username, char *realm, char hash[41], char token[11], int *sequence) {
-    moddata_t data = (moddata_t) ar->private;
-    LDAPMessage *result, *entry;
-    char *dn, *attrs[] = { "hash", "token", "sequence", NULL }, **vals;
-
-    if( _ldapfull_connect_bind(data) ) {
-        return 1;
-    }
-
-    dn = _ldapfull_search(data, realm, username);
-    if(dn == NULL)
-        return 1;
-
-    if(ldap_search_s(data->ld, dn, LDAP_SCOPE_BASE, "(objectClass=*)", attrs, 0, &result))
-    {
-        log_write(data->ar->c2s->log, LOG_ERR, "ldap: search %s failed: %s", dn, ldap_err2string(_ldapfull_get_lderrno(data->ld)));
-        ldap_memfree(dn);
-        _ldapfull_unbind(data);
-        return 1;
-    }
-
-    ldap_memfree(dn);
-
-    entry = ldap_first_entry(data->ld, result);
-    if(entry == NULL)
-    {
-        ldap_msgfree(result);
-        return 1;
-    }
-    
-    vals=(char **)ldap_get_values(data->ld,entry,"hash");
-    if( ldap_count_values(vals) <= 0 ) {
-        ldap_value_free(vals);
-        ldap_msgfree(result);
-        return 1;
-    }
-    strncpy(hash,vals[0],40);
-    hash[40] = '\0';
-    ldap_value_free(vals);
-
-    vals=(char **)ldap_get_values(data->ld,entry,"token");
-    if( ldap_count_values(vals) <= 0 ) {
-        ldap_value_free(vals);
-        ldap_msgfree(result);
-        return 1;
-    }
-    strncpy(token,vals[0],10);
-    token[10] = '\0';
-    ldap_value_free(vals);
-
-    vals=(char **)ldap_get_values(data->ld,entry,"sequence");
-    if( ldap_count_values(vals) <= 0 ) {
-        ldap_value_free(vals);
-        ldap_msgfree(result);
-        return 1;
-    }
-    *sequence=atoi(vals[0]);
-    ldap_value_free(vals);
-
-    ldap_msgfree(result);
-
-    return 0;
-}
-
-// save zero knowlege data to ldap
-static int _ldapfull_set_zerok(authreg_t ar, char *username, char *realm, char hash[41], char token[11], int sequence) {
-    moddata_t data = (moddata_t) ar->private;
-    LDAPMessage *result, *entry;
-    LDAPMod *mods[4], attr_hash, attr_token, attr_seq;
-    char *pdn, *no_attrs[] = { NULL }, seq_str[12];
-    char dn[LDAPFULL_DN_MAX];
-    char *hash_mod_vals[] = { hash, NULL };
-    char *token_mod_vals[] = { token, NULL };
-    char *seq_mod_vals[] = { seq_str, NULL };
-
-    if( _ldapfull_connect_bind(data) ) {
-        return 1;
-    }
-
-    pdn = _ldapfull_search(data, realm, username);
-    if(pdn == NULL)
-        return 1;
-
-    strncpy(dn, pdn, LDAPFULL_DN_MAX-1); dn[LDAPFULL_DN_MAX-1] = '\0';
-    ldap_memfree(pdn);
-
-    if(ldap_search_s(data->ld, dn, LDAP_SCOPE_BASE, "(objectClass=*)", no_attrs, 0, &result))
-    {
-        log_write(data->ar->c2s->log, LOG_ERR, "ldap: search %s failed: %s", dn, ldap_err2string(_ldapfull_get_lderrno(data->ld)));
-        _ldapfull_unbind(data);
-        return 1;
-    }
-
-    entry = ldap_first_entry(data->ld, result);
-    if(entry == NULL)
-    {
-        ldap_msgfree(result);
-        return 1;
-    }
-    ldap_msgfree(result);
-
-    attr_hash.mod_op = LDAP_MOD_REPLACE;
-    attr_hash.mod_type = "hash";
-    attr_hash.mod_values = hash_mod_vals;
-    
-    attr_token.mod_op = LDAP_MOD_REPLACE;
-    attr_token.mod_type = "token";
-    attr_token.mod_values = token_mod_vals;
-    
-    snprintf(seq_str,sizeof(seq_str),"%i",sequence);
-    attr_seq.mod_op = LDAP_MOD_REPLACE;
-    attr_seq.mod_type = "sequence";
-    attr_seq.mod_values = seq_mod_vals;
-
-    mods[0] = &attr_hash;
-    mods[1] = &attr_token;
-    mods[2] = &attr_seq;
-    mods[3] = NULL;
-
-    if( ldap_modify_s(data->ld, dn, mods) != LDAP_SUCCESS ) {
-        log_write(data->ar->c2s->log, LOG_ERR, "ldap: error modifying %s: %s", dn, ldap_err2string(_ldapfull_get_lderrno(data->ld)));
-        _ldapfull_unbind(data);
-        return 1;
-    }
-
-    return 0;
-}
-
 static int _ldapfull_create_user(authreg_t ar, char *username, char *realm) {
     if( _ldapfull_user_exists(ar,username,realm) ) {
         return 0;
@@ -849,8 +719,7 @@ DLLEXPORT int ar_init(authreg_t ar)
         return 1;
     }
 
-    data = (moddata_t) malloc(sizeof(struct moddata_st));
-    memset(data, 0, sizeof(struct moddata_st));
+    data = (moddata_t) calloc(1, sizeof(struct moddata_st));
 
     data->basedn = xhash_new(101);
 
@@ -917,8 +786,6 @@ DLLEXPORT int ar_init(authreg_t ar)
     ar->user_exists = _ldapfull_user_exists;
     ar->create_user = _ldapfull_create_user;
     ar->delete_user = _ldapfull_delete_user;
-    ar->get_zerok = _ldapfull_get_zerok;
-    ar->set_zerok = _ldapfull_set_zerok;
     ar->set_password = _ldapfull_set_password;
     if( hascheck ) {
         ar->check_password = _ldapfull_check_password;

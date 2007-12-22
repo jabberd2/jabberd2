@@ -18,7 +18,7 @@ pkglib_LTLIBRARIES = mod_active.la \
                   mod_presence.la \
                   mod_privacy.la \
                   mod_roster.la \
-                  mod_roster_publish.la \
+                  mod_roster-publish.la \
                   mod_session.la \
                   mod_status.la \
                   mod_template-roster.la \

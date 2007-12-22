@@ -506,8 +506,7 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv)
         return 1;
     }
 
-    data = (drvdata_t) malloc(sizeof(struct drvdata_st));
-    memset(data, 0, sizeof(struct drvdata_st));
+    data = (drvdata_t) calloc(1, sizeof(struct drvdata_st));
 
     drv->private = (void *) data;
 

@@ -117,7 +117,7 @@ static char *_roster_publish_get_group_name(sm_t sm, roster_publish_t rp, const 
 #ifndef NO_SM_CACHE
         if( rp->group_cache_ttl && group ) {
             log_debug(ZONE,"group cache: updating cache value for %s",groupid);
-            group_cached = malloc(sizeof(struct _roster_publish_group_cache_st));
+            group_cached = calloc(1, sizeof(struct _roster_publish_group_cache_st));
             group_cached->time = time(NULL);
             group_cached->groupid = strdup(groupid);
             group_cached->groupname = strdup(group);
@@ -265,7 +265,7 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                             }
                             if( userinsm == -1 ) {
                                 if( roster_publish->active_cache_ttl ) {
-                                    active_cached = malloc(sizeof(struct _roster_publish_active_cache_st));
+                                    active_cached = calloc(1, sizeof(struct _roster_publish_active_cache_st));
                                     active_cached->time = time(NULL);
                                 }
 #endif
@@ -304,8 +304,7 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                                 continue; /* do { } while( os_iter_next ) */
                             }
                             log_debug(ZONE, "user has no %s in roster, adding", jid_user(jid));
-                            item = (item_t) malloc(sizeof(struct item_st));
-                            memset(item, 0, sizeof(struct item_st));
+                            item = (item_t) calloc(1, sizeof(struct item_st));
 
                             item->jid = jid_new(mi->mod->mm->sm->pc, jid_user(jid), -1);
                             if(item->jid == NULL) {
@@ -488,8 +487,7 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
 
     if(mod->init) return 0;
 
-    roster_publish = (roster_publish_t) malloc(sizeof(struct _roster_publish_st));
-    memset(roster_publish, 0, sizeof(struct _roster_publish_st));
+    roster_publish = (roster_publish_t) calloc(1, sizeof(struct _roster_publish_st));
 
     if( config_get_one(mod->mm->sm->config, "user.template.publish", 0) ) {
         roster_publish->publish = 1;
