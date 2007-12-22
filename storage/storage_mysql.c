@@ -623,6 +623,8 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv) {
     mysql_options(conn, MYSQL_READ_DEFAULT_GROUP, "jabberd");
 #endif
 
+    mysql_options(conn, MYSQL_SET_CHARSET_NAME, "utf8");
+
     /* connect with CLIENT_INTERACTIVE to get a (possibly) higher timeout value than default */
     if(mysql_real_connect(conn, host, user, pass, dbname, atoi(port), NULL, CLIENT_INTERACTIVE) == NULL) {
         log_write(drv->st->sm->log, LOG_ERR, "mysql: connection to database failed: %s", mysql_error(conn));
@@ -630,13 +632,10 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv) {
         return st_FAILED;
     }
 
-    mysql_query(conn, "SET NAMES 'utf8'");
-
     /* Set reconnect flag to 1 (set to 0 by default from mysql 5 on) */
     conn->reconnect = 1;
 
-    data = (drvdata_t) malloc(sizeof(struct drvdata_st));
-    memset(data, 0, sizeof(struct drvdata_st));
+    data = (drvdata_t) calloc(1, sizeof(struct drvdata_st));
 
     data->conn = conn;
 
