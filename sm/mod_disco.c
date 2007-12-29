@@ -328,8 +328,7 @@ static mod_ret_t _disco_pkt_sm_populate(mod_instance_t mi, pkt_t pkt)
     if(svc == NULL)
     {
         /* make a new one */
-        svc = (service_t) malloc(sizeof(struct service_st));
-        memset(svc, 0, sizeof(struct service_st));
+        svc = (service_t) calloc(1, sizeof(struct service_st));
 
         svc->jid = jid_dup(pkt->from);
 
@@ -429,6 +428,12 @@ static mod_ret_t _disco_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     /* they want to know about us */
     if(pkt->ns == ns_DISCO_INFO) {
         result = pkt_dup(d->disco_info_result, jid_full(pkt->from), jid_full(pkt->to));
+
+        node = nad_find_attr(pkt->nad, 2, -1, "node", NULL);
+        if(node >= 0) {
+            nad_set_attr(result->nad, 2, -1, "node", NAD_AVAL(pkt->nad, node), NAD_AVAL_L(pkt->nad, node));
+        }
+
         pkt_id(pkt, result);
         pkt_free(pkt);
 
@@ -635,8 +640,7 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg)
 
     log_debug(ZONE, "disco module init");
 
-    d = (disco_t) malloc(sizeof(struct disco_st));
-    memset(d, 0, sizeof(struct disco_st));
+    d = (disco_t) calloc(1, sizeof(struct disco_st));
 
     /* new hashes to store the lists in */
     d->dyn = xhash_new(51);
@@ -651,11 +655,11 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg)
     if(d->name == NULL) d->name = "Jabber IM server";
 
     /* agents compatibility */
-    d->agents = (int) config_get(mod->mm->sm->config, "discovery.agents");
+    d->agents = config_get(mod->mm->sm->config, "discovery.agents") != NULL;
 
     /* browse compatibility */
     /* CODE READERS, NOTE WELL: Browse is very deprecated. Don't use this :) */
-    d->browse = (int) config_get(mod->mm->sm->config, "discovery.browse");
+    d->browse = config_get(mod->mm->sm->config, "discovery.browse") != NULL;
 
     if(d->agents)
         log_debug(ZONE, "agents compat enabled");
@@ -696,8 +700,7 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg)
         }
 
         /* new service */
-        svc = (service_t) malloc(sizeof(struct service_st));
-        memset(svc, 0, sizeof(struct service_st));
+        svc = (service_t) calloc(1, sizeof(struct service_st));
 
         svc->features = xhash_new(13);
 
