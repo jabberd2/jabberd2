@@ -492,8 +492,7 @@ static void _sx_ssl_client(sx_t s, sx_plugin_t p) {
 
     _sx_debug(ZONE, "preparing for ssl connect for %d", s->tag);
 
-    sc = (_sx_ssl_conn_t) malloc(sizeof(struct _sx_ssl_conn_st));
-    memset(sc, 0, sizeof(struct _sx_ssl_conn_st));
+    sc = (_sx_ssl_conn_t) calloc(1, sizeof(struct _sx_ssl_conn_st));
 
     /* create the buffers */
     sc->rbio = BIO_new(BIO_s_mem());
@@ -503,6 +502,7 @@ static void _sx_ssl_client(sx_t s, sx_plugin_t p) {
     sc->ssl = SSL_new((SSL_CTX *) p->private);
     SSL_set_bio(sc->ssl, sc->rbio, sc->wbio);
     SSL_set_connect_state(sc->ssl);
+    SSL_set_ssl_method(sc->ssl, TLSv1_client_method());
 
     /* empty external_id */
     sc->external_id = NULL;
@@ -571,8 +571,7 @@ static void _sx_ssl_server(sx_t s, sx_plugin_t p) {
 
     _sx_debug(ZONE, "preparing for ssl accept for %d", s->tag);
 
-    sc = (_sx_ssl_conn_t) malloc(sizeof(struct _sx_ssl_conn_st));
-    memset(sc, 0, sizeof(struct _sx_ssl_conn_st));
+    sc = (_sx_ssl_conn_t) calloc(1, sizeof(struct _sx_ssl_conn_st));
 
     /* create the buffers */
     sc->rbio = BIO_new(BIO_s_mem());
@@ -742,8 +741,7 @@ int sx_ssl_client_starttls(sx_plugin_t p, sx_t s, char *pemfile) {
 
     /* save the given pemfile for later */
     if(pemfile != NULL) {
-        s->plugin_data[p->index] = (_sx_ssl_conn_t) malloc(sizeof(struct _sx_ssl_conn_st));
-        memset(s->plugin_data[p->index], 0, sizeof(struct _sx_ssl_conn_st));
+        s->plugin_data[p->index] = (_sx_ssl_conn_t) calloc(1, sizeof(struct _sx_ssl_conn_st));
         ((_sx_ssl_conn_t)s->plugin_data[p->index])->pemfile = strdup(pemfile);
     }
 
