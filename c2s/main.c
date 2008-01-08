@@ -241,9 +241,11 @@ static void _c2s_hosts_expand(c2s_t c2s)
 
         host->host_pemfile = j_attr((const char **) elem->attrs[i], "pemfile");
 
+        host->host_verify_mode = j_atoi(j_attr((const char **) elem->attrs[i], "verify-mode"), 0);
+
 #ifdef HAVE_SSL
         if(c2s->sx_ssl == NULL && host->host_pemfile != NULL) {
-            c2s->sx_ssl = sx_env_plugin(c2s->sx_env, sx_ssl_init, host->host_pemfile, NULL, c2s->local_verify_mode);
+            c2s->sx_ssl = sx_env_plugin(c2s->sx_env, sx_ssl_init, host->host_pemfile, NULL, host->host_verify_mode);
             if(c2s->sx_ssl == NULL) {
                 log_write(c2s->log, LOG_ERR, "failed to load %s SSL pemfile", host->realm);
                 host->host_pemfile = NULL;
@@ -252,8 +254,6 @@ static void _c2s_hosts_expand(c2s_t c2s)
 #endif
 
         host->host_require_starttls = (j_attr((const char **) elem->attrs[i], "require-starttls") != NULL);
-
-        host->host_verify_mode = j_atoi(j_attr((const char **) elem->attrs[i], "verify-mode"), 0);
 
         host->ar_register_enable = (j_attr((const char **) elem->attrs[i], "register-enable") != NULL);
         host->ar_register_oob = j_attr((const char **) elem->attrs[i], "register-oob");
