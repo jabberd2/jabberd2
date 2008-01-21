@@ -4,6 +4,7 @@ This file contains upgrade instructions between different versions of jabberd2.
 
 What changed:
 - MySQL 5.0+ dependency
+- moved --enable-sasl configure option to --with-sasl
 
 
 * 2.1.20 to 2.1.21 upgrade:

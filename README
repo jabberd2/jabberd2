@@ -25,15 +25,15 @@ Optional packages:
      http://www.gnu.org/software/libidn/
  - OpenSSL (0.9.6b or higher) - needed for SSL/TLS support
      http://www.openssl.org/news/
- - zlib (1.2.3 or higher)
+ - zlib (1.2.3 or higher) - needed for stram compression
      http://www.zlib.net/
  - Berkeley DB (4.1.24 or higher)
      http://www.sleepycat.com/download/
  - OpenLDAP (2.1.0 or higher)
      http://www.openldap.org/software/download/
- - PostgresSQL (development libraries and headers)
+ - PostgresSQL (8.0 or higher; development libraries and headers)
      http://www.postgresql.org/
- - MySQL (development libraries and headers)
+ - MySQL (5.0 or higher; development libraries and headers)
      http://www.mysql.com/
  - PAM
      http://www.linux-pam.org/  (for Linux)
