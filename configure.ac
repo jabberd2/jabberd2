@@ -385,9 +385,10 @@ fi
 
 #
 # SASL backend selection
-
-AC_ARG_ENABLE(sasl, AC_HELP_STRING([--enable-sasl=BACKEND], [use BACKEND as SASL backend]),
-              sasl_check=$enableval, sasl_check='gsasl')
+AC_ARG_WITH(sasl,
+	AC_HELP_STRING([--with-sasl=BACKENDS],[use usable one of given BACKENDS as SASL backend]),
+	[ sasl_check=$with_sasl ],
+	[ sasl_check='gsasl' ])
 
 sasl_backend=''
 for backend in $sasl_check ; do

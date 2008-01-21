@@ -1,13 +1,32 @@
 This file contains upgrade instructions between different versions of jabberd2.
 
+* 2.1.21 to 2.1.22 upgrade:
+
+What changed:
+- MySQL 5.0+ dependency
+
+
+* 2.1.20 to 2.1.21 upgrade:
+
+What changed:
+- LDAP backend <query/> option
+
+See c2s.xml.dist for example, how to use news <query/> option, that
+allows you to customize the query sent to LDAP server.
+
+
 * 2.1.19 to 2.1.20 upgrade:
 
 What changed:
 - added missing XEP-0054 fields
 - server vcard support
+- new authreg ldapfull, storage ldapvcard and sm roster-publish modules
+- implemented maximum stanza size limit
+- disabled CyrusSASL backend compilation
 
 You need to add missing columns to "vcard" table:
 ALTER TABLE vcard ADD "jabberid" text, ADD "mailer" text, ADD "uid" text;
+See c2s.xml and sm.xml for options of new modules and stanzasize.
 
 
 * 2.1.18 to 2.1.19 upgrade:
