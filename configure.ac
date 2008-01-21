@@ -536,36 +536,38 @@ fi
 AM_CONDITIONAL(HAVE_LIBZ, [test "$HAVE_LIBZ" = "1"])
 
 # MySQL
-AC_ARG_ENABLE([mysql], 
-        AC_HELP_STRING([--enable-mysql], [enable MySQL auth/reg/storage support (no)]),
-        [enable_mysql=$enableval have_mysql=no],
-        [enable_mysql=no         have_mysql=no])
-if test "x-$enable_mysql" = "x-yes" ; then
-        for i in /usr /usr/local /usr/local/mysql ; do
-                for j in include include/mysql "" ; do
-                        if test -r "$i/$j/mysql.h" ; then
-                                MYSQL_INCLUDE=$i/$j
-                        fi
-                done
-                for j in lib lib/mysql lib64 lib64/mysql "" ; do
-                        if test -f "$i/$j/libmysqlclient.so" || test -f "$i/$j/libmysqlclient.a" ; then
-                                MYSQL_LIBDIR=$i/$j
-                        fi
-                done
-        done
-        AC_CHECK_LIB([mysqlclient], [mysql_init], [
-                have_mysql=yes
-                if test "x-$MYSQL_INCLUDE" != "x-" ; then
-                        MYSQL_CFLAGS="-I $MYSQL_INCLUDE"
-                fi
-                if test "x-$MYSQL_LIBDIR" != "x-" ; then
-                        MYSQL_LIBS="-L$MYSQL_LIBDIR -lmysqlclient"
-                fi
-                AC_DEFINE(STORAGE_MYSQL, 1, [Define to 1 if you want to use MySQL for storage.])
-        ])
-        if test "x-$have_mysql" != "x-yes" ; then
-                AC_MSG_ERROR([MySQL support requested, but headers/libraries not found.])
-        fi
+AC_ARG_ENABLE([mysql],
+	AC_HELP_STRING([--enable-mysql[=<path>]], [enable MySQL auth/reg/storage support (no)]),
+	[ enable_mysql="$enableval" have_mysql=no  MYSQL_PREFIX="$enableval" ],
+	[ enable_mysql=no           have_mysql=no ])
+
+if test "x-$enable_mysql" != "x-no" ; then
+	if test "$MYSQL_PREFIX" = "yes" ; then
+		MYSQL_PREFIX=/usr
+	fi
+
+	AC_PATH_PROG(mysqlconfig,mysql_config,,[$MYSQL_PREFIX/bin:$PATH])
+	if test [ -z "$mysqlconfig" ]
+	then
+		AC_MSG_ERROR([mysql_config executable not found: MySQL 5.0 or greater is required.])
+	else
+		AC_MSG_CHECKING(MySQL libraries)
+		MYSQL_LIBS=`${mysqlconfig} --libs`
+		AC_MSG_RESULT("$MYSQL_LIBS")
+
+		AC_MSG_CHECKING(mysql includes)
+		MYSQL_CFLAGS=`${mysqlconfig} --cflags`
+		AC_MSG_RESULT("$MYSQL_CFLAGS")
+
+		MYSQL_VERSION=`${mysqlconfig} --version`
+		MYSQL_VERSION_MAJOR=${MYSQL_VERSION%%.*}
+		if test $MYSQL_VERSION_MAJOR -lt 5 ; then
+			AC_MSG_ERROR([MySQL version 5.0 or greater required.])
+		fi
+
+		have_mysql=yes
+		AC_DEFINE(STORAGE_MYSQL, 1, [Define to 1 if you want to use MySQL for storage.])
+	fi
 fi
 AC_SUBST(MYSQL_CFLAGS)
 AC_SUBST(MYSQL_LIBS)
@@ -573,47 +575,31 @@ AM_CONDITIONAL(STORAGE_MYSQL, [test "x-$have_mysql" = "x-yes"])
 
 # PostgreSQL
 AC_ARG_ENABLE([pgsql],
-        AC_HELP_STRING([--enable-pgsql],
-	[enable PostgreSQL auth/reg/storage support, you can provide path to
-	pg_config executable (no)]),
-        [enable_pgsql="$enableval" have_pgsql=no],
-        [enable_pgsql=no         have_pgsql=no])
+        AC_HELP_STRING([--enable-pgsql[=<path>]], [enable PostgreSQL auth/reg/storage support (no)]),
+        [ enable_pgsql="$enableval" have_pgsql=no  PGSQL_PREFIX="enableval"],
+        [ enable_pgsql=no           have_pgsql=no ])
 if test "x-$enable_pgsql" != "x-no" ; then
-	if test -x "$enable_pgsql" ; then
-		PGSQL_INCLUDE="$($enable_pgsql --includedir)"
-		PGSQL_LIBDIR="$($enable_pgsql --libdir)"
-		PGSQL_CFLAGS="-I$PGSQL_INCLUDE"
+	if test "$PGSQL_PREFIX" = "yes" ; then
+		PGSQL_PREFIX=/usr
+	fi
+
+	AC_PATH_PROG(pgconfig,pg_config,,[$PGSQL_PREFIX/bin:$PATH])
+	if test [ -z "$pgconfig" ]
+	then
+		AC_MSG_ERROR([pg_config executable not found: PostgreSQL 8.0 or greater is required.])
+	else
+		AC_MSG_CHECKING(PostgresSQL libraries)
+		PGSQL_LIBDIR=`$pgconfig --libdir`
 		PGSQL_LIBS="-L$PGSQL_LIBDIR -lpq"
+		AC_MSG_RESULT("$PGSQL_LIBS")
+
+		AC_MSG_CHECKING(pgsql includes)
+		PGSQL_INCLUDE=`$pgconfig --includedir`
+		PGSQL_CFLAGS="-I$PGSQL_INCLUDE"
+		AC_MSG_RESULT("$PGSQL_CFLAGS")
+
 		have_pgsql=yes
 		AC_DEFINE([STORAGE_POSTGRES],[1],[Define to 1 if you want to use PostgreSQL for storage.])
-	else	# leave legacy detection intact for now
-		for i in /usr /usr/local /usr/local/pgsql ; do
-			for j in include include/pgsql include/postgres include/postgresql "" ; do
-				if test -r "$i/$j/libpq-fe.h" ; then
-					PGSQL_INCLUDE=$i/$j
-				fi
-			done
-			for lib in lib lib64 ; do
-				for j in $lib $lib/pgsql $lib/postgres $lib/postgresql "" ; do
-					if test -f "$i/$j/libpq.so" || test -f "$i/$j/libpq.a" ; then
-						PGSQL_LIBDIR=$i/$j
-					fi
-				done
-			done
-		done
-		AC_CHECK_LIB([pq], [PQsetdbLogin], [
-			have_pgsql=yes
-			if test "x-$PGSQL_INCLUDE" != "x-"; then
-				PGSQL_CFLAGS="-I $PGSQL_INCLUDE"
-			fi
-			if test "x-$PGSQL_LIBDIR" != "x-"; then
-				PGSQL_LIBS="-L$PGSQL_LIBDIR -lpq"
-			fi
-			AC_DEFINE(STORAGE_POSTGRES, 1, [Define to 1 if you want to use PostgreSQL for storage.])
-		])
-		if test "x-$have_pgsql" != "x-yes" ; then
-			AC_MSG_ERROR([PostgreSQL support requested, but headers/libraries not found.])
-		fi
 	fi
 fi
 AC_SUBST(PGSQL_CFLAGS)
