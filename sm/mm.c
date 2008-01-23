@@ -52,8 +52,7 @@ mm_t mm_new(sm_t sm) {
     mod_instance_t **list = NULL, mi;
     module_t mod;
 
-    mm = (mm_t) malloc(sizeof(struct mm_st));
-    memset(mm, 0, sizeof(struct mm_st));
+    mm = (mm_t) calloc(1, sizeof(struct mm_st));
 
     mm->sm = sm;
     mm->modules = xhash_new(101);
@@ -171,8 +170,7 @@ mm_t mm_new(sm_t sm) {
 
             mod = xhash_get(mm->modules, name);
             if(mod == NULL) {
-                mod = (module_t) malloc(sizeof(struct module_st));
-                memset(mod, 0, sizeof(struct module_st));
+                mod = (module_t) calloc(1, sizeof(struct module_st));
 
                 mod->mm = mm;
                 mod->index = mm->nindex;
@@ -215,8 +213,7 @@ mm_t mm_new(sm_t sm) {
                 }
             }
 
-            mi = (mod_instance_t) malloc(sizeof(struct mod_instance_st));
-            memset(mi, 0, sizeof(struct mod_instance_st));
+            mi = (mod_instance_t) calloc(1, sizeof(struct mod_instance_st));
 
             mi->sm = sm;
             mi->mod = mod;
@@ -696,7 +693,11 @@ void mm_disco_extend(mm_t mm, pkt_t pkt) {
 
     for(n = 0; n < mm->ndisco_extend; n++) {
         mi = mm->disco_extend[n];
-        if(mi == NULL || mi->mod->disco_extend == NULL) {
+        if(mi == NULL) {
+            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            continue;
+        }
+        if(mi->mod->disco_extend == NULL) {
             log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
