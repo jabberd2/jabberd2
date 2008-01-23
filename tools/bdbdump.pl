@@ -8,7 +8,6 @@
 # The DB file given on the command line is dumped as an XML file to stdout. 
 #
 # NB:
-# - NADs are not parsed
 # - integer types are hard-coded to be 4 bytes LSB
 #
 # (c) 2007 Harald Braumann <harry@unheit.net>
@@ -116,18 +115,16 @@ sub dump_fields {
         } elsif ($type eq "boolean") {
             printf("%s", get_int(\@value) > 0 ? "1" : "0");
         } elsif ($type eq "string") {
-            printf(get_string(\@value));
+            print("<![CDATA[".get_string(\@value)."]]>");
         } elsif ($type eq "nad") {
-            trc("warn: `nad\' type found. don't know how to parse!");
-            printf(join('', @value));
-            $#value = 0;
+            print("<![CDATA[".get_string(\@value)."]]>");
         } elsif ($type eq "unknown") {
             trc("warn: `unknown\' type found. don't know how to parse!");
-            printf(join('', @value));
+            print("<![CDATA[".join('', @value)."]]>");
             $#value = 0;
         } else {
             trc("warn: unknown type found!");
-            printf(join('', @value));
+            print("<![CDATA[".join('', @value)."]]>");
             $#value = 0;
         }            
         printf("</$field>\n");
