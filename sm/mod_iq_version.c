@@ -32,9 +32,9 @@
 #endif
 
 typedef struct _mod_iq_version_config_st {
-    char   *sm_name;
-    char   *sm_version;
-    char   *sm_signature;
+    char   *app_name;
+    char   *app_version;
+    char   *app_signature;
     char   *os_name;
     char   *os_release;
 } *mod_iq_version_config_t;
@@ -182,8 +182,8 @@ static mod_ret_t _iq_version_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     if(pkt->type != pkt_IQ || pkt->ns != ns_VERSION)
         return mod_PASS;
 
-    nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "name", config->sm_name);
-    nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "version", config->sm_version);
+    nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "name", config->app_name);
+    nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "version", config->app_version);
 
     /* figure out the os type */
     if(config->os_name != NULL) {
@@ -223,9 +223,14 @@ static void _iq_version_disco_extend(mod_instance_t mi, pkt_t pkt)
     nad_append_cdata(pkt->nad, uri_CLIENTINFO, strlen(uri_CLIENTINFO), 6);
 
     nad_append_elem(pkt->nad, -1, "field", 4);
+    nad_append_attr(pkt->nad, -1, "var", "software");
+    nad_append_elem(pkt->nad, -1, "value", 5);
+    nad_append_cdata(pkt->nad, config->app_name, strlen(config->app_name), 6);
+
+    nad_append_elem(pkt->nad, -1, "field", 4);
     nad_append_attr(pkt->nad, -1, "var", "software_version");
     nad_append_elem(pkt->nad, -1, "value", 5);
-    nad_append_cdata(pkt->nad, config->sm_version, strlen(config->sm_version), 6);
+    nad_append_cdata(pkt->nad, config->app_version, strlen(config->app_version), 6);
 
     if(config->os_name != NULL) {
         nad_append_elem(pkt->nad, -1, "field", 4);
@@ -261,9 +266,9 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     if(mod->init) return 0;
 
     config = (mod_iq_version_config_t) calloc(1, sizeof(struct _mod_iq_version_config_st));
-    config->sm_name = PACKAGE;
-    config->sm_version = VERSION;
-    config->sm_signature = mi->sm->signature;
+    config->app_name = PACKAGE;
+    config->app_version = VERSION;
+    config->app_signature = mi->sm->signature;
     _iq_version_get_os_version(config);
 
     mod->private = config;    

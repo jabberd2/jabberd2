@@ -1,5 +1,13 @@
 This file contains upgrade instructions between different versions of jabberd2.
 
+* 2.1.22 to 2.1.23 upgrade:
+
+What changed:
+- XEP-xxxx: Software Information implemented
+
+See sm.xml.dist config for disco-extend snippet to add to your sm.xml.
+
+
 * 2.1.21 to 2.1.22 upgrade:
 
 What changed:

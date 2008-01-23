@@ -466,7 +466,7 @@
 	 Service Discovery Extensions mechanizm to add additional
 	 information to disco#info reply. -->
     <chain id='disco-extend'>
-      <module>iq-version</module>       <!-- add XEP-0XXX Client Information -->
+      <module>iq-version</module>       <!-- add XEP-xxxx Software Information -->
       <module>help</module>             <!-- add XEP-0157 Contact Addresses -->
     </chain>
 
