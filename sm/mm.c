@@ -379,7 +379,11 @@ int mm_sess_start(mm_t mm, sess_t sess) {
     ret = 0;
     for(n = 0; n < mm->nsess_start; n++) {
         mi = mm->sess_start[n];
-        if(mi == NULL || mi->mod->sess_start == NULL) {
+        if(mi == NULL) {
+            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            continue;
+        }
+        if(mi->mod->sess_start == NULL) {
             log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
@@ -405,7 +409,11 @@ void mm_sess_end(mm_t mm, sess_t sess) {
 
     for(n = 0; n < mm->nsess_end; n++) {
         mi = mm->sess_end[n];
-        if(mi == NULL || mi->mod->sess_end == NULL) {
+        if(mi == NULL) {
+            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            continue;
+        }
+        if(mi->mod->sess_end == NULL) {
             log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
@@ -429,7 +437,11 @@ mod_ret_t mm_in_sess(mm_t mm, sess_t sess, pkt_t pkt) {
     ret = mod_PASS;
     for(n = 0; n < mm->nin_sess; n++) {
         mi = mm->in_sess[n];
-        if(mi == NULL || mi->mod->in_sess == NULL) {
+        if(mi == NULL) {
+            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            continue;
+        }
+        if(mi->mod->in_sess == NULL) {
             log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
@@ -457,7 +469,11 @@ mod_ret_t mm_in_router(mm_t mm, pkt_t pkt) {
     if (mm != NULL && pkt != NULL )
     for(n = 0; n < mm->nin_router; n++) {
         mi = mm->in_router[n];
-        if(mi == NULL || mi->mod == NULL || mi->mod->in_router == NULL) {
+        if(mi == NULL) {
+            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            continue;
+        }
+        if(mi->mod == NULL || mi->mod->in_router == NULL) {
             log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
@@ -484,7 +500,11 @@ mod_ret_t mm_out_sess(mm_t mm, sess_t sess, pkt_t pkt) {
 
     for(n = 0; n < mm->nout_sess; n++) {
         mi = mm->out_sess[n];
-        if(mi == NULL || mi->mod->out_sess == NULL) {
+        if(mi == NULL) {
+            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            continue;
+        }
+        if(mi->mod->out_sess == NULL) {
             log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
@@ -511,7 +531,11 @@ mod_ret_t mm_out_router(mm_t mm, pkt_t pkt) {
 
     for(n = 0; n < mm->nout_router; n++) {
         mi = mm->out_router[n];
-        if(mi == NULL || mi->mod->out_router == NULL) {
+        if(mi == NULL) {
+            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            continue;
+        }
+        if(mi->mod->out_router == NULL) {
             log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
@@ -537,7 +561,11 @@ mod_ret_t mm_pkt_sm(mm_t mm, pkt_t pkt) {
 
     for(n = 0; n < mm->npkt_sm; n++) {
         mi = mm->pkt_sm[n];
-        if(mi == NULL || mi->mod->pkt_sm == NULL) {
+        if(mi == NULL) {
+            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            continue;
+        }
+        if(mi->mod->pkt_sm == NULL) {
             log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
@@ -564,7 +592,11 @@ mod_ret_t mm_pkt_user(mm_t mm, user_t user, pkt_t pkt) {
 
     for(n = 0; n < mm->npkt_user; n++) {
         mi = mm->pkt_user[n];
-        if(mi == NULL || mi->mod->pkt_user == NULL) {
+        if(mi == NULL) {
+            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            continue;
+        }
+        if(mi->mod->pkt_user == NULL) {
             log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
@@ -591,7 +623,11 @@ mod_ret_t mm_pkt_router(mm_t mm, pkt_t pkt) {
 
     for(n = 0; n < mm->npkt_router; n++) {
         mi = mm->pkt_router[n];
-        if(mi == NULL || mi->mod->pkt_router == NULL) {
+        if(mi == NULL) {
+            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            continue;
+        }
+        if(mi->mod->pkt_router == NULL) {
             log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
@@ -618,7 +654,11 @@ int mm_user_load(mm_t mm, user_t user) {
 
     for(n = 0; n < mm->nuser_load; n++) {
         mi = mm->user_load[n];
-        if(mi == NULL || mi->mod->user_load == NULL) {
+        if(mi == NULL) {
+            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            continue;
+        }
+        if(mi->mod->user_load == NULL) {
             log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
@@ -645,7 +685,11 @@ int mm_user_create(mm_t mm, jid_t jid) {
 
     for(n = 0; n < mm->nuser_create; n++) {
         mi = mm->user_create[n];
-        if(mi == NULL || mi->mod->user_create == NULL) {
+        if(mi == NULL) {
+            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            continue;
+        }
+        if(mi->mod->user_create == NULL) {
             log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
@@ -671,7 +715,11 @@ void mm_user_delete(mm_t mm, jid_t jid) {
 
     for(n = 0; n < mm->nuser_delete; n++) {
         mi = mm->user_delete[n];
-        if(mi == NULL || mi->mod->user_delete == NULL) {
+        if(mi == NULL) {
+            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            continue;
+        }
+        if(mi->mod->user_delete == NULL) {
             log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
