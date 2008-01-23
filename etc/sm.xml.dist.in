@@ -461,6 +461,15 @@
       <module>iq-vcard</module>         <!-- delete vcard -->
     </chain>
 
+    <!-- disco-extend. The modules in this chain are called when a disco
+         info request is send to session manager. It implements XEP-0128
+	 Service Discovery Extensions mechanizm to add additional
+	 information to disco#info reply. -->
+    <chain id='disco-extend'>
+      <module>iq-version</module>       <!-- add XEP-0XXX Client Information -->
+      <module>help</module>             <!-- add XEP-0157 Contact Addresses -->
+    </chain>
+
   </modules>
 
   <!-- Service discovery configuration -->

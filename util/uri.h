@@ -62,6 +62,7 @@
 #define uri_URN_DELAY   "urn:xmpp:delay"
 #define uri_TIME        "jabber:iq:time"
 #define uri_URN_TIME    "urn:xmpp:time"
+#define uri_VERSION     "jabber:iq:version"
 #define uri_BROWSE      "jabber:iq:browse"
 #define uri_EVENT       "jabber:x:event"
 #define uri_GATEWAY     "jabber:iq:gateway"
@@ -75,6 +76,7 @@
 #define uri_DISCO_ITEMS "http://jabber.org/protocol/disco#items"
 #define uri_DISCO_INFO  "http://jabber.org/protocol/disco#info"
 #define uri_SERVERINFO  "http://jabber.org/network/serverinfo"
+#define uri_CLIENTINFO  "urn:xmpp:dataforms:clientinfo"
 
 #define uri_AMP                         "http://jabber.org/protocol/amp"
 #define uri_AMP_ERRORS                  "http://jabber.org/protocol/amp#errors"

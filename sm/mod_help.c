@@ -110,6 +110,9 @@ static void _help_disco_extend(mod_instance_t mi, pkt_t pkt)
         return;
 
     ns = nad_add_namespace(pkt->nad, uri_XDATA, NULL);
+    /* there may be several XDATA siblings, so need to enforce the NS */
+    pkt->nad->scope = ns;
+
     nad_append_elem(pkt->nad, ns, "x", 3);
     nad_append_attr(pkt->nad, -1, "type", "result");
     /* hidden form type field*/

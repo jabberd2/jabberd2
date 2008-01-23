@@ -31,41 +31,39 @@
 # include <sys/utsname.h>
 #endif
 
-#define uri_VERSION     "jabber:iq:version"
+typedef struct _mod_iq_version_config_st {
+    char   *sm_name;
+    char   *sm_version;
+    char   *sm_signature;
+    char   *os_name;
+    char   *os_release;
+} *mod_iq_version_config_t;
+
 static int ns_VERSION = 0;
 
-static mod_ret_t _iq_version_pkt_sm(mod_instance_t mi, pkt_t pkt) {
-    char buf[256];
-
+void _iq_version_get_os_version(mod_iq_version_config_t config) {
 #if defined(HAVE_UNAME)
     struct utsname un;
 
 #elif defined(_WIN32)
     char sysname[64];
     char release[64];
-    char version[64];
 
     OSVERSIONINFOEX osvi;
     BOOL bOsVersionInfoEx;
     BOOL bSomeError = FALSE;
 
-    sysname[0] = 0;
-    release[0] = 0;
-    version[0] = 0;
+    sysname[0] = '\0';
+    release[0] = '\0';
 #endif
-
-    /* we only want to play with iq:version gets */
-    if(pkt->type != pkt_IQ || pkt->ns != ns_VERSION)
-        return mod_PASS;
-
-    nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "name", "jabberd session manager");
-    nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "version", mi->sm->signature);
 
     /* figure out the os type */
 #if defined(HAVE_UNAME)
     if(uname(&un) == 0) {
-        snprintf(buf, 256, "%s %s", un.sysname, un.machine);
-        nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "os", buf);
+        config->os_name = strdup(un.sysname);
+        config->os_release = strdup(un.machine);
+
+        return;
     }
 #elif defined(_WIN32)
     ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
@@ -137,23 +135,6 @@ static mod_ret_t _iq_version_pkt_sm(mod_instance_t mi, pkt_t pkt) {
                 if ( lstrcmpi( "SERVERNT", szProductType) == 0 )
                     snprintf(release, 64, "Advanced Server" );
             }
-            
-            /* Display version, service pack (if any), and build number. */
-            
-            if ( osvi.dwMajorVersion <= 4 )
-            {
-                snprintf(version, 64, "version %d.%d %s (Build %d)",
-                    osvi.dwMajorVersion,
-                    osvi.dwMinorVersion,
-                    osvi.szCSDVersion,
-                    osvi.dwBuildNumber & 0xFFFF);
-            }
-            else
-            { 
-                snprintf(version, 64, "%s (Build %d)",
-                    osvi.szCSDVersion,
-                    osvi.dwBuildNumber & 0xFFFF);
-            }
             break;
             
         case VER_PLATFORM_WIN32_WINDOWS:
@@ -185,13 +166,33 @@ static mod_ret_t _iq_version_pkt_sm(mod_instance_t mi, pkt_t pkt) {
         }
     }
 
-    snprintf(buf, 256, "%s %s %s", sysname, release, version);
-    buf[256] = '\0';
-    nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "os", buf);
+    config->os_name = strdup(sysname);
+    config->os_release = strdup(release);
 
-#else
-    nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "os", "unknown");
+    return;
 #endif
+}
+
+static mod_ret_t _iq_version_pkt_sm(mod_instance_t mi, pkt_t pkt) {
+    module_t mod = mi->mod;
+    mod_iq_version_config_t config = (mod_iq_version_config_t) mod->private;
+    char buf[256];
+
+    /* we only want to play with iq:version gets */
+    if(pkt->type != pkt_IQ || pkt->ns != ns_VERSION)
+        return mod_PASS;
+
+    nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "name", config->sm_name);
+    nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "version", config->sm_version);
+
+    /* figure out the os type */
+    if(config->os_name != NULL) {
+        if(config->os_release)
+            snprintf(buf, 256, "%s %s", config->os_name, config->os_release);
+        else
+            snprintf(buf, 256, "%s", config->os_name);
+        nad_insert_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 1), "os", buf);
+    }
 
     /* tell them */
     nad_set_attr(pkt->nad, 1, -1, "type", "result", 6);
@@ -200,17 +201,75 @@ static mod_ret_t _iq_version_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     return mod_HANDLED;
 }
 
+static void _iq_version_disco_extend(mod_instance_t mi, pkt_t pkt)
+{
+    module_t mod = mi->mod;
+    mod_iq_version_config_t config = (mod_iq_version_config_t) mod->private;
+    int ns;
+
+    log_debug(ZONE, "in mod_iq_version disco-extend");
+
+    ns = nad_add_namespace(pkt->nad, uri_XDATA, NULL);
+    /* there may be several XDATA siblings, so need to enforce the NS */
+    pkt->nad->scope = ns;
+
+    nad_append_elem(pkt->nad, ns, "x", 3);
+    nad_append_attr(pkt->nad, -1, "type", "result");
+    /* hidden form type field*/
+    nad_append_elem(pkt->nad, -1, "field", 4);
+    nad_append_attr(pkt->nad, -1, "var", "FORM_TYPE");
+    nad_append_attr(pkt->nad, -1, "type", "hidden");
+    nad_append_elem(pkt->nad, -1, "value", 5);
+    nad_append_cdata(pkt->nad, uri_CLIENTINFO, strlen(uri_CLIENTINFO), 6);
+
+    nad_append_elem(pkt->nad, -1, "field", 4);
+    nad_append_attr(pkt->nad, -1, "var", "software_version");
+    nad_append_elem(pkt->nad, -1, "value", 5);
+    nad_append_cdata(pkt->nad, config->sm_version, strlen(config->sm_version), 6);
+
+    if(config->os_name != NULL) {
+        nad_append_elem(pkt->nad, -1, "field", 4);
+        nad_append_attr(pkt->nad, -1, "var", "os");
+        nad_append_elem(pkt->nad, -1, "value", 5);
+        nad_append_cdata(pkt->nad, config->os_name, strlen(config->os_name), 6);
+    }
+
+    if(config->os_name != NULL) {
+        nad_append_elem(pkt->nad, -1, "field", 4);
+        nad_append_attr(pkt->nad, -1, "var", "os_version");
+        nad_append_elem(pkt->nad, -1, "value", 5);
+        nad_append_cdata(pkt->nad, config->os_release, strlen(config->os_release), 6);
+    }
+}
+
 static void _iq_version_free(module_t mod) {
-     sm_unregister_ns(mod->mm->sm, uri_VERSION);
-     feature_unregister(mod->mm->sm, uri_VERSION);
+    mod_iq_version_config_t config = (mod_iq_version_config_t) mod->private;
+
+    sm_unregister_ns(mod->mm->sm, uri_VERSION);
+    feature_unregister(mod->mm->sm, uri_VERSION);
+
+    if(config->os_name != NULL) free(config->os_name);
+    if(config->os_release != NULL) free(config->os_release);
+
+    free(config);
 }
 
 DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
+    mod_iq_version_config_t config;
     module_t mod = mi->mod;
 
     if(mod->init) return 0;
 
+    config = (mod_iq_version_config_t) calloc(1, sizeof(struct _mod_iq_version_config_st));
+    config->sm_name = PACKAGE;
+    config->sm_version = VERSION;
+    config->sm_signature = mi->sm->signature;
+    _iq_version_get_os_version(config);
+
+    mod->private = config;    
+
     mod->pkt_sm = _iq_version_pkt_sm;
+    mod->disco_extend = _iq_version_disco_extend;
     mod->free = _iq_version_free;
 
     ns_VERSION = sm_register_ns(mod->mm->sm, uri_VERSION);

@@ -195,8 +195,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
     jabber_signal(SIGPIPE, SIG_IGN);
 #endif
 
-    sm = (sm_t) malloc(sizeof(struct sm_st));
-    memset(sm, 0, sizeof(struct sm_st));
+    sm = (sm_t) calloc(1, sizeof(struct sm_st));
 
     /* load our config */
     sm->config = config_new();
@@ -261,7 +260,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
 
     _sm_pidfile(sm);
 
-    sm_signature(sm, "jabberd sm " VERSION);
+    sm_signature(sm, PACKAGE " sm " VERSION);
 
     sm->pc = prep_cache_new();
 
