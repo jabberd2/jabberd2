@@ -83,6 +83,8 @@
          itself. Be aware that users are assigned to a realm, not a host,
          so two hosts in the same realm will have the same users. If no
          realm is specified, it will be set to be the same as the ID.
+         If empty "" realm is specified, the PAM backend wil authenticate
+         using plain usernames, not JIDs.
 
          pemfile
          attribute specifies the file containing a SSL certificate and
@@ -501,6 +503,20 @@
       <!-- Enable the append-realm element if you want to append
            realm value (usernam@realm) to the uidattr value
       <append-realm/>
+      -->
+
+      <!-- Alternatively to <uidattr/> and <append-realm/> you may
+           specify full LDAP search <query/> that will be used to
+           get user objects from directory.
+
+           The following replacements take place:
+           %u  is replaced by user login name
+           %r  is replaced by user login realm
+
+           When <query/> is specified, <uidattr/> and <append-realm/>
+           are unused and take no effect. -->
+      <!--
+      <query>(&amp;(mail=%u@%r)(objectClass=inetOrgPerson))</query>
       -->
 
       <!-- base DN of the tree. You should specify a DN for each
