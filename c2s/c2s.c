@@ -1133,7 +1133,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     }
 
                     /* return the auth result to the client */
-                    sx_nad_write(sess->s, sess->result);
+                    if(sess->result) sx_nad_write(sess->s, sess->result);
                     sess->result = NULL;
 
                     /* we're good to go */
