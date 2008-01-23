@@ -36,6 +36,18 @@
 # endif /* _WIN32 */
 #endif /* JABBERD2_API */
 
+/* use OpenSSL functions when available */
+#ifdef HAVE_SSL
+#include <openssl/sha.h>
+
+#define sha1_state_t SHA_CTX
+#define sha1_init(c) SHA1_Init(c)
+#define sha1_append(c, data, len) SHA1_Update(c, data, len);
+#define sha1_finish(c, md) SHA1_Final(md, c)
+#define sha1_hash(data, len, md) SHA1(data, len, md);
+
+#else
+
 #include <stdint.h>
 
 typedef struct sha1_state_s {
@@ -51,3 +63,5 @@ JABBERD2_API void sha1_finish(sha1_state_t *ctx, unsigned char hashout[20]);
 JABBERD2_API void sha1_hash(const unsigned char *dataIn, int len, unsigned char hashout[20]);
 
 #endif
+
+#endif /* HAVE_SSL */
