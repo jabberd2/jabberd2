@@ -24,6 +24,13 @@ if test "x-$lt_cv_dlopen_libs" != "x-" ; then
     LIBS="$LIBS $lt_cv_dlopen_libs"
 fi
 
+# check for optimisation level
+AC_MSG_CHECKING([CFLAGS optimization level])
+[if echo $CFLAGS | grep '.*-O[3s].*' >/dev/null 2>&1; then]
+    AC_MSG_ERROR([maximum allowed optimization level is -O2])
+fi
+AC_MSG_RESULT([fine])
+
 # extra paths
 AC_ARG_WITH([extra_include_path], AC_HELP_STRING([--with-extra-include-path],
                                            [use additional include paths]),
@@ -469,7 +476,7 @@ dnl Check for & handle argument to --with-zlib.
 _cppflags=$CPPFLAGS
 _ldflags=$LDFLAGS
 AC_ARG_WITH(zlib,
-AC_HELP_STRING([--with-zlib=PATH],[search for zlib in PATH])
+AC_HELP_STRING([--with-zlib=DIR],[search for zlib in DIR])
 AC_HELP_STRING([--without-zlib],[disable use of zlib]),
                [OPT_ZLIB="$withval"])
 
@@ -538,7 +545,7 @@ AM_CONDITIONAL(HAVE_LIBZ, [test "$HAVE_LIBZ" = "1"])
 
 # MySQL
 AC_ARG_ENABLE([mysql],
-	AC_HELP_STRING([--enable-mysql[=<path>]], [enable MySQL auth/reg/storage support (no)]),
+	AC_HELP_STRING([--enable-mysql[=DIR]], [enable MySQL auth/reg/storage support (no)]),
 	[ enable_mysql="$enableval" have_mysql=no  MYSQL_PREFIX="$enableval" ],
 	[ enable_mysql=no           have_mysql=no ])
 
@@ -576,7 +583,7 @@ AM_CONDITIONAL(STORAGE_MYSQL, [test "x-$have_mysql" = "x-yes"])
 
 # PostgreSQL
 AC_ARG_ENABLE([pgsql],
-        AC_HELP_STRING([--enable-pgsql[=<path>]], [enable PostgreSQL auth/reg/storage support (no)]),
+        AC_HELP_STRING([--enable-pgsql[=DIR]], [enable PostgreSQL auth/reg/storage support (no)]),
         [ enable_pgsql="$enableval" have_pgsql=no  PGSQL_PREFIX="enableval"],
         [ enable_pgsql=no           have_pgsql=no ])
 if test "x-$enable_pgsql" != "x-no" ; then
