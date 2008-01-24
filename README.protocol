@@ -1,0 +1,204 @@
+Protocol support
+----------------
+
+jabberd 2.x is a server implementation of the eXtensible Messaging and
+Presence Protocol (XMPP), as published by the IETF. It also implements
+several XMPP extensions documented by the XMPP Software Foundation (XSF),
+and some legacy extensions that were implemented by its predecessor,
+jabberd 1.4.
+
+This document lists the protocols supported by the server, and any notes
+relating to the implementation.
+
+This is current as of 2008-01-24 (jabberd 2.1.22).
+
+
+RFC 3920	XMPP Core				supported
+RFC 3921	XMPP IM					supported
+RFC 3920bis	XMPP Core				supported
+RFC 3921bis	XMPP IM					supported
+
+XEP-0004	Data Forms				-
+XEP-0011	Jabber Browsing				supported
+XEP-0012	Last Activity				supported
+XEP-0013	Flexible Offline Message Retrieval	-
+XEP-0016	Privacy Lists				supported
+XEP-0018	Invisible Presence			removed
+XEP-0022	Message Events				supported
+XEP-0023	Message Expiration			supported
+XEP-0030	Service Discovery			supported
+XEP-0033	Extended Stanza Addressing		-
+XEP-0045	Multi-User Chat				(by add-on)
+XEP-0048	Bookmark Storage			supported
+XEP-0049	Private XML Storage			supported
+XEP-0050	Ad-Hoc Commands				-
+XEP-0054	vcard-temp				supported
+XEP-0055	Jabber Search				(by add-on)
+XEP-0059	Result Set Management			-
+XEP-0060	Publish-Subscribe			(by add-on)
+XEP-0065	SOCKS5 Bytestreams			(by add-on)
+XEP-0073	Basic IM Protocol Suite			supported
+XEP-0077	In-Band Registration			supported
+XEP-0078	Non-SASL Authentication			supported
+XEP-0079	Advanced Message Processing		partial
+XEP-0083	Nested Roster Groups			supported
+XEP-0086	Error Condition Mappings		supported
+XEP-0090	Entity Time				supported
+XEP-0091	Delayed Delivery			supported
+XEP-0092	Software Version			supported
+XEP-0093	Agent Information			supported
+XEP-0114	Jabber Component Protocol		supported
+XEP-0117	Intermediate IM Protocol Suite		(by add-on)
+XEP-0124	HTTP Binding				(by add-on)
+XEP-0128	Service Discovery Extensions		supported
+XEP-0133	Service Administration			-
+XEP-0136	Message Archiving			-
+XEP-0138	Stream Compression			supported
+XEP-0142	Workgroups				-
+XEP-0145	Annotations				supported
+XEP-0150	Use of Entity Tags in XMPP Extensions	-
+XEP-0153	vCard-Based Avatars			supported
+XEP-0154	User Profile				-
+XEP-0157	Contact Addresses for XMPP Services	supported
+XEP-0159	SPIM-Blocking Control			-
+XEP-0160	Best Practices for Handling Offline
+		Messages				supported
+XEP-0163	Personal Eventing via Pubsub		-
+XEP-0168	Resource Application Priority		-
+XEP-0170	Recommended Order of Stream Feature
+		Negotiation				supported
+XEP-0172	User Nickname
+XEP-0175	Best Practices of Use of SASL ANONYMOUS	supported
+XEP-0178	Best Practices of Use of SASL EXTERNAL	partial
+XEP-0185	Dialback Key Generation and Validation	supported
+XEP-0186	Invisible Command			-
+XEP-0190	Best Practice for Closing Idle Streams	supported
+XEP-0191	Simple Communications Blocking		supported
+XEP-0192	Proposed Stream Feature Improvements	supported
+XEP-0193	Proposed Resource Binding Improvements	supported
+XEP-0198	Stanza Acknowledgements			supported
+XEP-0199	XMPP Ping				supported
+XEP-0202	Entity Time				supported
+XEP-0203	Delayed Delivery			supported
+XEP-0205	Best Practices to Discourage
+		Denial of Service Attacks		partial
+XEP-0206	XMPP Over BOSH				(by add-on)
+XEP-0209	Metacontacts				supported
+XEP-0212	XMPP Basic Server 2008			supported
+XEP-0215	External Service Discovery		-
+XEP-0216	XMPP Intermediate IM Server 2008	partial
+XEP-0219	Hop Check				-
+XEP-0220	Server Dialback				supported
+XEP-0225	Component Connections			supported
+
+
+Additional features supported by jabberd 2.1.22 (without plugins):
+
+- Server admin address
+- Echo address
+- Server MOTD
+- Offline message storage
+- Message archiving
+- Authorization with: BerkeleyDB, LDAP, MySQL, NTLogon, Oracle, PAM, PostgreSQL, Pipe, SQLite, SSPI
+- Storage in: BerkeleyDB, files, LDAP(vCard), MySQL, Oracle, PostreSQL, SQLite
+- jabberd2 Component Protocol
+
+
+
+Implementation Notes
+--------------------
+
+
+XMPP RFCs
+---------
+
+XMPP Core (RFC 3920 and RFC 3920bis)
+
+ Implemented, except for:
+  - SASL (External) for s2s streams
+  - Language support via xml:lang
+
+XMPP IM (RFC 3921 and RFC 3921bis)
+
+ Implemented.
+
+
+XMPP Extension Protocols
+------------------------
+
+Jabber Browsing (XEP-0011)
+
+ Implemented by the session manager (mod_disco) as a wrapper around the
+ service list used for Service Discovery. The configuration required to
+ enable browsing is undocumented as browse is considered to be
+ deprecated.
+
+Last Activity (XEP-0012)
+
+ Implemented by the session manager (mod_iq_last).
+
+Message Events (XEP-0022)
+
+ Offline event implemented by the session manager (mod_offline).
+
+Message Expiration (XEP-0023)
+
+ Implemented by the session manager (mod_offline).
+
+Service Discovery (XEP-0030)
+
+ Implemented by the session manager (mod_disco). Administrative users
+ will see extra nodes when doing a #items query - these nodes provide
+ information about active users and sessions. New components becoming
+ available are probed automatically, and if they are disco-aware, their
+ information is added to the service list. Sub-entity item publishing is
+ implemented seperately by mod_disco_publish.
+
+Private XML Storage (XEP-0049)
+
+ Implemented by the session manager (mod_iq_private).
+
+vcard-temp (XEP-0054)
+
+ Implemented by the session manager (mod_iq_vcard).
+
+In-band Registration (XEP-0077)
+
+ Implemented by c2s.
+
+Non-SASL Authentication (XEP-0078)
+
+ Implemented by c2s.
+
+Entity Time (XEP-0090)
+
+ Implemented by the session manager (mod_iq_time).
+
+Delayed Delivery (XEP-0091)
+
+ Implemented by the session manager.
+
+Software Version (XEP-0092)
+
+ Implemented by the session manager (mod_iq_version).
+
+Agent Information (XEP-0094)
+
+ Implemented by the session manager (mod_disco) as a wrapper around the
+ service list used for Service Discovery.
+
+External Component Protocol (XEP-0114)
+
+ Implemented by the router as a wrapper around the more featureful
+ jabberd 2.x component protocol.
+
+
+Legacy extensions (jabberd 1.4)
+-------------------------------
+
+Invisible presence (XEP-0018)
+
+ This extension was implemented by the session manager.
+ It was intentionally removed. This is very legacy, causes problems, we
+ have better ways of doing so called invisibility, etc.
+
