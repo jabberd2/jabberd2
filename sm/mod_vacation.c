@@ -168,6 +168,13 @@ static mod_ret_t _vacation_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     if(!(pkt->type & pkt_MESSAGE) || user->top != NULL)
         return mod_PASS;
 
+    /* reply only to real, human users - they always have full JIDs in 'from' */
+    jid_expand(pkt->from);
+    if(pkt->from->node[0] == '\0' || pkt->from->resource[0] == '\0') {
+        pkt_free(pkt);
+        return mod_HANDLED;
+    }
+
     t = time(NULL);
 
     if(v->start < t && (t < v->end || v->end == 0)) {
@@ -194,8 +201,7 @@ static int _vacation_user_load(mod_instance_t mi, user_t user) {
     os_t os;
     os_object_t o;
 
-    v = (vacation_t) malloc(sizeof(struct _vacation_st));
-    memset(v, 0, sizeof(struct _vacation_st));
+    v = (vacation_t) calloc(1, sizeof(struct _vacation_st));
     user->module_data[mod->index] = v;
 
     if(storage_get(mod->mm->sm->st, "vacation-settings", jid_user(user->jid), NULL, &os) == st_SUCCESS) {
