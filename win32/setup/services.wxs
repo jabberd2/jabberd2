@@ -126,9 +126,6 @@
 			<Component Id="jabberd2.dll" Guid="{4C6C8EBD-DB23-498C-8E1E-0254631AB252}">
 				<File Id="jabberd2.dll" Name="jabberd2.dll" KeyPath="yes" Vital="yes" />
 			</Component>
-			<Component Id="dbsetupstatus.mysql" Guid="{7DF07536-99A9-455A-9DB8-A4369AE0660D}">
-				<File Id="dbsetupstatus.mysql" Name="db-setup-status.mysql" KeyPath="yes" Vital="yes" />
-			</Component>
 			<Component Id="dbsetup.mysql" Guid="{0EE029D6-DFD1-4F20-A910-02B472940D7F}">
 				<File Id="dbsetup.mysql" Name="db-setup.mysql" KeyPath="yes" Vital="yes" />
 			</Component>
@@ -137,6 +134,9 @@
 			</Component>
 			<Component Id="dbsetup.sqlite" Guid="{5C39F304-CD9E-4488-8C8D-5C629EB315D1}">
 				<File Id="dbsetup.sqlite" Name="db-setup.sqlite" KeyPath="yes" Vital="yes" />
+			</Component>
+			<Component Id="dbupdate.sqlite" Guid="{609ED973-93AE-4CCF-8B04-661DEBDC466E}">
+				<File Id="dbupdate.sqlite" Name="db-update.sqlite" KeyPath="yes" Vital="yes" />
 			</Component>
 			<Component Id="sqlite.dist.db" Guid="{928DD3B5-F429-45C4-B677-F3A2FFE23051}">
 				<Condition>SQLITE.DB.EXISTS</Condition>
@@ -171,10 +171,10 @@
 			<ComponentRef Id="sm.dist.xml" />
 			<ComponentRef Id="server.pem" />
 			<ComponentRef Id="jabberd2.dll" />
-			<ComponentRef Id="dbsetupstatus.mysql" />
 			<ComponentRef Id="dbsetup.mysql" />
 			<ComponentRef Id="dbupdate.mysql" />
 			<ComponentRef Id="dbsetup.sqlite" />
+			<ComponentRef Id="dbupdate.sqlite" />
 			<ComponentRef Id="sqlite.dist.db" />
 			<ComponentRef Id="sqlite.db" />
 		</ComponentGroup>

@@ -71,6 +71,9 @@
 			<Component Id="mod_roster.dll" Guid="{437373A4-53C1-4B06-9459-9467C7514DB8}">
 				<File Id="mod_roster.dll" Name="mod_roster.dll" KeyPath="yes" Vital="yes" />
 			</Component>
+			<Component Id="mod_rosterpublish.dll" Guid="{A3706FEE-3A58-4175-A91F-8C66E5C2078B}">
+				<File Id="mod_rosterpublish.dll" Name="mod_roster-publish.dll" KeyPath="yes" Vital="yes" />
+			</Component>
 			<Component Id="mod_session.dll" Guid="{3630201D-7112-436E-B4F5-E1683BE6C57B}">
 				<File Id="mod_session.dll" Name="mod_session.dll" KeyPath="yes" Vital="yes" />
 			</Component>
@@ -119,6 +122,7 @@
 			<ComponentRef Id="mod_presence.dll" />
 			<ComponentRef Id="mod_privacy.dll" />
 			<ComponentRef Id="mod_roster.dll" />
+			<ComponentRef Id="mod_rosterpublish.dll" />
 			<ComponentRef Id="mod_session.dll" />
 			<ComponentRef Id="mod_status.dll" />
 			<ComponentRef Id="mod_templateroster.dll" />

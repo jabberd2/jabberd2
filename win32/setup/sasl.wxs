@@ -2,41 +2,14 @@
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
 	<Fragment>
 		<DirectoryRef Id="INSTALLDIR" FileSource="$(var.TargetDir)">
-			<Component Id="libsasl.dll" Guid="{A7318531-DAB3-40DF-965A-08C1160BDCD1}">
-				<File Id="libsasl.dll" Name="libsasl.dll" KeyPath="yes" Vital="yes" />
-			</Component>
-		</DirectoryRef>
-		<!-- SASL modules -->
-		<DirectoryRef Id="SASLDir" FileSource="$(var.TargetDir)\sasl">
-			<Component Id="saslANONYMOUS.dll" Guid="{B5D53A87-CDDE-48C0-9EAC-A054F600D47A}">
-				<File Id="saslANONYMOUS.dll" Name="saslANONYMOUS.dll" KeyPath="yes" Vital="yes" />
-			</Component>
-			<Component Id="saslCRAMMD5.dll" Guid="{98876728-0E0C-4D26-A715-CB05B6CCEA69}">
-				<File Id="saslCRAMMD5.dll" Name="saslCRAMMD5.dll" KeyPath="yes" Vital="yes" />
-			</Component>
-			<Component Id="saslDIGESTMD5.dll" Guid="{9454245F-4844-4E6E-89E1-4A3D1817C686}">
-				<File Id="saslDIGESTMD5.dll" Name="saslDIGESTMD5.dll" KeyPath="yes" Vital="yes" />
-			</Component>
-			<Component Id="saslLOGIN.dll" Guid="{D9D780CB-1235-4023-8757-D448C71EB96D}">
-				<File Id="saslLOGIN.dll" Name="saslLOGIN.dll" KeyPath="yes" Vital="yes" />
-			</Component>
-			<Component Id="saslPLAIN.dll" Guid="{C0AF731D-74B5-46F6-9631-9A99FEAE2841}">
-				<File Id="saslPLAIN.dll" Name="saslPLAIN.dll" KeyPath="yes" Vital="yes" />
-			</Component>
-			<Component Id="saslSASLDB.dll" Guid="{9C0BBDD8-D8C2-41DD-9B85-9B7C2FB95BF5}">
-				<File Id="saslSASLDB.dll" Name="saslSASLDB.dll" KeyPath="yes" Vital="yes" />
+			<Component Id="libgsasl.dll" Guid="{E390362B-74D0-400A-B531-7F49ADBB98A2}">
+				<File Id="libgsasl.dll" Name="libgsasl.dll" KeyPath="yes" Vital="yes" />
 			</Component>
 		</DirectoryRef>
 	</Fragment>
 	<Fragment>
 		<ComponentGroup Id="SASL">
-			<ComponentRef Id="libsasl.dll" />
-			<ComponentRef Id="saslANONYMOUS.dll" />
-			<ComponentRef Id="saslCRAMMD5.dll" />
-			<ComponentRef Id="saslDIGESTMD5.dll" />
-			<ComponentRef Id="saslLOGIN.dll" />
-			<ComponentRef Id="saslPLAIN.dll" />
-			<ComponentRef Id="saslSASLDB.dll" />
+			<ComponentRef Id="libgsasl.dll" />
 		</ComponentGroup>
 	</Fragment>
 </Wix>
