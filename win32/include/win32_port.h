@@ -11,6 +11,16 @@
 #define CONFIG_DIR "."
 #define LIBRARY_DIR "."
 
+#ifndef S_IRUSR
+#define S_IRUSR 0
+#endif
+#ifndef S_IWUSR
+#define S_IWUSR 0
+#endif
+#ifndef S_IRGRP
+#define S_IRGRP 0
+#endif
+
 /*
 #define sleep Sleep
 #define strcasecmp	stricmp
