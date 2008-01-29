@@ -375,7 +375,7 @@ typedef struct _stanza_error_st {
     const char  *code;
 } *stanza_error_t;
 
-extern struct _stanza_error_st _stanza_errors[];
+JABBERD2_API struct _stanza_error_st _stanza_errors[];
 
 
 /* hex conversion utils */
