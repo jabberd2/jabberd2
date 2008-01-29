@@ -28,28 +28,7 @@
 #define MIO_FUNCS \
     static ATOM mio_class = NULL;                                       \
                                                                         \
-    LONG CALLBACK _mio_wnd_proc(HWND hwnd, UINT msg, WPARAM wParam, LONG lParam) \
-    {                                                                   \
-        if(msg == WM_TIMER) {                                           \
-            return 1;                                                   \
-        } else if(msg >= WM_MIO_EVENT) {                                \
-            mio_priv_t m = (mio_priv_t)(GetWindowLongPtr(hwnd, GWLP_USERDATA)); \
-            if(!m->fds[msg - WM_MIO_EVENT].event & WSAGETSELECTEVENT(lParam)) { \
-                mio_debug(ZONE, "unmatched mio event %d on socket #%d", WSAGETSELECTEVENT(lParam), m->fds[msg - WM_MIO_EVENT].mio_fd.fd); \
-                return 0;                                               \
-            }                                                           \
-            m->select_fd = &m->fds[msg - WM_MIO_EVENT];                 \
-            m->select_fd->revent = WSAGETSELECTEVENT(lParam);           \
-            mio_debug(ZONE, "get mio event %d on socket #%d", m->select_fd->revent, m->select_fd->mio_fd.fd); \
-            return 1;                                                   \
-        } else if(msg == WM_CREATE) {                                   \
-            SetWindowLongPtr(hwnd, GWLP_USERDATA,                       \
-                (LONG_PTR)((LPCREATESTRUCT)lParam)->lpCreateParams);    \
-        } else {                                                        \
-            return DefWindowProc(hwnd, msg, wParam, lParam);            \
-        }                                                               \
-        return 0;                                                       \
-    }                                                                   \
+    LONG CALLBACK _mio_wnd_proc(HWND hwnd, UINT msg, WPARAM wParam, LONG lParam); \
                                                                         \
     static mio_fd_t _mio_alloc_fd(mio_t m, int fd)                      \
     {                                                                   \
@@ -69,6 +48,8 @@
     {                                                                   \
         priv_fd->next_free = MIO(m)->next_free;                         \
         priv_fd->mio_fd.fd = 0;                                         \
+        priv_fd->revent = 0;                                            \
+        priv_fd->event = 0;                                             \
         MIO(m)->next_free = priv_fd;                                    \
     }                                                                   \
                                                                         \
@@ -102,12 +83,13 @@
     struct mio_priv_fd_st *next_free;                                   \
     long event;                                                         \
     long revent;                                                        \
-    int defer_free;                                                     \
     int idx;
 
 #define MIO_VARS \
     HWND hwnd;                                                          \
     UINT_PTR timer;                                                     \
+    int defer_free;                                                     \
+    int count;                                                          \
     mio_priv_fd_t select_fd;                                            \
     mio_priv_fd_t fds;                                                  \
     mio_priv_fd_t next_free;
@@ -147,6 +129,7 @@
             return NULL;                                                \
         }                                                               \
         memset(MIO(m)->fds, 0, sizeof(struct mio_priv_fd_st) * maxfd);  \
+        MIO(m)->count = maxfd;                                          \
         for(i = 0; i < maxfd; i++)                                      \
             MIO(m)->fds[i].idx = i;                                     \
         for(i = 0; i < maxfd - 1; i++)                                  \
