@@ -562,7 +562,7 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             }
 
             if(len < 0) {
-                if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN) {
+                if(MIO_WOULDBLOCK) {
                     buf->len = 0;
                     return 0;
                 }
@@ -596,7 +596,7 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 return len;
             }
 
-            if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)
+            if(MIO_WOULDBLOCK)
                 return 0;
 
             log_debug(ZONE, "write failed: %s", strerror(errno));
@@ -914,8 +914,7 @@ int router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *
             if(_router_accept_check(r, fd, (char *) data) != 0)
                 return 1;
 
-            comp = (component_t) malloc(sizeof(struct component_st));
-            memset(comp, 0, sizeof(struct component_st));
+            comp = (component_t) calloc(1, sizeof(struct component_st));
 
             comp->r = r;
 

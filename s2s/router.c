@@ -47,7 +47,7 @@ int s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             len = recv(s2s->fd->fd, buf->data, buf->len, 0);
 
             if(len < 0) {
-                if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN) {
+                if(MIO_WOULDBLOCK) {
                     buf->len = 0;
                     return 0;
                 }
@@ -81,7 +81,7 @@ int s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 return len;
             }
 
-            if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)
+            if(MIO_WOULDBLOCK)
                 return 0;
 
             log_write(s2s->log, LOG_NOTICE, "[%d] [router] write error: %s (%d)", s2s->fd->fd, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
@@ -250,8 +250,7 @@ int s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             }
 
             /* new packet */
-            pkt = (pkt_t) malloc(sizeof(struct pkt_st));
-            memset(pkt, 0, sizeof(struct pkt_st));
+            pkt = (pkt_t) calloc(1, sizeof(struct pkt_st));
 
             pkt->nad = nad;
 

@@ -74,7 +74,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
             len = recv(sess->fd->fd, buf->data, buf->len, 0);
 
             if(len < 0) {
-                if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN) {
+                if(MIO_WOULDBLOCK) {
                     buf->len = 0;
                     return 0;
                 }
@@ -142,7 +142,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                 return len;
             }
 
-            if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)
+            if(MIO_WOULDBLOCK)
                 return 0;
             
             if(s->state >= state_OPEN && sess->resources != NULL)
@@ -672,7 +672,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             len = recv(c2s->fd->fd, buf->data, buf->len, 0);
 
             if(len < 0) {
-                if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN) {
+                if(MIO_WOULDBLOCK) {
                     buf->len = 0;
                     return 0;
                 }
@@ -706,7 +706,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 return len;
             }
 
-            if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN) 
+            if(MIO_WOULDBLOCK) 
                 return 0;
 
             log_write(c2s->log, LOG_NOTICE, "[%d] [router] write error: %s (%d)", c2s->fd->fd, MIO_STRERROR(MIO_ERROR), MIO_ERROR);

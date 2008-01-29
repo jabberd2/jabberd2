@@ -166,8 +166,7 @@ void out_packet(s2s_t s2s, pkt_t pkt) {
         /* new resolution */
         log_debug(ZONE, "no dns for %s, preparing for resolution", pkt->to->domain);
 
-        dns = (dnscache_t) malloc(sizeof(struct dnscache_st));
-        memset(dns, 0, sizeof(struct dnscache_st));
+        dns = (dnscache_t) calloc(1, sizeof(struct dnscache_st));
 
         strcpy(dns->name, pkt->to->domain);
 
@@ -237,8 +236,7 @@ void out_packet(s2s_t s2s, pkt_t pkt) {
         _out_packet_queue(s2s, pkt);
 
         /* no conn, create one */
-        out = (conn_t) malloc(sizeof(struct conn_st));
-        memset(out, 0, sizeof(struct conn_st));
+        out = (conn_t) calloc(1, sizeof(struct conn_st));
 
         out->s2s = s2s;
 
@@ -556,7 +554,7 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             len = recv(out->fd->fd, buf->data, buf->len, 0);
 
             if(len < 0) {
-                if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN) {
+                if(MIO_WOULDBLOCK) {
                     buf->len = 0;
                     return 0;
                 }
@@ -590,7 +588,7 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 return len;
             }
 
-            if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)
+            if(MIO_WOULDBLOCK)
                 return 0;
 
             log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] write error: %s (%d)", out->fd->fd, out->ip, out->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);

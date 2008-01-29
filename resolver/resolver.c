@@ -146,7 +146,7 @@ static int _resolver_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             len = recv(r->fd->fd, buf->data, buf->len, 0);
 
             if(len < 0) {
-                if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN) {
+                if(MIO_WOULDBLOCK) {
                     buf->len = 0;
                     return 0;
                 }
@@ -180,7 +180,7 @@ static int _resolver_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 return len;
             }
 
-            if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)
+            if(MIO_WOULDBLOCK)
                 return 0;
 
             log_write(r->log, LOG_NOTICE, "[%d] [router] write error: %s (%d)", r->fd->fd, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
@@ -540,8 +540,7 @@ JABBER_MAIN("jabberd2resolver", "Jabber 2 Resolver", "Jabber Open Source Server:
     jabber_signal(SIGPIPE, SIG_IGN);
 #endif
 
-    r = (resolver_t) malloc(sizeof(struct resolver_st));
-    memset(r, 0, sizeof(struct resolver_st));
+    r = (resolver_t) calloc(1, sizeof(struct resolver_st));
 
     /* load our config */
     r->config = config_new();

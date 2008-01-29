@@ -159,10 +159,12 @@ JABBERD2_API mio_t mio_new(int maxfd); /* returns NULL if failed */
 #ifndef _WIN32
 # define MIO_ERROR               errno
 # define MIO_STRERROR(errno)     strerror(errno)
+# define MIO_WOULDBLOCK          (errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)
 #else /* _WIN32 */
 JABBERD2_API char *mio_strerror(int code);
 # define MIO_ERROR               WSAGetLastError()
 # define MIO_STRERROR(errno)     mio_strerror(errno)
+# define MIO_WOULDBLOCK          (WSAGetLastError() == WSAEWOULDBLOCK)
 #endif /* _WIN32 */
 
 #ifdef __cplusplus

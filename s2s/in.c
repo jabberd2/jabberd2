@@ -114,8 +114,7 @@ int in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg)
             log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] incoming connection", fd->fd, (char *) data, port);
 
             /* new conn */
-            in = (conn_t) malloc(sizeof(struct conn_st));
-            memset(in, 0, sizeof(struct conn_st));
+            in = (conn_t) calloc(1, sizeof(struct conn_st));
 
             in->s2s = s2s;
 
@@ -131,6 +130,9 @@ int in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg)
 
             in->s = sx_new(s2s->sx_env, in->fd->fd, _in_sx_callback, (void *) in);
             mio_app(m, in->fd, in_mio_callback, (void *) in);
+
+            if(s2s->stanza_size_limit != 0)
+                in->s->rbytesmax = s2s->stanza_size_limit;
 
             /* add to incoming connections hash */
             snprintf(ipport, INET6_ADDRSTRLEN + 16, "%s/%d", in->ip, in->port);
@@ -173,7 +175,7 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             len = recv(in->fd->fd, buf->data, buf->len, 0);
 
             if(len < 0) {
-                if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN) {
+                if(MIO_WOULDBLOCK) {
                     buf->len = 0;
                     return 0;
                 }
@@ -207,7 +209,7 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 return len;
             }
 
-            if(errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)
+            if(MIO_WOULDBLOCK)
                 return 0;
 
             log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] write error: %s (%d)", in->fd->fd, in->ip, in->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
@@ -404,8 +406,7 @@ static void _in_result(conn_t in, nad_t nad) {
     nad_append_cdata(verify, NAD_CDATA(nad, 0), NAD_CDATA_L(nad, 0), 1);
 
     /* new packet */
-    pkt = (pkt_t) malloc(sizeof(struct pkt_st));
-    memset(pkt, 0, sizeof(struct pkt_st));
+    pkt = (pkt_t) calloc(1, sizeof(struct pkt_st));
 
     pkt->nad = verify;
 
