@@ -1,0 +1,15 @@
+--
+-- This updates jabberd2 sqlite databases created prior to 2.1.19.
+--
+--     sqlite3 jabberd2.db <  db-setup.sqlite
+--
+
+ALTER TABLE "authreg" ADD COLUMN "token" TEXT;
+ALTER TABLE "authreg" ADD COLUMN "sequence" INTEGER;
+ALTER TABLE "authreg" ADD COLUMN "hash" TEXT;
+
+ALTER TABLE "vcard" ADD COLUMN "jabberid" TEXT;
+ALTER TABLE "vcard" ADD COLUMN "mailer" TEXT;
+ALTER TABLE "vcard" ADD COLUMN "uid" TEXT;
+
+ALTER TABLE "status" ADD COLUMN "xml" TEXT;
