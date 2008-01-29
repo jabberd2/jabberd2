@@ -7,6 +7,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#if !defined(HAVE_SNPRINTF) || defined(HAVE_BROKEN_SNPRINTF)
+int ap_snprintf(char *, size_t, const char *, ...);
+# define snprintf ap_snprintf
+#endif
+
 /* jabberd2 Windows DLL */
 #ifndef JABBERD2_API
 # ifdef _WIN32
