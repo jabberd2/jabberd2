@@ -2,9 +2,8 @@
 <sm>
   <!-- Our ID on the network. Users will have this as the domain part of
        their JID. If you want your server to be accessible from other
-       Jabber servers, this ID must be resolvable by DNS.s
-       (default: localhost) -->
-  <id>localhost</id>
+       Jabber servers, this ID must be FQDN resolvable by DNSes -->
+  <id>localhost.localdomain</id>
 
   <!-- The process ID file. Comment this out if you don't need to know
        the process ID from outside the process (eg for control scripts) -->
@@ -276,14 +275,14 @@
     <!-- The JIDs listed here will get access to all restricted
          functions, regardless of restrictions further down -->
     <acl type='all'>
-      <jid>admin@localhost</jid>
+      <jid>admin@localhost.localdomain</jid>
     </acl>
 
     <!-- These JIDs can send broadcast messages (announce, motd) -->
     <!--
     <acl type='broadcast'>
-      <jid>nocstaff1@localhost</jid>
-      <jid>nocstaff2@localhost</jid>
+      <jid>nocstaff1@localhost.localdomain</jid>
+      <jid>nocstaff2@localhost.localdomain</jid>
     </acl>
     -->
 
@@ -291,14 +290,14 @@
          (help requestes and such) -->
     <!--
     <acl type='messages'>
-      <jid>support@localhost</jid>
+      <jid>support@localhost.localdomain</jid>
     </acl>
     -->
 
     <!-- These JIDs can discover active user/session information -->
     <!--
     <acl type='disco'>
-      <jid>webstatus@localhost</jid>
+      <jid>webstatus@localhost.localdomain</jid>
     </acl>
     -->
   </aci>
@@ -525,12 +524,12 @@
     <!--
     <serverinfo>
       <admin-addresses>
-        <value>mailto:xmpp@localhost</value>
-        <value>xmpp:admins@localhost</value>
+        <value>mailto:xmpp@localhost.localdomain</value>
+        <value>xmpp:admins@localhost.localdomain</value>
       </admin-addresses>
       <abuse-addresses>
-        <value>mailto:abuse@localhost</value>
-        <value>xmpp:abuse@localhost</value>
+        <value>mailto:abuse@localhost.localdomain</value>
+        <value>xmpp:abuse@localhost.localdomain</value>
       </abuse-addresses>
       <feedback-addresses>
         <value>http://example.org/feedback.php</value>

@@ -3,9 +3,8 @@
   <!-- Our ID on the network (default: s2s) -->
   <id>s2s</id>
 
-  <!-- The process ID file. comment this out if you don't need to know
-       to know the process ID from outside the process (eg for control
-       scripts) -->
+  <!-- The process ID file. Comment this out if you don't need to know
+       the process ID from outside the process (eg for control scripts) -->
   <pidfile>@localstatedir@/jabberd/pid/s2s.pid</pidfile>
 
   <!-- Router connection configuration -->
@@ -95,7 +94,7 @@
     <secret>secret</secret>
     -->
 
-    <!-- File containing an SSL certificate and private key to use when setting 
+    <!-- File containing an SSL certificate and private key to use when setting
          up encrypted s2s connections with other servers (STARTTLS + Dialback).
          From SSL_CTX_use_certificate_chain_file(3): "The certificates must be
          in PEM format and must be sorted starting with the subject's
@@ -113,7 +112,7 @@
     <verify-mode>7</verify-mode>
     -->
 
-    <!-- File containing an optional SSL certificate chain file for SSL 
+    <!-- File containing an optional SSL certificate chain file for SSL
          connections. -->
     <!--
     <cachain>@sysconfdir@/cachain.pem</cachain>
@@ -129,6 +128,18 @@
          descriptors is exhausted, new incoming connections will be
          denied (default: 1024) -->
     <max_fds>1024</max_fds>
+
+    <!-- Rate limiting -->
+    <limits>
+      <!-- Maximum stanza size - if more than given number of bytes
+           are read in one incoming stanza, the stream is closed
+	   with policy-violation error.
+
+           Set to 0 to disable.
+           Values less than 16384 might not work. -->
+      <stanzasize>65535</stanzasize>
+    </limits>
+
   </io>
 
   <!-- Timed checks -->
@@ -146,7 +157,7 @@
          progress, packets are queued. If a valid connection has not
          been established within this many seconds, the connection
          process will be aborted and the queued packets will be
-         bounced. Timeout checks are made for three phases of  
+         bounced. Timeout checks are made for three phases of
          setting up a route authenticated through dialback:
          1. Connection establishment to exchange of stream headers
          2. Initiating dialback (incoming connections)
@@ -164,7 +175,7 @@
     <idle>86400</idle>
 
     <!-- Keepalives.
-         
+
          Outgoing connections that have not been used for longer than
          this many seconds will have a single whitespace character sent
          to them. This will force the TCP connection to be closed if
@@ -184,3 +195,6 @@
   </stats>
 
 </s2s>
+<!--
+  vim: syntax=xml
+-->

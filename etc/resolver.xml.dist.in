@@ -3,9 +3,8 @@
   <!-- Our id on the network (default: resolver) -->
   <id>resolver</id>
 
-  <!-- The process ID file. comment this out if you don't need to know
-       to know the process ID from outside the process (eg for control
-       scripts) -->
+  <!-- The process ID file. Comment this out if you don't need to know
+       the process ID from outside the process (eg for control scripts) -->
   <pidfile>@localstatedir@/jabberd/pid/resolver.pid</pidfile>
 
   <!-- Router connection configuration -->
@@ -84,3 +83,6 @@
   -->
 
 </resolver>
+<!--
+  vim: syntax=xml
+-->

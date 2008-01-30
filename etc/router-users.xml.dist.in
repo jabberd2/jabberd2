@@ -6,3 +6,6 @@
     <secret>secret</secret>
   </user>
 </users>
+<!--
+  vim: syntax=xml
+-->

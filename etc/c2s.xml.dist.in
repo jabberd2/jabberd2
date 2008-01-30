@@ -115,9 +115,9 @@
          still be useful to allow clients to change their password. If
          you want this, add this attribute when you disable registration.
           -->
-    <id register-enable='true'>localhost</id>
+    <id register-enable='true'>localhost.localdomain</id>
     <!-- or
-    <id realm='company'
+    <id realm='company.int'
         pemfile='@sysconfdir@/server.pem'
         verify-mode='7'
         require-starttls='true'
@@ -125,7 +125,7 @@
         instructions='Enter a username and password to register with this server.'
         register-oob='http://example.org/register'
         password-change='true'
-    >localhost</id> -->
+    >example.net</id> -->
     <!-- or the default host
     <id password-change='true' /> -->
 

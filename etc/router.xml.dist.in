@@ -3,9 +3,8 @@
   <!-- ID of the router on the network (default: router) -->
   <id>router</id>
 
-  <!-- The process ID file. comment this out if you don't need to know
-       to know the process ID from outside the process (eg for control
-       scripts) -->
+  <!-- The process ID file. Comment this out if you don't need to know
+       the process ID from outside the process (eg for control scripts) -->
   <pidfile>@localstatedir@/jabberd/pid/router.pid</pidfile>
 
   <!-- Log configuration - type is "syslog", "file" or "stdout" -->
@@ -36,10 +35,11 @@
          authentication.-->
     <users>@sysconfdir@/router-users.xml</users>
 
-    <!-- Shared secret used to identify legacy components (that is,
+    <!-- Shared secret used to identify XEP-0114 components (that is,
          "jabber:component:accept" components that authenticate using
-         the "handshake" method). If this is commented out, support for
-         legacy components will be disabled. -->
+         the Jabber Component Protocol's "handshake", for example
+         mu-conference). If this is commented out, support for XEP-0114
+         components will be disabled. -->
     <secret>secret</secret>
 
     <!-- File containing an SSL certificate and private key for client
@@ -74,7 +74,7 @@
      <keepalive>0</keepalive>
 
   </check>
-  
+
   <!-- input/output settings -->
   <io>
     <!-- Maximum number of file descriptors. Note that the number of
@@ -113,7 +113,7 @@
          determines what happens. -->
     <access>
       <!-- Rule check order (default: allow,deny)
-           
+
            allow,deny - Check allow rules, then check deny rules.
                         Allow by default.
            deny,allow - Check deny rules, then check allow rules.
@@ -188,3 +188,6 @@
   <filter>@sysconfdir@/router-filter.xml</filter>
 
 </router>
+<!--
+  vim: syntax=xml
+-->
