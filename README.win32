@@ -35,30 +35,29 @@ Prerequisites:
 
       Expat XML Parser win32, binaries, linking: libexpat.lib
 
-   4. http://www.oracle.com/technology/software/products/berkeley-db/index.html
+   4. http://josefsson.org/gsasl/releases/
 
-      Berkley DB, sources, for Cyrus SASL (maybe jabberd2 too in the future),
-      convert & use build_windows projects.
+      libgsasl, sources, linking to: libgsasl.lib, since there are no VC project
+      files provided along with sources, please use the ones I provide at:
+      http://www.nanoant.com/projects/jabberd2-win32#download
+      Remember to apply the patch you find there too.
 
-   5. http://ftp.andrew.cmu.edu/pub/cyrus-mail/cyrus-sasl-2.1.22.tar.gz
-
-      Cyrus SASL, sources, linking to: libsasl.lib, build it on your own, I use:
-      nmake -f NTMakefile STATIC=no DB_INCLUDE=(..)build_windows \
-               DB_LIBPATH=(..)build_windowsRelease DB_LIB=libdbXXX.lib
-
-      Note: I don’t use GNU SASL because there is no official VC support I can
-      find. Also win32 Vortex distribution doesn’t work well with VC8 CRT, since
-      gsasl do not provide its own free function when it allocates memory.
-
-   6. http://dev.mysql.com/downloads/mysql/5.0.html
+   5. http://dev.mysql.com/downloads/mysql/5.0.html
 
       MySQL, auth & storage module, binary, linking to: libmysql.lib
 
-   7. http://www.sqlite.org/download.html
+   6. http://www.sqlite.org/download.html
 
       SQLite, auth & storage module, source, linking to: sqlite3.lib. Since
       there are no libraries for VC except DLLs you shall make one using
       sqlite-source-3.x.zip from SQLite downloads.
+
+   7. http://www.zlatkovic.com/pub/libxml/
+      http://subversion.tigris.org/
+
+      xsltproc (libxml) for Windows and Subversion (svn-win32) to generate version.h
+      from SVN using version.xsl. Put them into the executable PATH. Alternatively you
+      can disable jabberd2.rc and version.xsl compilation in the project.
 
    8. http://wix.sourceforge.net/releases/
 
@@ -107,4 +106,4 @@ Also I'm sending thanks to Tomasz Sterna (current project maintainer) for
 letting me in with my win32 modifications and support.
 
 --
-Adam Strzelecki <ono@java.pl>, 2007-07-30
+Adam Strzelecki <ono@java.pl>, 2008-01-30
