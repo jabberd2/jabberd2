@@ -52,7 +52,7 @@
                                                                         \
         tv.tv_sec = t;                                                  \
         tv.tv_usec = 0;                                                 \
-        return select(m->highfd + 1, &m->rfds_out, &m->wfds_out, &m->wfds_out, &tv); \
+        return select(m->highfd + 1, &m->rfds_out, &m->wfds_out, NULL, &tv); \
     }
 
 #define MIO_FD_VARS
