@@ -839,7 +839,7 @@ AC_CHECK_TYPES([in_port_t, sa_family_t, struct sockaddr_storage, struct sockaddr
 #
 # mio backend selection
 
-AC_ARG_ENABLE(mio, AC_HELP_STRING([--enable-mio=BACKEND], [use BACKEND to drive MIO (select poll epoll)]),
+AC_ARG_ENABLE(mio, AC_HELP_STRING([--enable-mio=BACKENDS], [use one of BACKENDS to drive MIO (select poll epoll)]),
               mio_check=$enableval, mio_check='epoll poll select')
 
 mio_backend=''
