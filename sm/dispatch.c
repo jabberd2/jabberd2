@@ -42,17 +42,17 @@ void dispatch(sm_t sm, pkt_t pkt) {
     /* routing errors, add a im error */
     if(pkt->rtype & route_ERROR) {
         int i, aerror, stanza_err;
-	aerror = nad_find_attr(pkt->nad, 0, -1, "error", NULL);
-	stanza_err = stanza_err_REMOTE_SERVER_NOT_FOUND;
-	if(aerror >= 0) {
-	    for(i=0; _stanza_errors[i].code != NULL; i++)
-	        if(strncmp(_stanza_errors[i].code, NAD_AVAL(pkt->nad, aerror), NAD_AVAL_L(pkt->nad, aerror)) == 0) {
-		    stanza_err = stanza_err_BAD_REQUEST + i;
-		    break;
-		}
-	}
+        aerror = nad_find_attr(pkt->nad, 0, -1, "error", NULL);
+        stanza_err = stanza_err_REMOTE_SERVER_NOT_FOUND;
+        if(aerror >= 0) {
+            for(i=0; _stanza_errors[i].code != NULL; i++)
+                if(strncmp(_stanza_errors[i].code, NAD_AVAL(pkt->nad, aerror), NAD_AVAL_L(pkt->nad, aerror)) == 0) {
+                    stanza_err = stanza_err_BAD_REQUEST + i;
+                    break;
+                }
+        }
         if(pkt_error(pkt, stanza_err) == NULL)
-	    return;
+            return;
     }
 
     /*
@@ -129,6 +129,17 @@ void dispatch(sm_t sm, pkt_t pkt) {
     /* get the user */
     user = user_load(sm, pkt->to);
     if(user == NULL) {
+        if(pkt->type & pkt_PRESENCE && pkt->type != pkt_PRESENCE_PROBE) {
+            pkt_free(pkt);
+            return;
+        }
+
+        if(pkt->type & pkt_S10N || pkt->type == pkt_PRESENCE_PROBE) {
+            pkt_router(pkt_create(user->sm, "presence", "unsubscribed", jid_full(pkt->from), jid_full(pkt->to)));
+            pkt_free(pkt);
+            return;
+        }
+
         pkt_router(pkt_error(pkt, stanza_err_SERVICE_UNAVAILABLE));
         return;
     }
