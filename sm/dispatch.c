@@ -135,7 +135,7 @@ void dispatch(sm_t sm, pkt_t pkt) {
         }
 
         if(pkt->type & pkt_S10N || pkt->type == pkt_PRESENCE_PROBE) {
-            pkt_router(pkt_create(user->sm, "presence", "unsubscribed", jid_full(pkt->from), jid_full(pkt->to)));
+            pkt_router(pkt_create(pkt->sm, "presence", "unsubscribed", jid_full(pkt->from), jid_full(pkt->to)));
             pkt_free(pkt);
             return;
         }
