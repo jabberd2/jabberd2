@@ -34,7 +34,7 @@ void _iq_ping_reply(pkt_t pkt) {
 
     log_debug(ZONE, "xmpp-ping request from %s", jid_full(pkt->from));
 
-    ns = nad_find_scoped_namespace(pkt->nad, uri_PING, NULL);
+    ns = nad_find_scoped_namespace(pkt->nad, urn_PING, NULL);
     elem = nad_find_elem(pkt->nad, 1, ns, "ping", 1);
     if (elem>=0)
         nad_drop_elem(pkt->nad, elem);
@@ -61,8 +61,8 @@ static mod_ret_t _iq_ping_pkt_sm(mod_instance_t mi, pkt_t pkt) {
 }
 
 static void _iq_ping_free(module_t mod) {
-    sm_unregister_ns(mod->mm->sm, uri_PING);
-    feature_unregister(mod->mm->sm, uri_PING);
+    sm_unregister_ns(mod->mm->sm, urn_PING);
+    feature_unregister(mod->mm->sm, urn_PING);
 }
 
 DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
@@ -74,8 +74,8 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     mod->pkt_sm = _iq_ping_pkt_sm;
     mod->free = _iq_ping_free;
 
-    ns_PING = sm_register_ns(mod->mm->sm, uri_PING);
-    feature_register(mod->mm->sm, uri_PING);
+    ns_PING = sm_register_ns(mod->mm->sm, urn_PING);
+    feature_register(mod->mm->sm, urn_PING);
 
     return 0;
 }

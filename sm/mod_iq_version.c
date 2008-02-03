@@ -220,7 +220,7 @@ static void _iq_version_disco_extend(mod_instance_t mi, pkt_t pkt)
     nad_append_attr(pkt->nad, -1, "var", "FORM_TYPE");
     nad_append_attr(pkt->nad, -1, "type", "hidden");
     nad_append_elem(pkt->nad, -1, "value", 5);
-    nad_append_cdata(pkt->nad, uri_CLIENTINFO, strlen(uri_CLIENTINFO), 6);
+    nad_append_cdata(pkt->nad, urn_SOFTWAREINFO, strlen(urn_SOFTWAREINFO), 6);
 
     nad_append_elem(pkt->nad, -1, "field", 4);
     nad_append_attr(pkt->nad, -1, "var", "software");

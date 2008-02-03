@@ -137,8 +137,7 @@ static int _privacy_user_load(mod_instance_t mi, user_t user) {
     if(z != NULL)
         _privacy_free_z(z);
 
-    z = (zebra_t) malloc(sizeof(struct zebra_st));
-    memset(z, 0, sizeof(struct zebra_st));
+    z = (zebra_t) calloc(1, sizeof(struct zebra_st));
 
     z->lists = xhash_new(101);
 
@@ -511,7 +510,7 @@ static mod_ret_t _privacy_out_router(mod_instance_t mi, pkt_t pkt) {
         /* hack the XEP-0191 error in */
         pkt_error(pkt, stanza_err_NOT_ACCEPTABLE);
         err = nad_find_elem(pkt->nad, 1, -1, "error", 1);
-        ns = nad_add_namespace(pkt->nad, uri_BLOCKING_ERR, NULL);
+        ns = nad_add_namespace(pkt->nad, urn_BLOCKING_ERR, NULL);
         nad_insert_elem(pkt->nad, err, ns, "blocked", NULL);
         pkt_sess(pkt, sess);
         return mod_HANDLED;
@@ -687,7 +686,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
         if(pkt->type == pkt_IQ_SET) {
             /* find out what to do */
             int block;
-            ns = nad_find_scoped_namespace(pkt->nad, uri_BLOCKING, NULL);
+            ns = nad_find_scoped_namespace(pkt->nad, urn_BLOCKING, NULL);
             blocking = nad_find_elem(pkt->nad, 1, ns, "block", 1);
             if(blocking >= 0)
                 block = 1;
@@ -702,9 +701,9 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
             /* if there is no default list, create one */
             if(!z->def) {
                 /* remove any previous one */
-                if((zlist = xhash_get(z->lists, uri_BLOCKING))) {
+                if((zlist = xhash_get(z->lists, urn_BLOCKING))) {
                     pool_free(zlist->p);
-                    sprintf(filter, "(list=%i:%s)", strlen(uri_BLOCKING), uri_BLOCKING);
+                    sprintf(filter, "(list=%i:%s)", strlen(urn_BLOCKING), urn_BLOCKING);
                     storage_delete(mod->mm->sm->st, "privacy-items", jid_user(sess->user->jid), filter);
                 }
 
@@ -712,7 +711,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                 p = pool_new();
                 zlist = (zebra_list_t) pmalloco(p, sizeof(struct zebra_list_st));
                 zlist->p = p;
-                zlist->name = pstrdup(p, uri_BLOCKING);
+                zlist->name = pstrdup(p, urn_BLOCKING);
                 xhash_put(z->lists, zlist->name, (void *) zlist);
                 
                 /* make it default */
@@ -869,14 +868,14 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
         }
 
         /* it's a get */
-        ns = nad_find_scoped_namespace(pkt->nad, uri_BLOCKING, NULL);
+        ns = nad_find_scoped_namespace(pkt->nad, urn_BLOCKING, NULL);
         blocking = nad_find_elem(pkt->nad, 1, ns, "blocklist", 1);
         if(blocking < 0)
             return -stanza_err_BAD_REQUEST;
 
         result = pkt_create(pkt->sm, "iq", "result", NULL, NULL);
         pkt_id(pkt, result);
-        ns = nad_add_namespace(result->nad, uri_BLOCKING, NULL);
+        ns = nad_add_namespace(result->nad, urn_BLOCKING, NULL);
         blocking = nad_insert_elem(result->nad, 1, ns, "blocklist", NULL);
 
         /* insert items only from the default list */
@@ -1330,8 +1329,8 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
 
     ns_PRIVACY = sm_register_ns(mod->mm->sm, uri_PRIVACY);
     feature_register(mod->mm->sm, uri_PRIVACY);
-    ns_BLOCKING = sm_register_ns(mod->mm->sm, uri_BLOCKING);
-    feature_register(mod->mm->sm, uri_BLOCKING);
+    ns_BLOCKING = sm_register_ns(mod->mm->sm, urn_BLOCKING);
+    feature_register(mod->mm->sm, urn_BLOCKING);
 
     return 0;
 }

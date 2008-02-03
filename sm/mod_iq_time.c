@@ -111,8 +111,8 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     ns_TIME = sm_register_ns(mod->mm->sm, uri_TIME);
     feature_register(mod->mm->sm, uri_TIME);
 #endif
-    ns_URN_TIME = sm_register_ns(mod->mm->sm, uri_URN_TIME);
-    feature_register(mod->mm->sm, uri_URN_TIME);
+    ns_URN_TIME = sm_register_ns(mod->mm->sm, urn_TIME);
+    feature_register(mod->mm->sm, urn_TIME);
 
     return 0;
 }
