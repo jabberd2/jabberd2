@@ -962,6 +962,12 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                         break;
                 }
             if(bres == NULL) {
+                /* if it's a failure, just drop it */
+                if(nad_find_attr(nad, 1, ns, "failed", NULL) >= 0) {
+                    nad_free(nad);
+                    return 0;
+                }
+
                 /* build temporary resource to close session for */
                 jid_t jid = jid_new(sess->c2s->pc, sess->s->auth_id, -1);
                 bres_t tres = (bres_t) calloc(1, sizeof(struct bres_st));
