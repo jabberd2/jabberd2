@@ -962,6 +962,9 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                         break;
                 }
             if(bres == NULL) {
+                jid_t jid = NULL;
+                bres_t tres = NULL;
+
                 /* if it's a failure, just drop it */
                 if(nad_find_attr(nad, 1, ns, "failed", NULL) >= 0) {
                     nad_free(nad);
@@ -969,8 +972,8 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 }
 
                 /* build temporary resource to close session for */
-                jid_t jid = jid_new(sess->c2s->pc, sess->s->auth_id, -1);
-                bres_t tres = (bres_t) calloc(1, sizeof(struct bres_st));
+                jid = jid_new(sess->c2s->pc, sess->s->auth_id, -1);
+                tres = (bres_t) calloc(1, sizeof(struct bres_st));
                 tres->jid = jid;
                 sprintf(tres->c2s_id, "%d", sess->s->tag);
                 snprintf(tres->sm_id, 41, "%.*s", NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
