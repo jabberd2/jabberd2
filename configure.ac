@@ -92,6 +92,7 @@ AC_CHECK_HEADERS([arpa/inet.h \
                   fcntl.h \
                   netinet/in.h \
                   signal.h \
+                  stdarg.h \
                   stdint.h \
                   stdlib.h \
                   string.h \
@@ -142,11 +143,8 @@ AC_CREATE_STDINT_H(ac-stdint.h)
 AC_FUNC_CLOSEDIR_VOID
 AC_REPLACE_FNMATCH
 AC_FUNC_FORK
-AC_PROG_GCC_TRADITIONAL
-AC_FUNC_MALLOC
 AC_FUNC_MEMCMP
 AC_FUNC_MKTIME
-AC_FUNC_REALLOC
 AC_FUNC_SELECT_ARGTYPES
 AC_TYPE_SIGNAL
 AC_FUNC_STAT
@@ -208,6 +206,15 @@ if test "$ac_cv_lib_nsl_gethostbyname" = "$ac_cv_func_gethostbyname" ; then
     AC_MSG_RESULT([success])
   fi
 fi
+
+AC_SEARCH_LIBS(inet_ntop, nsl,[
+    AC_DEFINE(HAVE_INET_NTOP, 1,
+    [Define to 1 if you have the `inet_ntop' function.])])
+
+dnl ** Check for inet_ntop
+AC_SEARCH_LIBS(inet_pton, nsl,[
+    AC_DEFINE(HAVE_INET_PTON, 1,
+    [Define to 1 if you have the `inet_pton' function.])])
 
 # windows has different names for a few basic things
 if test "x-$ac_cv_func_getpid" != "x-yes" -a "x-$ac_cv_func__getpid" = "x-yes" ; then
@@ -296,37 +303,6 @@ else
     AC_MSG_ERROR([no DNS resolver interface (res_query or DnsQuery) found])
 fi
 
-# inet_ntop/inet_pton have been seen in -lnsl, and sometimes not at all
-AC_CHECK_FUNC(inet_ntop, ,[AC_CHECK_LIB(nsl, inet_ntop)])
-unset ac_cv_func_inet_ntop
-AC_CHECK_FUNCS(inet_ntop inet_pton)
-
-# some glibcs have broken sockaddr_storage members
-if test "x-$ac_cv_type_struct_sockaddr_storage" = "x-yes" ; then
-    AC_MSG_CHECKING(for broken __ss_family member in struct sockaddr_storage)
-    AC_COMPILE_IFELSE([AC_LANG_PROGRAM(_IP6_INCLUDES,
-                                       [[do {
-                                             struct sockaddr_storage s;
-                                             s.__ss_family = 0;
-                                         } while(0)]])],
-                      [AC_MSG_RESULT(yes)
-                       AC_DEFINE(ss_family, __ss_family,
-                                 [Define to '__ss_family' if 'struct sockaddr_storage' defines '__ss_family' instead of 'ss_family'.])],
-                      AC_MSG_RESULT(no))
-
-    AC_MSG_CHECKING(for broken __ss_len member in struct sockaddr_storage)
-    AC_COMPILE_IFELSE([AC_LANG_PROGRAM(_IP6_INCLUDES,
-                                       [[do {
-                                             struct sockaddr_storage s;
-                                             s.__ss_len = 0;
-                                         } while(0)]])],
-                      [AC_MSG_RESULT(yes)
-                       AC_DEFINE(ss_len, __ss_len,
-                                 [Define to '__ss_len' if 'struct sockaddr_storage' defines '__ss_len' instead of 'ss_len'.])],
-                      AC_MSG_RESULT(no))
-fi
-
-
 # syslog
 if test "x-$ac_cv_header_syslog_h" = "x-yes" ; then
     AC_CHECK_FUNCS(syslog vsyslog)
@@ -366,7 +342,7 @@ if test "x-$ac_cv_func_vsnprintf" = "x-yes" ; then
                   [AC_MSG_RESULT(no)
                    AC_DEFINE(HAVE_BROKEN_VSNPRINTF,1,[Define to 1 if 'vsnprintf' cannot handle NULL arguments.])])
 fi
-
+TYPE_SOCKLEN_T
 #
 # Checks for libraries.
 
@@ -584,7 +560,7 @@ AM_CONDITIONAL(STORAGE_MYSQL, [test "x-$have_mysql" = "x-yes"])
 # PostgreSQL
 AC_ARG_ENABLE([pgsql],
         AC_HELP_STRING([--enable-pgsql[=DIR]], [enable PostgreSQL auth/reg/storage support (no)]),
-        [ enable_pgsql="$enableval" have_pgsql=no  PGSQL_PREFIX="enableval"],
+        [ enable_pgsql="$enableval" have_pgsql=no  PGSQL_PREFIX="$enableval"],
         [ enable_pgsql=no           have_pgsql=no ])
 if test "x-$enable_pgsql" != "x-no" ; then
 	if test "$PGSQL_PREFIX" = "yes" ; then
@@ -835,6 +811,32 @@ AC_DEFUN([_IP6_INCLUDES],[[
 
 # these types are sometimes missing
 AC_CHECK_TYPES([in_port_t, sa_family_t, struct sockaddr_storage, struct sockaddr_in6, struct in6_addr],,, _IP6_INCLUDES)
+
+# some glibcs have broken sockaddr_storage members
+if test "x-$ac_cv_type_struct_sockaddr_storage" = "x-yes" ; then
+    AC_MSG_CHECKING(for broken __ss_family member in struct sockaddr_storage)
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM(_IP6_INCLUDES,
+                                       [[do {
+                                             struct sockaddr_storage s;
+                                             s.__ss_family = 0;
+                                         } while(0)]])],
+                      [AC_MSG_RESULT(yes)
+                       AC_DEFINE(ss_family, __ss_family,
+                                 [Define to '__ss_family' if 'struct sockaddr_storage' defines '__ss_family' instead of 'ss_family'.])],
+                      AC_MSG_RESULT(no))
+
+    AC_MSG_CHECKING(for broken __ss_len member in struct sockaddr_storage)
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM(_IP6_INCLUDES,
+                                       [[do {
+                                             struct sockaddr_storage s;
+                                             s.__ss_len = 0;
+                                         } while(0)]])],
+                      [AC_MSG_RESULT(yes)
+                       AC_DEFINE(ss_len, __ss_len,
+                                 [Define to '__ss_len' if 'struct sockaddr_storage' defines '__ss_len' instead of 'ss_len'.])],
+                      AC_MSG_RESULT(no))
+fi
+
 
 #
 # mio backend selection
