@@ -48,7 +48,7 @@
 
 #else
 
-#include <stdint.h>
+#include <inttypes.h>
 
 typedef struct sha1_state_s {
   uint32_t H[5];
