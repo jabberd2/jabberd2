@@ -26,7 +26,9 @@
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
-
+#if defined (HAVE_STDARG_H)
+#include <stdarg.h>
+#endif
 /* jabberd2 Windows DLL */
 #ifndef JABBERD2_API
 # ifdef _WIN32
