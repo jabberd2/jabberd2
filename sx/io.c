@@ -61,8 +61,10 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
     }
 
     /* check if the stanza size limit is exceeded (it wasn't reset by parser) */
-    if(s->rbytes > SX_MAX_STANZA_SIZE) {
+    if(s->rbytesmax && s->rbytes > s->rbytesmax) {
         /* parse error */
+        _sx_debug(ZONE, "maximum stanza size (%d) exceeded by reading %d bytes", s->rbytesmax, s->rbytes);
+
         errstring = (char *) XML_ErrorString(XML_GetErrorCode(s->expat));
 
         _sx_gen_error(sxe, SX_ERR_XML_PARSE, "stream read error", "Maximum stanza size exceeded");
