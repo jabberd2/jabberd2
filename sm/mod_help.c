@@ -48,9 +48,18 @@ static mod_ret_t _help_pkt_sm(mod_instance_t mi, pkt_t pkt)
     int subj, subjectl;
     char *org_subject;
     char *subject;
+    jid_t smjid = (jid_t) mod->private;
 
-    /* we want messages addressed to the sm itself */
-    if(!(pkt->type & pkt_MESSAGE) || pkt->to->resource[0] != '\0')
+    /* answer to probes and subscription requests */
+    if(pkt->type == pkt_PRESENCE_PROBE || pkt->type == pkt_S10N) {
+        log_debug(ZONE, "answering presence probe/sub from %s with /help resource", jid_full(pkt->from));
+
+        /* send presence */
+        pkt_router(pkt_create(mod->mm->sm, "presence", NULL, jid_user(pkt->from), jid_full(smjid)));
+    }
+
+    /* we want messages addressed to the sm itself or /help resource */
+    if(!(pkt->type & pkt_MESSAGE) || (pkt->to->resource[0] != '\0' && strcmp(pkt->to->resource, "help")))
         return mod_PASS;
 
     log_debug(ZONE, "help message from %s", jid_full(pkt->from));
@@ -140,13 +149,23 @@ static void _help_disco_extend(mod_instance_t mi, pkt_t pkt)
     }
 }
 
+static void _help_free(module_t mod) {
+    jid_free(mod->private);
+}
+
 DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
+    jid_t hlpjid;
     module_t mod = mi->mod;
 
     if(mod->init) return 0;
 
+    /* store sm/help jid for use when answering probes */
+    hlpjid = jid_new(mod->mm->sm->pc, mod->mm->sm->id, -1);
+    mod->private = jid_reset_components(hlpjid, hlpjid->node, hlpjid->domain, "help");
+
     mod->pkt_sm = _help_pkt_sm;
     mod->disco_extend = _help_disco_extend;
+    mod->free = _help_free;
 
     return 0;
 }

@@ -228,14 +228,14 @@ static int _vacation_user_load(mod_instance_t mi, user_t user) {
 }
 
 static void _vacation_user_delete(mod_instance_t mi, jid_t jid) {
-    log_debug(ZONE, "deleting vacations ettings for %s", jid_user(jid));
+    log_debug(ZONE, "deleting vacations settings for %s", jid_user(jid));
 
     storage_delete(mi->sm->st, "vacation-settings", jid_user(jid), NULL);
 }
 
 static void _vacation_free(module_t mod) {
-     sm_unregister_ns(mod->mm->sm, uri_VACATION);
-     feature_unregister(mod->mm->sm, uri_VACATION);
+    sm_unregister_ns(mod->mm->sm, uri_VACATION);
+    feature_unregister(mod->mm->sm, uri_VACATION);
 }
 
 DLLEXPORT int module_init(mod_instance_t mi, char *arg) {

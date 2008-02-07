@@ -32,6 +32,7 @@
 typedef struct _status_st {
     sm_t    sm;
     char    *resource;
+    jid_t   jid;
 } *status_t;
 
 static void _status_os_replace(storage_t st, const unsigned char *jid, char *status, char *show, time_t *lastlogin, time_t *lastlogout, nad_t nad) {
@@ -44,10 +45,6 @@ static void _status_os_replace(storage_t st, const unsigned char *jid, char *sta
     if(nad != NULL) os_object_put(o, "xml", nad, os_type_NAD);
     storage_replace(st, "status", jid, NULL, os);
     os_free(os);
-}
-
-static void _status_user_delete(mod_instance_t mi, jid_t jid) {
-    storage_delete(mi->sm->st, "status", jid_user(jid), NULL);
 }
 
 static void _status_store(storage_t st, const unsigned char *jid, pkt_t pkt, time_t *lastlogin, time_t *lastlogout) {
@@ -91,7 +88,7 @@ static int _status_sess_start(mod_instance_t mi, sess_t sess) {
 
     /* not interested if there is other top session */
     if(sess->user->top != NULL && sess != sess->user->top)
-        return;
+        return mod_PASS;
 
     ret = storage_get(sess->user->sm->st, "status", jid_user(sess->jid), NULL, &os);
     if (ret == st_SUCCESS)
@@ -181,7 +178,7 @@ static mod_ret_t _status_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
         lastlogout = (time_t) 0;
     }
 
-    /* If the presence is for a specific user, ignore it. */
+    /* Store only presence broadcasts. If the presence is for a specific user, ignore it. */
     if (pkt->to == NULL)
         _status_store(sess->user->sm->st, jid_user(sess->jid), pkt, &lastlogin, &lastlogout);
 
@@ -194,48 +191,6 @@ static mod_ret_t _status_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     module_t mod = mi->mod;
     status_t st = (status_t) mod->private;
 
-    /* only check presence/subs to configured resource */
-    if(!(pkt->type & pkt_PRESENCE || pkt->type & pkt_S10N) || st->resource == NULL || strcmp(pkt->to->resource, st->resource) != 0)
-        return mod_PASS;
-
-    /* handle subscription requests */
-    if(pkt->type == pkt_S10N) {
-        log_debug(ZONE, "subscription request from %s", jid_full(pkt->from));
-
-        /* accept request */
-        pkt_router(pkt_create(st->sm, "presence", "subscribed", jid_user(pkt->from), jid_full(pkt->to)));
-
-        /* send presence */
-        pkt_router(pkt_create(st->sm, "presence", NULL, jid_user(pkt->from), jid_full(pkt->to)));
-
-        /* and subscribe back to theirs */
-        pkt_router(pkt_tofrom(pkt));
-
-        return mod_HANDLED;
-    }
-
-    /* handle unsubscribe requests */
-    if(pkt->type == pkt_S10N_UN) {
-        log_debug(ZONE, "unsubscribe request from %s", jid_full(pkt->from));
-
-        /* ack the request */
-        nad_set_attr(pkt->nad, 1, -1, "type", "unsubscribed", 12);
-        pkt_router(pkt_tofrom(pkt));
-
-        return mod_HANDLED;
-    }
-
-    /* answer to probes */
-    if(pkt->type == pkt_PRESENCE_PROBE) {
-        log_debug(ZONE, "presence probe from %s", jid_full(pkt->from));
-
-        /* send presence */
-        pkt_router(pkt_create(st->sm, "presence", NULL, jid_user(pkt->from), jid_full(pkt->to)));
-
-        pkt_free(pkt);
-        return mod_HANDLED;
-    }
-
     /* store presence information */
     if(pkt->type == pkt_PRESENCE || pkt->type == pkt_PRESENCE_UN) {
         log_debug(ZONE, "storing presence from %s", jid_full(pkt->from));
@@ -243,17 +198,31 @@ static mod_ret_t _status_pkt_sm(mod_instance_t mi, pkt_t pkt) {
         t = (time_t) 0;
         
         _status_store(mod->mm->sm->st, jid_user(pkt->from), pkt, &t, &t);
-
-        pkt_free(pkt);
-        return mod_HANDLED;
     }
 
-    log_debug(ZONE, "dropping presence from %s", jid_full(pkt->from));
+    /* answer to probes and subscription requests*/
+    if(pkt->type == pkt_PRESENCE_PROBE || pkt->type == pkt_S10N) {
+        log_debug(ZONE, "answering presence probe/sub from %s with /%s resource", jid_full(pkt->from), st->resource);
 
-    /* drop the rest */
-    pkt_free(pkt);
-    return mod_HANDLED;
+        /* send presence */
+        pkt_router(pkt_create(st->sm, "presence", NULL, jid_user(pkt->from), jid_full(st->jid)));
+    }
 
+    /* and handle over */
+    return mod_PASS;
+
+}
+
+static void _status_user_delete(mod_instance_t mi, jid_t jid) {
+    log_debug(ZONE, "deleting status information of %s", jid_user(jid));
+
+    storage_delete(mi->sm->st, "status", jid_user(jid), NULL);
+}
+
+static void _status_free(module_t mod) {
+    status_t st = (status_t) mod->private;
+    jid_free(st->jid);
+    free(mod->private);
 }
 
 DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
@@ -263,19 +232,21 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
 
     if (mod->init) return 0;
 
-    tr = (status_t) malloc(sizeof(struct _status_st));
-    memset(tr, 0, sizeof(struct _status_st));
+    tr = (status_t) calloc(1, sizeof(struct _status_st));
 
     tr->sm = mod->mm->sm;
     tr->resource = config_get_one(mod->mm->sm->config, "status.resource", 0);
+    tr->jid = jid_new(mod->mm->sm->pc, mod->mm->sm->id, -1);
+    tr->jid = jid_reset_components(tr->jid, tr->jid->node, tr->jid->domain, tr->resource);
 
     mod->private = tr;
 
-    mod->user_delete = _status_user_delete;
     mod->sess_start = _status_sess_start;
     mod->sess_end = _status_sess_end;
     mod->in_sess = _status_in_sess;
     mod->pkt_sm = _status_pkt_sm;
+    mod->user_delete = _status_user_delete;
+    mod->free = _status_free;
 
     return 0;
 }

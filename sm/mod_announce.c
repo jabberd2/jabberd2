@@ -39,6 +39,8 @@ typedef struct moddata_st {
     time_t      t;
     os_t        tos;
     int         index;
+    jid_t       announcejid;
+    jid_t       onlinejid;
 } *moddata_t;
 
 static void _announce_load(module_t mod, moddata_t data) {
@@ -49,7 +51,6 @@ static void _announce_load(module_t mod, moddata_t data) {
     int ns, elem, attr;
     char timestamp[18], telem[5];
     struct tm tm;
-    char *tz;
 
     /* struct tm can vary in size depending on platform */
     memset(&tm, 0, sizeof(struct tm));
@@ -202,12 +203,22 @@ static mod_ret_t _announce_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     os_t os;
     os_object_t o;
     st_ret_t ret;
+    int elem;
 
     /* time of this packet */
     t = time(NULL);
 
+    /* answer to probes and subscription requests if admin */
+    if((pkt->type == pkt_PRESENCE_PROBE || pkt->type == pkt_S10N) && aci_check(mod->mm->sm->acls, "broadcast", pkt->from)) {
+        log_debug(ZONE, "answering presence probe/sub from %s with /announce resources", jid_full(pkt->from));
+
+        /* send presences */
+        pkt_router(pkt_create(mod->mm->sm, "presence", NULL, jid_user(pkt->from), jid_full(data->announcejid)));
+        pkt_router(pkt_create(mod->mm->sm, "presence", NULL, jid_user(pkt->from), jid_full(data->onlinejid)));
+    }
+
     /* we want messages addressed to /announce */
-    if(pkt->type != pkt_MESSAGE || strlen(pkt->to->resource) < 8 || strncmp(pkt->to->resource, "announce", 8) != 0)
+    if(!(pkt->type & pkt_MESSAGE) || strlen(pkt->to->resource) < 8 || strncmp(pkt->to->resource, "announce", 8) != 0)
         return mod_PASS;
     
     /* make sure they're allowed */
@@ -215,6 +226,13 @@ static mod_ret_t _announce_pkt_sm(mod_instance_t mi, pkt_t pkt) {
         log_debug(ZONE, "not allowing broadcast from %s", jid_full(pkt->from));
         return -stanza_err_FORBIDDEN;
     }
+
+    /* "fix" packet a bit */
+    /* force type normal */
+    nad_set_attr(pkt->nad, 1, -1, "type", NULL, 0);
+    /* remove sender nick */
+    elem = nad_find_elem(pkt->nad, 1, -1, "nick", 1);
+    if(elem >= 0) nad_drop_elem(pkt->nad, elem);
 
     if(pkt->to->resource[8] == '\0') {
         log_debug(ZONE, "storing message for announce later");
@@ -293,21 +311,28 @@ static void _announce_free(module_t mod) {
 
     if(data->nad != NULL) nad_free(data->nad);
     if(data->tos != NULL) os_free(data->tos);
+    jid_free(data->announcejid);
+    jid_free(data->onlinejid);
     free(data);
 }
 
 DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     module_t mod = mi->mod;
     moddata_t data;
+    jid_t jid;
 
     if(mod->init) return 0;
 
-    data = (moddata_t) malloc(sizeof(struct moddata_st));
-    memset(data, 0, sizeof(struct moddata_st));
+    data = (moddata_t) calloc(1, sizeof(struct moddata_st));
 
     mod->private = (void *) data;
 
     data->index = mod->index;
+
+    jid = jid_new(mod->mm->sm->pc, mod->mm->sm->id, -1);
+    data->announcejid = jid_reset_components(jid, jid->node, jid->domain, "announce");
+    jid = jid_new(mod->mm->sm->pc, mod->mm->sm->id, -1);
+    data->onlinejid = jid_reset_components(jid, jid->node, jid->domain, "announce/online");
 
     mod->in_sess = _announce_in_sess;
     mod->pkt_sm = _announce_pkt_sm;

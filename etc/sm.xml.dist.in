@@ -393,7 +393,8 @@
       <module>announce</module>         <!-- send broadcast messages (announce, motd, etc) -->
       <module>help</module>             <!-- resend sm messages to administrators -->
       <module>echo</module>             <!-- echo messages sent to /echo -->
-      <module>status</module>           <!-- store others status information -->
+      <module>status</module>           <!-- track status information -->
+      <module>presence</module>         <!-- proces server presence subscriptions -->
     </chain>
 
     <!-- pkt-user. The modules in this chain are called when a packet

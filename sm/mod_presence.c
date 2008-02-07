@@ -112,7 +112,7 @@ static mod_ret_t _presence_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     }
 
     /* if there's a resource, send it direct */
-    if(*pkt->to->resource != '\0') {
+    if(pkt->to->resource[0] != '\0') {
         sess = sess_match(user, pkt->to->resource);
         if(sess == NULL) {
             /* resource isn't online - XMPP-IM 11.3 requires we ignore it*/
@@ -130,14 +130,66 @@ static mod_ret_t _presence_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     return mod_HANDLED;
 }
 
+/* presence packets to the sm */
+static mod_ret_t _presence_pkt_sm(mod_instance_t mi, pkt_t pkt) {
+    time_t t;
+    module_t mod = mi->mod;
+    jid_t smjid = (jid_t) mod->private;
+
+    /* only check presence/subs to server JID */
+    if(!(pkt->type & pkt_PRESENCE || pkt->type & pkt_S10N))
+        return mod_PASS;
+
+    /* handle subscription requests */
+    if(pkt->type == pkt_S10N) {
+        log_debug(ZONE, "accepting subscription request from %s", jid_full(pkt->from));
+
+        /* accept request */
+        pkt_router(pkt_create(mod->mm->sm, "presence", "subscribed", jid_user(pkt->from), jid_user(smjid)));
+
+        /* and subscribe back to theirs */
+        pkt_router(pkt_create(mod->mm->sm, "presence", "subscribe", jid_user(pkt->from), jid_user(smjid)));
+
+        pkt_free(pkt);
+        return mod_HANDLED;
+    }
+
+    /* handle unsubscribe requests */
+    if(pkt->type == pkt_S10N_UN) {
+        log_debug(ZONE, "accepting unsubscribe request from %s", jid_full(pkt->from));
+
+        /* ack the request */
+        pkt_router(pkt_create(mod->mm->sm, "presence", "unsubscribed", jid_user(pkt->from), jid_user(smjid)));
+
+        pkt_free(pkt);
+        return mod_HANDLED;
+    }
+
+    /* drop the rest */
+    log_debug(ZONE, "dropping presence from %s", jid_full(pkt->from));
+    pkt_free(pkt);
+    return mod_HANDLED;
+
+}
+
+static void _presence_free(module_t mod) {
+    feature_unregister(mod->mm->sm, "presence");
+    jid_free(mod->private);
+}
+
 DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     module_t mod = mi->mod;
 
     if(mod->init) return 0;
 
+    /* store sm jid for use when answering probes */
+    mod->private = jid_new(mod->mm->sm->pc, mod->mm->sm->id, -1);
+
     mod->in_sess = _presence_in_sess;
     mod->in_router = _presence_in_router;
     mod->pkt_user = _presence_pkt_user;
+    mod->pkt_sm = _presence_pkt_sm;
+    mod->free = _presence_free;
 
     feature_register(mod->mm->sm, "presence");
 
