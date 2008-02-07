@@ -201,7 +201,7 @@ static mod_ret_t _status_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     }
 
     /* answer to probes and subscription requests*/
-    if(st->resource && pkt->type == pkt_PRESENCE_PROBE || pkt->type == pkt_S10N) {
+    if(st->resource && (pkt->type == pkt_PRESENCE_PROBE || pkt->type == pkt_S10N)) {
         log_debug(ZONE, "answering presence probe/sub from %s with /%s resource", jid_full(pkt->from), st->resource);
 
         /* send presence */
