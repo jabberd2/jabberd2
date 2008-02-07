@@ -201,7 +201,7 @@ static mod_ret_t _status_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     }
 
     /* answer to probes and subscription requests*/
-    if(pkt->type == pkt_PRESENCE_PROBE || pkt->type == pkt_S10N) {
+    if(st->resource && pkt->type == pkt_PRESENCE_PROBE || pkt->type == pkt_S10N) {
         log_debug(ZONE, "answering presence probe/sub from %s with /%s resource", jid_full(pkt->from), st->resource);
 
         /* send presence */
@@ -221,7 +221,7 @@ static void _status_user_delete(mod_instance_t mi, jid_t jid) {
 
 static void _status_free(module_t mod) {
     status_t st = (status_t) mod->private;
-    jid_free(st->jid);
+    if(st->jid) jid_free(st->jid);
     free(mod->private);
 }
 
@@ -236,8 +236,10 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
 
     tr->sm = mod->mm->sm;
     tr->resource = config_get_one(mod->mm->sm->config, "status.resource", 0);
-    tr->jid = jid_new(mod->mm->sm->pc, mod->mm->sm->id, -1);
-    tr->jid = jid_reset_components(tr->jid, tr->jid->node, tr->jid->domain, tr->resource);
+    if(tr->resource) {
+        tr->jid = jid_new(mod->mm->sm->pc, mod->mm->sm->id, -1);
+        tr->jid = jid_reset_components(tr->jid, tr->jid->node, tr->jid->domain, tr->resource);
+    }
 
     mod->private = tr;
 
