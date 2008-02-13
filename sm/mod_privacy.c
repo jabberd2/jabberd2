@@ -851,7 +851,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                     /* don't push to us or to anyone who hasn't requested blocklist */
                     if(sscan->module_data[mod->index] == NULL || ((privacy_t) sscan->module_data[mod->index])->blocklist == 0)
                         continue;
-            
+
                     result = pkt_dup(pkt, jid_full(sscan->jid), NULL);
                     if(result->from != NULL) {
                         jid_free(result->from);
@@ -1144,7 +1144,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 
                 /* loop through sessions, relink */
                 for(sscan = sess->user->sessions; sscan != NULL; sscan = sscan->next)
-                    if(((privacy_t) sscan->module_data[mod->index])->active == old) {
+                    if(sscan->module_data[mod->index] != NULL && ((privacy_t) sscan->module_data[mod->index])->active == old) {
                         ((privacy_t) sscan->module_data[mod->index])->active = zlist;
                         log_debug(ZONE, "session '%s' now has active list '%s'", jid_full(sscan->jid), (zlist != NULL) ? zlist->name : "(NONE)");
                     }
