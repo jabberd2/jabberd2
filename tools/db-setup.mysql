@@ -212,4 +212,4 @@ CREATE TABLE `status` (
     `show` TEXT NOT NULL,
     `last-login` INT DEFAULT '0',
     `last-logout` INT DEFAULT '0',
-    `xml` TEXT);
+    `xml` TEXT ) DEFAULT CHARSET=UTF8;
