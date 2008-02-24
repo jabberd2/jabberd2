@@ -313,8 +313,8 @@ static mod_ret_t _iq_vcard_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     st_ret_t ret;
     pkt_t result;
 
-    /* only handle vcard sets and gets */
-    if((pkt->type != pkt_IQ && pkt->type != pkt_IQ_SET) || pkt->ns != ns_VCARD)
+    /* only handle vcard sets and gets without resource */
+    if((pkt->type != pkt_IQ && pkt->type != pkt_IQ_SET) || pkt->ns != ns_VCARD || pkt->to->node !='\0')
         return mod_PASS;
 
     /* error them if they're trying to do a set */
