@@ -32,8 +32,6 @@ static int ns_PING = 0;
 void _iq_ping_reply(pkt_t pkt) {
     int ns, elem;
 
-    log_debug(ZONE, "xmpp-ping request from %s", jid_full(pkt->from));
-
     ns = nad_find_scoped_namespace(pkt->nad, urn_PING, NULL);
     elem = nad_find_elem(pkt->nad, 1, ns, "ping", 1);
     if (elem>=0)
