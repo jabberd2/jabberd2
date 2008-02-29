@@ -450,6 +450,7 @@ DLLEXPORT int ar_init(authreg_t ar) {
         return 1;
     }
 
+    mysql_options(conn, MYSQL_READ_DEFAULT_GROUP, "jabberd");
     mysql_options(conn, MYSQL_SET_CHARSET_NAME, "utf8");
 
     /* connect with CLIENT_INTERACTIVE to get a (possibly) higher timeout value than default */
