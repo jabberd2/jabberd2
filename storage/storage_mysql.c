@@ -618,11 +618,6 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv) {
         return st_FAILED;
     }
 
-#if MYSQL_VERSION_ID > 32349
-    /* Set mysql_options for client ver 3.23.50 or later (workaround for mysql bug in 3.23.49) */
-    mysql_options(conn, MYSQL_READ_DEFAULT_GROUP, "jabberd");
-#endif
-
     mysql_options(conn, MYSQL_SET_CHARSET_NAME, "utf8");
 
     /* connect with CLIENT_INTERACTIVE to get a (possibly) higher timeout value than default */
