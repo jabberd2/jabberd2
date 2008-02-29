@@ -27,6 +27,7 @@
 #define MYSQL_LR   256   /* maximum length of realm - should correspond to field length */
 #define MYSQL_LP   256   /* maximum length of password - should correspond to field length */
 
+enum mysql_pws_crypt { MPC_PLAIN, MPC_CRYPT };
 
 typedef struct mysqlcontext_st {
   MYSQL * conn;
@@ -35,7 +36,8 @@ typedef struct mysqlcontext_st {
   char * sql_setpassword;
   char * sql_delete;
   char * field_password;
-  } *mysqlcontext_t;
+  enum mysql_pws_crypt password_type;
+} *mysqlcontext_t;
 
 static MYSQL_RES *_ar_mysql_get_user_tuple(authreg_t ar, char *username, char *realm) {
     mysqlcontext_t ctx = (mysqlcontext_t) ar->private;
@@ -124,6 +126,37 @@ static int _ar_mysql_get_password(authreg_t ar, char *username, char *realm, cha
     mysql_free_result(res);
 
     return 0;
+}
+
+static int _ar_mysql_check_password(authreg_t ar, char *username, char *realm, char password[257]) {
+    mysqlcontext_t ctx = (mysqlcontext_t) ar->private;
+    char db_pw_value[257];
+    char *crypted_pw;
+    int ret;
+
+    ret = _ar_mysql_get_password(ar, username, realm, db_pw_value);
+    /* return if error */
+    if (ret)
+        return ret;
+
+    switch (ctx->password_type) {
+        case MPC_PLAIN:
+                ret = (strcmp(password, db_pw_value) != 0);
+                break;
+
+	case MPC_CRYPT:
+                crypted_pw = crypt(password,db_pw_value);
+                ret = (strcmp(crypted_pw, db_pw_value) != 0);
+                break;
+
+        default:
+		/* should never happen */
+                ret = 1;
+                log_write(ar->c2s->log, LOG_ERR, "Unknown encryption type which passed through config check.");
+                break;
+    }
+
+    return ret;
 }
 
 static int _ar_mysql_set_password(authreg_t ar, char *username, char *realm, char password[257]) {
@@ -269,8 +302,8 @@ static char * _ar_mysql_check_template( char * template, char * types ) {
       if( c == '%' ) continue; /* ignore escaped precentages */
       if( c == types[ pType ] )
       {
-	/* we found the placeholder */
-	pType++;  /* search for the next type */
+        /* we found the placeholder */
+        pType++;  /* search for the next type */
         continue;
       }
 
@@ -316,17 +349,26 @@ DLLEXPORT int ar_init(authreg_t ar) {
 
     /* determine our field names and table name */
     username = _ar_mysql_param( ar->c2s->config
-	       , "authreg.mysql.field.username"
-	       , "username" ); 
+               , "authreg.mysql.field.username"
+               , "username" ); 
     realm = _ar_mysql_param( ar->c2s->config
-	       , "authreg.mysql.field.realm"
-	       , "realm" ); 
+               , "authreg.mysql.field.realm"
+               , "realm" ); 
     mysqlcontext->field_password = _ar_mysql_param( ar->c2s->config
-	       , "authreg.mysql.field.password"
-	       , "password" ); 
+               , "authreg.mysql.field.password"
+               , "password" ); 
     table = _ar_mysql_param( ar->c2s->config
-	       , "authreg.mysql.table"
-	       , "authreg" ); 
+               , "authreg.mysql.table"
+               , "authreg" ); 
+
+    /* get encryption type used in DB */
+    if (config_get_one(ar->c2s->config, "authreg.mysql.password_type.plaintext", 0)) {
+        mysqlcontext->password_type = MPC_PLAIN;
+    } else if (config_get_one(ar->c2s->config, "authreg.mysql.password_type.crypt", 0)) {
+        mysqlcontext->password_type = MPC_CRYPT;
+    } else {
+        mysqlcontext->password_type = MPC_PLAIN;
+    }
 
     /* craft the default SQL statements */
     /* we leave unused statements allocated to simplify code - a small price to pay */
@@ -341,11 +383,11 @@ DLLEXPORT int ar_init(authreg_t ar) {
 
     template = "SELECT `%s` FROM `%s` WHERE `%s` = '%%s' AND `%s` = '%%s'";
     select = malloc( strlen( template )
-		     + strlen( mysqlcontext->field_password )
-		     + strlentur ); 
+                     + strlen( mysqlcontext->field_password )
+                     + strlentur ); 
     sprintf( select, template
-	     , mysqlcontext->field_password
-	     , table, username, realm );
+             , mysqlcontext->field_password
+             , table, username, realm );
 
     template = "UPDATE `%s` SET `%s` = '%%s' WHERE `%s` = '%%s' AND `%s` = '%%s'";
     setpassword = malloc( strlen( template ) + strlentur + strlen( mysqlcontext->field_password ) ); 
@@ -357,23 +399,23 @@ DLLEXPORT int ar_init(authreg_t ar) {
 
     /* allow the default SQL statements to be overridden; also verify the statements format and length */
     mysqlcontext->sql_create = strdup(_ar_mysql_param( ar->c2s->config
-	       , "authreg.mysql.sql.create"
-           , create ));
+               , "authreg.mysql.sql.create"
+               , create ));
     if( _ar_mysql_check_sql( ar, mysqlcontext->sql_create, "ss" ) != 0 ) return 1;
 
     mysqlcontext->sql_select = strdup(_ar_mysql_param( ar->c2s->config
-	       , "authreg.mysql.sql.select"
-           , select ));
+               , "authreg.mysql.sql.select"
+               , select ));
     if( _ar_mysql_check_sql( ar, mysqlcontext->sql_select, "ss" ) != 0 ) return 1;
 
     mysqlcontext->sql_setpassword = strdup(_ar_mysql_param( ar->c2s->config
-	       , "authreg.mysql.sql.setpassword"
-           , setpassword ));
+               , "authreg.mysql.sql.setpassword"
+               , setpassword ));
     if( _ar_mysql_check_sql( ar, mysqlcontext->sql_setpassword, "sss" ) != 0 ) return 1;
 
     mysqlcontext->sql_delete = strdup(_ar_mysql_param( ar->c2s->config
-	       , "authreg.mysql.sql.delete"
-           , delete ));
+               , "authreg.mysql.sql.delete"
+               , delete ));
     if( _ar_mysql_check_sql( ar, mysqlcontext->sql_delete, "ss" ) != 0 ) return 1;
 
     /* echo our configuration to debug */
@@ -425,7 +467,13 @@ DLLEXPORT int ar_init(authreg_t ar) {
     conn->reconnect = 1;
 
     ar->user_exists = _ar_mysql_user_exists;
-    ar->get_password = _ar_mysql_get_password;
+    if (MPC_PLAIN == mysqlcontext->password_type) {
+        /* only possible with plaintext passwords */
+        ar->get_password = _ar_mysql_get_password;
+    } else {
+        ar->get_password = NULL;
+    }
+    ar->check_password = _ar_mysql_check_password;
     ar->set_password = _ar_mysql_set_password;
     ar->create_user = _ar_mysql_create_user;
     ar->delete_user = _ar_mysql_delete_user;
