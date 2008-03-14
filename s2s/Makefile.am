@@ -3,7 +3,7 @@ INCLUDES = -DCONFIG_DIR=\"$(sysconfdir)\"
 bin_PROGRAMS = s2s
 
 noinst_HEADERS = s2s.h
-s2s_SOURCES = in.c main.c out.c router.c sx.c util.c
+s2s_SOURCES = in.c main.c out.c router.c db.c util.c
 
 s2s_LDADD = $(top_builddir)/sx/libsx.la \
             $(top_builddir)/mio/libmio.la \

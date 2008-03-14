@@ -354,17 +354,6 @@ char *strescape(pool_t p, char *buf, int len)
     return temp;
 }
 
-static char *zonestr(char *file, int line)
-{
-    static char buff[64];
-    int i;
-
-    i = snprintf(buff,63,"%s:%d",file,line);
-    buff[i] = '\0';
-
-    return buff;
-}
-
 /** convenience (originally by Thomas Muldowney) */
 void shahash_r(const char* str, char hashbuf[41]) {
     unsigned char hashval[20];

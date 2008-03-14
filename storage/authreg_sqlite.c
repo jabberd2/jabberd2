@@ -303,13 +303,12 @@ ar_init(authreg_t ar)
 	return 1;
     }
 
-    data = (moddata_t) malloc(sizeof(struct moddata_st));
+    data = (moddata_t) calloc(1, sizeof(struct moddata_st));
     if (!data) {
 	log_write(ar->c2s->log, LOG_ERR,
 		  "sqlite (authreg): memory error.");
 	return 1;
     }
-    memset(data, 0, sizeof(struct moddata_st));
 
     data->db = db;
 

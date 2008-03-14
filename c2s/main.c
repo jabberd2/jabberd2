@@ -422,8 +422,8 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
             /* make node a random string */
             jid_random_part(&jid, jid_NODE);
 
-            strcpy(buf, jid_full(&jid));
-        
+            strcpy(buf, jid.node);
+
             *res = (void *)buf;
 
             return sx_sasl_ret_OK;

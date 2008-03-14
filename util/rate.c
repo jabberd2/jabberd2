@@ -24,8 +24,7 @@
 
 rate_t rate_new(int total, int seconds, int wait)
 {
-    rate_t rt = (rate_t) malloc(sizeof(struct rate_st));
-    memset(rt, 0, sizeof(struct rate_st));
+    rate_t rt = (rate_t) calloc(1, sizeof(struct rate_st));
 
     rt->total = total;
     rt->seconds = seconds;

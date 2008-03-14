@@ -254,8 +254,7 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     if(filename == NULL)
         return 0;
 
-    tr = (template_roster_t) malloc(sizeof(struct _template_roster_st));
-    memset(tr, 0, sizeof(struct _template_roster_st));
+    tr = (template_roster_t) calloc(1, sizeof(struct _template_roster_st));
 
     tr->sm = mod->mm->sm;
     tr->filename = filename;

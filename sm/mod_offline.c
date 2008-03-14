@@ -285,8 +285,7 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
 
     if(mod->init) return 0;
 
-    offline = (mod_offline_t) malloc(sizeof(struct _mod_offline_st));
-    memset(offline, 0, sizeof(struct _mod_offline_st));
+    offline = (mod_offline_t) calloc(1, sizeof(struct _mod_offline_st));
 
     configval = config_get_one(mod->mm->sm->config, "offline.dropmessages", 0);
     if (configval != NULL)

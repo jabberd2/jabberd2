@@ -109,6 +109,9 @@ struct s2s_st {
     /** max file descriptors */
     int                 io_max_fds;
 
+    /** maximum stanza size */
+    int                 stanza_size_limit;
+
     /** time checks */
     int                 check_interval;
     int                 check_queue;

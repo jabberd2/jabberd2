@@ -652,7 +652,7 @@ static void _st_pgsql_free(st_driver_t drv) {
 }
 
 st_ret_t st_init(st_driver_t drv) {
-    char *host, *port, *dbname, *user, *pass;
+    char *host, *port, *dbname, *user, *pass, *conninfo;
     PGconn *conn;
     drvdata_t data;
 
@@ -661,8 +661,14 @@ st_ret_t st_init(st_driver_t drv) {
     dbname = config_get_one(drv->st->sm->config, "storage.pgsql.dbname", 0);
     user = config_get_one(drv->st->sm->config, "storage.pgsql.user", 0);
     pass = config_get_one(drv->st->sm->config, "storage.pgsql.pass", 0);
+    conninfo = config_get_one(drv->st->sm->config, "storage.pgsql.conninfo",0);
 
-    conn = PQsetdbLogin(host, port, NULL, NULL, dbname, user, pass);
+    if(conninfo) {
+        conn = PQconnectdb(conninfo);
+    } else {
+        conn = PQsetdbLogin(host, port, NULL, NULL, dbname, user, pass);
+    }
+
     if(conn == NULL) {
         log_write(drv->st->sm->log, LOG_ERR, "pgsql: unable to allocate database connection state");
         return st_FAILED;
@@ -671,8 +677,7 @@ st_ret_t st_init(st_driver_t drv) {
     if(PQstatus(conn) != CONNECTION_OK)
         log_write(drv->st->sm->log, LOG_ERR, "pgsql: connection to database failed: %s", PQerrorMessage(conn));
 
-    data = (drvdata_t) malloc(sizeof(struct drvdata_st));
-    memset(data, 0, sizeof(struct drvdata_st));
+    data = (drvdata_t) calloc(1, sizeof(struct drvdata_st));
 
     data->conn = conn;
 

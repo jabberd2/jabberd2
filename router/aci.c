@@ -58,8 +58,7 @@ xht aci_load(router_t r) {
         uelem = nad_find_elem(r->config->nad, aelem, -1, "user", 1);
         while(uelem >= 0) {
             if(NAD_CDATA_L(r->config->nad, uelem) > 0) {
-                user = (aci_user_t) malloc(sizeof(struct aci_user_st));
-                memset(user, 0, sizeof(struct aci_user_st));
+                user = (aci_user_t) calloc(1, sizeof(struct aci_user_st));
 
                 user->name = (char *) malloc(sizeof(char) * (NAD_CDATA_L(r->config->nad, uelem) + 1));
                 sprintf(user->name, "%.*s", NAD_CDATA_L(r->config->nad, uelem), NAD_CDATA(r->config->nad, uelem));

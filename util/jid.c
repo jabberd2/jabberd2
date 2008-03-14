@@ -28,8 +28,7 @@ static jid_t jid_reset_components_internal(jid_t jid, const unsigned char *node,
 prep_cache_t prep_cache_new(void) {
     prep_cache_t pc;
 
-    pc = (prep_cache_t) malloc(sizeof(struct prep_cache_st));
-    memset(pc, 0, sizeof(struct prep_cache_st));
+    pc = (prep_cache_t) calloc(1, sizeof(struct prep_cache_st));
 
     pc->node = xhash_new(301);
     pc->domain = xhash_new(301);
@@ -83,7 +82,7 @@ static int jid_prep_pieces(prep_cache_t pc, char *node, char *domain, char *reso
             return 1;
 
         if(resource[0] != '\0')
-            if(stringprep_xmpp_resourceprep(node, 1024) != 0)
+            if(stringprep_xmpp_resourceprep(resource, 1024) != 0)
                 return 1;
 
         return 0;

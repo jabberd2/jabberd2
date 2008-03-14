@@ -1,10 +1,121 @@
+2008-02-11 Mark Doliner <mark@meebo.com>
+	* Really fix gsasl ANONYMOUS login
+
+2008-02-03 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed endless loop for failed session closure
+	* Fixed packet to non-existing users handling to be conformant to RFC 3921bis 8.1. No Such User
+
+2008-02-02 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed loop on select. Closes #125
+	* Help information cosmetics
+
+2008-01-31 Tomasz Sterna <tomek@xiaoka.com>
+	* Added pam authpipe script
+	* Added example pam.d/jabber file from Gentoo
+
+2008-01-30 Tomasz Sterna <tomek@xiaoka.com>
+	* Changed example localdomain names to FQDN localhost.localdomain
+
+2008-01-30 Adam Strzelecki <ono@java.pl>
+	* Update of Visual Studio dependent libraries
+
+2008-01-29 Adam Strzelecki <ono@java.pl>
+	* Change (errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN) to MIO_WOULDBLOCK that is defined as (WSAGetLastError() == WSAEWOULDBLOCK) on Windows.
+	* Add ENABLE_SUPERSEDED flag to build superseded XEP features
+	* Add mod_roster-publish modules
+	* Remove CyrusSASL dependencies
+	* Add GSSASL to the builds
+	* Added new files
+	* Removed missing files
+	* Remove BerkleyDB DLLs from setup as it is not supported in Windows builds
+	* Add MySQL DLLs to setup
+	* Change CyrusSASL DLLs with GSASL DLLs
+	* Add mod_roster-publish.dll
+	* Removed db-setup-status.mysql
+	* Added db-update.sqlite
+	* Define S_IRUSR, S_IWUSR, S_IRGRP to 0 on Windows, as we don't have unix permissions there and those variables are undefined.
+	* Database update for SQLite.
+	* It was _snprintf there (MSVC way), while snprintf is not available at MSVC, check for it and use subst version.
+	* JABBERD2_API for _stanza_errors[], so it is exported in Windows to DLL.
+	* moved _mio_wnd_proc to mio_wsasync.c (better for debugging)
+	* fixed defer_free in right structure
+	* check socked range in _mio_wnd_proc in case we get some invalid WM_APP + sthing message
+	* added patch from Dan Hulme zeroing structures added to free pool (thanks Dan!)
+
+2008-01-24 Tomasz Sterna <tomek@xiaoka.com>
+	* Send vacation reply only to humans (full JIDs). Fixes #186
+	* Updated supported protocol listing
+	* Updated license template
+	* Using OpenSSL implementation of SHA1 hash if OpenSSL library enabled
+	* Added check whether -O optimization is to high. Fixes #100
+
+2008-01-23 Tomasz Sterna <tomek@xiaoka.com>
+	* Changed contact address to list address
+	* Added BerkeleyDB dump script
+	* Added BerkeleyDB-2-MySQL migration script
+	* Implemented XEP-0232: Software Information
+	* Fixed possible crash when debug is on
+	* Fix for session restoration packet without queued result
+
+2008-01-21 Tomasz Sterna <tomek@xiaoka.com>
+	* Revamped MySQL and PostgreSQL detection
+	* Introduced MySQL 5.0+ dependency
+	* Moved --enable-sasl configure option to --with-sasl
+
+2008-01-14 Tomasz Sterna <tomek@xiaoka.com>
+	* Reverted r471 change: Performance optimization for users with large rosters.
+
+2008-01-08 Tomasz Sterna <tomek@xiaoka.com>
+	* Merged verify-mode fix by Adrian Reber
+
+2008-01-04 Tomasz Sterna <tomek@xiaoka.com>
+	* Using TLSv1 protocol on TLS client connections
+
+2007-12-29 Tomasz Sterna <tomek@xiaoka.com>
+	* Put node in disco#info reply if present in query. Refs #11
+
+2007-12-28 Tomasz Sterna <tomek@xiaoka.com>
+	* Merged LDAP user query customization patch by Jean de Largentaye. Closes #180
+
+2007-12-22 Tomasz Sterna <tomek@xiaoka.com>
+	* Changed malloc/memset calls to calloc calls
+	* Changed the way UTF-8 is selected on MySQL connection. Fixes #177
+
+2007-12-20 Tomasz Sterna <tomek@xiaoka.com>
+	* Using more standard attributes for LDAP
+	* Reordered storage sections
+	* Fixed loading roster-publish module
+
+2007-12-17 Tomasz Sterna <tomek@xiaoka.com>
+	* Merged authreg_ldapfull, storage_ldapvcard and mod_roster_publish by Nikita Smirnov
+
+2007-12-14 Tomasz Sterna <tomek@xiaoka.com>
+	* Merged XEP-0054 and server vcard patch by Michael John Wensley
+	* Implemented maximum stanza size configuration option. Closes #179
+
+2007-12-13 Tomasz Sterna <tomek@xiaoka.com>
+	* Closing SM session when there is no associated C2S session
+
+2007-11-25 Mark Doliner <mark@meebo.com>
+	* Use calloc instead of malloc and then memset.
+
+2007-11-12 Tomasz Sterna <tomek@xiaoka.com>
+	* Null nad after disconnect fix #138
+
 2007-11-08 Mark Doliner <mark@meebo.com>
 	* Performance optimization for users with large rosters.
+
+2007-11-06 Tomasz Sterna <tomek@xiaoka.com>
+	* Disabled CyrusSASL backend compilation.
+	  You need to reenable it to use the backend.
 
 2007-11-02 Mark Doliner <mark@meebo.com>
 	* Remove unused storage.xml.dist config file and storage.8 man page
 	* Extremely minor optimization when removing an item from a roster
 	* Handle routing errors better in c2s.  The client is now disconnected.
+
+2007-10-31 Tomasz Sterna <tomek@xiaoka.com>
+	* Mangle announce packet, to look more like announcement
 
 2007-10-28 Tomasz Sterna <tomek@xiaoka.com>
 	* Fixed probes for untrusted users handling
@@ -25,7 +136,6 @@
 	* SASL ANONYMOUS rejects any initial response data sent by the client. Fixes ticket #171.
 
 2007-10-20 Mark Doliner <mark@meebo.com>
-	* fix s2s crash by closing free'd mio
 	* Fix crash in s2s caused by closing a free'd mio when attempting
 	  to reconnect to the router after losing our connection.
 

@@ -98,7 +98,7 @@ void sess_end(sess_t sess) {
 }
 
 sess_t sess_start(sm_t sm, jid_t jid) {
-    pool p;
+    pool_t p;
     user_t user;
     sess_t sess, scan;
     sha1_state_t sha1;
@@ -195,19 +195,6 @@ sess_t sess_start(sm_t sm, jid_t jid) {
 
 /** match a session by resource */
 sess_t sess_match(user_t user, char *resource) {
-    sess_t sess;
-
-    for(sess = user->sessions; sess != NULL; sess = sess->next) {
-        /* exact matches */
-        if(strcmp(sess->jid->resource, resource) == 0)
-            return sess;
-    }
-
-    return NULL;
-}
-
-/** match a session by exact resource */
-sess_t sess_match_exact(user_t user, char *resource) {
     sess_t sess;
 
     for(sess = user->sessions; sess != NULL; sess = sess->next) {

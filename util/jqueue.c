@@ -23,7 +23,7 @@
 #include "util.h"
 
 jqueue_t jqueue_new(void) {
-    pool p;
+    pool_t p;
     jqueue_t q;
 
     p = pool_new();

@@ -42,8 +42,7 @@ storage_t storage_new(sm_t sm) {
     char *type;
     st_ret_t ret;
 
-    st = (storage_t) malloc(sizeof(struct storage_st));
-    memset(st, 0, sizeof(struct storage_st));
+    st = (storage_t) calloc(1, sizeof(struct storage_st));
 
     st->sm = sm;
     st->drivers = xhash_new(101);
@@ -87,7 +86,6 @@ st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
     st_driver_t drv;
     st_driver_init_fn init_fn = NULL;
     char mod_fullpath[PATH_MAX], *modules_path;
-    int i;
     st_ret_t ret;
     void *handle;
 
@@ -153,8 +151,7 @@ st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
         }
 
         /* make a new driver structure */
-        drv = (st_driver_t) malloc(sizeof(struct st_driver_st));
-        memset(drv, 0, sizeof(struct st_driver_st));
+        drv = (st_driver_t) calloc(1, sizeof(struct st_driver_st));
 
         drv->st = st;
 

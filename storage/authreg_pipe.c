@@ -254,8 +254,7 @@ int ar_init(authreg_t ar)
     int to[2], from[2], ret;
     char buf[1024], *tok, *c;
 
-    data = (moddata_t) malloc(sizeof(struct moddata_st));
-    memset(data, 0, sizeof(struct moddata_st));
+    data = (moddata_t) calloc(1, sizeof(struct moddata_st));
 
     data->exec = config_get_one(ar->c2s->config, "authreg.pipe.exec", 0);
     if(data->exec == NULL)

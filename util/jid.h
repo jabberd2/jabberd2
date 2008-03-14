@@ -24,7 +24,7 @@
   * $Date: 2004/05/01 00:51:10 $
   * $Revision: 1.1 $
   *
-  * JID manipulation. Validity is checked via stringprep (if available), using
+  * JID manipulation. Validity is checked via stringprep, using
   * the "nodeprep", "nameprep" and "resourceprep" profiles (see xmpp-core
   * section 3).
   *
@@ -35,56 +35,93 @@
 #ifndef INCL_UTIL_JID_H
 #define INCL_UTIL_JID_H 1
 
-#include "pool.h"
+/** preparation cache, for speed */
+typedef struct prep_cache_st {
+    xht             node;
+    xht             domain;
+    xht             resource;
+} *prep_cache_t;
 
-/* opaque decl */
-typedef struct _prep_cache_st   *prep_cache_t;
-
-JABBERD2_API prep_cache_t    prep_cache_new(pool_t p);
+JABBERD2_API prep_cache_t    prep_cache_new(void);
+JABBERD2_API void            prep_cache_free(prep_cache_t pc);
+JABBERD2_API char            *prep_cache_node_get(prep_cache_t pc, char *from);
+JABBERD2_API void            prep_cache_node_set(prep_cache_t pc, char *from, char *to);
+JABBERD2_API char            *prep_cache_domain_get(prep_cache_t pc, char *from);
+JABBERD2_API void            prep_cache_domain_set(prep_cache_t pc, char *from, char *to);
+JABBERD2_API char            *prep_cache_resource_get(prep_cache_t pc, char *from);
+JABBERD2_API void            prep_cache_resource_set(prep_cache_t pc, char *from, char *to);
 
 /** these sizings come from xmpp-core */
-typedef struct _jid_st {
-    pool_t          p;
+#define MAXLEN_JID_COMP  1023    /* XMPP (RFC3920) 3.1 */
+#define MAXLEN_JID       3071    /* nodename (1023) + '@' + domain (1023) + '/' + resource (1023) = 3071 */
 
+typedef struct jid_st {
     /* cache for prep, if any */
     prep_cache_t    pc;
 
     /* basic components of the jid */
-    unsigned char   node[1024];
-    unsigned char   domain[1024];
-    unsigned char   resource[1024];
+    unsigned char   *node;
+    unsigned char   *domain;
+    unsigned char   *resource;
+
+    /* Points to jid broken with \0s into componets. node/domain/resource point
+     * into this string (or to statically allocated empty string, if they are
+     * empty) */
+    unsigned char   *jid_data;
+    /* Valid only when jid_data != NULL. When = 0, jid_data is statically
+     * allocated. Otherwise it tells length of the allocated data. Used to
+     * implement jid_dup() */
+    size_t          jid_data_len;
 
     /* the "user" part of the jid (sans resource) */
-    unsigned char   *user;
-    int             ulen;
+    unsigned char   *_user;
 
     /* the complete jid */
-    unsigned char   *full;
-    int             flen;
+    unsigned char   *_full;
 
     /* application should set to 1 if user/full need regenerating */
     int             dirty;
 
     /* for lists of jids */
-    struct _jid_st  *next;
+    struct jid_st    *next;
 } *jid_t;
 
+typedef enum {
+    jid_NODE    = 1,
+    jid_DOMAIN  = 2,
+    jid_RESOURCE = 3
+} jid_part_t;
+
+/** JID static buffer **/
+typedef char jid_static_buf[3*1025];
+
 /** make a new jid, and call jid_reset() to populate it */
-JABBERD2_API jid_t               jid_new(pool_t p, prep_cache_t pc, const unsigned char *id, int len);
+JABBERD2_API jid_t               jid_new(prep_cache_t pc, const unsigned char *id, int len);
+
+/** Make jid to use static buffer (jid data won't be allocated dynamically, but
+ * given buffer will be always used. */
+JABBERD2_API void                jid_static(jid_t jid, jid_static_buf *buf);
 
 /** clear and populate the jid with the given id. if id == NULL, just clears the jid to 0 */
 JABBERD2_API jid_t               jid_reset(jid_t jid, const unsigned char *id, int len);
+JABBERD2_API jid_t               jid_reset_components(jid_t jid, const unsigned char *node, const unsigned char *domain, const unsigned char *resource);
+
+/** free the jid */
+JABBERD2_API void                jid_free(jid_t jid);
 
 /** do string preparation on a jid */
 JABBERD2_API int                 jid_prep(jid_t jid);
+
+/** fill jid's resource with a random string **/
+JABBERD2_API void                jid_random_part(jid_t jid, jid_part_t part);
 
 /** expands user and full if the dirty flag is set */
 JABBERD2_API void                jid_expand(jid_t jid);
 
 /** return the user or full jid. these call jid_expand to make sure the user and
  * full jid are up to date */
-const unsigned char *jid_user(jid_t jid);
-const unsigned char *jid_full(jid_t jid);
+JABBERD2_API const unsigned char *jid_user(jid_t jid);
+JABBERD2_API const unsigned char *jid_full(jid_t jid);
 
 /** compare two user or full jids. these call jid_expand, then strcmp. returns
  * 0 if they're the same, < 0 if a < b, > 0 if a > b */
@@ -92,7 +129,7 @@ JABBERD2_API int                 jid_compare_user(jid_t a, jid_t b);
 JABBERD2_API int                 jid_compare_full(jid_t a, jid_t b);
 
 /** duplicate a jid */
-JABBERD2_API jid_t               jid_dup(jid_t jid, pool_t p);
+JABBERD2_API jid_t               jid_dup(jid_t jid);
 
 /** list helpers */
 
@@ -104,6 +141,5 @@ JABBERD2_API jid_t               jid_zap(jid_t list, jid_t jid);
 
 /** insert of a copy of jid into list, avoiding dups */
 JABBERD2_API jid_t               jid_append(jid_t list, jid_t jid);
-
 
 #endif

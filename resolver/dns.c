@@ -211,8 +211,7 @@ dns_host_t dns_resolve(const char *zone, int query_type) {
     }
 
     /* create an array to store the replies in */
-    reply = (dns_host_t *) malloc(sizeof(dns_host_t) * ancount);
-    memset(reply, 0, sizeof(dns_host_t) * ancount);
+    reply = (dns_host_t *) calloc(1, sizeof(dns_host_t) * ancount);
 
     an = 0;
     /* loop through the answer buffer and extract SRV records */
@@ -392,8 +391,7 @@ dns_host_t dns_resolve(const char *zone, int query_type) {
     for(scan = rr; scan != NULL; scan = scan->pNext)
         num++;
 
-    reply = (dns_host_t *) malloc(sizeof(dns_host_t) * num);
-    memset(reply, 0, sizeof(dns_host_t) * num);
+    reply = (dns_host_t *) calloc(1, sizeof(dns_host_t) * num);
 
     num = 0;
     for(scan = rr; scan != NULL; scan = scan->pNext) {

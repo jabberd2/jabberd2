@@ -35,8 +35,7 @@ static int _ar_pam_conversation(int nmsg, const struct pam_message **msg, struct
     if(nmsg <= 0)
         return PAM_CONV_ERR;
 
-    reply = (struct pam_response *) malloc(sizeof(struct pam_response) * nmsg);
-    memset(reply, 0, sizeof(struct pam_response) * nmsg);
+    reply = (struct pam_response *) calloc(1, sizeof(struct pam_response) * nmsg);
 
     for(i = 0; i < nmsg; i++) {
         if(msg[i]->msg_style == PAM_PROMPT_ECHO_OFF || msg[i]->msg_style == PAM_PROMPT_ECHO_ON) {

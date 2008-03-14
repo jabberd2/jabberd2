@@ -125,7 +125,7 @@ static creds_t _ar_db_fetch_user(authreg_t ar, char *username, char *realm)
         return NULL;
     }
 
-    log_debug(ZONE, "auth creds: %X", creds);
+    log_debug(ZONE, "auth creds: 0x%4X", creds);
 
     return creds;
 }
@@ -206,8 +206,7 @@ static int _ar_db_create_user(authreg_t ar, char *username, char *realm)
     if((creds = _ar_db_fetch_user(ar, username, realm)) != NULL)
         return 1;
 
-    creds = (creds_t) malloc(sizeof(struct creds_st));
-    memset(creds, 0, sizeof(struct creds_st));
+    creds = (creds_t) calloc(1, sizeof(struct creds_st));
 
     strcpy(creds->username, username);
     strcpy(creds->realm, realm);
@@ -331,8 +330,7 @@ int ar_init(authreg_t ar)
         return 1;
     }
 
-    data = (moddata_t) malloc(sizeof(struct moddata_st));
-    memset(data, 0, sizeof(struct moddata_st));
+    data = (moddata_t) calloc(1, sizeof(struct moddata_st));
 
     data->env = env;
     data->path = path;

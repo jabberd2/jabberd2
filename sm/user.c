@@ -29,7 +29,7 @@
 
 /** make a new one */
 static user_t _user_alloc(sm_t sm, jid_t jid) {
-    pool p;
+    pool_t p;
     user_t user;
 
     p = pool_new();

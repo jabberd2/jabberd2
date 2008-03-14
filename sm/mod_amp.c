@@ -102,8 +102,6 @@ void amp_error_pkt(pkt_t pkt, amp_rule_t rule) {
 
 
 static mod_ret_t _amp_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
-    mod_amp_config_t config = (mod_amp_config_t) mi->mod->private;
-
     /* only handle messages */
     if (! pkt->type & pkt_MESSAGE)
         return mod_PASS;
@@ -136,8 +134,7 @@ static mod_ret_t _amp_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
         return mod_PASS;
 
     /* loop for rules */
-    rule = malloc(sizeof(struct amp_rule_st));
-	memset(rule, 0, sizeof(struct amp_rule_st));
+    rule = calloc(1, sizeof(struct amp_rule_st));
     rule_c = rule;
     while (elem >= 0) {
 
@@ -263,8 +260,7 @@ static mod_ret_t _amp_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
        
         /* jump to next rule (if any) */
         if ((elem = nad_find_elem(pkt->nad, elem, ns, "rule", 0)) >= 0) {
-            rule_c->next = malloc(sizeof(struct amp_rule_st));
-            memset(rule_c->next, 0, sizeof(struct amp_rule_st));
+            rule_c->next = calloc(1, sizeof(struct amp_rule_st));
             rule_c = rule_c->next;
         }
     }
@@ -385,8 +381,7 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
 
     if (mod->init) return 0;
     
-    config = (mod_amp_config_t) malloc(sizeof(struct _mod_amp_config_st));
-    memset(config, 0, sizeof(struct _mod_amp_config_st));
+    config = (mod_amp_config_t) calloc(1, sizeof(struct _mod_amp_config_st));
 
     config->sm = mod->mm->sm;
     option = config_get_one(mod->mm->sm->config, "amp.disableactions.drop", 0);

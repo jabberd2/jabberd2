@@ -47,9 +47,6 @@
 extern "C" {
 #endif
 
-/** maximum stanza size we want to let through */
-#define SX_MAX_STANZA_SIZE      (0xffff)
-
 /* forward declarations */
 typedef struct _sx_st           *sx_t;
 typedef struct _sx_env_st       *sx_env_t;
@@ -291,6 +288,9 @@ struct _sx_st {
 
     /* bytes read from socket */
     int                      rbytes;
+
+    /* read bytes maximum */
+    int                      rbytesmax;
 
     /* current state */
     _sx_state_t              state;

@@ -19,7 +19,7 @@
  */
 
 #include "util.h"
-
+#include "pool.h"
 
 #ifdef POOL_DEBUG
 int pool__total = 0;
@@ -42,9 +42,9 @@ void _pool__free(void *block)
 
 
 /** make an empty pool */
-pool _pool_new(char *zone, int line)
+pool_t _pool_new(char *zone, int line)
 {
-    pool p;
+    pool_t p;
     while((p = _pool__malloc(sizeof(_pool))) == NULL) sleep(1);
     p->cleanup = NULL;
     p->heap = NULL;
@@ -78,7 +78,7 @@ static void _pool_heap_free(void *arg)
 }
 
 /** mem should always be freed last */
-static void _pool_cleanup_append(pool p, struct pfree *pf)
+static void _pool_cleanup_append(pool_t p, struct pfree *pf)
 {
     struct pfree *cur;
 
@@ -96,7 +96,7 @@ static void _pool_cleanup_append(pool p, struct pfree *pf)
 }
 
 /** create a cleanup tracker */
-static struct pfree *_pool_free(pool p, pool_cleaner f, void *arg)
+static struct pfree *_pool_free(pool_t p, pool_cleanup_t f, void *arg)
 {
     struct pfree *ret;
 
@@ -110,7 +110,7 @@ static struct pfree *_pool_free(pool p, pool_cleaner f, void *arg)
 }
 
 /** create a heap and make sure it get's cleaned up */
-static struct pheap *_pool_heap(pool p, int size)
+static struct pheap *_pool_heap(pool_t p, int size)
 {
     struct pheap *ret;
     struct pfree *clean;
@@ -130,15 +130,15 @@ static struct pheap *_pool_heap(pool p, int size)
     return ret;
 }
 
-pool _pool_new_heap(int size, char *zone, int line)
+pool_t _pool_new_heap(int size, char *zone, int line)
 {
-    pool p;
+    pool_t p;
     p = _pool_new(zone, line);
     p->heap = _pool_heap(p,size);
     return p;
 }
 
-void *pmalloc(pool p, int size)
+void *pmalloc(pool_t p, int size)
 {
     void *block;
 
@@ -171,7 +171,7 @@ void *pmalloc(pool p, int size)
     return block;
 }
 
-void *pmalloc_x(pool p, int size, char c)
+void *pmalloc_x(pool_t p, int size, char c)
 {
    void* result = pmalloc(p, size);
    if (result != NULL)
@@ -180,7 +180,7 @@ void *pmalloc_x(pool p, int size, char c)
 }  
 
 /** easy safety utility (for creating blank mem for structs, etc) */
-void *pmalloco(pool p, int size)
+void *pmalloco(pool_t p, int size)
 {
     void *block = pmalloc(p, size);
     memset(block, 0, size);
@@ -188,7 +188,7 @@ void *pmalloco(pool p, int size)
 }  
 
 /** XXX efficient: move this to const char * and then loop throug the existing heaps to see if src is within a block in this pool */
-char *pstrdup(pool p, const char *src)
+char *pstrdup(pool_t p, const char *src)
 {
     char *ret;
 
@@ -202,7 +202,7 @@ char *pstrdup(pool p, const char *src)
 }
 
 /** use given size */
-char *pstrdupx(pool p, const char *src, int len)
+char *pstrdupx(pool_t p, const char *src, int len)
 {
     char *ret;
 
@@ -216,14 +216,14 @@ char *pstrdupx(pool p, const char *src, int len)
     return ret;
 }
 
-int pool_size(pool p)
+int pool_size(pool_t p)
 {
     if(p == NULL) return 0;
 
     return p->size;
 }
 
-void pool_free(pool p)
+void pool_free(pool_t p)
 {
     struct pfree *cur, *stub;
 
@@ -248,7 +248,7 @@ void pool_free(pool p)
 }
 
 /** public cleanup utils, insert in a way that they are run FIFO, before mem frees */
-void pool_cleanup(pool p, pool_cleaner f, void *arg)
+void pool_cleanup(pool_t p, pool_cleanup_t f, void *arg)
 {
     struct pfree *clean;
 
@@ -260,7 +260,7 @@ void pool_cleanup(pool p, pool_cleaner f, void *arg)
 #ifdef POOL_DEBUG
 void _pool_stat(xht h, const char *key, void *val, void *arg)
 {
-    pool p = (pool)val;
+    pool_t p = (pool)val;
 
     if(p->lsize == -1)
         fprintf(stderr, "POOL: %s: %s is a new pool\n",p->zone,p->name);

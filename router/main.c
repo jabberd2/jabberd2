@@ -177,8 +177,7 @@ static void _router_config_expand(router_t r)
             if(name == NULL || target == NULL)
                 continue;
 
-            alias = (alias_t) malloc(sizeof(struct alias_st));
-            memset(alias, 0, sizeof(struct alias_st));
+            alias = (alias_t) calloc(1, sizeof(struct alias_st));
 
             alias->name = name;
             alias->target = target;
@@ -320,8 +319,7 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
     jabber_signal(SIGPIPE, SIG_IGN);
 #endif
 
-    r = (router_t) malloc(sizeof(struct router_st));
-    memset(r, 0, sizeof(struct router_st));
+    r = (router_t) calloc(1, sizeof(struct router_st));
 
     /* load our config */
     r->config = config_new();

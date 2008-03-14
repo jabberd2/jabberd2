@@ -68,8 +68,7 @@ static st_ret_t _st_db_add_type(st_driver_t drv, const char *type) {
     dbdata_t dbd;
     int err;
     
-    dbd = (dbdata_t) malloc(sizeof(struct dbdata_st));
-    memset(dbd, 0, sizeof(struct dbdata_st));
+    dbd = (dbdata_t) calloc(1, sizeof(struct dbdata_st));
 
     dbd->data = data;
 
@@ -549,8 +548,7 @@ st_ret_t st_init(st_driver_t drv) {
         return st_FAILED;
     }
 
-    data = (drvdata_t) malloc(sizeof(struct drvdata_st));
-    memset(data, 0, sizeof(struct drvdata_st));
+    data = (drvdata_t) calloc(1, sizeof(struct drvdata_st));
 
     data->env = env;
     data->path = path;

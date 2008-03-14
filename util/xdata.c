@@ -24,7 +24,7 @@
 
 /** creation */
 xdata_t xdata_new(xdata_type_t type, char *title, char *instructions) {
-    pool p;
+    pool_t p;
     xdata_t xd;
 
     assert((int) type);

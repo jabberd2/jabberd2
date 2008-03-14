@@ -26,8 +26,7 @@ config_t config_new(void)
 {
     config_t c;
 
-    c = (config_t) malloc(sizeof(struct config_st));
-    memset(c, 0, sizeof(struct config_st));
+    c = (config_t) calloc(1, sizeof(struct config_st));
 
     c->hash = xhash_new(501);
 

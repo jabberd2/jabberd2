@@ -501,8 +501,7 @@ st_ret_t st_init(st_driver_t drv) {
         return st_FAILED;
     }
 
-    data = (drvdata_t) malloc(sizeof(struct drvdata_st));
-    memset(data, 0, sizeof(struct drvdata_st));
+    data = (drvdata_t) calloc(1, sizeof(struct drvdata_st));
 
     data->path = path;
 

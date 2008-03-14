@@ -23,8 +23,7 @@
 sx_env_t sx_env_new(void) {
     sx_env_t env;
 
-    env = (sx_env_t) malloc(sizeof(struct _sx_env_st));
-    memset(env, 0, sizeof(struct _sx_env_st));
+    env = (sx_env_t) calloc(1, sizeof(struct _sx_env_st));
 
     return env;
 }
@@ -56,8 +55,7 @@ sx_plugin_t sx_env_plugin(sx_env_t env, sx_plugin_init_t init, ...) {
 
     va_start(args, init);
 
-    p = (sx_plugin_t) malloc(sizeof(struct _sx_plugin_st));
-    memset(p, 0, sizeof(struct _sx_plugin_st));
+    p = (sx_plugin_t) calloc(1, sizeof(struct _sx_plugin_st));
 
     p->env = env;
     p->index = env->nplugins;

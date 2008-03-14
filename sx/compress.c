@@ -271,8 +271,7 @@ static void _sx_compress_new(sx_t s, sx_plugin_t p) {
 
     _sx_debug(ZONE, "preparing for compressed connect for %d", s->tag);
 
-    sc = (_sx_compress_conn_t) malloc(sizeof(struct _sx_compress_conn_st));
-    memset(sc, 0, sizeof(struct _sx_compress_conn_st));
+    sc = (_sx_compress_conn_t) calloc(1, sizeof(struct _sx_compress_conn_st));
 
     /* initialize streams */
     sc->rstrm.zalloc = Z_NULL;

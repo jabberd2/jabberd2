@@ -117,7 +117,7 @@ static void _roster_insert_item(pkt_t pkt, item_t item, int elem)
     char *sub;
 
     ns = nad_add_namespace(pkt->nad, uri_CLIENT, NULL);
-    elem = nad_append_elem(pkt->nad, ns, "item", 3);
+    elem = nad_insert_elem(pkt->nad, elem, ns, "item", NULL);
     nad_set_attr(pkt->nad, elem, -1, "jid", jid_full(item->jid), 0);
 
     if(item->to && item->from)
@@ -139,10 +139,8 @@ static void _roster_insert_item(pkt_t pkt, item_t item, int elem)
     if(item->name != NULL)
         nad_set_attr(pkt->nad, elem, -1, "name", item->name, 0);
 
-    for(i = 0; i < item->ngroups; i++){
-        nad_append_elem(pkt->nad, NAD_ENS(pkt->nad, elem), "group", 4);
-        nad_append_cdata(pkt->nad, item->groups[i], strlen(item->groups[i]), 5);
-    }
+    for(i = 0; i < item->ngroups; i++)
+        nad_insert_elem(pkt->nad, elem, NAD_ENS(pkt->nad, elem), "group", item->groups[i]);
 }
 
 /** push this packet to all sessions except the given one */
@@ -210,8 +208,7 @@ static mod_ret_t _roster_in_sess_s10n(mod_instance_t mi, sess_t sess, pkt_t pkt)
         }
 
         /* make a new one */
-        item = (item_t) malloc(sizeof(struct item_st));
-        memset(item, 0, sizeof(struct item_st));
+        item = (item_t) calloc(1, sizeof(struct item_st));
 
         item->jid = jid_dup(pkt->to);
 
@@ -363,8 +360,7 @@ static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi
         }
 
         /* make a new one */
-        item = (item_t) malloc(sizeof(struct item_st));
-        memset(item, 0, sizeof(struct item_st));
+        item = (item_t) calloc(1, sizeof(struct item_st));
 
         /* add the jid */
         item->jid = jid;
@@ -679,8 +675,7 @@ static int _roster_user_load(mod_instance_t mi, user_t user) {
 
                 if(os_object_get_str(os, o, "jid", &str)) {
                     /* new one */
-                    item = (item_t) malloc(sizeof(struct item_st));
-                    memset(item, 0, sizeof(struct item_st));
+                    item = (item_t) calloc(1, sizeof(struct item_st));
 
                     item->jid = jid_new(mi->mod->mm->sm->pc, str, -1);
                     if(item->jid == NULL) {
@@ -754,8 +749,7 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
 
     if(mod->init) return 0;
 
-    mroster = (mod_roster_t) malloc(sizeof(struct _mod_roster_st));
-    memset(mroster, 0, sizeof(struct _mod_roster_st));
+    mroster = (mod_roster_t) calloc(1, sizeof(struct _mod_roster_st));
 
     mroster->maxitems = j_atoi(config_get_one(mod->mm->sm->config, "roster.maxitems", 0), 0);
 

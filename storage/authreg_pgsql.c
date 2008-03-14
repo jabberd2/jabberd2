@@ -302,6 +302,10 @@ int _ar_pgsql_check_sql( authreg_t ar, char * sql, char * types ) {
   return 1;
 }
 
+#ifdef HAVE_SSL
+extern int sx_openssl_initialized;
+#endif
+
 /** start me up */
 int ar_init(authreg_t ar) {
     char *host, *port, *dbname, *user, *pass, *conninfo;
@@ -313,8 +317,7 @@ int ar_init(authreg_t ar) {
     pgsqlcontext_t pgsqlcontext;
 
     /* configure the database context with field names and SQL statements */
-    pgsqlcontext = (pgsqlcontext_t) malloc( sizeof( struct pgsqlcontext_st ) );
-    memset(pgsqlcontext, 0, sizeof( struct pgsqlcontext_st ));
+    pgsqlcontext = (pgsqlcontext_t) calloc(1, sizeof( struct pgsqlcontext_st ) );
     ar->private = pgsqlcontext;
     ar->free = _ar_pgsql_free;
 
@@ -391,20 +394,26 @@ int ar_init(authreg_t ar) {
     free(setpassword);
     free(delete);
 
+#ifdef HAVE_SSL
+    if(sx_openssl_initialized)
+	PQinitSSL(0);
+#endif
+
+    host = config_get_one(ar->c2s->config, "authreg.pgsql.host", 0);
+    port = config_get_one(ar->c2s->config, "authreg.pgsql.port", 0);
+    dbname = config_get_one(ar->c2s->config, "authreg.pgsql.dbname", 0);
+    user = config_get_one(ar->c2s->config, "authreg.pgsql.user", 0);
+    pass = config_get_one(ar->c2s->config, "authreg.pgsql.pass", 0);
     conninfo = config_get_one(ar->c2s->config,"authreg.pgsql.conninfo",0);
+
     if(conninfo) {
-	/* don't log connection info for it can contain password */
-	log_debug( ZONE, "pgsql connecting to the databse");
-	conn = PQconnectdb(conninfo);
-    }else{
-	/* compatibility settings */
-	host = config_get_one(ar->c2s->config, "authreg.pgsql.host", 0);
-	port = config_get_one(ar->c2s->config, "authreg.pgsql.port", 0);
-	dbname = config_get_one(ar->c2s->config, "authreg.pgsql.dbname", 0);
-	user = config_get_one(ar->c2s->config, "authreg.pgsql.user", 0);
-	pass = config_get_one(ar->c2s->config, "authreg.pgsql.pass", 0);
-	log_debug( ZONE, "pgsql connecting as '%s' to database '%s' on %s:%s", user, dbname, host, port );
-	conn = PQsetdbLogin(host, port, NULL, NULL, dbname, user, pass);
+        /* don't log connection info for it can contain password */
+        log_debug( ZONE, "pgsql connecting to the databse");
+        conn = PQconnectdb(conninfo);
+    } else {
+        /* compatibility settings */
+        log_debug( ZONE, "pgsql connecting as '%s' to database '%s' on %s:%s", user, dbname, host, port );
+        conn = PQsetdbLogin(host, port, NULL, NULL, dbname, user, pass);
     }
 
     if(conn == NULL) {

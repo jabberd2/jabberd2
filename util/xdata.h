@@ -39,7 +39,7 @@ typedef enum {
 } xdata_type_t;
 
 struct _xdata_st {
-    pool                p;
+    pool_t              p;
 
     xdata_type_t        type;
 
@@ -67,7 +67,7 @@ typedef enum {
 } xdata_field_type_t;
 
 struct _xdata_field_st {
-    pool                p;
+    pool_t              p;
 
     xdata_field_type_t  type;
 
@@ -88,7 +88,7 @@ struct _xdata_field_st {
 };
 
 struct _xdata_option_st {
-    pool                p;
+    pool_t              p;
 
     char                *label;
     char                *value;
@@ -97,7 +97,7 @@ struct _xdata_option_st {
 };
 
 struct _xdata_item_st {
-    pool                p;
+    pool_t              p;
 
     xdata_field_t       fields, flast;
 

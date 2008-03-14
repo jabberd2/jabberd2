@@ -32,9 +32,8 @@
  * - audit use of depth array and parent (see j2 bug #792)
  */
 
+#include "nad.h"
 #include "util.h"
-
-#include "expat.h"
 
 /* define NAD_DEBUG to get pointer tracking - great for weird bugs that you can't reproduce */
 #ifdef NAD_DEBUG
@@ -62,20 +61,18 @@ static void _nad_ptr_check(const char *func, nad_t nad) {
 #define _nad_ptr_check(func,nad)
 #endif
 
-#define BLOCKSIZE 1024
+#define BLOCKSIZE 128
 
 /** internal: do and return the math and ensure it gets realloc'd */
 static int _nad_realloc(void **oblocks, int len)
 {
-    void *nblocks;
     int nlen;
 
     /* round up to standard block sizes */
     nlen = (((len-1)/BLOCKSIZE)+1)*BLOCKSIZE;
 
     /* keep trying till we get it */
-    while((nblocks = realloc(*oblocks, nlen)) == NULL) sleep(1);
-    *oblocks = nblocks;
+    *oblocks = realloc(*oblocks, nlen);
     return nlen;
 }
 
@@ -120,8 +117,9 @@ static int _nad_attr(nad_t nad, int elem, int ns, const char *name, const char *
 nad_cache_t nad_cache_new(void)
 {
     nad_cache_t cache;
-    while((cache = malloc(sizeof(nad_cache_t))) == NULL) sleep(1);
-    *cache = NULL;
+    cache = malloc(sizeof(struct nad_cache_st));
+    cache->len = 0;
+    cache->nads = NULL;
 
 #ifdef NAD_DEBUG
     if(_nad_alloc_tracked == NULL) _nad_alloc_tracked = xhash_new(501);
@@ -136,9 +134,9 @@ nad_cache_t nad_cache_new(void)
 void nad_cache_free(nad_cache_t cache)
 {
     nad_t cur;
-    while((cur = *cache) != NULL)
+    while((cur = cache->nads) != NULL)
     {
-        *cache = cur->next;
+        cache->nads = cur->next;
         free(cur->elems);
         free(cur->attrs);
         free(cur->nss);
@@ -157,10 +155,11 @@ nad_t nad_new(nad_cache_t cache)
 #ifndef NAD_DEBUG
     /* If cache==NULL, then this NAD is not in a cache */
 
-    if ((cache!=NULL) && (*cache != NULL))
+    if ((cache!=NULL) && (cache->nads != NULL))
     {
-        nad = *cache;
-        *cache = nad->next;
+        nad = cache->nads;
+        cache->nads = nad->next;
+        cache->len--;
         nad->ccur = nad->ecur = nad->acur = nad->ncur = 0;
         nad->scope = -1;
         nad->cache = cache;
@@ -169,8 +168,7 @@ nad_t nad_new(nad_cache_t cache)
     }
 #endif
 
-    while((nad = malloc(sizeof(struct nad_st))) == NULL) sleep(1);
-    memset(nad,0,sizeof(struct nad_st));
+    nad = calloc(1, sizeof(struct nad_st));
 
     nad->scope = -1;
     nad->cache = cache;
@@ -235,11 +233,13 @@ void nad_free(nad_t nad)
     xhash_put(_nad_free_tracked, pstrdup(xhash_pool(_nad_free_tracked), loc), (void *) nad);
     }
 #else
-    /* If nad->cache != NULL, then put back into cache, otherwise this nad is not in a cache */
-
-    if (nad->cache != NULL) {
-       nad->next = *(nad->cache);
-       *(nad->cache) = nad;
+    /* If nad->cache != NULL, there are less than 100 nads in the
+     * cache and this nad isn't gigantic then put back into cache,
+     * otherwise we should just free this nad */
+    if (nad->cache != NULL && nad->cache->len < 100 && nad->elen < 100000 && nad->alen < 100000 && nad->clen < 100000 && nad->dlen < 100000) {
+       nad->next = nad->cache->nads;
+       nad->cache->nads = nad;
+       nad->cache->len++;
        return;
     } 
 #endif
@@ -461,11 +461,12 @@ int nad_insert_elem(nad_t nad, int parent, int ns, const char *name, const char 
 {
     int elem;
 
-    if (parent >= nad->ecur)
+    if (parent >= nad->ecur) {
         if (nad->ecur > 0)
             parent = nad->ecur -1;
         else
             parent = 0;
+    }
 
     elem = parent + 1;
 
@@ -856,13 +857,29 @@ static void _nad_escape(nad_t nad, int data, int len, int flag)
 
     if(len <= 0) return;
 
-    /* first, if told, find and escape ' */
-    while(flag >= 3 && (c = memchr(nad->cdata + data,'\'',len)) != NULL)
+    /* first, if told, find and escape " */
+    while(flag >= 4 && (c = memchr(nad->cdata + data,'"',len)) != NULL)
     {
         /* get offset */
         ic = c - nad->cdata;
 
         /* cute, eh?  handle other data before this normally */
+        _nad_escape(nad, data, ic - data, 3);
+
+        /* ensure enough space, and add our escaped &quot; */
+        NAD_SAFE(nad->cdata, nad->ccur + 6, nad->clen);
+        memcpy(nad->cdata + nad->ccur, "&quot;", 6);
+        nad->ccur += 6;
+
+        /* just update and loop for more */
+        len -= (ic+1) - data;
+        data = ic+1;
+    }
+
+    /* next, find and escape ' */
+    while(flag >= 3 && (c = memchr(nad->cdata + data,'\'',len)) != NULL)
+    {
+        ic = c - nad->cdata;
         _nad_escape(nad, data, ic - data, 2);
 
         /* ensure enough space, and add our escaped &apos; */
@@ -919,7 +936,7 @@ static void _nad_escape(nad_t nad, int data, int len, int flag)
         memcpy(nad->cdata + nad->ccur, nad->cdata + data, (ic - data));
         nad->ccur += (ic - data);
 
-        /* append escaped &lt; */
+        /* append escaped &amp; */
         memcpy(nad->cdata + nad->ccur, "&amp;", 5);
         nad->ccur += 5;
 
@@ -1040,7 +1057,7 @@ static int _nad_lp0(nad_t nad, int elem)
         *(nad->cdata + nad->ccur++) = '\'';
 
         /* copy in the escaped value */
-        _nad_escape(nad, nad->attrs[attr].ival, nad->attrs[attr].lval, 3);
+        _nad_escape(nad, nad->attrs[attr].ival, nad->attrs[attr].lval, 4);
 
         /* make enough space for the closing quote and add it */
         NAD_SAFE(nad->cdata, nad->ccur + 1, nad->clen);
@@ -1066,7 +1083,7 @@ static int _nad_lp0(nad_t nad, int elem)
             *(nad->cdata + nad->ccur++) = '>';
 
             /* copy in escaped cdata */
-            _nad_escape(nad, nad->elems[elem].icdata, nad->elems[elem].lcdata,2);
+            _nad_escape(nad, nad->elems[elem].icdata, nad->elems[elem].lcdata,4);
 
             /* make room */
             ns = nad->elems[elem].my_ns;
@@ -1095,7 +1112,7 @@ static int _nad_lp0(nad_t nad, int elem)
         }
 
         /* always try to append the tail */
-        _nad_escape(nad, nad->elems[elem].itail, nad->elems[elem].ltail,2);
+        _nad_escape(nad, nad->elems[elem].itail, nad->elems[elem].ltail,4);
 
         /* if no siblings either, bail */
         if(ndepth < nad->elems[elem].depth)
@@ -1110,7 +1127,7 @@ static int _nad_lp0(nad_t nad, int elem)
         /* close ourself and append any cdata first */
         NAD_SAFE(nad->cdata, nad->ccur + 1, nad->clen);
         *(nad->cdata + nad->ccur++) = '>';
-        _nad_escape(nad, nad->elems[elem].icdata, nad->elems[elem].lcdata,2);
+        _nad_escape(nad, nad->elems[elem].icdata, nad->elems[elem].lcdata,4);
 
         /* process children */
         nelem = _nad_lp0(nad,elem+1);
@@ -1134,7 +1151,7 @@ static int _nad_lp0(nad_t nad, int elem)
         memcpy(nad->cdata + nad->ccur, nad->cdata + nad->elems[elem].iname, nad->elems[elem].lname);
         nad->ccur += nad->elems[elem].lname;
         *(nad->cdata + nad->ccur++) = '>';
-        _nad_escape(nad, nad->elems[elem].itail, nad->elems[elem].ltail,2);
+        _nad_escape(nad, nad->elems[elem].itail, nad->elems[elem].ltail,4);
 
         /* if the next element is not our sibling, we're done */
         if(nelem < nad->ecur && nad->elems[nelem].depth < nad->elems[elem].depth)

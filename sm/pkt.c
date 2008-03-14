@@ -75,8 +75,7 @@ pkt_t pkt_dup(pkt_t pkt, const char *to, const char *from) {
 
     if(pkt == NULL) return NULL;
 
-    pnew = (pkt_t) malloc(sizeof(struct pkt_st));
-    memset(pnew, 0, sizeof(struct pkt_st));
+    pnew = (pkt_t) calloc(1, sizeof(struct pkt_st));
 
     pnew->sm = pkt->sm;
     pnew->type = pkt->type;
@@ -115,8 +114,7 @@ pkt_t pkt_new(sm_t sm, nad_t nad) {
     }
 
     /* create the pkt holder */
-    pkt = (pkt_t) malloc(sizeof(struct pkt_st));
-    memset(pkt, 0, sizeof(struct pkt_st));
+    pkt = (pkt_t) calloc(1, sizeof(struct pkt_st));
 
     pkt->sm = sm;
     pkt->nad = nad;
@@ -153,11 +151,20 @@ pkt_t pkt_new(sm_t sm, nad_t nad) {
             /* find type, if any */
             attr = nad_find_attr(pkt->nad, 1, -1, "type", NULL);
 
-            /* messages are simple */
+            /* messages are simple, only subtypes */
             if(NAD_ENAME_L(pkt->nad, 1) == 7 && strncmp("message", NAD_ENAME(pkt->nad, 1), 7) == 0) {
                 pkt->type = pkt_MESSAGE;
-                if(attr >= 0 && NAD_AVAL_L(pkt->nad, attr) == 5 && strncmp("error", NAD_AVAL(pkt->nad, attr), 5) == 0)
-                    pkt->type |= pkt_ERROR;
+                if(attr >= 0) {
+                    if(NAD_AVAL_L(pkt->nad, attr) == 4 && strncmp("chat", NAD_AVAL(pkt->nad, attr), 4) == 0)
+                        pkt->type = pkt_MESSAGE_CHAT;
+		    else if(NAD_AVAL_L(pkt->nad, attr) == 8 && strncmp("headline", NAD_AVAL(pkt->nad, attr), 8) == 0)
+                        pkt->type = pkt_MESSAGE_HEADLINE;
+		    else if(NAD_AVAL_L(pkt->nad, attr) == 9 && strncmp("groupchat", NAD_AVAL(pkt->nad, attr), 9) == 0)
+                        pkt->type = pkt_MESSAGE_GROUPCHAT;
+		    else if(NAD_AVAL_L(pkt->nad, attr) == 5 && strncmp("error", NAD_AVAL(pkt->nad, attr), 5) == 0)
+                        pkt->type = pkt_MESSAGE | pkt_ERROR;
+                }
+
                 return pkt;
             }
 
@@ -479,15 +486,23 @@ void pkt_sess(pkt_t pkt, sess_t sess) {
 
 /** add an x:delay stamp */
 void pkt_delay(pkt_t pkt, time_t t, const char *from) {
-    char timestamp[18];
+    char timestamp[21];
     int ns, elem;
 
+#ifdef ENABLE_SUPERSEDED
     datetime_out(t, dt_LEGACY, timestamp, 18);
     ns = nad_add_namespace(pkt->nad, uri_DELAY, NULL);
     elem = nad_insert_elem(pkt->nad, 1, ns, "x", NULL);
     nad_set_attr(pkt->nad, elem, -1, "stamp", timestamp, 0);
     if(from != NULL)
         nad_set_attr(pkt->nad, elem, -1, "from", from, 0);
-
-    log_debug(ZONE, "added pkt delay stamp %s", timestamp);
+    log_debug(ZONE, "added pkt XEP-0091 delay stamp %s", timestamp);
+#endif
+    datetime_out(t, dt_DATETIME, timestamp, 21);
+    ns = nad_add_namespace(pkt->nad, uri_URN_DELAY, NULL);
+    elem = nad_insert_elem(pkt->nad, 1, ns, "delay", NULL);
+    nad_set_attr(pkt->nad, elem, -1, "stamp", timestamp, 0);
+    if(from != NULL)
+	nad_set_attr(pkt->nad, elem, -1, "from", from, 0);
+    log_debug(ZONE, "added pkt XEP-0203 delay stamp %s", timestamp);
 }

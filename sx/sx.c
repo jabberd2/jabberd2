@@ -26,8 +26,7 @@ sx_t sx_new(sx_env_t env, int tag, sx_callback_t cb, void *arg) {
 
     assert((int) (cb != NULL));
 
-    s = (sx_t) malloc(sizeof(struct _sx_st));
-    memset(s, 0, sizeof(struct _sx_st));
+    s = (sx_t) calloc(1, sizeof(struct _sx_st));
 
     s->env = env;
     s->tag = tag;
@@ -44,8 +43,7 @@ sx_t sx_new(sx_env_t env, int tag, sx_callback_t cb, void *arg) {
     s->rnadq = jqueue_new();
 
     if(env != NULL) {
-        s->plugin_data = (void **) malloc(sizeof(void *) * env->nplugins);
-        memset(s->plugin_data, 0, sizeof(void *) * env->nplugins);
+        s->plugin_data = (void **) calloc(1, sizeof(void *) * env->nplugins);
 
         for(i = 0; i < env->nplugins; i++)
             if(env->plugins[i]->new != NULL)
@@ -167,6 +165,7 @@ void _sx_reset(sx_t s) {
     temp.rio = s->rio;
     temp.wnad = s->wnad;
     temp.rnad = s->rnad;
+    temp.rbytesmax = s->rbytesmax;
     temp.plugin_data = s->plugin_data;
 
     s->reentry = 0;
@@ -193,6 +192,7 @@ void _sx_reset(sx_t s) {
     s->rio = temp.rio;
     s->wnad = temp.wnad;
     s->rnad = temp.rnad;
+    s->rbytesmax = temp.rbytesmax;
     s->plugin_data = temp.plugin_data;
 
     s->has_reset = 1;
@@ -207,8 +207,7 @@ void _sx_reset(sx_t s) {
 sx_buf_t _sx_buffer_new(const char *data, int len, _sx_notify_t notify, void *notify_arg) {
     sx_buf_t buf;
 
-    buf = (sx_buf_t) malloc(sizeof(struct _sx_buf_st));
-    memset(buf, 0, sizeof(struct _sx_buf_st));
+    buf = (sx_buf_t) calloc(1, sizeof(struct _sx_buf_st));
 
     if (len <= 0) {
         buf->data = buf->heap = NULL;

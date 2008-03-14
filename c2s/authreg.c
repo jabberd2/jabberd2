@@ -85,8 +85,7 @@ authreg_t authreg_init(c2s_t c2s, char *name) {
     }
 
     /* make a new one */
-    ar = (authreg_t) malloc(sizeof(struct authreg_st));
-    memset(ar, 0, sizeof(struct authreg_st));
+    ar = (authreg_t) calloc(1, sizeof(struct authreg_st));
 
     ar->c2s = c2s;
 
@@ -324,14 +323,19 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
     {
         log_write(c2s->log, LOG_NOTICE, "[%d] legacy authentication succeeded: host=%s, username=%s, resource=%s%s", sess->s->tag, sess->host->realm, username, resource, sess->s->ssf ? ", TLS negotiated" : "");
 
+        /* create new bound jid holder */
+        if(sess->resources == NULL) {
+            sess->resources = (bres_t) calloc(1, sizeof(struct bres_st));
+        }
+
         /* our local id */
-        sprintf(sess->c2s_id, "%d", sess->s->tag);
+        sprintf(sess->resources->c2s_id, "%d", sess->s->tag);
 
         /* the full user jid for this session */
-        sess->jid = jid_new(c2s->pc, sess->s->req_to, -1);
-        jid_reset_components(sess->jid, username, sess->jid->domain, resource);
+        sess->resources->jid = jid_new(c2s->pc, sess->s->req_to, -1);
+        jid_reset_components(sess->resources->jid, username, sess->resources->jid->domain, resource);
 
-        log_write(sess->c2s->log, LOG_NOTICE, "[%d] requesting session: jid=%s", sess->s->tag, jid_full(sess->jid));
+        log_write(sess->c2s->log, LOG_NOTICE, "[%d] requesting session: jid=%s", sess->s->tag, jid_full(sess->resources->jid));
 
         /* build a result packet, we'll send this back to the client after we have a session for them */
         sess->result = nad_new(sess->s->nad_cache);
@@ -346,7 +350,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
             nad_set_attr(sess->result, 0, -1, "id", NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr));
 
         /* start a session with the sm */
-        sm_start(sess);
+        sm_start(sess, sess->resources);
 
         /* finished with the nad */
         nad_free(nad);
@@ -416,8 +420,8 @@ static void _authreg_register_get(c2s_t c2s, sess_t sess, nad_t nad) {
 /** register set handler */
 static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
 {
-    int ns = 0, elem, attr, i;
-    char username[1024], password[1024], str[51];
+    int ns = 0, elem, attr;
+    char username[1024], password[1024];
 
     /* if we're not configured for registration (or pw changes), or we can't set passwords, fail outright */
     if(!(sess->host->ar_register_enable || sess->host->ar_register_password) || c2s->ar->set_password == NULL) {
@@ -444,15 +448,15 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
         }
 
         /* otherwise, delete them */
-        if((c2s->ar->delete_user)(c2s->ar, sess->jid->node, sess->host->realm) != 0) {
+        if((c2s->ar->delete_user)(c2s->ar, sess->resources->jid->node, sess->host->realm) != 0) {
             log_debug(ZONE, "user delete failed");
             sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_INTERNAL_SERVER_ERROR), 0));
             return;
         }
 
-        log_write(c2s->log, LOG_NOTICE, "[%d] deleted user: user=%s; realm=%s", sess->s->tag, sess->jid->node, sess->host->realm);
+        log_write(c2s->log, LOG_NOTICE, "[%d] deleted user: user=%s; realm=%s", sess->s->tag, sess->resources->jid->node, sess->host->realm);
 
-        log_write(c2s->log, LOG_NOTICE, "[%d] registration remove succeeded, requesting user deletion: jid=%s", sess->s->tag, jid_user(sess->jid));
+        log_write(c2s->log, LOG_NOTICE, "[%d] registration remove succeeded, requesting user deletion: jid=%s", sess->s->tag, jid_user(sess->resources->jid));
 
         /* make a result nad */
         sess->result = nad_new(sess->s->nad_cache);
@@ -473,7 +477,7 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
         sess->result = NULL;
 
         /* get the sm to delete them (it will force their sessions to end) */
-        sm_delete(sess);
+        sm_delete(sess, sess->resources);
 
         return;
     }
@@ -506,9 +510,9 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
     if(sess->active)
     {
         /* confirm that the username matches their auth id */
-        if(strcmp(username, sess->jid->node) != 0)
+        if(strcmp(username, sess->resources->jid->node) != 0)
         {
-            log_debug(ZONE, "%s is trying to change password for %s, bouncing it", jid_full(sess->jid), username);
+            log_debug(ZONE, "%s is trying to change password for %s, bouncing it", jid_full(sess->resources->jid), username);
             sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_OLD_UNAUTH), 0));
             return;
         }
@@ -574,23 +578,28 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
 
     /* if they're active, then this was just a password change, and we're done */
     if(sess->active) {
-        log_write(c2s->log, LOG_NOTICE, "[%d] password changed: jid=%s", sess->s->tag, jid_user(sess->jid));
+        log_write(c2s->log, LOG_NOTICE, "[%d] password changed: jid=%s", sess->s->tag, jid_user(sess->resources->jid));
         sx_nad_write(sess->s, sess->result);
         sess->result = NULL;
         return;
     }
 
+    /* create new bound jid holder */
+    if(sess->resources == NULL) {
+        sess->resources = (bres_t) calloc(1, sizeof(struct bres_st));
+    }
+
     /* our local id */
-    sprintf(sess->c2s_id, "%d", sess->s->tag);
+    sprintf(sess->resources->c2s_id, "%d", sess->s->tag);
 
     /* the user jid for this transaction */
-    sess->jid = jid_new(c2s->pc, sess->s->req_to, -1);
-    jid_reset_components(sess->jid, username, sess->jid->domain, sess->jid->resource);
+    sess->resources->jid = jid_new(c2s->pc, sess->s->req_to, -1);
+    jid_reset_components(sess->resources->jid, username, sess->resources->jid->domain, sess->resources->jid->resource);
 
-    log_write(c2s->log, LOG_NOTICE, "[%d] registration succeeded, requesting user creation: jid=%s", sess->s->tag, jid_user(sess->jid));
+    log_write(c2s->log, LOG_NOTICE, "[%d] registration succeeded, requesting user creation: jid=%s", sess->s->tag, jid_user(sess->resources->jid));
 
     /* get the sm to create them */
-    sm_create(sess);
+    sm_create(sess, sess->resources);
 
     nad_free(nad);
 

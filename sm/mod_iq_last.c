@@ -54,7 +54,6 @@ static mod_ret_t _iq_last_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     os_t os;
     os_object_t o;
     st_ret_t ret;
-    sess_t sess;
 
     /* we only want to play with iq:last gets */
     if(pkt->type != pkt_IQ || pkt->ns != ns_LAST)

@@ -40,6 +40,13 @@
 #define AR_LDAP_FLAGS_DISABLE_REFERRALS (0x10)
 #define AR_LDAP_FLAGS_APPEND_REALM (0x20)
 
+typedef enum uidattr_order_e {
+    AR_LDAP_UAO_UNUSED,
+    AR_LDAP_UAO_USERNAME_DOMAIN,
+    AR_LDAP_UAO_DOMAIN_USERNAME,
+    AR_LDAP_UAO_USERNAME
+} uidattr_order_t;
+
 /** internal structure, holds our data */
 typedef struct moddata_st
 {
@@ -57,7 +64,9 @@ typedef struct moddata_st
     char *bindpw;
 
     char *uidattr;
-
+    char *query;
+    uidattr_order_t uidattr_order;
+    
     xht basedn;
     char *default_basedn;
 } *moddata_t;
@@ -70,6 +79,57 @@ static int _ldap_get_lderrno(LDAP *ld)
     ldap_get_option(ld, LDAP_OPT_ERROR_NUMBER, &ld_errno);
 
     return ld_errno;
+}
+
+/** utility function to generate a printf format string from a "%u@%r" configuration string
+ * accepted user parameters are %u for username and %r for realm/domain.
+ *
+ * \params uidattr_fmt a string containing %u for username and possibly %r for realm. This string will be modified to replace %u and %r with %s
+ * \params order a returned value saying whether the username appears alone, before domain, or after domain
+ * 
+ * \return 1 for error
+ *
+ * \warning  We do not clean up the supplied string. As this is a configuration parameter 
+ * and not a user-supplied string the risk is considered limited, but still exists */
+static int _create_user_filter(moddata_t data) {
+    char *pos_u;
+    char *pos_d;
+    ptrdiff_t u_d_diff;
+    
+    if (data->query == NULL) {
+        data->uidattr_order = AR_LDAP_UAO_UNUSED;
+        return 1;
+    }
+    
+    pos_u = strstr(data->query, "%u");
+    
+    if (pos_u == NULL) {
+        data->uidattr_order = AR_LDAP_UAO_UNUSED;
+        return 1;
+    }
+    pos_u[1] = 's';
+    
+    pos_d = strstr(data->query, "%r");
+    if (pos_d != NULL) pos_d[1] = 's';
+    
+    u_d_diff = pos_u - pos_d;
+    
+    if (u_d_diff == (ptrdiff_t)pos_u) {
+        data->uidattr_order = AR_LDAP_UAO_USERNAME;
+        return 0;
+    } else {
+        if (u_d_diff > 0) {
+            data->uidattr_order = AR_LDAP_UAO_DOMAIN_USERNAME;
+            return 0;
+        } else {
+            data->uidattr_order = AR_LDAP_UAO_USERNAME_DOMAIN;
+            return 0;
+        }
+    }
+    
+    /* shouldn't arrive here */
+    data->uidattr_order = AR_LDAP_UAO_UNUSED;
+    return 1;
 }
 
 /** entry-point function for following referrals, required in some cases by Active Directory */
@@ -106,20 +166,20 @@ static int _ldap_connect(moddata_t data)
     if(data->ld != NULL) {
       /* explicitly set ldap version for all connections */
       if(ldap_set_option(data->ld, LDAP_OPT_PROTOCOL_VERSION, &version)) {
-	log_write(data->ar->c2s->log, LOG_ERR, "ldap: couldn't use version %d: %s", version, ldap_err2string(_ldap_get_lderrno(data->ld)));
-	ldap_unbind_s(data->ld);
-	data->ld = NULL;
-	return 1;
+        log_write(data->ar->c2s->log, LOG_ERR, "ldap: couldn't use version %d: %s", version, ldap_err2string(_ldap_get_lderrno(data->ld)));
+        ldap_unbind_s(data->ld);
+        data->ld = NULL;
+        return 1;
       }
       
       /* starttls */
       if(data->flags & AR_LDAP_FLAGS_STARTTLS) { 
-	if(ldap_start_tls_s(data->ld, NULL, NULL)) {
-	  log_write(data->ar->c2s->log, LOG_ERR, "ldap: couldn't start TLS: %s", ldap_err2string(_ldap_get_lderrno(data->ld)));
-	  ldap_unbind_s(data->ld);
-	  data->ld = NULL;
-	  return 1;
-	}
+        if(ldap_start_tls_s(data->ld, NULL, NULL)) {
+          log_write(data->ar->c2s->log, LOG_ERR, "ldap: couldn't start TLS: %s", ldap_err2string(_ldap_get_lderrno(data->ld)));
+          ldap_unbind_s(data->ld);
+          data->ld = NULL;
+          return 1;
+        }
       }
 
       /* referrals */
@@ -182,9 +242,9 @@ static char *_ldap_search(moddata_t data, char *realm, char *username)
 
     if (data->flags & AR_LDAP_FLAGS_RECONNECT) {
         if (_ldap_reconnect(data)) {
-	    log_write(data->ar->c2s->log, LOG_ERR, "ldap: reconnect failed: %s realm: %s basedn: %s binddn: %s pass: %s", ldap_err2string(_ldap_get_lderrno(data->ld)), realm, basedn, data->binddn, data->bindpw ); 
-	    return NULL;
-	}
+            log_write(data->ar->c2s->log, LOG_ERR, "ldap: reconnect failed: %s realm: %s basedn: %s binddn: %s pass: %s", ldap_err2string(_ldap_get_lderrno(data->ld)), realm, basedn, data->binddn, data->bindpw ); 
+            return NULL;
+        }
     }
 
     if(ldap_simple_bind_s(data->ld, data->binddn, data->bindpw)
@@ -196,12 +256,30 @@ static char *_ldap_search(moddata_t data, char *realm, char *username)
         return NULL;
     }
 
-    if (data->flags & AR_LDAP_FLAGS_APPEND_REALM) {
+    if (data->query) { /* custom uid format search fun */
+        switch(data->uidattr_order) {
+            case AR_LDAP_UAO_USERNAME_DOMAIN:
+                snprintf(filter, 1024, data->query, username, realm);
+                break;
+            case AR_LDAP_UAO_DOMAIN_USERNAME:
+                snprintf(filter, 1024, data->query, realm, username);
+                break;
+            case AR_LDAP_UAO_USERNAME:
+                snprintf(filter, 1024, data->query,  username);
+                break;
+            default:
+                log_write(data->ar->c2s->log, LOG_ERR, "ldap: creating filter failed: expected valid custom query, check your <query> config parameter");
+                       log_debug(ZONE, "got unhandled %d for uidattr_order", data->uidattr_order);
+                return NULL;
+        }
+    } else if (data->flags & AR_LDAP_FLAGS_APPEND_REALM) {
         snprintf(filter, 1024, "(%s=%s@%s)", data->uidattr, username, realm);
     } else {
         snprintf(filter, 1024, "(%s=%s)", data->uidattr, username);
     }
 
+    log_debug(ZONE, "LDAP: will query with filter: %s\n", filter);
+    
     if(ldap_set_rebind_proc(data->ld, &rebindProc, data)) {
         log_write(data->ar->c2s->log, LOG_ERR, "ldap: set_rebind_proc failed: %s", ldap_err2string(_ldap_get_lderrno(data->ld)));
         ldap_unbind_s(data->ld);
@@ -356,8 +434,7 @@ int ar_init(authreg_t ar)
         return 1;
     }
 
-    data = (moddata_t) malloc(sizeof(struct moddata_st));
-    memset(data, 0, sizeof(struct moddata_st));
+    data = (moddata_t) calloc(1, sizeof(struct moddata_st));
 
     data->basedn = xhash_new(101);
 
@@ -395,46 +472,47 @@ int ar_init(authreg_t ar)
     else
         snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.reconnect");
     if(config_get(ar->c2s->config, ldap_entry) != NULL)
-      data->flags |= AR_LDAP_FLAGS_RECONNECT;
+        data->flags |= AR_LDAP_FLAGS_RECONNECT;
     
     if (l>0)
         snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.v3", l );
     else
         snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.v3");
     if(config_get(ar->c2s->config, ldap_entry) != NULL)
-      data->flags |= AR_LDAP_FLAGS_V3;
+        data->flags |= AR_LDAP_FLAGS_V3;
 
     if (l>0)
         snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.startls", l );
     else
         snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.startls");
     if(config_get(ar->c2s->config, ldap_entry) != NULL)
-      data->flags |= AR_LDAP_FLAGS_STARTTLS;
+        data->flags |= AR_LDAP_FLAGS_STARTTLS;
 
     if (l>0)
         snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.ssl", l );
     else
         snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.ssl");
     if(config_get(ar->c2s->config, ldap_entry) != NULL)
-      data->flags |= AR_LDAP_FLAGS_SSL;
+        data->flags |= AR_LDAP_FLAGS_SSL;
 
     if (l>0)
         snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.disablereferrals", l );
     else
         snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.disablereferrals");
     if(config_get(ar->c2s->config, ldap_entry) != NULL)
-      data->flags |= AR_LDAP_FLAGS_DISABLE_REFERRALS;
+        data->flags |= AR_LDAP_FLAGS_DISABLE_REFERRALS;
 
+    /* Append realm is deprecated, use <query> option instead! */
     if (l>0)
         snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.append-realm", l );
     else
         snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.append-realm");
     if(config_get(ar->c2s->config, ldap_entry) != NULL)
-      data->flags |= AR_LDAP_FLAGS_APPEND_REALM;
+        data->flags |= AR_LDAP_FLAGS_APPEND_REALM;
 
     if((data->flags & AR_LDAP_FLAGS_STARTTLS) && (data->flags & AR_LDAP_FLAGS_SSL)) {
-	log_write(ar->c2s->log, LOG_ERR, "ldap: not possible to use both SSL and starttls");
-	return 1;
+        log_write(ar->c2s->log, LOG_ERR, "ldap: not possible to use both SSL and starttls");
+        return 1;
     }
 
     if (l>0)
@@ -456,6 +534,14 @@ int ar_init(authreg_t ar)
     data->uidattr = config_get_one(ar->c2s->config, ldap_entry, 0);
     if(data->uidattr == NULL)
         data->uidattr = "uid";
+    
+    if (l>0)
+        snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.query", l );
+    else
+        snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.query");
+    data->query = config_get_one(ar->c2s->config, ldap_entry, 0);
+    if(_create_user_filter(data))
+        data->query = NULL;
 
     data->ar = ar;
     

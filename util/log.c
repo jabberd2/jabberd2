@@ -69,8 +69,7 @@ log_t log_new(log_type_t type, const char *ident, const char *facility)
     log_t log;
     int fnum = 0;
 
-    log = (log_t) malloc(sizeof(struct log_st));
-    memset(log, 0, sizeof(struct log_st));
+    log = (log_t) calloc(1, sizeof(struct log_st));
 
     log->type = type;
 

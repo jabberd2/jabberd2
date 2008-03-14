@@ -41,7 +41,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories=".;../include;../..;../../util"
-				PreprocessorDefinitions="SX_DEBUG;MIO_DEBUG;MIO_WSASYNC;WIN32;_DEBUG;_USRDLL;JABBERD2_EXPORTS;HAVE_CONFIG_H;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE"
+				PreprocessorDefinitions="SX_DEBUG;MIO_DEBUG;MIO_WSASYNC;WIN32;_DEBUG;_USRDLL;JABBERD2_EXPORTS;HAVE_CONFIG_H;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;ENABLE_SUPERSEDED"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -61,7 +61,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="libidn.lib libsasl.lib libeay32MT.lib ssleay32MT.lib dnsapi.lib ws2_32.lib libexpat.lib"
+				AdditionalDependencies="libidn.lib libgsasl.lib libeay32MT.lib ssleay32MT.lib dnsapi.lib ws2_32.lib libexpat.lib"
 				OutputFile="../bin/debug/$(ProjectName).dll"
 				AdditionalLibraryDirectories="../lib/debug;../lib"
 				GenerateDebugInformation="true"
@@ -119,7 +119,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				AdditionalIncludeDirectories=".;../include;../..;../../util"
-				PreprocessorDefinitions="MIO_WSASYNC;WIN32;NDEBUG;_USRDLL;JABBERD2_EXPORTS;HAVE_CONFIG_H;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE"
+				PreprocessorDefinitions="MIO_WSASYNC;WIN32;NDEBUG;_USRDLL;JABBERD2_EXPORTS;HAVE_CONFIG_H;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;ENABLE_SUPERSEDED"
 				RuntimeLibrary="2"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
@@ -137,7 +137,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="libidn.lib libsasl.lib libeay32MT.lib ssleay32MT.lib dnsapi.lib ws2_32.lib libexpat.lib"
+				AdditionalDependencies="libidn.lib libgsasl.lib libeay32MT.lib ssleay32MT.lib dnsapi.lib ws2_32.lib libexpat.lib"
 				OutputFile="../bin/$(ProjectName).dll"
 				AdditionalLibraryDirectories="../lib"
 				ImportLibrary="../lib/$(TargetName).lib"
@@ -245,10 +245,6 @@
 				</File>
 				<File
 					RelativePath="..\..\util\serial.c"
-					>
-				</File>
-				<File
-					RelativePath="..\..\util\sha1.c"
 					>
 				</File>
 				<File
@@ -360,7 +356,7 @@
 					>
 				</File>
 				<File
-					RelativePath="..\..\sx\sasl_cyrus.c"
+					RelativePath="..\..\sx\sasl_gsasl.c"
 					>
 				</File>
 				<File

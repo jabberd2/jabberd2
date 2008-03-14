@@ -96,8 +96,7 @@ static mod_ret_t _disco_publish_pkt_user(mod_instance_t mi, user_t user, pkt_t p
         }
 
         /* new item */
-        di = (disco_item_t) malloc(sizeof(struct disco_item_st));
-        memset(di, 0, sizeof(struct disco_item_st));
+        di = (disco_item_t) calloc(1, sizeof(struct disco_item_st));
 
         /* jid */
         di->jid = jid_new(mod->mm->sm->pc, NAD_AVAL(pkt->nad, attr), NAD_AVAL_L(pkt->nad, attr));
@@ -273,8 +272,7 @@ static int _disco_publish_user_load(mod_instance_t mi, user_t user) {
             o = os_iter_object(os);
 
             if(os_object_get_str(os, o, "jid", &str)) {
-                di = (disco_item_t) malloc(sizeof(struct disco_item_st));
-                memset(di, 0, sizeof(struct disco_item_st));
+                di = (disco_item_t) calloc(1, sizeof(struct disco_item_st));
 
                 di->jid = jid_new(mod->mm->sm->pc, str, -1);
 

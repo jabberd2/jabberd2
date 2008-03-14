@@ -922,8 +922,7 @@ st_ret_t st_init(st_driver_t drv) {
       return st_FAILED;
     }
 
-    data = (OracleDriverPointer) malloc(sizeof(struct OracleDriver));
-    memset(data, 0, sizeof(struct OracleDriver));
+    data = (OracleDriverPointer) calloc(1, sizeof(struct OracleDriver));
 
     data->ociEnvironment = ociEnvironment;
     data->ociError = ociError;

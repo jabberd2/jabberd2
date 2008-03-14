@@ -103,8 +103,7 @@ int filter_load(router_t r) {
         what = nad_find_attr(nad, filter, -1, "what", NULL);
         error = nad_find_attr(nad, filter, -1, "error", NULL);
 
-        acl = (acl_t) malloc(sizeof(struct acl_s));
-        memset(acl, 0, sizeof(struct acl_s));
+        acl = (acl_t) calloc(1, sizeof(struct acl_s));
 
         if(from >= 0) {
             if (NAD_AVAL_L(nad, from) == 0 )

@@ -24,8 +24,7 @@
 
 access_t access_new(int order)
 {
-    access_t access = (access_t) malloc(sizeof(struct access_st));
-    memset(access, 0, sizeof(struct access_st));
+    access_t access = (access_t) calloc(1, sizeof(struct access_st));
 
     access->order = order;
 

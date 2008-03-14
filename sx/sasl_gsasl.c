@@ -339,7 +339,8 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
             /*
              * special case for SASL ANONYMOUS: ignore the initial
              * response provided by the client and generate a random
-             * authzid for the user, as specified in XEP-0175
+             * authid to use as the jid node for the user, as
+             * specified in XEP-0175
              */
             (ctx->cb)(sx_sasl_cb_GEN_AUTHZID, NULL, (void **)&out, s, ctx->cbarg);
             buf = strdup(out);
@@ -648,10 +649,10 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
 
         case GSASL_VALIDATE_ANONYMOUS:
             /* GSASL_ANONYMOUS_TOKEN */
-            creds.authzid = gsasl_property_fast(sd, GSASL_ANONYMOUS_TOKEN);
-            if(!creds.authzid) return GSASL_NO_ANONYMOUS_TOKEN;
-            /* set token as authzid for later use */
-            gsasl_property_set(sd, GSASL_AUTHZID, creds.authzid);
+            creds.authnid = gsasl_property_fast(sd, GSASL_ANONYMOUS_TOKEN);
+            if(!creds.authnid) return GSASL_NO_ANONYMOUS_TOKEN;
+            /* set token as authid for later use */
+            gsasl_property_set(sd, GSASL_AUTHZID, creds.authnid);
             return GSASL_OK;
 
         case GSASL_VALIDATE_EXTERNAL:
@@ -698,8 +699,7 @@ int sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args) {
     cb = va_arg(args, sx_sasl_callback_t);
     cbarg = va_arg(args, void *);
 
-    ctx = (_sx_sasl_t) malloc(sizeof(struct _sx_sasl_st));
-    memset(ctx, 0, sizeof(struct _sx_sasl_st));
+    ctx = (_sx_sasl_t) calloc(1, sizeof(struct _sx_sasl_st));
 
     ctx->appname = strdup(appname);
     ctx->cb = cb;

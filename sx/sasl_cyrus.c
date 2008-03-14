@@ -489,8 +489,7 @@ static void _sx_sasl_stream(sx_t s, sx_plugin_t p) {
             _sx_debug(ZONE, "setting up sasl for this server conn");
 
             /* Initialise our data object */
-            sd = (_sx_sasl_data_t) malloc(sizeof(struct _sx_sasl_data_st));
-            memset(sd, 0, sizeof(struct _sx_sasl_data_st));
+            sd = (_sx_sasl_data_t) calloc(1, sizeof(struct _sx_sasl_data_st));
 
             /* get the realm */
             if(ctx->cb != NULL)
@@ -1054,8 +1053,7 @@ int sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args) {
      */
     sasl_auxprop_add_plugin("jabbersx", sx_auxprop_init);
 
-    ctx = (_sx_sasl_t) malloc(sizeof(struct _sx_sasl_st));
-    memset(ctx, 0, sizeof(struct _sx_sasl_st));
+    ctx = (_sx_sasl_t) calloc(1, sizeof(struct _sx_sasl_st));
 
     ctx->sec_props.min_ssf = 0;
     ctx->sec_props.max_ssf = -1;    /* sasl_ssf_t is typedef'd to unsigned, so -1 gets us the max possible ssf */
@@ -1177,8 +1175,7 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, c
         return 1;
     }
 
-    sd = (_sx_sasl_data_t) malloc(sizeof(struct _sx_sasl_data_st));
-    memset(sd, 0, sizeof(struct _sx_sasl_data_st));
+    sd = (_sx_sasl_data_t) calloc(1, sizeof(struct _sx_sasl_data_st));
 
     if(user != NULL)
         sd->user = strdup(user);

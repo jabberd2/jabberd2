@@ -18,6 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
+#include "xhash.h"
 #include "util.h"
 
 
@@ -80,7 +81,7 @@ static xhn _xhash_node_get(xht h, const char *key, int len, int index)
 xht xhash_new(int prime)
 {
     xht xnew;
-    pool p;
+    pool_t p;
 
 /*    log_debug(ZONE,"creating new hash table of size %d",prime); */
 
@@ -229,7 +230,7 @@ int xhash_count(xht h)
 }
 
 /** get our pool */
-pool xhash_pool(xht h)
+pool_t xhash_pool(xht h)
 {
     return h->p;
 }
