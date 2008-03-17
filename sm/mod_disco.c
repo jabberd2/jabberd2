@@ -431,7 +431,8 @@ static mod_ret_t _disco_pkt_sm(mod_instance_t mi, pkt_t pkt) {
 
         node = nad_find_attr(pkt->nad, 2, -1, "node", NULL);
         if(node >= 0) {
-            nad_set_attr(result->nad, 2, -1, "node", NAD_AVAL(pkt->nad, node), NAD_AVAL_L(pkt->nad, node));
+            /* we do not handle "node"s at this level */
+            return -stanza_err_ITEM_NOT_FOUND;
         }
 
         pkt_id(pkt, result);
