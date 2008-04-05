@@ -264,7 +264,7 @@ static char *_digest_md5_gen_nonce(void) {
 }
 
 typedef struct _digest_md5_st {
-    pool        p;
+    pool_t      p;
 
     char        *nonce;
     char        *cnonce;
@@ -285,7 +285,7 @@ static int _digest_md5_client_step(scod_mech_t mech, scod_t sd, const char *chal
     md5_state_t md5;
     md5_byte_t hash[16];
     char ha1[33], ha2[33], hrsp[33];
-    pool p;
+    pool_t p;
     spool s;
     union xhashv xhv;
     union scod_u su;
@@ -428,7 +428,7 @@ static int _digest_md5_client_step(scod_mech_t mech, scod_t sd, const char *chal
 
 static int _digest_md5_server_start(scod_mech_t mech, scod_t sd, const char *resp, int resplen, char **chal, int *challen) {
     digest_md5_t md;
-    pool p;
+    pool_t p;
     spool s;
     char *c, *nonce;
 

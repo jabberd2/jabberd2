@@ -20,13 +20,13 @@
 
 /*
  * this is a minimal sx plugin that hacks the "jabber:server:dialback"
- * onto outgoing connections
+ * onto outgoing connections and adds "urn:xmpp:features:dialback" feature
  */
 
 #include "s2s.h"
 
 #define S2S_DB_NS_DECL      " xmlns:db='" uri_DIALBACK "'"
-#define S2S_DB_NS_DECL_LEN  (strlen(uri_DIALBACK) + 12)
+#define S2S_DB_NS_DECL_LEN  (uri_DIALBACK_L + 12)
 
 static void _s2s_db_header(sx_t s, sx_plugin_t p, sx_buf_t buf) {
 
@@ -43,10 +43,20 @@ static void _s2s_db_header(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     buf->len += S2S_DB_NS_DECL_LEN;
 }
 
+/** sx features callback */
+static void _s2s_db_features(sx_t s, sx_plugin_t p, nad_t nad) {
+    int ns;
+
+    ns = nad_add_namespace(nad, uri_URN_DIALBACK, NULL);
+    nad_append_elem(nad, ns, "dialback", 1);
+    nad_append_elem(nad, -1, "required", 2);
+}
+
 int s2s_db_init(sx_env_t env, sx_plugin_t p, va_list args) {
     log_debug(ZONE, "initialising dialback sx plugin");
 
     p->header = _s2s_db_header;
+    p->features = _s2s_db_features;
 
     return 0;
 }
