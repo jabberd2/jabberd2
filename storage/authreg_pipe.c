@@ -125,12 +125,12 @@ static int _ar_pipe_get_password(authreg_t ar, char *username, char *realm, char
         return 1;
     }
 
-    if(ap_base64decode_len(&buf[3], -1) >= 256) {
+    if(ap_base64decode_len(&buf[3], strlen(&buf[3])) >= 256) {
         log_debug(ZONE, "decoded password longer than buffer");
         return 1;
     }
 
-    ap_base64decode(password, &buf[3], -1);
+    ap_base64decode(password, &buf[3], strlen(&buf[3]));
 
     log_debug(ZONE, "got password: %s", password);
 
