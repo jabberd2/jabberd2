@@ -69,8 +69,10 @@ class Table
 end
 
 class Authreg <Table
-  @FIELDS = ["username", "realm", "password", "token", "sequence", "hash"]
-  @FORMAT = "A257 A257 A257 A11 xxi A41" # xx for padding so that the integer is aligned
+  @FIELDS = ["username", "realm", "password"]
+  @FORMAT = "A257 A257 A257" # xx for padding so that the integer is aligned
+#  @FIELDS = ["username", "realm", "password", "token", "sequence", "hash"]
+#  @FORMAT = "A257 A257 A257 A11 xxi A41" # xx for padding so that the integer is aligned
 end
 
 class Sm <Table
