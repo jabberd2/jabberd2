@@ -220,6 +220,10 @@ static void _c2s_hosts_expand(c2s_t c2s)
     int i;
 
     elem = config_get(c2s->config, "local.id");
+    if(!elem) {
+        log_write(c2s->log, LOG_ERR, "no local.id configured, aborting");
+        exit(1);
+    }
     for(i = 0; i < elem->nvalues; i++) {
         host_t host = (host_t) pmalloco(xhash_pool(c2s->hosts), sizeof(struct host_st));
         if(!host) {
