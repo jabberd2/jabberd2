@@ -1,5 +1,8 @@
 bin_SCRIPTS = jabberd
-EXTRA_DIST = db-setup.mysql db-setup.pgsql jabberd.in jabberd.rc pipe-auth.pl migrate.pl db-update.mysql db-setup.oracle db-setup.sqlite db-jd14-2-jd2.sql
+EXTRA_DIST = db-setup.mysql db-update.mysql db-setup.pgsql db-setup.oracle db-setup.sqlite db-update.sqlite \
+			 jabberd.rc pipe-auth.pl jabberd-authpipe-pam-0.1.pl pam_jabberd jabberd2.schema \
+			 db-jd14-2-jd2.sql migrate.pl migrate-jd14dir-2-sqlite.pl \
+			 bdb2mysql.rb bdbdump.pl
 
 edit = sed \
 	-e 's,@sysconfdir\@,$(sysconfdir),g' \
