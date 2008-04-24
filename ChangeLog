@@ -9,14 +9,8 @@
 	* Fix for authreg_pipe. Fixes #204
 	* Updated bdb2mysql.rb to jabberd 2.1 DB schema
 
-2008-04-05 Tomasz Sterna <tomek@xiaoka.com>
-	* More crash damage recovery - full repository tree restored
-
 2008-03-17 Tomasz Sterna <tomek@xiaoka.com>
 	* Do not handle disco to nodes
-
-2008-03-14 Tomasz Sterna <tomek@xiaoka.com>
-	* crash-recovery of repository files
 
 2008-03-14 Mark Doliner <mark@meebo.com>
 	* Fix a minor typo.
@@ -42,7 +36,7 @@
 	* Added charset utf-8 to db-setup.mysql
 
 2008-02-13 Tomasz Sterna <tomek@xiaoka.com>
-	* Fixes segfault that happend when there are multiple sessions and privacy list was changed. Fixes #188
+	* Fixes segfault that happened when there are multiple sessions and privacy list was changed. Fixes #188
 
 2008-02-11 Mark Doliner <mark@meebo.com>
 	* Really fix gsasl ANONYMOUS login
@@ -60,8 +54,9 @@
 	* Include inttypes.h instead of stdlib.h as it is more universally available. Refs #191
 	* Check for stdarg.h in configure.
 	* Remove AC_PROG_GCC_TRADITIONAL (obsolete).
-	* Remove AC_FUNC_MALLOC, AC_FUNC_REALLOC - if they find malloc(0) does not return a valid pointer malloc will be defined to rpl_malloc, and no rpl_malloc
-	* is available. See http://www.gnu.org/software/autoconf/manual/autoconf.html#Particular-Functions
+	* Remove AC_FUNC_MALLOC, AC_FUNC_REALLOC - if they find malloc(0) does not
+	  return a valid pointer malloc will be defined to rpl_malloc, and no
+	  rpl_malloc is available. See http://www.gnu.org/software/autoconf/manual/autoconf.html#Particular-Functions
 	* Seems easier to use AC_SEARCH_LIBS for inet_ntop etc.
 	* Move the broken __ss_family check so that it appears after the check for struct sockaddr_storage.
 	* Check for socklen_t
@@ -72,7 +67,7 @@
 	* Check for Win32 OpenSSL and Visual C++ 2005 SP1 Redistributable Package (x86), and raise error if not found in the installer.
 
 2008-02-03 Tomasz Sterna <tomek@xiaoka.com>
-	* Updated Makefile.am witn new README.protocol file
+	* Updated Makefile.am with new README.protocol file
 	* Unified URI/URN definitions
 	* Fixed endless loop for failed session closure
 	* Fixed packet to non-existing users handling to be conformant to RFC 3921bis 8.1. No Such User
