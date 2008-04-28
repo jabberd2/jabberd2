@@ -31,6 +31,7 @@
 static int ns_PRIVATE = 0;
 
 static mod_ret_t _iq_private_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
+    module_t mod = mi->mod;
     int ns, elem, target, targetns;
     st_ret_t ret;
     char filter[4096];
@@ -38,6 +39,7 @@ static mod_ret_t _iq_private_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) 
     os_object_t o;
     nad_t nad;
     pkt_t result;
+    sess_t sscan;
 
     /* only handle private sets and gets */
     if((pkt->type != pkt_IQ && pkt->type != pkt_IQ_SET) || pkt->ns != ns_PRIVATE)
@@ -78,6 +80,15 @@ static mod_ret_t _iq_private_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) 
 
     /* get */
     if(pkt->type == pkt_IQ) {
+#ifdef ENABLE_EXPERIMENTAL
+        /* remember that this resource requested the namespace */
+        if(sess->module_data[mod->index] == NULL) {
+            /* create new hash if necesary */
+            sess->module_data[mod->index] = xhash_new(101);
+            pool_cleanup(sess->p, (void (*))(void *) xhash_free, sess->module_data[mod->index]);
+        }
+        xhash_put(sess->module_data[mod->index], pstrdupx(xhash_pool(sess->module_data[mod->index]), NAD_NURI(pkt->nad, targetns), NAD_NURI_L(pkt->nad, targetns)), (void *) 1);
+#endif
         snprintf(filter, 4096, "(ns=%i:%.*s)", NAD_NURI_L(pkt->nad, targetns), NAD_NURI_L(pkt->nad, targetns), NAD_NURI(pkt->nad, targetns));
         ret = storage_get(sess->user->sm->st, "private", jid_user(sess->jid), filter, &os);
         switch(ret) {
@@ -150,14 +161,33 @@ static mod_ret_t _iq_private_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) 
             return -stanza_err_FEATURE_NOT_IMPLEMENTED;
 
         default:
+            /* create result packet */
             result = pkt_create(sess->user->sm, "iq", "result", NULL, NULL);
-
             pkt_id(pkt, result);
-
+            /* and flush it to the session */
             pkt_sess(result, sess);
-            
-            pkt_free(pkt);
+#ifdef ENABLE_EXPERIMENTAL
+            /* push it to all resources that read this xmlns item */
+            snprintf(filter, 4096, "%.*s", NAD_NURI_L(pkt->nad, targetns), NAD_NURI(pkt->nad, targetns));
+            for(sscan = sess->user->sessions; sscan != NULL; sscan = sscan->next) {
+                /* skip our resource and those that didn't read any private-storage */
+                if(sscan == sess || sscan->module_data[mod->index] == NULL)
+                    continue;
 
+                /* check whether namespace was read */
+                if(xhash_get(sscan->module_data[mod->index], filter)) {
+                    result = pkt_dup(pkt, jid_full(sscan->jid), NULL);
+                    if(result->from != NULL) {
+                        jid_free(result->from);
+                        nad_set_attr(result->nad, 1, -1, "from", NULL, 0);
+                    }
+                    pkt_id_new(result);
+                    pkt_sess(result, sscan);
+                }
+            }
+#endif
+            /* finally free the packet */
+            pkt_free(pkt);
             return mod_HANDLED;
     }
 
