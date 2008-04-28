@@ -849,7 +849,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
             if(push) {
                 for(sscan = sess->user->sessions; sscan != NULL; sscan = sscan->next) {
                     /* don't push to us or to anyone who hasn't requested blocklist */
-                    if(sscan->module_data[mod->index] == NULL || ((privacy_t) sscan->module_data[mod->index])->blocklist == 0)
+                    if(sscan == sess || sscan->module_data[mod->index] == NULL || ((privacy_t) sscan->module_data[mod->index])->blocklist == 0)
                         continue;
 
                     result = pkt_dup(pkt, jid_full(sscan->jid), NULL);
