@@ -652,7 +652,7 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
             creds.authnid = gsasl_property_fast(sd, GSASL_ANONYMOUS_TOKEN);
             if(!creds.authnid) return GSASL_NO_ANONYMOUS_TOKEN;
             /* set token as authid for later use */
-            gsasl_property_set(sd, GSASL_AUTHZID, creds.authnid);
+            gsasl_property_set(sd, GSASL_AUTHID, creds.authnid);
             return GSASL_OK;
 
         case GSASL_VALIDATE_EXTERNAL:
