@@ -27,9 +27,6 @@ INSERT INTO userdata ("collection-owner",lastmodified,name,email,wwwstatus,profi
 DROP TABLE mailaddresses;
 DROP TABLE useroptions;
 
-DROP VIEW managers_password;
-CREATE VIEW managers_password AS SELECT managers.jid, authreg."password", managers.realm FROM managers, authreg WHERE managers.jid = (authreg.username || '@' || authreg.realm);
-
 --
 -- Drop unconvertable and unused tables first
 --
