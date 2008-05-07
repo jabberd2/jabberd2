@@ -394,7 +394,7 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
 
 #ifdef HAVE_SSL
     if(r->local_pemfile != NULL) {
-        r->sx_ssl = sx_env_plugin(r->sx_env, sx_ssl_init, r->local_pemfile, NULL, NULL);
+        r->sx_ssl = sx_env_plugin(r->sx_env, sx_ssl_init, NULL, r->local_pemfile, NULL, NULL);
         if(r->sx_ssl == NULL)
             log_write(r->log, LOG_ERR, "failed to load SSL pemfile, SSL disabled");
     }

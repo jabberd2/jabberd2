@@ -33,10 +33,25 @@
 #endif
 
 /* forward decl */
+typedef struct host_st      *host_t;
 typedef struct s2s_st       *s2s_t;
 typedef struct pkt_st       *pkt_t;
 typedef struct conn_st      *conn_t;
 typedef struct dnscache_st  *dnscache_t;
+
+struct host_st {
+    /** our realm */
+    char                *realm;
+
+    /** starttls pemfile */
+    char                *host_pemfile;
+
+    /** certificate chain */
+    char                *host_cachain;
+
+    /** verify-mode  */
+    int                 host_verify_mode;
+};
 
 struct s2s_st {
     /** our id (hostname) with the router */
@@ -105,6 +120,9 @@ struct s2s_st {
 
     /** verify-mode  */
     int                 local_verify_mode;
+
+    /** hosts mapping */
+    xht                 hosts;
 
     /** max file descriptors */
     int                 io_max_fds;

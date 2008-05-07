@@ -284,7 +284,7 @@ void out_packet(s2s_t s2s, pkt_t pkt) {
 #ifdef HAVE_SSL
             /* Send a stream version of 1.0 if we can do STARTTLS */
             if(out->s2s->sx_ssl != NULL && out->s2s->local_pemfile != NULL) {
-                sx_client_init(out->s, S2S_DB_HEADER, uri_SERVER, pkt->to->domain, NULL, "1.0");
+                sx_client_init(out->s, S2S_DB_HEADER, uri_SERVER, pkt->to->domain, pkt->from->domain, "1.0");
             } else {
                 sx_client_init(out->s, S2S_DB_HEADER, uri_SERVER, NULL, NULL, NULL);
             }

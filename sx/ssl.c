@@ -67,9 +67,19 @@ static int _sx_ssl_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
  }
 
 static void _sx_ssl_starttls_notify_proceed(sx_t s, void *arg) {
+    char *to = NULL;
     _sx_debug(ZONE, "preparing for starttls");
 
+    /* store the destination so we can select an ssl context */
+    if(s->req_to != NULL) to = strdup(s->req_to);
+
     _sx_reset(s);
+
+    /* restore destination */
+    if(s->req_to == NULL)
+        s->req_to = to;
+    else /* ? */
+        free(to);
 
     /* start listening */
     sx_server_init(s, s->flags | SX_SSL_WRAPPER);
@@ -483,6 +493,7 @@ static int _sx_ssl_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
 
 static void _sx_ssl_client(sx_t s, sx_plugin_t p) {
     _sx_ssl_conn_t sc;
+    SSL_CTX *ctx;
     char *pemfile = NULL;
     int ret;
 
@@ -490,7 +501,17 @@ static void _sx_ssl_client(sx_t s, sx_plugin_t p) {
     if(!(s->flags & SX_SSL_WRAPPER) || s->ssf > 0)
         return;
 
-    _sx_debug(ZONE, "preparing for ssl connect for %d", s->tag);
+    _sx_debug(ZONE, "preparing for ssl connect for %d from %s", s->tag, s->req_from);
+
+    /* find the ssl context for this source */
+    ctx = xhash_get((xht) p->private, s->req_from);
+    if(ctx == NULL) {
+        _sx_debug(ZONE, "using default ssl context for %d", s->tag);
+        ctx = xhash_get((xht) p->private, "*");
+    } else {
+        _sx_debug(ZONE, "using configured ssl context for %d", s->tag);
+    }
+    assert((int) (ctx != NULL));
 
     sc = (_sx_ssl_conn_t) calloc(1, sizeof(struct _sx_ssl_conn_st));
 
@@ -499,7 +520,7 @@ static void _sx_ssl_client(sx_t s, sx_plugin_t p) {
     sc->wbio = BIO_new(BIO_s_mem());
 
     /* new ssl conn */
-    sc->ssl = SSL_new((SSL_CTX *) p->private);
+    sc->ssl = SSL_new(ctx);
     SSL_set_bio(sc->ssl, sc->rbio, sc->wbio);
     SSL_set_connect_state(sc->ssl);
     SSL_set_ssl_method(sc->ssl, TLSv1_client_method());
@@ -564,12 +585,23 @@ static void _sx_ssl_client(sx_t s, sx_plugin_t p) {
 
 static void _sx_ssl_server(sx_t s, sx_plugin_t p) {
     _sx_ssl_conn_t sc;
+    SSL_CTX *ctx;
 
     /* only bothering if they asked for wrappermode */
     if(!(s->flags & SX_SSL_WRAPPER) || s->ssf > 0)
         return;
 
-    _sx_debug(ZONE, "preparing for ssl accept for %d", s->tag);
+    _sx_debug(ZONE, "preparing for ssl accept for %d to %s", s->tag, s->req_to);
+
+    /* find the ssl context for this destination */
+    ctx = xhash_get((xht) p->private, s->req_to);
+    if(ctx == NULL) {
+        _sx_debug(ZONE, "using default ssl context for %d", s->tag);
+        ctx = xhash_get((xht) p->private, "*");
+    } else {
+        _sx_debug(ZONE, "using configured ssl context for %d", s->tag);
+    }
+    assert((int) (ctx != NULL));
 
     sc = (_sx_ssl_conn_t) calloc(1, sizeof(struct _sx_ssl_conn_st));
 
@@ -578,7 +610,7 @@ static void _sx_ssl_server(sx_t s, sx_plugin_t p) {
     sc->wbio = BIO_new(BIO_s_mem());
 
     /* new ssl conn */
-    sc->ssl = SSL_new((SSL_CTX *) p->private);
+    sc->ssl = SSL_new(ctx);
     SSL_set_bio(sc->ssl, sc->rbio, sc->wbio);
     SSL_set_accept_state(sc->ssl);
 
@@ -627,20 +659,29 @@ static void _sx_ssl_free(sx_t s, sx_plugin_t p) {
 }
 
 static void _sx_ssl_unload(sx_plugin_t p) {
-    SSL_CTX_free((SSL_CTX *) p->private);
+    xht contexts = (xht) p->private;
+    void *ctx;
+
+    if(xhash_iter_first(contexts))
+        do {
+            xhash_iter_get(contexts, NULL, &ctx);
+            SSL_CTX_free((SSL_CTX *) ctx);
+        } while(xhash_iter_next(contexts));
+
+    xhash_free(contexts);
 }
 
 int sx_openssl_initialized = 0;
 
-/** args: pemfile, cachain, mode */
+/** args: name, pemfile, cachain, mode */
 int sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args) {
-    char *pemfile, *cachain;
-    SSL_CTX *ctx;
+    char *name, *pemfile, *cachain;
     int ret;
     int mode;
 
     _sx_debug(ZONE, "initialising ssl plugin");
 
+    name = va_arg(args, char *);
     pemfile = va_arg(args, char *);
     if(pemfile == NULL)
         return 1;
@@ -654,10 +695,50 @@ int sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args) {
     /* !!! output openssl error messages to the debug log */
 
     /* openssl startup */
-    SSL_library_init();
-    SSL_load_error_strings();
-
+    if(!sx_openssl_initialized) {
+        SSL_library_init();
+        SSL_load_error_strings();
+    }
     sx_openssl_initialized = 1;
+
+    ret = sx_ssl_server_addcert(p, name, pemfile, cachain, mode);
+    if(ret)
+        return 1;
+
+    p->magic = SX_SSL_MAGIC;
+
+    p->unload = _sx_ssl_unload;
+
+    p->client = _sx_ssl_client;
+    p->server = _sx_ssl_server;
+    p->rio = _sx_ssl_rio;
+    p->wio = _sx_ssl_wio;
+    p->features = _sx_ssl_features;
+    p->process = _sx_ssl_process;
+    p->free = _sx_ssl_free;
+
+    return 0;
+}
+
+/** args: name, pemfile, cachain, mode */
+int sx_ssl_server_addcert(sx_plugin_t p, char *name, char *pemfile, char *cachain, int mode) {
+    xht contexts = (xht) p->private;
+    SSL_CTX *ctx;
+    SSL_CTX *tmp;
+    int ret;
+
+    if(!sx_openssl_initialized) {
+        _sx_debug(ZONE, "ssl plugin not initialised");
+        return 1;
+    }
+
+    if(name == NULL)
+        name = "*";
+
+    if(pemfile == NULL)
+        return 1;
+
+    /* !!! output openssl error messages to the debug log */
 
     /* create the context */
     ctx = SSL_CTX_new(SSLv23_method());
@@ -698,25 +779,35 @@ int sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args) {
         return 1;
     }
 
-    _sx_debug(ZONE, "Setting verify mode to %02x", mode);
+    _sx_debug(ZONE, "setting ssl context '%s' verify mode to %02x", name, mode);
     SSL_CTX_set_verify(ctx, mode, _sx_ssl_verify_callback);
 
-    /* its good */
-    _sx_debug(ZONE, "ssl context initialised; certificate and key loaded from %s", pemfile);
+    /* create hash and create default context */
+    if(contexts == NULL) {
+        contexts = xhash_new(1021);
+        p->private = (void *) contexts;
 
-    p->magic = SX_SSL_MAGIC;
+        /* this is the first context, if it's not the default then make a copy of it as the default */
+        if(!(name[0] == '*' && name[1] == 0)) {
+            int ret = sx_ssl_server_addcert(p, "*", pemfile, cachain, mode);
 
-    p->private = (void *) ctx;
+            if(ret) {
+                /* uh-oh */
+                xhash_free(contexts);
+                p->private = NULL;
+                return 1;
+            }
+        }
+    }
 
-    p->unload = _sx_ssl_unload;
+    _sx_debug(ZONE, "ssl context '%s' initialised; certificate and key loaded from %s", name, pemfile);
 
-    p->client = _sx_ssl_client;
-    p->server = _sx_ssl_server;
-    p->rio = _sx_ssl_rio;
-    p->wio = _sx_ssl_wio;
-    p->features = _sx_ssl_features;
-    p->process = _sx_ssl_process;
-    p->free = _sx_ssl_free;
+    /* remove an existing context with the same name before replacing it */
+    tmp = xhash_get(contexts, name);
+    if(tmp != NULL)
+        SSL_CTX_free((SSL_CTX *) tmp);
+
+    xhash_put(contexts, name, ctx);
 
     return 0;
 }

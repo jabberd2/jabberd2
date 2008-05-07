@@ -112,6 +112,9 @@ struct host_st {
     /** starttls pemfile */
     char                *host_pemfile;
 
+    /** certificate chain */
+    char                *host_cachain;
+
     /** verify-mode  */
     int                 host_verify_mode;
 

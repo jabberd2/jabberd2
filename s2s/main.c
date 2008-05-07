@@ -20,6 +20,8 @@
 
 #include "s2s.h"
 
+#include <stringprep.h>
+
 static sig_atomic_t s2s_shutdown = 0;
 sig_atomic_t s2s_lost_router = 0;
 static sig_atomic_t s2s_logrotate = 0;
@@ -138,8 +140,8 @@ static void _s2s_config_expand(s2s_t s2s) {
         s2s->local_secret = "secret";
 
     s2s->local_pemfile = config_get_one(s2s->config, "local.pemfile", 0);
-    if (s2s->local_pemfile != NULL)
- 	log_debug(ZONE,"loaded local pemfile for peer s2s connections");
+    s2s->local_cachain = config_get_one(s2s->config, "local.cachain", 0);
+    s2s->local_verify_mode = j_atoi(config_get_one(s2s->config, "local.verify-mode", 0), 0);
 
     s2s->io_max_fds = j_atoi(config_get_one(s2s->config, "io.max_fds", 0), 1024);
 
@@ -150,6 +152,63 @@ static void _s2s_config_expand(s2s_t s2s) {
     s2s->check_keepalive = j_atoi(config_get_one(s2s->config, "check.keepalive", 0), 0);
     s2s->check_idle = j_atoi(config_get_one(s2s->config, "check.idle", 0), 86400);
 
+}
+
+static void _s2s_hosts_expand(s2s_t s2s)
+{
+    char *realm;
+    config_elem_t elem;
+    char id[1024];
+    int i;
+
+    elem = config_get(s2s->config, "local.id");
+    for(i = 0; i < elem->nvalues; i++) {
+        host_t host = (host_t) pmalloco(xhash_pool(s2s->hosts), sizeof(struct host_st));
+        if(!host) {
+            log_write(s2s->log, LOG_ERR, "cannot allocate memory for new host, aborting");
+            exit(1);
+        }
+
+        realm = j_attr((const char **) elem->attrs[i], "realm");
+
+        /* stringprep ids (domain names) so that they are in canonical form */
+        strncpy(id, elem->values[i], 1024);
+        id[1023] = '\0';
+        if (stringprep_nameprep(id, 1024) != 0) {
+            log_write(s2s->log, LOG_ERR, "cannot stringprep id %s, aborting", id);
+            exit(1);
+        }
+
+        host->realm = (realm != NULL) ? realm : pstrdup(xhash_pool(s2s->hosts), id);
+
+        host->host_pemfile = j_attr((const char **) elem->attrs[i], "pemfile");
+
+        host->host_cachain = j_attr((const char **) elem->attrs[i], "cachain");
+
+        host->host_verify_mode = j_atoi(j_attr((const char **) elem->attrs[i], "verify-mode"), 0);
+
+#ifdef HAVE_SSL
+        if(host->host_pemfile != NULL) {
+            if(s2s->sx_ssl == NULL) {
+                s2s->sx_ssl = sx_env_plugin(s2s->sx_env, sx_ssl_init, host->realm, host->host_pemfile, host->host_cachain, host->host_verify_mode);
+                if(s2s->sx_ssl == NULL) {
+                    log_write(s2s->log, LOG_ERR, "failed to load %s SSL pemfile", host->realm);
+                    host->host_pemfile = NULL;
+                }
+            } else {
+                if(sx_ssl_server_addcert(s2s->sx_ssl, host->realm, host->host_pemfile, host->host_cachain, host->host_verify_mode) != 0) {
+                    log_write(s2s->log, LOG_ERR, "failed to load %s SSL pemfile", host->realm);
+                    host->host_pemfile = NULL;
+                }
+            }
+        }
+#endif
+
+        /* insert into vHosts xhash */
+        xhash_put(s2s->hosts, pstrdup(xhash_pool(s2s->hosts), id), host);
+
+        log_write(s2s->log, LOG_NOTICE, "[%s] configured; realm=%s", id, host->realm);
+    }
 }
 
 static int _s2s_router_connect(s2s_t s2s) {
@@ -487,7 +546,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
 #ifdef HAVE_SSL
     /* get the ssl context up and running */
     if(s2s->local_pemfile != NULL) {
-        s2s->sx_ssl = sx_env_plugin(s2s->sx_env, sx_ssl_init, s2s->local_pemfile, s2s->local_cachain, s2s->local_verify_mode);
+        s2s->sx_ssl = sx_env_plugin(s2s->sx_env, sx_ssl_init, NULL, s2s->local_pemfile, s2s->local_cachain, s2s->local_verify_mode);
 
         if(s2s->sx_ssl == NULL) {
             log_write(s2s->log, LOG_ERR, "failed to load local SSL pemfile, SSL will not be available to peers");
@@ -498,7 +557,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
 
     /* try and get something online, so at least we can encrypt to the router */
     if(s2s->sx_ssl == NULL && s2s->router_pemfile != NULL) {
-        s2s->sx_ssl = sx_env_plugin(s2s->sx_env, sx_ssl_init, s2s->router_pemfile, NULL, NULL);
+        s2s->sx_ssl = sx_env_plugin(s2s->sx_env, sx_ssl_init, NULL, s2s->router_pemfile, NULL, NULL);
         if(s2s->sx_ssl == NULL) {
             log_write(s2s->log, LOG_ERR, "failed to load router SSL pemfile, channel to router will not be SSL encrypted");
             s2s->router_pemfile = NULL;
@@ -512,7 +571,11 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
         log_write(s2s->log, LOG_ERR, "failed to initialise SASL context, aborting");
         exit(1);
     }
-            
+           
+    /* hosts mapping */
+    s2s->hosts = xhash_new(1021);
+    _s2s_hosts_expand(s2s);
+
     s2s->sx_db = sx_env_plugin(s2s->sx_env, s2s_db_init);
 
     s2s->mio = mio_new(s2s->io_max_fds);
@@ -665,6 +728,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
     xhash_free(s2s->in);
     xhash_free(s2s->in_accept);
     xhash_free(s2s->dnscache);
+    xhash_free(s2s->hosts);
 
     prep_cache_free(s2s->pc);
 
