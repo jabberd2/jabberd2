@@ -162,7 +162,8 @@ static void _s2s_hosts_expand(s2s_t s2s)
     int i;
 
     elem = config_get(s2s->config, "local.id");
-    for(i = 0; i < elem->nvalues; i++) {
+
+    if (elem) for(i = 0; i < elem->nvalues; i++) {
         host_t host = (host_t) pmalloco(xhash_pool(s2s->hosts), sizeof(struct host_st));
         if(!host) {
             log_write(s2s->log, LOG_ERR, "cannot allocate memory for new host, aborting");
