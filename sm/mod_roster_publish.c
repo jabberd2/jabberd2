@@ -219,7 +219,7 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
 
         log_debug(ZONE, "publishing roster for %s",jid_user(user->jid));
         /* get published roster */
-        if( storage_get(user->sm->st, "published-roster", NULL, NULL, &os) == st_SUCCESS ) {
+        if( storage_get(user->sm->st, "published-roster", "", NULL, &os) == st_SUCCESS ) {
             if(os_iter_first(os)) {
                 /* iterate on published roster */
                 jid = NULL;
