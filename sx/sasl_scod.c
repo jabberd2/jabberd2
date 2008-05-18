@@ -250,7 +250,7 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, scod_t sd, char *mech
 
         /* get the realm */
         realm[0] = '\0';
-        assert((int) ctx->cb);
+        assert((ctx->cb != NULL));
         (ctx->cb)(sx_sasl_cb_GET_REALM, (void *) s, (void **) realm, s, ctx->cbarg);
 
         /* decode and process */
@@ -525,19 +525,19 @@ static int _sx_sasl_scod_callback(scod_t sd, int cb, void *arg, void **res, void
             break;
 
         case sd_cb_GET_PASS:
-            assert((int) ctx->cb);
+            assert((ctx->cb != NULL));
             return (ctx->cb)(sx_sasl_cb_GET_PASS, arg, res, NULL, ctx->cbarg);
 
         case sd_cb_CHECK_PASS:
-            assert((int) ctx->cb);
+            assert((ctx->cb != NULL));
             return (ctx->cb)(sx_sasl_cb_CHECK_PASS, arg, res, NULL, ctx->cbarg);
 
         case sd_cb_CHECK_AUTHZID:
-            assert((int) ctx->cb);
+            assert((ctx->cb != NULL));
             return (ctx->cb)(sx_sasl_cb_CHECK_AUTHZID, arg, res, NULL, ctx->cbarg);
 
         case sd_cb_ANONYMOUS_GEN_AUTHZID:
-            assert((int) ctx->cb);
+            assert((ctx->cb != NULL));
             return (ctx->cb)(sx_sasl_cb_GEN_AUTHZID, arg, res, NULL, ctx->cbarg);
 
         default:
@@ -601,11 +601,11 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, c
     int ret, buflen, outlen, ns;
     nad_t nad;
 
-    assert((int) p);
-    assert((int) s);
-    assert((int) mech);
-    assert((int) user);
-    assert((int) pass);
+    assert((p != NULL));
+    assert((s != NULL));
+    assert((mech != NULL));
+    assert((user != NULL));
+    assert((pass != NULL));
 
     if(s->type != type_CLIENT || s->state != state_STREAM) {
         _sx_debug(ZONE, "need client in stream state for sasl auth");

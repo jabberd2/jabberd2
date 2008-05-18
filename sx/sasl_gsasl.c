@@ -623,7 +623,7 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
     switch(prop) {
         case GSASL_PASSWORD:
             /* GSASL_AUTHID, GSASL_AUTHZID, GSASL_REALM */
-            assert((int) ctx->cb);
+            assert((ctx->cb != NULL));
             creds.authnid = gsasl_property_fast(sd, GSASL_AUTHID);
             creds.realm   = gsasl_property_fast(sd, GSASL_REALM);
             if(!creds.authnid) return GSASL_NO_AUTHID;
@@ -635,7 +635,7 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
 
         case GSASL_VALIDATE_SIMPLE:
             /* GSASL_AUTHID, GSASL_AUTHZID, GSASL_PASSWORD */
-            assert((int) ctx->cb);
+            assert((ctx->cb != NULL));
             creds.authnid = gsasl_property_fast(sd, GSASL_AUTHID);
             creds.realm   = gsasl_property_fast(sd, GSASL_REALM);
             creds.pass    = gsasl_property_fast(sd, GSASL_PASSWORD);
@@ -739,12 +739,12 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, c
     int ret, buflen, outlen, ns;
     nad_t nad;
 
-    assert((int) p);
-    assert((int) s);
-    assert((int) appname);
-    assert((int) mech);
-    assert((int) user);
-    assert((int) pass);
+    assert((p != NULL));
+    assert((s != NULL));
+    assert((appname != NULL));
+    assert((mech != NULL));
+    assert((user != NULL));
+    assert((pass != NULL));
 
     if(s->type != type_CLIENT || s->state != state_STREAM) {
         _sx_debug(ZONE, "need client in stream state for sasl auth");

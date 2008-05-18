@@ -35,7 +35,7 @@ scod_ctx_t scod_ctx_new(scod_callback_t cb, void *cbarg) {
     scod_ctx_t ctx;
     scod_mech_t mech;
 
-    assert((int) cb);
+    assert((cb != NULL));
 
     log_debug(ZONE, "creating new scod context");
 
@@ -82,7 +82,7 @@ scod_ctx_t scod_ctx_new(scod_callback_t cb, void *cbarg) {
 void scod_ctx_free(scod_ctx_t ctx) {
     int i;
 
-    assert((int) ctx);
+    assert((ctx != NULL));
 
     log_debug(ZONE, "freeing scod context");
 
@@ -104,8 +104,8 @@ void scod_ctx_free(scod_ctx_t ctx) {
 int scod_mech_flags(scod_ctx_t ctx, char *name) {
     int i;
 
-    assert((int) ctx);
-    assert((int) name);
+    assert((ctx != NULL));
+    assert((name != NULL));
 
     for(i = 0; i < ctx->nmechs; i++)
         if(strcmp(ctx->mechs[i]->name, name) == 0)
@@ -117,7 +117,7 @@ int scod_mech_flags(scod_ctx_t ctx, char *name) {
 scod_t scod_new(scod_ctx_t ctx, scod_type_t type) {
     scod_t sd;
 
-    assert((int) ctx);
+    assert((ctx != NULL));
     assert((int) (type == sd_type_CLIENT || type == sd_type_SERVER));
 
     log_debug(ZONE, "creating new scod");
@@ -133,7 +133,7 @@ scod_t scod_new(scod_ctx_t ctx, scod_type_t type) {
 }
 
 void scod_free(scod_t sd) {
-    assert((int) sd);
+    assert((sd != NULL));
 
     log_debug(ZONE, "freeing scod");
 
@@ -160,12 +160,12 @@ static scod_mech_t _scod_get_mech(scod_ctx_t ctx, char *name) {
 int scod_client_start(scod_t sd, char *name, char *authzid, char *authnid, char *pass, char **resp, int *resplen) {
     int ret;
 
-    assert((int) sd);
-    assert((int) name);
-    assert((int) authnid);
-    assert((int) pass);
-    assert((int) resp);
-    assert((int) resplen);
+    assert((sd != NULL));
+    assert((name != NULL));
+    assert((authnid != NULL));
+    assert((pass != NULL));
+    assert((resp != NULL));
+    assert((resplen != NULL));
 
     *resp = NULL;
     *resplen = 0;
@@ -204,11 +204,11 @@ int scod_client_start(scod_t sd, char *name, char *authzid, char *authnid, char 
 int scod_client_step(scod_t sd, const char *chal, int challen, char **resp, int *resplen) {
     int ret;
 
-    assert((int) sd);
-    assert((int) chal);
-    assert((int) challen);
-    assert((int) resp);
-    assert((int) resplen);
+    assert((sd != NULL));
+    assert((chal != NULL));
+    assert((challen != NULL));
+    assert((resp != NULL));
+    assert((resplen != NULL));
 
     *resp = NULL;
     *resplen = 0;
@@ -237,11 +237,11 @@ int scod_client_step(scod_t sd, const char *chal, int challen, char **resp, int 
 int scod_server_start(scod_t sd, char *name, char *realm, const char *resp, int resplen, char **chal, int *challen) {
     int ret;
 
-    assert((int) sd);
-    assert((int) name);
-    assert((int) resp);
-    assert((int) chal);
-    assert((int) challen);
+    assert((sd != NULL));
+    assert((name != NULL));
+    assert((resp != NULL));
+    assert((chal != NULL));
+    assert((challen != NULL));
 
     *chal = NULL;
     *challen = 0;
@@ -279,10 +279,10 @@ int scod_server_start(scod_t sd, char *name, char *realm, const char *resp, int 
 int scod_server_step(scod_t sd, const char *resp, int resplen, char **chal, int *challen) {
     int ret;
 
-    assert((int) sd);
-    assert((int) resp);
-    assert((int) chal);
-    assert((int) challen);
+    assert((sd != NULL));
+    assert((resp != NULL));
+    assert((chal != NULL));
+    assert((challen != NULL));
 
     *chal = NULL;
     *challen = 0;
@@ -309,10 +309,10 @@ int scod_server_step(scod_t sd, const char *resp, int resplen, char **chal, int 
 }
 
 int scod_sasl_encode(scod_t sd, const char *in, int inlen, char **out, char *outlen) {
-    assert((int) sd);
-    assert((int) in);
-    assert((int) out);
-    assert((int) outlen);
+    assert((sd != NULL));
+    assert((in != NULL));
+    assert((out != NULL));
+    assert((outlen != NULL));
 
     log_debug(ZONE, "encode");
 
@@ -327,10 +327,10 @@ int scod_sasl_encode(scod_t sd, const char *in, int inlen, char **out, char *out
 }
 
 int scod_sasl_decode(scod_t sd, const char *in, int inlen, char **out, char *outlen) {
-    assert((int) sd);
-    assert((int) in);
-    assert((int) out);
-    assert((int) outlen);
+    assert((sd != NULL));
+    assert((in != NULL));
+    assert((out != NULL));
+    assert((outlen != NULL));
 
     log_debug(ZONE, "decode");
 

@@ -92,11 +92,11 @@ int xconfig_load(xconfig_t c, char *file) {
     struct nad_elem_st **path;
     xconfig_elem_t elem;
 
-    assert((int) c);
-    assert((int) file);
+    assert((c != NULL));
+    assert((file != NULL));
 
     /* only run once */
-    assert((int) !c->nad);
+    assert((c->nad == NULL));
 
     /* open the file */
     f = fopen(file, "r");

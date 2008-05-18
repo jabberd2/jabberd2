@@ -60,7 +60,7 @@ pqueue_t pqueue_new(pool_t p) {
 void pqueue_push(pqueue_t q, void *data, int priority) {
     _pqueue_node_t qn, scan;
 
-    assert((int) q);
+    assert((q != NULL));
 
     q->size++;
 
@@ -113,7 +113,7 @@ void *pqueue_pull(pqueue_t q) {
     void *data;
     _pqueue_node_t qn;
 
-    assert((int) q);
+    assert((q != NULL));
 
     if(q->front == NULL)
         return NULL;
