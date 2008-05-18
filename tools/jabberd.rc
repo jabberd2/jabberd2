@@ -18,7 +18,7 @@ else
 	exit -1
 fi
 #
-progs="router resolver sm c2s s2s"
+progs="router sm c2s s2s"
 progsPath="/usr/local/bin"
 confPath="/usr/local/etc/jabberd"
 pidPath="/usr/local/var/jabberd/pid"

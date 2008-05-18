@@ -81,11 +81,6 @@
     <ip>0.0.0.0</ip>
     <port>5269</port>
 
-    <!-- Helper DNS resolver component - if this component is not
-         connected, dialback connections will fail
-         (default: resolver) -->
-    <resolver>resolver</resolver>
-
     <!-- Secret used to generate dialback keys. If you have more than
          one s2s instance configured, make sure that this is the same on
          all of them. If this is commented out, a random one will be

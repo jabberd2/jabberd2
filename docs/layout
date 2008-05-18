@@ -9,7 +9,6 @@ jabber2/
     util/       - Utilities (config, logging, NADs, hashtables, etc)
 
     c2s/        - Client-to-server
-    resolver/   - Asynchronous DNS resolver daemon
     router/     - XML router
     sm/         - Session manager
     s2s/        - Server-to-server

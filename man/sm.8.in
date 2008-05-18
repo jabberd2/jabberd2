@@ -21,7 +21,6 @@ Print debugging output. You should configure jabberd with the --enable-debug swi
 .BR jabberd (8)
 .BR @jabberd_c2s_bin@ (8)
 .BR @jabberd_router_bin@ (8)
-.BR @jabberd_resolver_bin@ (8)
 .BR @jabberd_s2s_bin@ (8)
 .SH AUTHOR
 Robert Norris <rob@cataclysm.cx>

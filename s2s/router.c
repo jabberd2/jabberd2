@@ -218,7 +218,6 @@ int s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             }
 
             if(nad_find_attr(nad, 0, -1, "error", NULL) >= 0) {
-                /* !!! catch failures to route to the resolver, and bounce outgoing packets */
                 /* !!! jabber:client packets and error=404 means the dest component wasn't found, bounce them to the sender */
                 log_debug(ZONE, "dropping route error packet");
                 nad_free(nad);

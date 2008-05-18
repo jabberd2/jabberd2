@@ -20,7 +20,6 @@ Print debugging output. You should configure jabberd with the --enable-debug swi
 .SH SEE ALSO
 .BR jabberd (8)
 .BR @jabberd_c2s_bin@ (8)
-.BR @jabberd_resolver_bin@ (8)
 .BR @jabberd_s2s_bin@ (8)
 .BR @jabberd_sm_bin@ (8)
 .SH AUTHOR

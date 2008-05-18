@@ -63,17 +63,13 @@ $SIG{CHLD} = "IGNORE";
 
 
 #-----------------------------------------------------------------------------
-# Setup the jobs: router, resolver, sm, c2s, s2s
+# Setup the jobs: router, sm, c2s, s2s
 #-----------------------------------------------------------------------------
 $jobs{jabberd}->{prefix}  = "JBRD";
 
 $jobs{router}->{cmd} = "$Bin/router";
 $jobs{router}->{config} = "$config_dir/router.xml";
 $jobs{router}->{prefix} = "ROUT";
-
-$jobs{resolver}->{cmd} = "$Bin/resolver";
-$jobs{resolver}->{config} = "$config_dir/resolver.xml";
-$jobs{resolver}->{prefix} = "RSLV";
 
 $jobs{sm}->{cmd} = "$Bin/sm";
 $jobs{sm}->{config} = "$config_dir/sm.xml";
@@ -90,10 +86,9 @@ $jobs{s2s}->{prefix} = "S2S";
 if ($config eq "internal")
 {
     $programs[0] = ["router"];
-    $programs[1] = ["resolver"];
-    $programs[2] = ["sm"];
-    $programs[3] = ["c2s"];
-    $programs[4] = ["s2s"];
+    $programs[1] = ["sm"];
+    $programs[2] = ["c2s"];
+    $programs[3] = ["s2s"];
 }
 else
 {
