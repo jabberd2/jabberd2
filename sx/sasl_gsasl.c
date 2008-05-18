@@ -135,21 +135,6 @@ static nad_t _sx_sasl_abort(sx_t s) {
     return nad;
 }
 
-/** utility: decode incoming handshake data */
-static void _sx_sasl_decode(char *in, int inlen, char **out, int *outlen) {
-    *outlen = ap_base64decode_len(in, inlen);
-    *out = (char *) malloc(sizeof(char) * (*outlen + 1));
-    ap_base64decode(*out, in, inlen);
-}
-
-/** utility: encode outgoing handshake data */
-static void _sx_sasl_encode(char *in, int inlen, char **out, int *outlen) {
-    *outlen = ap_base64encode_len(inlen);
-    *out = (char *) malloc(sizeof(char) * *outlen);
-    ap_base64encode(*out, in, inlen);
-    (*outlen)--;
-}
-
 /** move the stream to the auth state */
 void _sx_sasl_open(sx_t s, Gsasl_session *sd) {
     char *method, *authzid;
@@ -347,7 +332,7 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
             buflen = strlen(buf);
         } else {
             /* decode and process */
-            _sx_sasl_decode(in, inlen, &buf, &buflen);
+            gsasl_base64_from(in, inlen, &buf, &buflen);
         }
 
         ret = gsasl_step(sd, buf, buflen, &out, (size_t *) &outlen);
@@ -362,7 +347,7 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
 
     else {
         /* decode and process */
-        _sx_sasl_decode(in, inlen, &buf, &buflen);
+        gsasl_base64_from(in, inlen, &buf, &buflen);
         if(!sd) {
             _sx_debug(ZONE, "response send before auth request enabling mechanism (decoded: %.*s)", buflen, buf);
             _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_MECH_TOO_WEAK), 0);
@@ -396,7 +381,7 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
         _sx_debug(ZONE, "sasl handshake in progress (challenge: %.*s)", outlen, out);
 
         /* encode the challenge */
-        _sx_sasl_encode(out, outlen, &buf, &buflen);
+        gsasl_base64_to(out, outlen, &buf, &buflen);
         
         if(out != NULL) free(out);
 
@@ -424,7 +409,7 @@ static void _sx_sasl_server_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
     _sx_debug(ZONE, "data from client");
 
     /* decode the response */
-    _sx_sasl_decode(in, inlen, &buf, &buflen);
+    gsasl_base64_from(in, inlen, &buf, &buflen);
     _sx_debug(ZONE, "decoded data: %.*s", buflen, buf);
 
     /* process the data */
@@ -436,7 +421,7 @@ static void _sx_sasl_server_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
         _sx_debug(ZONE, "sasl handshake in progress (response: %.*s)", outlen, out);
 
         /* encode the response */
-        _sx_sasl_encode(out, outlen, &buf, &buflen);
+        gsasl_base64_to(out, outlen, &buf, &buflen);
 
         if(out != NULL) free(out);
 
@@ -788,7 +773,7 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, c
     _sx_debug(ZONE, "sending auth request to server, mech '%s': %.*s", mech, outlen, out);
 
     /* encode the challenge */
-    _sx_sasl_encode(out, outlen, &buf, &buflen);
+    gsasl_base64_to(out, outlen, &buf, &buflen);
     free(out);
 
     /* build the nad */
