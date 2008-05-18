@@ -205,18 +205,6 @@ Description: Jabber/XMPP server -- s2s component
  This package contains the s2s (server to server) component, which 
  handles the communication with other Jabber servers.
 
-Package: jabberd2-resolver
-Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, jabberd2-common
-Description: Jabber/XMPP server -- resolver component
- jabberd 2.x series is the next generation of the Jabber/XMPP server.
- It has been rewritten from the ground up to be scalable, 
- architecturally sound and to support the latest protocol extensions 
- coming out of the XSF.
- .
- This package contains the resolver component, which resolves 
- hostnames for the s2s component as part of dial-back authentication.
-
 Package: jabberd2-c2s
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, jabberd2-common, jabberd2-authreg-pam | jabberd2-authreg
