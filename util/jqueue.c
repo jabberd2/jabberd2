@@ -30,6 +30,7 @@ jqueue_t jqueue_new(void) {
     q = (jqueue_t) pmalloco(p, sizeof(struct _jqueue_st));
 
     q->p = p;
+    q->init_time = time(NULL);
 
     return q;
 }
@@ -124,4 +125,8 @@ void *jqueue_pull(jqueue_t q) {
 
 int jqueue_size(jqueue_t q) {
     return q->size;
+}
+
+time_t jqueue_age(jqueue_t q) {
+    return time(NULL) - q->init_time;
 }

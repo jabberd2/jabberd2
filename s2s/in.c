@@ -139,7 +139,7 @@ int in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg)
             xhash_put(s2s->in_accept, pstrdup(xhash_pool(s2s->in_accept),ipport), (void *) in);
 
 #ifdef HAVE_SSL
-            sx_server_init(in->s, S2S_DB_HEADER | ((s2s->local_pemfile != NULL) ? SX_SSL_STARTTLS_OFFER : 0) );
+            sx_server_init(in->s, S2S_DB_HEADER | ((s2s->sx_ssl != NULL) ? SX_SSL_STARTTLS_OFFER : 0) );
 #else
             sx_server_init(in->s, S2S_DB_HEADER);
 #endif

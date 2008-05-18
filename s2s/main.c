@@ -66,6 +66,7 @@ static void _s2s_pidfile(s2s_t s2s) {
 /** pull values out of the config file */
 static void _s2s_config_expand(s2s_t s2s) {
     char *str, secret[41];
+    config_elem_t elem;
     int i, r;
 
     s2s->id = config_get_one(s2s->config, "id", 0);
@@ -120,10 +121,6 @@ static void _s2s_config_expand(s2s_t s2s) {
 
     s2s->local_port = j_atoi(config_get_one(s2s->config, "local.port", 0), 0);
 
-    s2s->local_resolver = config_get_one(s2s->config, "local.resolver", 0);
-    if(s2s->local_resolver == NULL)
-        s2s->local_resolver = "resolver";
-
     if(config_get(s2s->config, "local.secret") != NULL)
         s2s->local_secret = strdup(config_get_one(s2s->config, "local.secret", 0));
     else {
@@ -151,7 +148,22 @@ static void _s2s_config_expand(s2s_t s2s) {
     s2s->check_queue = j_atoi(config_get_one(s2s->config, "check.queue", 0), 60);
     s2s->check_keepalive = j_atoi(config_get_one(s2s->config, "check.keepalive", 0), 0);
     s2s->check_idle = j_atoi(config_get_one(s2s->config, "check.idle", 0), 86400);
+    s2s->check_dnscache = j_atoi(config_get_one(s2s->config, "check.dnscache", 0), 300);
+    s2s->retry_limit = j_atoi(config_get_one(s2s->config, "check.retry", 0), 300);
 
+    if((elem = config_get(s2s->config, "lookup.srv")) != NULL) {
+        s2s->lookup_srv = elem->values;
+        s2s->lookup_nsrv = elem->nvalues;
+    }
+
+    s2s->resolve_aaaa = config_count(s2s->config, "lookup.ipv6") ? 1 : 0;
+    s2s->dns_cache_enabled = config_count(s2s->config, "lookup.no-cache") ? 0 : 1;
+    s2s->dns_bad_timeout = j_atoi(config_get_one(s2s->config, "lookup.bad-host-timeout", 0), 3600);
+    s2s->dns_min_ttl = j_atoi(config_get_one(s2s->config, "lookup.min-ttl", 0), 30);
+    if (s2s->dns_min_ttl < 5)
+        s2s->dns_min_ttl = 5;
+    s2s->dns_max_ttl = j_atoi(config_get_one(s2s->config, "lookup.max-ttl", 0), 86400);
+    s2s->out_reuse = config_count(s2s->config, "out-conn-reuse") ? 1 : 0;
 }
 
 static void _s2s_hosts_expand(s2s_t s2s)
@@ -272,9 +284,10 @@ int _s2s_check_conn_routes(s2s_t s2s, conn_t conn, const char *direction)
 static void _s2s_time_checks(s2s_t s2s) {
     conn_t conn;
     time_t now;
-    char *domain, ipport[INET6_ADDRSTRLEN + 17], *key;
+    char *rkey, *key;
     jqueue_t q;
     dnscache_t dns;
+    char *c;
     union xhashv xhv;
 
     now = time(NULL);
@@ -284,43 +297,48 @@ static void _s2s_time_checks(s2s_t s2s) {
         if(xhash_iter_first(s2s->outq))
             do {
                 xhv.jq_val = &q;
-                xhash_iter_get(s2s->outq, (const char **) &domain, xhv.val);
+                xhash_iter_get(s2s->outq, (const char **) &rkey, xhv.val);
 
-                log_debug(ZONE, "running time checks for %s", domain);
+                log_debug(ZONE, "running time checks for %s", rkey);
+                c = strchr(rkey, '/');
+                c++;
 
                 /* dns lookup timeout check first */
-                dns = xhash_get(s2s->dnscache, domain);
-                if(dns == NULL)
-                    continue;
-
-                if(dns->pending) {
-                    log_debug(ZONE, "dns lookup pending for %s", domain);
+                dns = xhash_get(s2s->dnscache, c);
+                if(dns != NULL && dns->pending) {
+                    log_debug(ZONE, "dns lookup pending for %s", c);
                     if(now > dns->init_time + s2s->check_queue) {
-                        log_write(s2s->log, LOG_NOTICE, "dns lookup for %s timed out", domain);
+                        log_write(s2s->log, LOG_NOTICE, "dns lookup for %s timed out", c);
 
                         /* bounce queue */
-                        out_bounce_queue(s2s, domain, stanza_err_REMOTE_SERVER_NOT_FOUND);
+                        out_bounce_route_queue(s2s, rkey, stanza_err_REMOTE_SERVER_NOT_FOUND);
 
                         /* expire pending dns entry */
                         xhash_zap(s2s->dnscache, dns->name);
+                        xhash_free(dns->results);
+                        if (dns->query != NULL) {
+                            if (dns->query->query != NULL)
+                                dns_cancel(NULL, dns->query->query);
+                            xhash_free(dns->query->hosts);
+                            xhash_free(dns->query->results);
+                            free(dns->query->name);
+                            free(dns->query);
+                        }
                         free(dns);
                     }
 
                     continue;
                 }
 
-                /* generate the ip/port pair */
-                snprintf(ipport, INET6_ADDRSTRLEN + 16, "%s/%d", dns->ip, dns->port);
-
                 /* get the conn */
-                conn = xhash_get(s2s->out, ipport);
+                conn = xhash_get(s2s->out_dest, c);
                 if(conn == NULL) {
                     if(jqueue_size(q) > 0) {
                        /* no pending conn? perhaps it failed? */
-                       log_debug(ZONE, "no pending connection for %s, bouncing %i packets in queue", domain, jqueue_size(q));
+                       log_debug(ZONE, "no pending connection for %s, bouncing %i packets in queue", c, jqueue_size(q));
 
                        /* bounce queue */
-                       out_bounce_queue(s2s, domain, stanza_err_REMOTE_SERVER_TIMEOUT);
+                       out_bounce_route_queue(s2s, rkey, stanza_err_REMOTE_SERVER_TIMEOUT);
                     }
 
                     continue;
@@ -328,14 +346,28 @@ static void _s2s_time_checks(s2s_t s2s) {
 
                 /* connect timeout check */
                 if(!conn->online && now > conn->init_time + s2s->check_queue) {
-                    log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] connection to %s timed out", conn->fd->fd, conn->ip, conn->port, domain);
+                    dnsres_t bad;
+                    char *ipport;
 
-                    /* bounce queue */
-                    out_bounce_queue(s2s, domain, stanza_err_REMOTE_SERVER_TIMEOUT);
+                    log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] connection to %s timed out", conn->fd->fd, conn->ip, conn->port, c);
+
+                    if (s2s->dns_bad_timeout > 0) {
+                        /* mark this host as bad */
+                        ipport = dns_make_ipport(conn->ip, conn->port);
+                        bad = xhash_get(s2s->dns_bad, ipport);
+                        if (bad == NULL) {
+                            bad = (dnsres_t) calloc(1, sizeof(struct dnsres_st));
+                            bad->key = ipport;
+                            xhash_put(s2s->dns_bad, ipport, bad);
+                        } else {
+                            free(ipport);
+                        }
+                        bad->expiry = time(NULL) + s2s->dns_bad_timeout;
+                    }
 
                     /* close connection as per XMPP/RFC3920 */
+                    /* the close function will retry or bounce the queue */
                     sx_close(conn->s);
-
                 }
             } while(xhash_iter_next(s2s->outq));
     }
@@ -344,20 +376,37 @@ static void _s2s_time_checks(s2s_t s2s) {
     if(s2s->check_queue > 0) {
 
         /* outgoing connections */
-        if(xhash_iter_first(s2s->out))
-            do {
-                xhv.conn_val = &conn;
-                xhash_iter_get(s2s->out, (const char **) &key, xhv.val);
-                log_debug(ZONE, "checking dialback state for outgoing conn %s", key);
-                if (_s2s_check_conn_routes(s2s, conn, "outgoing")) {
-                    log_debug(ZONE, "checking pending verify requests for outgoing conn %s", key);
-                    if (conn->verify > 0 && now > conn->last_verify + s2s->check_queue) {
-                        log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] dialback verify request timed out", conn->fd->fd, conn->ip, conn->port);
-                        sx_error(conn->s, stream_err_CONNECTION_TIMEOUT, "dialback verify request timed out");
-                        sx_close(conn->s);
+        if(s2s->out_reuse) {
+            if(xhash_iter_first(s2s->out_host))
+                do {
+                    xhv.conn_val = &conn;
+                    xhash_iter_get(s2s->out_host, (const char **) &key, xhv.val);
+                    log_debug(ZONE, "checking dialback state for outgoing conn %s", key);
+                    if (_s2s_check_conn_routes(s2s, conn, "outgoing")) {
+                        log_debug(ZONE, "checking pending verify requests for outgoing conn %s", key);
+                        if (conn->verify > 0 && now > conn->last_verify + s2s->check_queue) {
+                            log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] dialback verify request timed out", conn->fd->fd, conn->ip, conn->port);
+                            sx_error(conn->s, stream_err_CONNECTION_TIMEOUT, "dialback verify request timed out");
+                            sx_close(conn->s);
+                        }
                     }
-                }
-            } while(xhash_iter_next(s2s->out));
+                } while(xhash_iter_next(s2s->out_host));
+        } else {
+            if(xhash_iter_first(s2s->out_dest))
+                do {
+                    xhv.conn_val = &conn;
+                    xhash_iter_get(s2s->out_dest, (const char **) &key, xhv.val);
+                    log_debug(ZONE, "checking dialback state for outgoing conn %s (%s)", conn->dkey, conn->key);
+                    if (_s2s_check_conn_routes(s2s, conn, "outgoing")) {
+                        log_debug(ZONE, "checking pending verify requests for outgoing conn %s (%s)", conn->dkey, conn->key);
+                        if (conn->verify > 0 && now > conn->last_verify + s2s->check_queue) {
+                            log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] dialback verify request timed out", conn->fd->fd, conn->ip, conn->port);
+                            sx_error(conn->s, stream_err_CONNECTION_TIMEOUT, "dialback verify request timed out");
+                            sx_close(conn->s);
+                        }
+                    }
+                } while(xhash_iter_next(s2s->out_dest));
+        }
 
         /* incoming open streams */
         if(xhash_iter_first(s2s->in))
@@ -391,34 +440,61 @@ static void _s2s_time_checks(s2s_t s2s) {
     }
 
     /* keepalives */
-    if(xhash_iter_first(s2s->out))
-        do {
-            xhv.conn_val = &conn;
-            xhash_iter_get(s2s->out, NULL, xhv.val);
+    if(s2s->out_reuse) {
+        if(xhash_iter_first(s2s->out_host))
+            do {
+                xhv.conn_val = &conn;
+                xhash_iter_get(s2s->out_host, NULL, xhv.val);
 
-            if(s2s->check_keepalive > 0 && conn->last_activity > 0 && now > conn->last_activity + s2s->check_keepalive && conn->s->state >= state_STREAM) {
-                log_debug(ZONE, "sending keepalive for %d", conn->fd->fd);
+                if(s2s->check_keepalive > 0 && conn->last_activity > 0 && now > conn->last_activity + s2s->check_keepalive && conn->s->state >= state_STREAM) {
+                    log_debug(ZONE, "sending keepalive for %d", conn->fd->fd);
 
-                sx_raw_write(conn->s, " ", 1);
-            }
-        } while(xhash_iter_next(s2s->out));
+                    sx_raw_write(conn->s, " ", 1);
+                }
+            } while(xhash_iter_next(s2s->out_host));
+    } else {
+        if(xhash_iter_first(s2s->out_dest))
+            do {
+                xhv.conn_val = &conn;
+                xhash_iter_get(s2s->out_dest, NULL, xhv.val);
+
+                if(s2s->check_keepalive > 0 && conn->last_activity > 0 && now > conn->last_activity + s2s->check_keepalive && conn->s->state >= state_STREAM) {
+                    log_debug(ZONE, "sending keepalive for %d", conn->fd->fd);
+
+                    sx_raw_write(conn->s, " ", 1);
+                }
+            } while(xhash_iter_next(s2s->out_dest));
+    }
 
     /* idle timeouts - disconnect connections through which no packets have been sent for <idle> seconds */
     if(s2s->check_idle > 0) {
 
-       /* outgoing connections */
-        if(xhash_iter_first(s2s->out))
-            do {
-                xhv.conn_val = &conn;
-                xhash_iter_get(s2s->out, (const char **) &key, xhv.val);
-                log_debug(ZONE, "checking idle state for %s", key);
-                if (conn->last_packet > 0 && now > conn->last_packet + s2s->check_idle && conn->s->state >= state_STREAM) {
-                    log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] idle timeout", conn->fd->fd, conn->ip, conn->port);
-                    sx_close(conn->s);
-                }
-            } while(xhash_iter_next(s2s->out));
+        /* outgoing connections */
+        if(s2s->out_reuse) {
+            if(xhash_iter_first(s2s->out_host))
+                do {
+                    xhv.conn_val = &conn;
+                    xhash_iter_get(s2s->out_host, (const char **) &key, xhv.val);
+                    log_debug(ZONE, "checking idle state for %s", key);
+                    if (conn->last_packet > 0 && now > conn->last_packet + s2s->check_idle && conn->s->state >= state_STREAM) {
+                        log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] idle timeout", conn->fd->fd, conn->ip, conn->port);
+                        sx_close(conn->s);
+                    }
+                } while(xhash_iter_next(s2s->out_host));
+        } else {
+            if(xhash_iter_first(s2s->out_dest))
+                do {
+                    xhv.conn_val = &conn;
+                    xhash_iter_get(s2s->out_dest, (const char **) &key, xhv.val);
+                    log_debug(ZONE, "checking idle state for %s (%s)", conn->dkey, conn->key);
+                    if (conn->last_packet > 0 && now > conn->last_packet + s2s->check_idle && conn->s->state >= state_STREAM) {
+                        log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] idle timeout", conn->fd->fd, conn->ip, conn->port);
+                        sx_close(conn->s);
+                    }
+                } while(xhash_iter_next(s2s->out_dest));
+        }
 
-       /* incoming connections */
+        /* incoming connections */
         if(xhash_iter_first(s2s->in))
             do {
                 xhv.conn_val = &conn;
@@ -435,6 +511,66 @@ static void _s2s_time_checks(s2s_t s2s) {
     return;
 }
 
+static void _s2s_dns_expiry(s2s_t s2s) {
+    time_t now;
+    char *key;
+    dnscache_t dns;
+    dnsres_t res;
+    union xhashv xhv;
+
+    now = time(NULL);
+
+    /* dnscache timeouts */
+    if(xhash_iter_first(s2s->dnscache))
+        do {
+            xhv.dns_val = &dns;
+            xhash_iter_get(s2s->dnscache, (const char **) &key, xhv.val);
+            if (!dns->pending && now > dns->expiry) {
+                log_debug(ZONE, "expiring DNS cache for %s", dns->name);
+                xhash_iter_zap(s2s->dnscache);
+
+                xhash_free(dns->results);
+                if (dns->query != NULL) {
+                    if (dns->query->query != NULL)
+                        dns_cancel(NULL, dns->query->query);
+                    xhash_free(dns->query->hosts);
+                    xhash_free(dns->query->results);
+                    free(dns->query->name);
+                    free(dns->query);
+                }
+                free(dns);
+            }
+        } while(xhash_iter_next(s2s->dnscache));
+
+    if(xhash_iter_first(s2s->dns_bad))
+        do {
+            xhv.dnsres_val = &res;
+            xhash_iter_get(s2s->dns_bad, (const char **) &key, xhv.val);
+            if (now > res->expiry) {
+                log_debug(ZONE, "expiring DNS bad host %s", res->key);
+                xhash_iter_zap(s2s->dns_bad);
+
+                free(res->key);
+                free(res);
+            }
+        } while(xhash_iter_next(s2s->dns_bad));
+}
+/** responses from the resolver */
+static int _mio_resolver_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg) {
+
+    switch(a) {
+        case action_READ:
+            log_debug(ZONE, "read action on fd %d", fd->fd);
+
+            dns_ioevent(0, time(NULL));
+
+        default:
+            break;
+    }
+
+    return 0;
+}
+
 JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to Server", "jabberd2router\0")
 {
     s2s_t s2s;
@@ -443,8 +579,9 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
     conn_t conn;
     jqueue_t q;
     dnscache_t dns;
+    dnsres_t res;
     union xhashv xhv;
-    time_t check_time = 0;
+    time_t check_time = 0, now = 0;
 
 #ifdef HAVE_UMASK
     umask((mode_t) 0027);
@@ -532,10 +669,12 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
     _s2s_pidfile(s2s);
 
     s2s->outq = xhash_new(401);
-    s2s->out = xhash_new(401);
+    s2s->out_host = xhash_new(401);
+    s2s->out_dest = xhash_new(401);
     s2s->in = xhash_new(401);
     s2s->in_accept = xhash_new(401);
     s2s->dnscache = xhash_new(401);
+    s2s->dns_bad = xhash_new(401);
 
     s2s->pc = prep_cache_new();
 
@@ -581,11 +720,19 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
 
     s2s->mio = mio_new(s2s->io_max_fds);
 
+    if((s2s->udns_fd = dns_init(NULL, 1)) < 0) {
+        log_write(s2s->log, LOG_ERR, "unable to initialize dns library, aborting");
+        exit(1);
+    }
+    s2s->udns_mio_fd = mio_register(s2s->mio, s2s->udns_fd, _mio_resolver_callback, (void *) s2s);
+
     s2s->retry_left = s2s->retry_init;
     _s2s_router_connect(s2s);
 
     while(!s2s_shutdown) {
-        mio_run(s2s->mio, 5);
+        mio_run(s2s->mio, dns_timeouts(0, 5, time(NULL)));
+
+        now = time(NULL);
 
         if(s2s_logrotate) {
             log_write(s2s->log, LOG_NOTICE, "reopening log ...");
@@ -616,6 +763,9 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
                 _s2s_router_connect(s2s);
             }
         }
+
+        /* this has to be read unconditionally - we could receive replies to queries we cancelled */
+      	mio_read(s2s->mio, s2s->udns_mio_fd);
             
         /* cleanup dead sx_ts */
         while(jqueue_size(s2s->dead) > 0)
@@ -628,21 +778,32 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
             xhash_free(conn->states_time);
             xhash_free(conn->routes);
 
-            if(conn->key != NULL) free(conn->key);
+            free(conn->key);
+            free(conn->dkey);
             free(conn);
         }
 
         /* time checks */
-        if(s2s->check_interval > 0 && time(NULL) >= s2s->next_check) {
+        if(s2s->check_interval > 0 && now >= s2s->next_check) {
             log_debug(ZONE, "running time checks");
 
             _s2s_time_checks(s2s);
 
-            s2s->next_check = time(NULL) + s2s->check_interval;
+            s2s->next_check = now + s2s->check_interval;
             log_debug(ZONE, "next time check at %d", s2s->next_check);
         }
 
-        if(time(NULL) > check_time + 60) {
+        /* dnscache expiry */
+        if(s2s->check_dnscache > 0 && now >= s2s->next_expiry) {
+            log_debug(ZONE, "running dns expiry");
+
+            _s2s_dns_expiry(s2s);
+
+            s2s->next_expiry = now + s2s->check_dnscache;
+            log_debug(ZONE, "next dns expiry at %d", s2s->next_expiry);
+        }
+
+        if(now > check_time + 60) {
 #ifdef POOL_DEBUG
             pool_stat(1);
 #endif
@@ -659,7 +820,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
                 }
             }
     
-            check_time = time(NULL);
+            check_time = now;
         }
     }
 
@@ -667,12 +828,21 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
 
     /* close active streams gracefully  */
     xhv.conn_val = &conn;
-    if(xhash_iter_first(s2s->out))
-        do {
-            xhash_iter_get(s2s->out, NULL, xhv.val);
-            sx_error(conn->s, stream_err_SYSTEM_SHUTDOWN, "s2s shutdown");
-            sx_close(conn->s);
-        } while(xhash_count(s2s->out));
+    if(s2s->out_reuse) {
+        if(xhash_iter_first(s2s->out_host))
+            do {
+                xhash_iter_get(s2s->out_host, NULL, xhv.val);
+                sx_error(conn->s, stream_err_SYSTEM_SHUTDOWN, "s2s shutdown");
+                sx_close(conn->s);
+            } while(xhash_count(s2s->out_host));
+    } else {
+        if(xhash_iter_first(s2s->out_dest))
+            do {
+                xhash_iter_get(s2s->out_dest, NULL, xhv.val);
+                sx_error(conn->s, stream_err_SYSTEM_SHUTDOWN, "s2s shutdown");
+                sx_close(conn->s);
+            } while(xhash_count(s2s->out_dest));
+    }
 
     if(xhash_iter_first(s2s->in))
         do {
@@ -708,6 +878,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
     if(xhash_iter_first(s2s->outq))
         do {
              xhash_iter_get(s2s->outq, NULL, xhv.val);
+             free(q->key);
              jqueue_free(q);
         } while(xhash_iter_next(s2s->outq));
 
@@ -716,8 +887,29 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
     if(xhash_iter_first(s2s->dnscache))
         do {
              xhash_iter_get(s2s->dnscache, NULL, xhv.val);
+             xhash_free(dns->results);
+             if (dns->query != NULL) {
+                 if (dns->query->query != NULL)
+                     dns_cancel(NULL, dns->query->query);
+                 xhash_free(dns->query->hosts);
+                 xhash_free(dns->query->results);
+                 free(dns->query->name);
+                 free(dns->query);
+             }
              free(dns);
         } while(xhash_iter_next(s2s->dnscache));
+
+    xhv.dnsres_val = &res;
+    if(xhash_iter_first(s2s->dns_bad))
+        do {
+             xhash_iter_get(s2s->dns_bad, NULL, xhv.val);
+             free(res->key);
+             free(res);
+        } while(xhash_iter_next(s2s->dns_bad));
+
+    if (dns_active(NULL) > 0)
+        log_debug(ZONE, "there are still active dns queries (%d)", dns_active(NULL));
+    dns_close(NULL);
 
     /* close mio */
     if(s2s->fd != NULL)
@@ -725,10 +917,12 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
 
     /* free hashes */
     xhash_free(s2s->outq);
-    xhash_free(s2s->out);
+    xhash_free(s2s->out_host);
+    xhash_free(s2s->out_dest);
     xhash_free(s2s->in);
     xhash_free(s2s->in_accept);
     xhash_free(s2s->dnscache);
+    xhash_free(s2s->dns_bad);
     xhash_free(s2s->hosts);
 
     prep_cache_free(s2s->pc);

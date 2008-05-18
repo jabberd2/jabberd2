@@ -1,9 +1,9 @@
-sysconf_DATA = c2s.xml.dist resolver.xml.dist router.xml.dist s2s.xml.dist sm.xml.dist jabberd.cfg.dist router-users.xml.dist router-filter.xml.dist
-EXTRA_DIST = c2s.xml.dist.in resolver.xml.dist.in router.xml.dist.in s2s.xml.dist.in sm.xml.dist.in jabberd.cfg.dist.in router-users.xml.dist.in router-filter.xml.dist.in
+sysconf_DATA = c2s.xml.dist router.xml.dist s2s.xml.dist sm.xml.dist jabberd.cfg.dist router-users.xml.dist router-filter.xml.dist
+EXTRA_DIST = c2s.xml.dist.in router.xml.dist.in s2s.xml.dist.in sm.xml.dist.in jabberd.cfg.dist.in router-users.xml.dist.in router-filter.xml.dist.in
 
 SUBDIRS = templates
 
-jabberd_bin = router resolver sm s2s c2s
+jabberd_bin = router sm s2s c2s
 
 edit = sed \
 	-e 's,@sysconfdir\@,$(sysconfdir),g' \

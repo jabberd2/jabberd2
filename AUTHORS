@@ -158,6 +158,11 @@ Other people who chipped in:
   Michael John Wensley
     - XEP-0054 completness, server vcards
 
+  Simon Arlott
+    - asunchronous DNS resolver for s2s
+    - TLS certificates for each vhost
+    - misc fixes
+
 Thanks also go to the testers and bug reporters out there - you know who
 you are. Special thanks in this capacity to Justin Kirby, whose many
 failed efforts to compile j2 helped get much of the build system to

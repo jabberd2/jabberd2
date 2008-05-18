@@ -234,15 +234,6 @@ int s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             /* packets to us */
             attr = nad_find_attr(nad, 0, -1, "to", NULL);
             if(NAD_AVAL_L(nad, attr) == strlen(s2s->id) && strncmp(s2s->id, NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr)) == 0) {
-
-                if(nad->ecur >= 2 &&
-                    NAD_NURI_L(nad, NAD_ENS(nad, 1)) == strlen(uri_RESOLVER) && strncmp(uri_RESOLVER, NAD_NURI(nad, NAD_ENS(nad, 1)), strlen(uri_RESOLVER)) == 0 &&
-                    NAD_ENAME_L(nad, 1) == 7 && strncmp("resolve", NAD_ENAME(nad, 1), 7) == 0) {
-                    /* resolver response */
-                    out_resolve(s2s, nad);
-                    return 0;
-                }
-
                 log_debug(ZONE, "dropping unknown or invalid packet for s2s component proper");
                 nad_free(nad);
 

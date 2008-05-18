@@ -32,12 +32,16 @@
 # include <sys/stat.h>
 #endif
 
+#include <udns.h>
+
 /* forward decl */
 typedef struct host_st      *host_t;
 typedef struct s2s_st       *s2s_t;
 typedef struct pkt_st       *pkt_t;
 typedef struct conn_st      *conn_t;
+typedef struct dnsquery_st  *dnsquery_t;
 typedef struct dnscache_st  *dnscache_t;
+typedef struct dnsres_st    *dnsres_t;
 
 struct host_st {
     /** our realm */
@@ -106,9 +110,6 @@ struct s2s_st {
     char                *local_ip;
     int                 local_port;
 
-    /** id of resolver */
-    char                *local_resolver;
-
     /** dialback secret */
     char                *local_secret;
 
@@ -130,17 +131,31 @@ struct s2s_st {
     /** maximum stanza size */
     int                 stanza_size_limit;
 
+    /** srvs to lookup */
+    char                **lookup_srv;
+    int                 lookup_nsrv;
+    
+    /** if we resolve AAAA records */
+    int                 resolve_aaaa;
+
+    /** dns ttl limits */
+    int                 dns_min_ttl;
+    int                 dns_max_ttl;
+
     /** time checks */
     int                 check_interval;
     int                 check_queue;
     int                 check_invalid;
     int                 check_keepalive;
     int                 check_idle;
+    int                 check_dnscache;
+    int                 retry_limit;
 
     time_t              last_queue_check;
     time_t              last_invalid_check;
 
     time_t              next_check;
+    time_t              next_expiry;
 
     /** stringprep cache */
     prep_cache_t        pc;
@@ -157,11 +172,17 @@ struct s2s_st {
     /** true if we're bound in the router */
     int                 online;
 
-    /** queues of packets waiting to go out (key is dest domain) */
+    /** queues of packets waiting to go out (key is route) */
     xht                 outq;
 
+    /** reuse outgoing conns keyed by ip/port */
+    int                 out_reuse;
+
     /** outgoing conns (key is ip/port) */
-    xht                 out;
+    xht                 out_host;
+
+    /** outgoing conns (key is dest) */
+    xht                 out_dest;
 
     /** incoming conns (key is stream id) */
     xht                 in;
@@ -169,8 +190,17 @@ struct s2s_st {
     /** incoming conns prior to stream initiation (key is ip/port) */
     xht                 in_accept;
 
+    /** udns fds */
+    int                 udns_fd;
+    mio_fd_t            udns_mio_fd;
+
     /** dns resolution cache */
     xht                 dnscache;
+    int                 dns_cache_enabled;
+
+    /** dns resolution bad host cache */
+    xht                 dns_bad;
+    int                 dns_bad_timeout;
 };
 
 struct pkt_st {
@@ -196,6 +226,7 @@ struct conn_st {
     s2s_t               s2s;
 
     char                *key;
+    char                *dkey;
 
     sx_t                s;
     mio_fd_t            fd;
@@ -227,14 +258,53 @@ struct conn_st {
     unsigned int        packet_count;
 };
 
+#define DNS_MAX_RESULTS 50
+
+/** dns query data */
+struct dnsquery_st {
+    s2s_t               s2s;
+
+    /** domain name */
+    char                *name;
+
+    /** srv lookup index */
+    int                 srv_i;
+
+    /** srv lookup results (key host/port) */
+    xht                 hosts;
+
+    /** current host lookup name */
+    char                *cur_host;
+
+    /** current host lookup port */
+    int                 cur_port;
+
+    /** current host max expiry */
+    time_t              cur_expiry;
+
+    /** current host priority */
+    int                 cur_prio;
+
+    /** current host weight */
+    int                 cur_weight;
+
+    /** host lookup results (key ip/port) */
+    xht                 results;
+
+    /** time that all entries expire */
+    time_t              expiry;
+
+    /** set when we're waiting for a resolve response */
+    struct dns_query   *query;
+};
+
 /** one item in the dns resolution cache */
 struct dnscache_st {
     /** the name proper */
     char                name[1024];
 
-    /** ip and port that the name resolves to */
-    char                ip[INET6_ADDRSTRLEN+1];
-    int                 port;
+    /** results (key ip/port) */
+    xht                 results;
 
     /** time that this entry expires */
     time_t              expiry;
@@ -243,6 +313,22 @@ struct dnscache_st {
 
     /** set when we're waiting for a resolve response */
     int                 pending;
+    dnsquery_t          query;
+};
+
+/** dns resolution results */
+struct dnsres_st {
+    /** ip/port */
+    char                *key;
+
+    /** host priority */
+    int                 prio;
+
+    /** host weight */
+    int                 weight;
+
+    /** time that this entry expires */
+    time_t              expiry;
 };
 
 extern sig_atomic_t s2s_lost_router;
@@ -252,12 +338,19 @@ int             s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *a
 
 char            *s2s_route_key(pool_t p, char *local, char *remote);
 char            *s2s_db_key(pool_t p, char *secret, char *remote, char *id);
+char            *dns_make_ipport(char *host, int port);
 
 void            out_packet(s2s_t s2s, pkt_t pkt);
-void            out_resolve(s2s_t s2s, nad_t nad);
+int             out_route(s2s_t s2s, char *route, conn_t *out, int allow_bad);
+int             dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int allow_bad);
+void            dns_resolve_domain(s2s_t s2s, dnscache_t dns);
+void            out_resolve(s2s_t s2s, char *domain, xht results, time_t expiry);
 void            out_dialback(s2s_t s2s, pkt_t pkt);
-int             out_bounce_queue(s2s_t s2s, const char *domain, int err);
+int             out_bounce_domain_queues(s2s_t s2s, const char *domain, int err);
+int             out_bounce_route_queue(s2s_t s2s, char *rkey, int err);
 int             out_bounce_conn_queues(conn_t out, int err);
+void            out_flush_domain_queues(s2s_t s2s, const char *domain);
+void            out_flush_route_queue(s2s_t s2s, char *rkey);
 
 int             in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
 
@@ -275,4 +368,5 @@ union xhashv
   conn_state_t *state_val;
   jqueue_t *jq_val;
   dnscache_t *dns_val;
+  dnsres_t *dnsres_val;
 };

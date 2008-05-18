@@ -148,7 +148,7 @@
 
          Checks will be run every n seconds.
 
-         0 disables all checks.                       (default: 60) -->
+         0 disables all checks except DNS expiry.     (default: 60) -->
     <interval>60</interval>
 
     <!-- Queue expiry and connection timeout.
@@ -163,15 +163,28 @@
          2. Initiating dialback (incoming connections)
          3. Completing dialback (incoming and outgoing)
 
+         If stage 1 connection establishment fails and there are
+         alternative hosts for this route that have not failed 
+         recently, they will be tried too before finally giving up.
+
          0 disables queue expiry.                     (default: 60) -->
     <queue>60</queue>
 
+    <!-- Queue retry timeout.
+
+         If the queue is older than this timeout, the connection
+         will not be retried even if there are alternative hosts
+         that have not failed recently.
+
+         0 disables retry expiry.                    (default: 300) -->
+    <retry>300</retry>
+
     <!-- Idle connection checks.
 
-           Connections that have not sent data for longer than this many
-           seconds will be dropped.
+         Connections that have not sent data for longer than this many
+         seconds will be dropped.
 
-           0 disables idle timeouts.              (default: 86400) -->
+         0 disables idle timeouts.                 (default: 86400) -->
     <idle>86400</idle>
 
     <!-- Keepalives.
@@ -184,6 +197,10 @@
          0 disables keepalives.                       (default: 0) -->
     <keepalive>0</keepalive>
 
+    <!-- Interval between DNS result/bad host expiry.
+
+         0 disables expiry checks.                 (default: 300) -->
+    <dnscache>300</dnscache>
   </check>
 
   <!-- Statistics -->
@@ -194,6 +211,54 @@
     -->
   </stats>
 
+  <lookup>
+     <!-- SRV TCP services will be resolved in the following order. The first
+          one that returns something will be used (ie dereferenced via an
+          A/AAAA lookup). If no SRV records are found, resolver will
+          fallback to a straight A/AAAA lookup. -->
+
+    <!-- xmpp-server is mandated by the XMPP spec -->
+    <srv>xmpp-server</srv>
+
+    <!-- traditionally, jabber has been used -->
+    <srv>jabber</srv>
+
+
+    <!-- If this is enabled, the resolver will look up AAAA records as well
+         as A records. This is needed if you want s2s to use IPv6.
+         Connection attempts will be made to all IPv6 hosts before trying
+         IPv4 (see bad host timeout below). -->
+    <!--
+    <resolve-ipv6/>
+    -->
+
+    <!-- Minimum time that DNS lookup results are cached (overrides max below). -->
+    <min-ttl>30</min-ttl>
+
+    <!-- Maximum time that DNS lookup results are cached. -->
+    <max-ttl>86400</max-ttl>
+
+    <!-- Minimum time to wait before using hosts that we have failed to
+         establish a connection to (unless there are no alternatives).
+         Do not set this too low - it is required to detect permanent
+         problems like broken IPv6 connectivity in order to attempt IPv4.
+
+         0 disables bad host caching.               (default: 3600) -->
+    <bad-host-timeout>3600</bad-host-timeout>
+
+    <!-- Disable the DNS cache (negative caching will still be done).
+         This is likely to negatively impact performance while saving
+         a small amount of memory since multiple DNS requests must
+         then be made for every re-connection. -->
+    <!--
+    <no-cache/>
+    -->
+  </lookup>
+
+  <!-- If this is enabled, domains which share the same host will re-use
+       existing outgoing connections. This is a potential security risk
+       as the SSL connection from the first domain will be re-used too. -->
+  <out-reuse-conn/>
 </s2s>
 <!--
   vim: syntax=xml

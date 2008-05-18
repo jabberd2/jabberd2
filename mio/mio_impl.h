@@ -446,7 +446,7 @@ static mio_t _mio_new(int maxfd)
 {
     static struct mio_st mio_impl = {
         _mio_free,
-        _mio_listen, _mio_connect,
+        _mio_listen, _mio_connect, _mio_setup_fd,
         _mio_app,
         _mio_close,
         _mio_write, _mio_read,

@@ -306,6 +306,8 @@ typedef struct _jqueue_st {
     _jqueue_node_t  back;
 
     int             size;
+    char            *key;
+    time_t          init_time;
 } *jqueue_t;
 
 JABBERD2_API jqueue_t    jqueue_new(void);
@@ -313,6 +315,7 @@ JABBERD2_API void        jqueue_free(jqueue_t q);
 JABBERD2_API void        jqueue_push(jqueue_t q, void *data, int pri);
 JABBERD2_API void        *jqueue_pull(jqueue_t q);
 JABBERD2_API int         jqueue_size(jqueue_t q);
+JABBERD2_API time_t      jqueue_age(jqueue_t q);
 
 
 /* ISO 8601 / JEP-0082 date/time manipulation */
