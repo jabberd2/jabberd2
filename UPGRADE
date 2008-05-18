@@ -1,5 +1,17 @@
 This file contains upgrade instructions between different versions of jabberd2.
 
+* 2.1.24 to 2.2.0 upgrade:
+
+What changed:
+- UDNS library required
+- GnuSASL 0.2.26 or higher version required
+- resolver component removed
+
+Install UDNS http://www.corpit.ru/mjt/udns.html and upgrade GSASL to
+at least 0.2.26 version.
+Remove resolver component from your configuration.
+
+
 * 2.1.23 to 2.1.24 upgrade:
 
 What changed:
