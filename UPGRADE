@@ -9,7 +9,8 @@ What changed:
 
 Install UDNS http://www.corpit.ru/mjt/udns.html and upgrade GSASL to
 at least 0.2.26 version.
-Remove resolver component from your configuration.
+Resolver is now built in S2S component, so you need to add <lookup/> section
+to your s2s.xml config. Then remove resolver component from your configuration.
 
 
 * 2.1.23 to 2.1.24 upgrade:
