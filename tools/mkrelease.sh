@@ -15,7 +15,7 @@ mkdir "$TMPDIR"
 cd "$TMPDIR"
 svn -q checkout "$SVNPATH" "$APPNAME-$APPVER"
 cd "$APPNAME-$APPVER"
-sed -i "s/^AC_INIT(.*$/AC_INIT(\[$APPNAME\], \[$APPVER\], \[jabberd2@xiaoka.com\])/" configure.ac
+sed -i "/^AC_INIT/s/\[.*\], \[.*\], /[$APPNAME], [$APPVER], /" configure.ac
 autoreconf --install --force
 libtoolize --copy --force
 ./configure
