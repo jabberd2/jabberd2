@@ -719,16 +719,16 @@ static nad_t _sx_sasl_abort(sx_t s) {
 
 /** utility: decode incoming handshake data */
 static void _sx_sasl_decode(char *in, int inlen, char **out, int *outlen) {
-    *outlen = ap_base64decode_len(in, inlen);
+    *outlen = apr_base64_decode_len(in, inlen);
     *out = (char *) malloc(sizeof(char) * (*outlen + 1));
-    ap_base64decode(*out, in, inlen);
+    apr_base64_decode(*out, in, inlen);
 }
 
 /** utility: encode outgoing handshake data */
 static void _sx_sasl_encode(char *in, int inlen, char **out, int *outlen) {
-    *outlen = ap_base64encode_len(inlen);
+    *outlen = apr_base64_encode_len(inlen);
     *out = (char *) malloc(sizeof(char) * *outlen);
-    ap_base64encode(*out, in, inlen);
+    apr_base64_encode(*out, in, inlen);
     (*outlen)--;
 }
 

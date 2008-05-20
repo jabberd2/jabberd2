@@ -331,12 +331,10 @@ JABBERD2_API void    datetime_out(time_t t, datetime_t type, char *date, int dat
 
 
 /* base64 functions */
-JABBERD2_API int ap_base64decode_len(const char *bufcoded, int buflen);
-JABBERD2_API int ap_base64decode(char *bufplain, const char *bufcoded, int buflen);
-JABBERD2_API int ap_base64decode_binary(unsigned char *bufplain, const char *bufcoded, int buflen);
-JABBERD2_API int ap_base64encode_len(int len);
-JABBERD2_API int ap_base64encode(char *encoded, const char *string, int len);
-JABBERD2_API int ap_base64encode_binary(char *encoded, const unsigned char *string, int len);
+JABBERD2_API int apr_base64_decode_len(const char *bufcoded, int buflen);
+JABBERD2_API int apr_base64_decode(char *bufplain, const char *bufcoded, int buflen);
+JABBERD2_API int apr_base64_encode_len(int len);
+JABBERD2_API int apr_base64_encode(char *encoded, const char *string, int len);
 
 /* convenience, result string must be free()'d by caller */
 JABBERD2_API char *b64_encode(char *buf, int len);

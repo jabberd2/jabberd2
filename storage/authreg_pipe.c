@@ -125,12 +125,12 @@ static int _ar_pipe_get_password(authreg_t ar, char *username, char *realm, char
         return 1;
     }
 
-    if(ap_base64decode_len(&buf[3], strlen(&buf[3])) >= 256) {
+    if(apr_base64_decode_len(&buf[3], strlen(&buf[3])) >= 256) {
         log_debug(ZONE, "decoded password longer than buffer");
         return 1;
     }
 
-    ap_base64decode(password, &buf[3], strlen(&buf[3]));
+    apr_base64_decode(password, &buf[3], strlen(&buf[3]));
 
     log_debug(ZONE, "got password: %s", password);
 
@@ -145,12 +145,12 @@ static int _ar_pipe_check_password(authreg_t ar, char *username, char *realm, ch
 
     plen = strlen(password);
 
-    if(ap_base64encode_len(plen) >= 1023) {
+    if(apr_base64_encode_len(plen) >= 1023) {
         log_debug(ZONE, "unable to encode password");
         return 1;
     }
 
-    ap_base64encode(buf, password, plen);
+    apr_base64_encode(buf, password, plen);
     
     if(_ar_pipe_write(ar, data->out, "CHECK-PASSWORD %s %s %s\n", username, buf, realm) < 0)
         return 1;
@@ -172,12 +172,12 @@ static int _ar_pipe_set_password(authreg_t ar, char *username, char *realm, char
 
     plen = strlen(password);
 
-    if(ap_base64encode_len(plen) >= 1023) {
+    if(apr_base64_encode_len(plen) >= 1023) {
         log_debug(ZONE, "unable to encode password");
         return 1;
     }
 
-    ap_base64encode(buf, password, plen);
+    apr_base64_encode(buf, password, plen);
 
     if(_ar_pipe_write(ar, data->out, "SET-PASSWORD %s %s %s\n", username, buf, realm) < 0)
         return 1;
