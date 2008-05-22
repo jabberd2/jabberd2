@@ -3,7 +3,6 @@
 
 2008-05-18 Tomasz Sterna <tomek@xiaoka.com>
 	* Using GSASL Base64 implementation with sasl_gsasl
-	* Removing revision control files from distribution
 	* Merged asynchronous domain resolving in s2s component support by Simon Arlott.
 	* Merged Eric Schnoebelen assert fixes. Closes #215
 
