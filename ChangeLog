@@ -1,3 +1,36 @@
+2008-05-20 Tomasz Sterna <tomek@xiaoka.com>
+	* Ported apr_base64.c from Apache httpd 2.2.8
+
+2008-05-18 Tomasz Sterna <tomek@xiaoka.com>
+	* Using GSASL Base64 implementation with sasl_gsasl
+	* Removing revision control files from distribution
+	* Merged asynchronous domain resolving in s2s component support by Simon Arlott.
+	* Merged Eric Schnoebelen assert fixes. Closes #215
+
+2008-05-11 Tomasz Sterna <tomek@xiaoka.com>
+	* Removed NULL user storage_get
+
+2008-05-10 Tomasz Sterna <tomek@xiaoka.com>
+	* Added PostgreSQL DB update sctipt
+
+2008-05-09 Tomasz Sterna <tomek@xiaoka.com>
+	* Fix for non-existant s2s local.id
+
+2008-05-07 Tomasz Sterna <tomek@xiaoka.com>
+	* Proper certificate per vHost handling by Simon Arlott. Fixes #1
+
+2008-05-04 Tomasz Sterna <tomek@xiaoka.com>
+	* Required gsasl 0.2.26 version for proper DIGEST-MD5 implementation. Added
+	  gsasl patch in contrib. Refs #200
+
+2008-04-29 Tomasz Sterna <tomek@xiaoka.com>
+	* Fix for GSASL ANONYMOUS login
+	* Implemented jabber:iq:private change pushes to interested resources
+	* Fixed local resource check
+
+2008-04-27 Tomasz Sterna <tomek@xiaoka.com>
+	* Added missing jabberd.in to distribution
+
 2008-04-20 Tomasz Sterna <tomek@xiaoka.com>
 	* Added missing files to distribution
 
