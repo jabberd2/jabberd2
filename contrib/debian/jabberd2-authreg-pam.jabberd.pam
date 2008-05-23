@@ -1,6 +1,0 @@
-#
-# /etc/pam.d/jabberd - authentication settings for
-# jabberd's pam authentication
-#
-@include common-auth
-
