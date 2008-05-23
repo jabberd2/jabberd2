@@ -187,6 +187,12 @@
       <busy-timeout>2000</busy-timeout>
     </sqlite>
 
+    <!-- Filesystem driver configuration -->
+    <fs>
+      <!-- Directory to store database fieles under. -->
+      <path>@localstatedir@/lib/jabberd2/fs</path>
+    </fs>
+
     <!-- LDAPVCARD driver configuration -->
     <ldapvcard>
       <!-- LDAP server host and port (default: 389) -->
