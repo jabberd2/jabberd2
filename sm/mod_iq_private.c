@@ -87,7 +87,7 @@ static mod_ret_t _iq_private_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) 
             sess->module_data[mod->index] = xhash_new(101);
             pool_cleanup(sess->p, (void (*))(void *) xhash_free, sess->module_data[mod->index]);
         }
-        xhash_put(sess->module_data[mod->index], pstrdupx(xhash_pool(sess->module_data[mod->index]), NAD_NURI(pkt->nad, targetns), NAD_NURI_L(pkt->nad, targetns)), (void *) 1);
+        xhash_put(sess->module_data[mod->index], pstrdupx(sess->p, NAD_NURI(pkt->nad, targetns), NAD_NURI_L(pkt->nad, targetns)), (void *) 1);
 #endif
         snprintf(filter, 4096, "(ns=%i:%.*s)", NAD_NURI_L(pkt->nad, targetns), NAD_NURI_L(pkt->nad, targetns), NAD_NURI(pkt->nad, targetns));
         ret = storage_get(sess->user->sm->st, "private", jid_user(sess->jid), filter, &os);

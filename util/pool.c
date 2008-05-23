@@ -260,7 +260,7 @@ void pool_cleanup(pool_t p, pool_cleanup_t f, void *arg)
 #ifdef POOL_DEBUG
 void _pool_stat(xht h, const char *key, void *val, void *arg)
 {
-    pool_t p = (pool)val;
+    pool_t p = (pool_t)val;
 
     if(p->lsize == -1)
         fprintf(stderr, "POOL: %s: %s is a new pool\n",p->zone,p->name);
