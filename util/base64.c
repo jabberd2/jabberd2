@@ -167,10 +167,10 @@ char *b64_encode(char *buf, int len) {
     if(len == 0)
         len = strlen(buf);
 
-    elen = ap_base64encode_len(len);
+    elen = apr_base64encode_len(len);
     out = (char *) malloc(sizeof(char) * (elen + 1));
 
-    ap_base64encode(out, buf, len);
+    apr_base64encode(out, buf, len);
 
     return out;
 }
@@ -179,10 +179,10 @@ char *b64_decode(char *buf) {
     int elen;
     char *out;
 
-    elen = ap_base64decode_len(buf, -1);
+    elen = apr_base64decode_len(buf, -1);
     out = (char *) malloc(sizeof(char) * (elen + 1));
 
-    ap_base64decode(out, buf, -1);
+    apr_base64decode(out, buf, -1);
 
     return out;
 }
