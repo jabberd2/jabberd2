@@ -217,21 +217,6 @@ int s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 return 0;
             }
 
-            if((attr = nad_find_attr(nad, 0, -1, "error", NULL)) >= 0) {
-                /* bounce errors to the sender */
-                log_debug(ZONE, "bouncing error packet");
-                elem = stanza_err_REMOTE_SERVER_NOT_FOUND;
-                if(attr >= 0) {
-                    for(i=0; _stanza_errors[i].code != NULL; i++)
-                        if(strncmp(_stanza_errors[i].code, NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr)) == 0) {
-                            elem = stanza_err_BAD_REQUEST + i;
-                            break;
-                        }
-                }
-                sx_nad_write(s2s->router, stanza_tofrom(stanza_tofrom(stanza_error(nad, 1, elem), 1), 0));
-                return 0;
-            }
-
             if(nad_find_attr(nad, 0, -1, "type", NULL) >= 0) {
                 log_debug(ZONE, "dropping non-unicast packet");
                 nad_free(nad);
@@ -245,6 +230,23 @@ int s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 nad_free(nad);
 
                 return 0;
+            }
+
+            /* mangle error packet to create bounce */
+            if((attr = nad_find_attr(nad, 0, -1, "error", NULL)) >= 0) {
+                log_debug(ZONE, "bouncing error packet");
+                elem = stanza_err_REMOTE_SERVER_NOT_FOUND;
+                if(attr >= 0) {
+                    for(i=0; _stanza_errors[i].code != NULL; i++)
+                        if(strncmp(_stanza_errors[i].code, NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr)) == 0) {
+                            elem = stanza_err_BAD_REQUEST + i;
+                            break;
+                        }
+                }
+                nad_set_attr(nad, 0, -1, "error", NULL, 0);
+                stanza_tofrom(stanza_tofrom(stanza_error(nad, 1, elem), 1), 0);
+                elem = nad_find_attr(nad, 1, -1, "to", NULL);
+		nad_set_attr(nad, 0, -1, "to",  NAD_AVAL(nad, elem), NAD_AVAL_L(nad, elem));
             }
 
             /* new packet */
