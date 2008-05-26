@@ -26,7 +26,7 @@ int s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
     sx_buf_t buf = (sx_buf_t) data;
     sx_error_t *sxe;
     nad_t nad;
-    int len, ns, elem, attr;
+    int len, ns, elem, attr, i;
     pkt_t pkt;
 
     switch(e) {
@@ -217,10 +217,18 @@ int s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 return 0;
             }
 
-            if(nad_find_attr(nad, 0, -1, "error", NULL) >= 0) {
-                /* !!! jabber:client packets and error=404 means the dest component wasn't found, bounce them to the sender */
-                log_debug(ZONE, "dropping route error packet");
-                nad_free(nad);
+            if((attr = nad_find_attr(nad, 0, -1, "error", NULL)) >= 0) {
+                /* bounce errors to the sender */
+                log_debug(ZONE, "bouncing error packet");
+                elem = stanza_err_REMOTE_SERVER_NOT_FOUND;
+                if(attr >= 0) {
+                    for(i=0; _stanza_errors[i].code != NULL; i++)
+                        if(strncmp(_stanza_errors[i].code, NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr)) == 0) {
+                            elem = stanza_err_BAD_REQUEST + i;
+                            break;
+                        }
+                }
+                sx_nad_write(s2s->router, stanza_tofrom(stanza_tofrom(stanza_error(nad, 1, elem), 1), 0));
                 return 0;
             }
 
