@@ -1663,7 +1663,8 @@ int out_bounce_route_queue(s2s_t s2s, char *rkey, int err)
      return 0;
 
   while((pkt = jqueue_pull(q)) != NULL) {
-     if(pkt->nad->ecur > 1 && NAD_NURI_L(pkt->nad, NAD_ENS(pkt->nad, 1)) == strlen(uri_CLIENT) && strncmp(NAD_NURI(pkt->nad, NAD_ENS(pkt->nad, 1)), uri_CLIENT, strlen(uri_CLIENT)) == 0) {
+     /* only packets with content, in namespace jabber:client and not already errors */
+     if(pkt->nad->ecur > 1 && NAD_NURI_L(pkt->nad, NAD_ENS(pkt->nad, 1)) == strlen(uri_CLIENT) && strncmp(NAD_NURI(pkt->nad, NAD_ENS(pkt->nad, 1)), uri_CLIENT, strlen(uri_CLIENT)) == 0 && nad_find_attr(nad, 0, -1, "error", NULL) < 0) {
          sx_nad_write(s2s->router, stanza_tofrom(stanza_tofrom(stanza_error(pkt->nad, 1, err), 1), 0));
          pktcount++;
      }
