@@ -59,6 +59,8 @@ int apr_base64_decode_len(const char *bufcoded, int buflen)
     return nbytesdecoded + 1;
 }
 
+int apr_base64_decode_binary(unsigned char *bufplain, const char *bufcoded, int buflen);
+
 int apr_base64_decode(char *bufplain, const char *bufcoded, int buflen)
 {
     int len;
@@ -121,6 +123,8 @@ int apr_base64_encode_len(int len)
     return ((len + 2) / 3 * 4) + 1;
 }
 
+int apr_base64_encode_binary(char *encoded, const unsigned char *string, int len);
+
 int apr_base64_encode(char *encoded, const char *string, int len)
 {
     return apr_base64_encode_binary(encoded, (const unsigned char *) string, len);
@@ -167,10 +171,10 @@ char *b64_encode(char *buf, int len) {
     if(len == 0)
         len = strlen(buf);
 
-    elen = apr_base64encode_len(len);
+    elen = apr_base64_encode_len(len);
     out = (char *) malloc(sizeof(char) * (elen + 1));
 
-    apr_base64encode(out, buf, len);
+    apr_base64_encode(out, buf, len);
 
     return out;
 }
@@ -179,10 +183,10 @@ char *b64_decode(char *buf) {
     int elen;
     char *out;
 
-    elen = apr_base64decode_len(buf, -1);
+    elen = apr_base64_decode_len(buf, -1);
     out = (char *) malloc(sizeof(char) * (elen + 1));
 
-    apr_base64decode(out, buf, -1);
+    apr_base64_decode(out, buf, -1);
 
     return out;
 }
