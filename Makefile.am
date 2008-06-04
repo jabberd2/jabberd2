@@ -1,8 +1,12 @@
 EXTRA_DIST = Doxyfile.in README.win32 README.protocol contrib UPGRADE
 
-SUBDIRS = etc tools man mio subst sx util c2s router s2s sm storage
+SUBDIRS = etc tools man mio sx util c2s router s2s sm storage
 
 .PHONY: docs
+
+if USE_LIBSUBST
+SUBDIRS += subst
+endif
 
 docs: Doxyfile
 	@doxygen

@@ -899,6 +899,13 @@ if test "x-$mio_backend" = "x-" ; then
     AC_MSG_ERROR([no MIO backend available out of: $mio_check])
 fi
 
+# use libc function substitution library?
+AC_ARG_WITH(subst,
+AC_HELP_STRING([--without-subst],[disable use of substitution library]),
+               [OPT_LIBSUBST="$withval"])
+AC_SUBST(USE_LIBSUBST)
+AM_CONDITIONAL(USE_LIBSUBST, [test "$OPT_LIBSUBST" != "no"])
+
 # conditional features
 AC_ARG_ENABLE(superseded, AC_HELP_STRING([--enable-superseded], [enable superseded XEP support (yes)]),
               want_superseded=$enableval, want_superseded=yes)

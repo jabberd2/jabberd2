@@ -72,7 +72,9 @@
 #endif
 #endif
 
+#ifdef USE_LIBSUBST
 #include "subst/subst.h"
+#endif
 
 #include "util/util_compat.h"
 

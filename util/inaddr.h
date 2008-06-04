@@ -43,7 +43,9 @@
 #include <sys/socket.h>
 #endif
 
+#ifdef USE_LIBSUBST
 #include "subst/subst.h"
+#endif
 
 /* jabberd2 Windows DLL */
 #ifndef JABBERD2_API
