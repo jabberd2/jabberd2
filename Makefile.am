@@ -1,6 +1,6 @@
 EXTRA_DIST = Doxyfile.in README.win32 README.protocol contrib UPGRADE
 
-SUBDIRS = etc tools man mio sx util c2s router s2s sm storage
+SUBDIRS = gc etc tools man mio sx util c2s router s2s sm storage
 
 .PHONY: docs
 

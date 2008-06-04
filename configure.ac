@@ -372,6 +372,11 @@ if test "x-$ac_cv_lib_udns_dns_init" != "x-yes" ; then
     AC_MSG_ERROR([UDNS library not found])
 fi
 
+# atomic_ops
+AC_CHECK_LIB([atomic_ops], [AO_spin],
+    [],
+    AC_MSG_ERROR([atomic_ops library not found]))
+
 #
 # SASL backend selection
 AC_ARG_WITH(sasl,
@@ -937,4 +942,5 @@ AC_CONFIG_FILES([Doxyfile
                  s2s/Makefile
                  sm/Makefile
                  tools/Makefile])
+AC_CONFIG_SUBDIRS([gc])
 AC_OUTPUT
