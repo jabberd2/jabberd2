@@ -89,8 +89,6 @@ static void _roster_save_item(user_t user, item_t item) {
 
     os_free(os);
 
-    snprintf(filter, 4096, "(jid=%i:%s)", strlen(jid_full(item->jid)), jid_full(item->jid));
-
     if(item->ngroups == 0) {
         storage_delete(user->sm->st, "roster-groups", jid_user(user->jid), filter);
         return;
