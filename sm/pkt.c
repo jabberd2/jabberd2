@@ -460,7 +460,7 @@ void pkt_sess(pkt_t pkt, sess_t sess) {
     pkt->rfrom = jid_new(pkt->sm->pc, pkt->sm->id, -1);
 
     if(pkt->rfrom == NULL) {
-        log_debug(ZONE, "invalid to address on packet, unable to route");
+        log_debug(ZONE, "invalid from address on packet, unable to route");
         pkt_free(pkt);
         return;
     }
