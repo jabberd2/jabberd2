@@ -15,11 +15,14 @@ What changed:
 - UDNS library required
 - GnuSASL 0.2.26 or higher version required
 - resolver component removed
+- fixed SSL handling
 
 Install UDNS http://www.corpit.ru/mjt/udns.html and upgrade GSASL to
 at least 0.2.26 version.
 Resolver is now built in S2S component, so you need to add <lookup/> section
 to your s2s.xml config. Then remove resolver component from your configuration.
+Please check your verivy-mode setting in c2s.xml, and make sure it is what you
+wanted. See SSL_CTX_set_verify(3) manual page.
 
 
 * 2.1.23 to 2.1.24 upgrade:
