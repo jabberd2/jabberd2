@@ -7,6 +7,8 @@
      what     - XPath like query
      error    - none given means allow, if given means deny
                 this is an XMPP RFC defined error condition
+
+     Rules are matched in order of apperance. First match is efffective.
 -->
 
 <filter>
