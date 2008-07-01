@@ -29,6 +29,8 @@
 
 enum mysql_pws_crypt { MPC_PLAIN, MPC_CRYPT };
 
+static char salter[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ./";
+
 typedef struct mysqlcontext_st {
   MYSQL * conn;
   char * sql_create;
@@ -173,6 +175,17 @@ static int _ar_mysql_set_password(authreg_t ar, char *username, char *realm, cha
     snprintf(iuser, MYSQL_LU+1, "%s", username);
     snprintf(irealm, MYSQL_LR+1, "%s", realm);
 
+    if (ctx->password_type == MPC_CRYPT) {
+       char salt[12] = "$1$";
+       int i;
+
+       srand(time(0));
+       for(i=0; i<8; i++)
+               salt[3+i] = salter[rand()%64];
+       salt[11] = '\0';
+       strcpy(password, crypt(password, salt));
+    }
+    
     password[256]= '\0';
 
     mysql_real_escape_string(conn, euser, iuser, strlen(iuser));
