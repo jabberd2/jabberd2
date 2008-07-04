@@ -79,9 +79,10 @@ extern "C" {
  * @file mio/mio.h
  * @brief mio - manage i/o
  * 
- * This used to be something large and all inclusive for 1.2/1.4,
- * but for 1.5 and beyond it is the most simple fd wrapper possible.
- * It is also customized per-app and may be limited/extended depending on needs.
+ * This is the most simple fd wrapper possible. It is also customized
+ * per-app and may be limited/extended depending on needs.
+ *
+ * It's basically our own implementation of libevent or libev.
  * 
  * Usage is pretty simple:
  *  - create a manager

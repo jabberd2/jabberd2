@@ -204,11 +204,12 @@ int sx_can_read(sx_t s) {
     }
 
     /* EOF if we got a 0-byte read from the socket */
-    if(read == 0)
+    if(read == 0) {
         /* they went away */
+        _sx_buffer_free(in);
         _sx_state(s, state_CLOSING);
     
-    else {
+    } else {
         _sx_debug(ZONE, "passed %d read bytes", in->len);
 
         /* make a copy for processing */

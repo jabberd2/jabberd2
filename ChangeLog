@@ -1,3 +1,8 @@
+2008-07-04 Mark Doliner <mark@meebo.com>
+	* Fix a potential memory leak when attempting to read from a socket that
+	  has been closed.
+	* Improve the documentation for <max_fds> in the configuration files.
+
 2008-05-20 Tomasz Sterna <tomek@xiaoka.com>
 	* Ported apr_base64.c from Apache httpd 2.2.8
 
