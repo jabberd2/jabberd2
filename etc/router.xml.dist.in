@@ -81,7 +81,14 @@
          possible connections will be slightly less than this, because
          the router itself can use up four on its own. If the supply of
          file descriptors is exhausted, new incoming connections will be
-         denied (default: 1024) -->
+         denied.
+
+         These file descriptors are really only used when a component
+         connects to the router. So unless you have a lot of components
+         for some reason then you probably don't need to change this
+         value.
+
+         (default: 1024) -->
     <max_fds>1024</max_fds>
 
     <!-- Rate limiting -->

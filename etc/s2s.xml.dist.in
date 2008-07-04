@@ -121,7 +121,25 @@
          possible connections will be slightly less than this, because
          s2s itself can use some on its own. If the supply of file
          descriptors is exhausted, new incoming connections will be
-         denied (default: 1024) -->
+         denied.
+
+         These connections are mainly consumed when we make a
+         connection to an external jabber server, or an external jabber
+         server connects to us. If you don't have a lot of users then
+         there's probably no need for s2s to establish connections to
+         external jabber servers and the default value here is probably
+         fine. On the other hand, if you have lots of users with lots
+         of remote buddies in their buddylist then s2s will need to have
+         lots of open connections with other jabber servers and you may
+         need to increase this value.
+
+         Note that this value only affects how many file descriptors
+         jabberd is able to handle internally. You may also need to
+         tell your operating system to allow jabberd to use more file
+         descriptors. On Linux this can be done using ulimit -n or by
+         changing the value of /proc/sys/fd/file-max.
+
+         (default: 1024) -->
     <max_fds>1024</max_fds>
 
     <!-- Rate limiting -->

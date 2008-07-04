@@ -173,11 +173,23 @@
 
   <!-- Input/output settings -->
   <io>
-    <!-- Maximum number of file descriptors. Note that the number of
-         possible connections will be slightly less than this, because
-         c2s itself can use up five on its own, and auth/reg modules may
-         need a few also. If the supply of file descriptors is
-         exhausted, new incoming connections will be denied.
+    <!-- Maximum number of file descriptors. This value sets an upper
+         limit on the number of users who may be logged in to this
+         server at a given time. Each user consumers one file
+         descriptor.
+
+         Note that the number of possible connections will be slightly
+         less than this, because c2s itself can use up five on its own,
+         and auth/reg modules may need a few also. If the supply of
+         file descriptors is exhausted, new incoming connections will
+         be denied.
+
+         Also note that this value only affects how many file descriptors
+         jabberd is able to handle internally. You may also need to
+         tell your operating system to allow jabberd to use more file
+         descriptors. On Linux this can be done using ulimit -n or by
+         changing the value of /proc/sys/fd/file-max.
+
          (default: 1024) -->
     <max_fds>1024</max_fds>
 
