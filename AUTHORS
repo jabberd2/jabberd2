@@ -159,7 +159,7 @@ Other people who chipped in:
     - XEP-0054 completness, server vcards
 
   Simon Arlott
-    - asunchronous DNS resolver for s2s
+    - asynchronous DNS resolver for s2s
     - TLS certificates for each vhost
     - misc fixes
 

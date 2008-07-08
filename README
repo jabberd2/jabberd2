@@ -13,8 +13,8 @@ Required packages:
      http://expat.sourceforge.net/
  - GnuSASL (0.2.26 or higher) - Simple Authentication and Security Layer library
      http://www.gnu.org/software/gsasl/
-     (please see contrib/ subdir for patches)
- - UDNS - asyncronous DNS resolver library
+     (please see contrib/ subdir for an important patch)
+ - UDNS - asynchronous DNS resolver library
      http://www.corpit.ru/mjt/udns.html
 
 Optional packages:
