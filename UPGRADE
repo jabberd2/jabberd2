@@ -21,7 +21,7 @@ Install UDNS http://www.corpit.ru/mjt/udns.html and upgrade GSASL to
 at least 0.2.26 version.
 Resolver is now built in S2S component, so you need to add <lookup/> section
 to your s2s.xml config. Then remove resolver component from your configuration.
-Please check your verivy-mode setting in c2s.xml, and make sure it is what you
+Please check your verify-mode setting in c2s.xml, and make sure it is what you
 wanted. See SSL_CTX_set_verify(3) manual page.
 
 

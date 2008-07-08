@@ -189,7 +189,7 @@
 
     <!-- Filesystem driver configuration -->
     <fs>
-      <!-- Directory to store database fieles under. -->
+      <!-- Directory to store database files under. -->
       <path>@localstatedir@/lib/jabberd2/fs</path>
     </fs>
 
