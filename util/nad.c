@@ -63,7 +63,16 @@ static void _nad_ptr_check(const char *func, nad_t nad) {
 
 #define BLOCKSIZE 128
 
-/** internal: do and return the math and ensure it gets realloc'd */
+/**
+ * Reallocate the given buffer to make it larger.
+ *
+ * @param oblocks A pointer to a buffer that will be made larger.
+ * @param len     The minimum size in bytes to make the buffer.  The
+ *                actual size of the buffer will be rounded up to the
+ *                nearest block of 1024 bytes.
+ *
+ * @return The new size of the buffer in bytes.
+ */
 static int _nad_realloc(void **oblocks, int len)
 {
     int nlen;
