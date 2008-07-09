@@ -1,3 +1,7 @@
+2008-07-09 Mark Doliner <mark@meebo.com>
+	* Add a note to sm.xml that our Berkeley DB storage module doesn't
+	  support the roster maxitems or offline quota limits.
+
 2008-07-04 Mark Doliner <mark@meebo.com>
 	* Fix a potential memory leak when attempting to read from a socket that
 	  has been closed.

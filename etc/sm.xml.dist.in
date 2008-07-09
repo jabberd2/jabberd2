@@ -148,7 +148,9 @@
       <transactions/>
     </pgsql>
 
-    <!-- Berkeley DB driver configuration -->
+    <!-- Berkeley DB driver configuration.  This does not support roster
+         maxitems or offline userquota (because the mod_roster
+         implementation does not implement the 'count' callback). -->
     <db>
       <!-- Directory to store database files under -->
       <path>@localstatedir@/jabberd/db</path>
