@@ -270,7 +270,8 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
     _sx_sasl_t ctx = (_sx_sasl_t) p->private;
     char *buf = NULL, *out = NULL, *realm = NULL, *ext_id;
     char hostname[256];
-    int buflen, outlen, ret, i;
+    int ret, i;
+    size_t buflen, outlen;
 
     if(mech != NULL) {
         _sx_debug(ZONE, "auth request from client (mechanism=%s)", mech);
@@ -335,7 +336,7 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
             gsasl_base64_from(in, inlen, &buf, &buflen);
         }
 
-        ret = gsasl_step(sd, buf, buflen, &out, (size_t *) &outlen);
+        ret = gsasl_step(sd, buf, buflen, &out, &outlen);
         if(ret != GSASL_OK && ret != GSASL_NEEDS_MORE) {
             _sx_debug(ZONE, "gsasl_step failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
             _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_MALFORMED_REQUEST), 0);
@@ -355,7 +356,7 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
             return;
         }
         _sx_debug(ZONE, "response from client (decoded: %.*s)", buflen, buf);
-        ret = gsasl_step(sd, buf, buflen, &out, (size_t *) &outlen);
+        ret = gsasl_step(sd, buf, buflen, &out, &outlen);
     }
 
     if(buf != NULL) free(buf);
@@ -404,7 +405,8 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
 /** process handshake packets from the server */
 static void _sx_sasl_server_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, char *in, int inlen) {
     char *buf, *out;
-    int buflen, outlen, ret;
+    size_t buflen, outlen;
+    int ret;
 
     _sx_debug(ZONE, "data from client");
 
@@ -413,7 +415,7 @@ static void _sx_sasl_server_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
     _sx_debug(ZONE, "decoded data: %.*s", buflen, buf);
 
     /* process the data */
-    ret = gsasl_step(sd, buf, buflen, &out, (size_t *) &outlen);
+    ret = gsasl_step(sd, buf, buflen, &out, &outlen);
     if(buf != NULL) free(buf);
 
     /* in progress */
@@ -721,7 +723,8 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, c
     Gsasl_session *sd;
     char *buf, *out;
     char hostname[256];
-    int ret, buflen, outlen, ns;
+    int ret, ns;
+    size_t buflen, outlen;
     nad_t nad;
 
     assert((p != NULL));
@@ -757,7 +760,7 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, c
     gsasl_property_set(sd, GSASL_HOSTNAME, hostname);
 
     /* handshake step */
-    ret = gsasl_step(sd, NULL, 0, &out, (size_t *) &outlen);
+    ret = gsasl_step(sd, NULL, 0, &out, &outlen);
     if(ret != GSASL_OK && ret != GSASL_NEEDS_MORE) {
         _sx_debug(ZONE, "gsasl_step failed, not authing; (%d): %s", ret, gsasl_strerror(ret));
 
