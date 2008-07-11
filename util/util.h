@@ -267,9 +267,26 @@ typedef struct rate_st
 JABBERD2_API rate_t      rate_new(int total, int seconds, int wait);
 JABBERD2_API void        rate_free(rate_t rt);
 JABBERD2_API void        rate_reset(rate_t rt);
+
+/**
+ * Add a number of events to the counter.  This takes care of moving
+ * the sliding window, if we've moved outside the previous window.
+ */
 JABBERD2_API void        rate_add(rate_t rt, int count);
+
+/**
+ * @return The amount of events we have left before we hit the rate
+ *         limit.  This could be number of bytes, or number of
+ *         connection attempts, etc.
+ */
 JABBERD2_API int         rate_left(rate_t rt);
-JABBERD2_API int         rate_check(rate_t rt);          /* 1 == good, 0 == bad */
+
+/**
+ * @return 1 if we're under the rate limit and everything is fine or
+ *         0 if the rate limit has been exceeded and we should throttle
+ *         something.
+ */
+JABBERD2_API int         rate_check(rate_t rt);
 
 /*
  * helpers for ip addresses

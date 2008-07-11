@@ -47,15 +47,23 @@ void rate_reset(rate_t rt)
 
 void rate_add(rate_t rt, int count)
 {
+    time_t now;
+
+    now = time(NULL);
+
+    /* rate expired */
+    if(now - rt->time >= rt->seconds)
+        rate_reset(rt);
+
     rt->count += count;
 
     /* first event, so set the time */
     if(rt->time == 0)
-        rt->time = time(NULL);
+        rt->time = now;
 
     /* uhoh, they stuffed up */
     if(rt->count >= rt->total)
-        rt->bad = time(NULL);
+        rt->bad = now;
 }
 
 int rate_left(rate_t rt)
@@ -69,8 +77,6 @@ int rate_left(rate_t rt)
 
 int rate_check(rate_t rt)
 {
-    time_t now;
-
     /* not tracking */
     if(rt->time == 0)
         return 1;
@@ -79,13 +85,11 @@ int rate_check(rate_t rt)
     if(rt->count < rt->total)
         return 1;
 
-    now = time(NULL);
-
     /* currently bad */
     if(rt->bad != 0)
     {
         /* wait over, they're good again */
-        if(now - rt->bad >= rt->wait)
+        if(time(NULL) - rt->bad >= rt->wait)
         {
             rate_reset(rt);
             return 1;
@@ -93,13 +97,6 @@ int rate_check(rate_t rt)
 
         /* keep them waiting */
         return 0;
-    }
-
-    /* rate expired */
-    if(now - rt->time >= rt->seconds)
-    {
-        rate_reset(rt);
-        return 1;
     }
 
     /* they're inside the time, and not bad yet */

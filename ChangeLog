@@ -1,3 +1,8 @@
+2008-07-11 Mark Doliner <mark@meebo.com>
+	* Fix c2s's byte rate limiting.
+	* Make c2s's connection rate limiting and router's byte rate limiting
+	  work better.
+
 2008-07-09 Mark Doliner <mark@meebo.com>
 	* Add a note to sm.xml that our Berkeley DB storage module doesn't
 	  support the roster maxitems or offline quota limits.

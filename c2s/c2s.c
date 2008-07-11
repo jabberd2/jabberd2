@@ -58,10 +58,13 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                         sess->rate_log = 1;
                     }
 
-                    log_debug(ZONE, "%d is throttled, delaying read", sess->fd->fd);
+                    log_write(sess->c2s->log, LOG_NOTICE, "%d is throttled, disconnecting", sess->fd->fd);
 
-                    buf->len = 0;
-                    return 0;
+                    /* Disconnect the user.  Ideally we would just stop
+                       reading from their socket until the throttle time
+                       expires.  But that's difficult. */
+                    sx_kill(s);
+                    return -1;
                 }
 
                 /* find out how much we can have */
@@ -70,8 +73,16 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                     rlen = buf->len;
             }
 
+            /* no limit, just read as much as we can */
+            else
+                rlen = buf->len;
+
             /* do the read */
-            len = recv(sess->fd->fd, buf->data, buf->len, 0);
+            len = recv(sess->fd->fd, buf->data, rlen, 0);
+
+            /* update rate limits */
+            if(sess->rate != NULL)
+                rate_add(sess->rate, len);
 
             if(len < 0) {
                 if(MIO_WOULDBLOCK) {
