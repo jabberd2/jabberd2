@@ -156,7 +156,7 @@ static void _s2s_config_expand(s2s_t s2s) {
         s2s->lookup_nsrv = elem->nvalues;
     }
 
-    s2s->resolve_aaaa = config_count(s2s->config, "lookup.ipv6") ? 1 : 0;
+    s2s->resolve_aaaa = config_count(s2s->config, "lookup.resolve-ipv6") ? 1 : 0;
     s2s->dns_cache_enabled = config_count(s2s->config, "lookup.no-cache") ? 0 : 1;
     s2s->dns_bad_timeout = j_atoi(config_get_one(s2s->config, "lookup.bad-host-timeout", 0), 3600);
     s2s->dns_min_ttl = j_atoi(config_get_one(s2s->config, "lookup.min-ttl", 0), 30);
