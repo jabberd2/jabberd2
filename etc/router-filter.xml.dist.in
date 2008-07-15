@@ -21,7 +21,7 @@
 
   <!-- don't allow msn registrations, but... -->
   <!-- <rule from="dearhart@example.org" to="msn.example.org"/> -->
-  <!-- <rule error="not-allowed" from="*" to="msn.example.org" what="iq/query?xmlns=jabber:x:register"/> -->
+  <!-- <rule error="not-allowed" from="*" to="msn.example.org" what="iq/query?xmlns=jabber:iq:register"/> -->
 
   <!-- this user should not talk with evil -->
   <!-- <rule error="not-allowed" from="user@example.org" to="*@evil.gov" what="message"/> -->
