@@ -113,7 +113,7 @@ static int _template_roster_reload(template_roster_t tr) {
         
         item = (item_t) pmalloco(xhash_pool(tr->items), sizeof(struct item_st));
 
-        item->jid = jid_new(tr->sm->pc, NAD_AVAL(nad, ajid), NAD_AVAL_L(nad, ajid));
+        item->jid = jid_new(NAD_AVAL(nad, ajid), NAD_AVAL_L(nad, ajid));
         if(item->jid == NULL) {
             log_write(tr->sm->log, LOG_ERR, "roster template has item with invalid jid, skipping");
             continue;

@@ -35,30 +35,11 @@
 #ifndef INCL_UTIL_JID_H
 #define INCL_UTIL_JID_H 1
 
-/** preparation cache, for speed */
-typedef struct prep_cache_st {
-    xht             node;
-    xht             domain;
-    xht             resource;
-} *prep_cache_t;
-
-JABBERD2_API prep_cache_t    prep_cache_new(void);
-JABBERD2_API void            prep_cache_free(prep_cache_t pc);
-JABBERD2_API char            *prep_cache_node_get(prep_cache_t pc, char *from);
-JABBERD2_API void            prep_cache_node_set(prep_cache_t pc, char *from, char *to);
-JABBERD2_API char            *prep_cache_domain_get(prep_cache_t pc, char *from);
-JABBERD2_API void            prep_cache_domain_set(prep_cache_t pc, char *from, char *to);
-JABBERD2_API char            *prep_cache_resource_get(prep_cache_t pc, char *from);
-JABBERD2_API void            prep_cache_resource_set(prep_cache_t pc, char *from, char *to);
-
 /** these sizings come from xmpp-core */
 #define MAXLEN_JID_COMP  1023    /* XMPP (RFC3920) 3.1 */
 #define MAXLEN_JID       3071    /* nodename (1023) + '@' + domain (1023) + '/' + resource (1023) = 3071 */
 
 typedef struct jid_st {
-    /* cache for prep, if any */
-    prep_cache_t    pc;
-
     /* basic components of the jid */
     unsigned char   *node;
     unsigned char   *domain;
@@ -96,7 +77,7 @@ typedef enum {
 typedef char jid_static_buf[3*1025];
 
 /** make a new jid, and call jid_reset() to populate it */
-JABBERD2_API jid_t               jid_new(prep_cache_t pc, const unsigned char *id, int len);
+JABBERD2_API jid_t               jid_new(const unsigned char *id, int len);
 
 /** Make jid to use static buffer (jid data won't be allocated dynamically, but
  * given buffer will be always used. */

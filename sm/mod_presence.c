@@ -183,7 +183,7 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     if(mod->init) return 0;
 
     /* store sm jid for use when answering probes */
-    mod->private = jid_new(mod->mm->sm->pc, mod->mm->sm->id, -1);
+    mod->private = jid_new(mod->mm->sm->id, -1);
 
     mod->in_sess = _presence_in_sess;
     mod->in_router = _presence_in_router;

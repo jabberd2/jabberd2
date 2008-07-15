@@ -143,7 +143,7 @@ static void _router_process_bind(component_t comp, nad_t nad) {
     char *user, *c;
 
     attr = nad_find_attr(nad, 0, -1, "name", NULL);
-    if(attr < 0 || (name = jid_new(comp->r->pc, NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
+    if(attr < 0 || (name = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
         log_debug(ZONE, "no or invalid 'name' on bind packet, bouncing");
         nad_set_attr(nad, 0, -1, "error", "400", 3);
         sx_nad_write(comp->s, nad);
@@ -266,7 +266,7 @@ static void _router_process_unbind(component_t comp, nad_t nad) {
     jid_t name;
 
     attr = nad_find_attr(nad, 0, -1, "name", NULL);
-    if(attr < 0 || (name = jid_new(comp->r->pc, NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
+    if(attr < 0 || (name = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
         log_debug(ZONE, "no or invalid 'name' on unbind packet, bouncing");
         nad_set_attr(nad, 0, -1, "error", "400", 3);
         sx_nad_write(comp->s, nad);
@@ -364,7 +364,6 @@ static void _router_process_route(component_t comp, nad_t nad) {
     ato = nad_find_attr(nad, 0, -1, "to", NULL);
     afrom = nad_find_attr(nad, 0, -1, "from", NULL);
 
-    sto.pc = sfrom.pc = comp->r->pc;
     if(ato >= 0) to = jid_reset(&sto, NAD_AVAL(nad, ato), NAD_AVAL_L(nad, ato));
     if(afrom >= 0) from = jid_reset(&sfrom, NAD_AVAL(nad, afrom), NAD_AVAL_L(nad, afrom));
 
@@ -712,8 +711,6 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             /* legacy processing */
             if(comp->legacy) {
                 log_debug(ZONE, "packet from legacy component, munging it");
-
-                sto.pc = sfrom.pc = comp->r->pc;
 
                 attr = nad_find_attr(nad, 0, -1, "to", NULL);
                 if(attr < 0 || (to = jid_reset(&sto, NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {

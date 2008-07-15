@@ -86,7 +86,7 @@ static mod_ret_t _session_in_router(mod_instance_t mi, pkt_t pkt) {
 
         /* session start */
         if(pkt->type == pkt_SESS) {
-            jid = jid_new(sm->pc, NAD_AVAL(pkt->nad, attr), NAD_AVAL_L(pkt->nad, attr));
+            jid = jid_new(NAD_AVAL(pkt->nad, attr), NAD_AVAL_L(pkt->nad, attr));
 
             if(jid != NULL)
                 sess = sess_start(sm, jid);
@@ -126,7 +126,7 @@ static mod_ret_t _session_in_router(mod_instance_t mi, pkt_t pkt) {
 
         /* user create */
         if(pkt->type == pkt_SESS_CREATE) {
-            jid = jid_new(sm->pc, NAD_AVAL(pkt->nad, attr), NAD_AVAL_L(pkt->nad, attr));
+            jid = jid_new(NAD_AVAL(pkt->nad, attr), NAD_AVAL_L(pkt->nad, attr));
 
             if(jid == NULL || user_create(sm, jid) != 0) {
                 nad_set_attr(pkt->nad, 1, ns, "failed", "1", 1);
@@ -153,7 +153,7 @@ static mod_ret_t _session_in_router(mod_instance_t mi, pkt_t pkt) {
 
         /* user delete */
         if(pkt->type == pkt_SESS_DELETE) {
-            jid = jid_new(sm->pc, NAD_AVAL(pkt->nad, attr), NAD_AVAL_L(pkt->nad, attr));
+            jid = jid_new(NAD_AVAL(pkt->nad, attr), NAD_AVAL_L(pkt->nad, attr));
             if(jid == NULL) {
                 pkt_free(pkt);
                 return mod_HANDLED;

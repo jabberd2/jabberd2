@@ -34,8 +34,6 @@ typedef struct drvdata_st {
 
     char *prefix;
 
-    xht filters;
-
     int txn;
 } *drvdata_t;
 
@@ -139,23 +137,13 @@ static void _st_mysql_convert_filter_recursive(st_driver_t drv, st_filter_t f, c
 }
 
 static char *_st_mysql_convert_filter(st_driver_t drv, const char *owner, const char *filter) {
-    drvdata_t data = (drvdata_t) drv->private;
-    char *buf = NULL, *sbuf = NULL, *cfilter;
-    int buflen = 0, nbuf = 0, fbuf;
+    char *buf = NULL;
+    int buflen = 0, nbuf = 0;
     st_filter_t f;
 
     MYSQL_SAFE(buf, 23 + strlen(owner), buflen);
 
     nbuf = sprintf(buf, "`collection-owner` = '%s'", owner);
-
-    sbuf = xhash_get(data->filters, filter);
-    if(sbuf != NULL) {
-        MYSQL_SAFE(buf, buflen + strlen(sbuf) + 5, buflen);
-        nbuf += sprintf(&buf[nbuf], " AND %s", sbuf);
-        return buf;
-    }
-
-    cfilter = pstrdup(xhash_pool(data->filters), filter);
 
     f = storage_filter(filter);
     if(f == NULL)
@@ -164,11 +152,7 @@ static char *_st_mysql_convert_filter(st_driver_t drv, const char *owner, const 
     MYSQL_SAFE(buf, buflen + 5, buflen);
     nbuf += sprintf(&buf[nbuf], " AND ");
 
-    fbuf = nbuf;
-
     _st_mysql_convert_filter_recursive(drv, f, &buf, &buflen, &nbuf);
-
-    xhash_put(data->filters, cfilter, pstrdup(xhash_pool(data->filters), &buf[fbuf]));
 
     pool_free(f->p);
 
@@ -591,8 +575,6 @@ static void _st_mysql_free(st_driver_t drv) {
 
     mysql_close(data->conn);
 
-    xhash_free(data->filters);
-
     free(data);
 }
 
@@ -634,8 +616,6 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv) {
     data = (drvdata_t) calloc(1, sizeof(struct drvdata_st));
 
     data->conn = conn;
-
-    data->filters = xhash_new(17);
 
     if(config_get_one(drv->st->sm->config, "storage.mysql.transactions", 0) != NULL)
         data->txn = 1;

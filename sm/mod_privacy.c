@@ -204,7 +204,7 @@ static int _privacy_user_load(mod_instance_t mi, user_t user) {
                     switch(zitem->type) {
 
                         case zebra_JID:
-                            zitem->jid = jid_new(user->sm->pc, str, strlen(str));
+                            zitem->jid = jid_new(str, strlen(str));
                             if(zitem->jid == NULL) {
                                 log_debug(ZONE, "invalid jid '%s' on item, dropping this item", str);
                                 continue;
@@ -756,7 +756,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                 if(jid < 0)
                     return -stanza_err_BAD_REQUEST;
 
-                jidt = jid_new(sess->user->sm->pc, NAD_AVAL(pkt->nad, jid), NAD_AVAL_L(pkt->nad, jid));
+                jidt = jid_new(NAD_AVAL(pkt->nad, jid), NAD_AVAL_L(pkt->nad, jid));
                 if(jidt == NULL)
                     return -stanza_err_BAD_REQUEST;
 
@@ -786,7 +786,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                         zitem = (zebra_item_t) pmalloco(zlist->p, sizeof(struct zebra_item_st));
                         zitem->type = zebra_JID;
 
-                        zitem->jid = jid_new(sess->user->sm->pc, NAD_AVAL(pkt->nad, jid), NAD_AVAL_L(pkt->nad, jid));
+                        zitem->jid = jid_new(NAD_AVAL(pkt->nad, jid), NAD_AVAL_L(pkt->nad, jid));
                         pool_cleanup(zlist->p, (void *) jid_free, zitem->jid);
                         zitem->deny = 1;
                         zitem->block = block_NONE;
@@ -976,7 +976,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                     if(NAD_AVAL_L(pkt->nad, type) == 3 && strncmp("jid", NAD_AVAL(pkt->nad, type), 3) == 0) {
                         zitem->type = zebra_JID;
 
-                        zitem->jid = jid_new(mod->mm->sm->pc, NAD_AVAL(pkt->nad, value), NAD_AVAL_L(pkt->nad, value));
+                        zitem->jid = jid_new(NAD_AVAL(pkt->nad, value), NAD_AVAL_L(pkt->nad, value));
                         if(zitem->jid == NULL) {
                             log_debug(ZONE, "invalid jid '%.*s', failing request", NAD_AVAL_L(pkt->nad, value), NAD_AVAL(pkt->nad, value));
                             pool_free(p);

@@ -381,8 +381,6 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
 
     r->conn_rates = xhash_new(101);
 
-    r->pc = prep_cache_new();
-
     r->components = xhash_new(101);
     r->routes = xhash_new(101);
 
@@ -506,8 +504,6 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
     filter_unload(r);
 
     sx_env_free(r->sx_env);
-
-    prep_cache_free(r->pc);
 
     mio_free(r->mio);
 

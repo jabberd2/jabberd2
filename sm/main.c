@@ -262,8 +262,6 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
 
     sm_signature(sm, PACKAGE " sm " VERSION);
 
-    sm->pc = prep_cache_new();
-
     /* start storage */
     sm->st = storage_new(sm);
     if (sm->st == NULL) {
@@ -398,8 +396,6 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
     sx_free(sm->router);
 
     sx_env_free(sm->sx_env);
-
-    prep_cache_free(sm->pc);
 
     log_free(sm->log);
 

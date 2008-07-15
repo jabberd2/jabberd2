@@ -99,7 +99,7 @@ static mod_ret_t _disco_publish_pkt_user(mod_instance_t mi, user_t user, pkt_t p
         di = (disco_item_t) calloc(1, sizeof(struct disco_item_st));
 
         /* jid */
-        di->jid = jid_new(mod->mm->sm->pc, NAD_AVAL(pkt->nad, attr), NAD_AVAL_L(pkt->nad, attr));
+        di->jid = jid_new(NAD_AVAL(pkt->nad, attr), NAD_AVAL_L(pkt->nad, attr));
 
         /* name */
         attr = nad_find_attr(pkt->nad, elem, -1, "name", NULL);
@@ -274,7 +274,7 @@ static int _disco_publish_user_load(mod_instance_t mi, user_t user) {
             if(os_object_get_str(os, o, "jid", &str)) {
                 di = (disco_item_t) calloc(1, sizeof(struct disco_item_st));
 
-                di->jid = jid_new(mod->mm->sm->pc, str, -1);
+                di->jid = jid_new(str, -1);
 
                 if(os_object_get_str(os, o, "name", &str))
                     strncpy(di->name, str, 256);

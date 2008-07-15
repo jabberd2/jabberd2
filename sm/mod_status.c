@@ -237,7 +237,7 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     tr->sm = mod->mm->sm;
     tr->resource = config_get_one(mod->mm->sm->config, "status.resource", 0);
     if(tr->resource) {
-        tr->jid = jid_new(mod->mm->sm->pc, mod->mm->sm->id, -1);
+        tr->jid = jid_new(mod->mm->sm->id, -1);
         tr->jid = jid_reset_components(tr->jid, tr->jid->node, tr->jid->domain, tr->resource);
     }
 

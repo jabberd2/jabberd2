@@ -237,7 +237,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
             /* resource bind */
             if((ns = nad_find_scoped_namespace(nad, uri_BIND, NULL)) >= 0 && (elem = nad_find_elem(nad, 0, ns, "bind", 1)) >= 0 && nad_find_attr(nad, 0, -1, "type", "set") >= 0) {
                 bres_t bres;
-                jid_t jid = jid_new(sess->c2s->pc, sess->s->auth_id, -1);
+                jid_t jid = jid_new(sess->s->auth_id, -1);
 
                 /* get the resource */
                 elem = nad_find_elem(nad, elem, ns, "resource", 1);
@@ -983,7 +983,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 }
 
                 /* build temporary resource to close session for */
-                jid = jid_new(sess->c2s->pc, sess->s->auth_id, -1);
+                jid = jid_new(sess->s->auth_id, -1);
                 tres = (bres_t) calloc(1, sizeof(struct bres_st));
                 tres->jid = jid;
                 sprintf(tres->c2s_id, "%d", sess->s->tag);

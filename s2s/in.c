@@ -334,14 +334,14 @@ static void _in_result(conn_t in, nad_t nad) {
     time_t now;
 
     attr = nad_find_attr(nad, 0, -1, "from", NULL);
-    if(attr < 0 || (from = jid_new(in->s2s->pc, NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
+    if(attr < 0 || (from = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
         log_debug(ZONE, "missing or invalid from on db result packet");
         nad_free(nad);
         return;
     }
 
     attr = nad_find_attr(nad, 0, -1, "to", NULL);
-    if(attr < 0 || (to = jid_new(in->s2s->pc, NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
+    if(attr < 0 || (to = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
         log_debug(ZONE, "missing or invalid to on db result packet");
         jid_free(from);
         nad_free(nad);
@@ -428,14 +428,14 @@ static void _in_verify(conn_t in, nad_t nad) {
     char *id, *dbkey, *type;
     
     attr = nad_find_attr(nad, 0, -1, "from", NULL);
-    if(attr < 0 || (from = jid_new(in->s2s->pc, NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
+    if(attr < 0 || (from = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
         log_debug(ZONE, "missing or invalid from on db verify packet");
         nad_free(nad);
         return;
     }
 
     attr = nad_find_attr(nad, 0, -1, "to", NULL);
-    if(attr < 0 || (to = jid_new(in->s2s->pc, NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
+    if(attr < 0 || (to = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
         log_debug(ZONE, "missing or invalid to on db verify packet");
         jid_free(from);
         nad_free(nad);
@@ -503,14 +503,14 @@ static void _in_packet(conn_t in, nad_t nad) {
     char *rkey;
     
     attr = nad_find_attr(nad, 0, -1, "from", NULL);
-    if(attr < 0 || (from = jid_new(in->s2s->pc, NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
+    if(attr < 0 || (from = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
         log_debug(ZONE, "missing or invalid from on incoming packet");
         nad_free(nad);
         return;
     }
 
     attr = nad_find_attr(nad, 0, -1, "to", NULL);
-    if(attr < 0 || (to = jid_new(in->s2s->pc, NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
+    if(attr < 0 || (to = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
         log_debug(ZONE, "missing or invalid to on incoming packet");
         jid_free(from);
         nad_free(nad);

@@ -83,13 +83,13 @@ pkt_t pkt_dup(pkt_t pkt, const char *to, const char *from) {
 
     /* set replacement attrs */
     if(to != NULL) {
-        pnew->to = jid_new(pkt->sm->pc, to, -1);
+        pnew->to = jid_new(to, -1);
         nad_set_attr(pnew->nad, 1, -1, "to", jid_full(pnew->to), 0);
     } else if(pkt->to != NULL)
         pnew->to = jid_dup(pkt->to);
 
     if(from != NULL) {
-        pnew->from = jid_new(pkt->sm->pc, from, -1);
+        pnew->from = jid_new(from, -1);
         nad_set_attr(pnew->nad, 1, -1, "from", jid_full(pnew->from), 0);
     } else if(pkt->from != NULL)
         pnew->from = jid_dup(pkt->from);
@@ -123,9 +123,9 @@ pkt_t pkt_new(sm_t sm, nad_t nad) {
     if(NAD_ENAME_L(nad, 0) == 5 && strncmp("route", NAD_ENAME(nad, 0), 5) == 0) {
         /* route element */
         if((attr = nad_find_attr(nad, 0, -1, "to", NULL)) >= 0)
-            pkt->rto = jid_new(sm->pc, NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr));
+            pkt->rto = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr));
         if((attr = nad_find_attr(nad, 0, -1, "from", NULL)) >= 0)
-            pkt->rfrom = jid_new(sm->pc, NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr));
+            pkt->rfrom = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr));
 
         /* route type */
         attr = nad_find_attr(nad, 0, -1, "type", NULL);
@@ -144,9 +144,9 @@ pkt_t pkt_new(sm_t sm, nad_t nad) {
 
             /* get initial addresses */
             if((attr = nad_find_attr(pkt->nad, 1, -1, "to", NULL)) >= 0 && NAD_AVAL_L(pkt->nad, attr) > 0)
-                pkt->to = jid_new(sm->pc, NAD_AVAL(pkt->nad, attr), NAD_AVAL_L(pkt->nad, attr));
+                pkt->to = jid_new(NAD_AVAL(pkt->nad, attr), NAD_AVAL_L(pkt->nad, attr));
             if((attr = nad_find_attr(pkt->nad, 1, -1, "from", NULL)) >= 0 && NAD_AVAL_L(pkt->nad, attr) > 0)
-                pkt->from = jid_new(sm->pc, NAD_AVAL(pkt->nad, attr), NAD_AVAL_L(pkt->nad, attr));
+                pkt->from = jid_new(NAD_AVAL(pkt->nad, attr), NAD_AVAL_L(pkt->nad, attr));
 
             /* find type, if any */
             attr = nad_find_attr(pkt->nad, 1, -1, "type", NULL);
@@ -282,7 +282,7 @@ pkt_t pkt_new(sm_t sm, nad_t nad) {
 
         attr = nad_find_attr(nad, 0, -1, "from", NULL);
         if(attr >= 0)
-            pkt->from = jid_new(sm->pc, NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr));
+            pkt->from = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr));
 
         return pkt;
     }
@@ -373,7 +373,7 @@ void pkt_router(pkt_t pkt) {
 
     if(pkt->rto != NULL)
         jid_free(pkt->rto);
-    pkt->rto = jid_new(pkt->sm->pc, pkt->to->domain, -1);
+    pkt->rto = jid_new(pkt->to->domain, -1);
 
     if(pkt->rto == NULL) {
         log_debug(ZONE, "invalid to address on packet, unable to route");
@@ -385,7 +385,7 @@ void pkt_router(pkt_t pkt) {
 
     if(pkt->rfrom != NULL)
         jid_free(pkt->rfrom);
-    pkt->rfrom = jid_new(pkt->sm->pc, pkt->sm->id, -1);
+    pkt->rfrom = jid_new(pkt->sm->id, -1);
 
     if(pkt->rfrom == NULL) {
         log_debug(ZONE, "invalid from address on packet, unable to route");
@@ -445,7 +445,7 @@ void pkt_sess(pkt_t pkt, sess_t sess) {
 
     if(pkt->rto != NULL)
         jid_free(pkt->rto);
-    pkt->rto = jid_new(pkt->sm->pc, sess->c2s, -1);
+    pkt->rto = jid_new(sess->c2s, -1);
 
     if(pkt->rto == NULL) {
         log_debug(ZONE, "invalid to address on packet, unable to route");
@@ -457,7 +457,7 @@ void pkt_sess(pkt_t pkt, sess_t sess) {
 
     if(pkt->rfrom != NULL)
         jid_free(pkt->rfrom);
-    pkt->rfrom = jid_new(pkt->sm->pc, pkt->sm->id, -1);
+    pkt->rfrom = jid_new(pkt->sm->id, -1);
 
     if(pkt->rfrom == NULL) {
         log_debug(ZONE, "invalid from address on packet, unable to route");

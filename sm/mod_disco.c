@@ -704,7 +704,7 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg)
 
         svc->features = xhash_new(13);
 
-        svc->jid = jid_new(mod->mm->sm->pc, NAD_AVAL(nad, jid), NAD_AVAL_L(nad, jid));
+        svc->jid = jid_new(NAD_AVAL(nad, jid), NAD_AVAL_L(nad, jid));
 
         /* link it in */
         xhash_put(d->stat, jid_full(svc->jid), (void *) svc);

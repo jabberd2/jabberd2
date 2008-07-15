@@ -160,7 +160,7 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     if(mod->init) return 0;
 
     /* store sm/help jid for use when answering probes */
-    hlpjid = jid_new(mod->mm->sm->pc, mod->mm->sm->id, -1);
+    hlpjid = jid_new(mod->mm->sm->id, -1);
     mod->private = jid_reset_components(hlpjid, hlpjid->node, hlpjid->domain, "help");
 
     mod->pkt_sm = _help_pkt_sm;

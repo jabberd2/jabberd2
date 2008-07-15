@@ -236,9 +236,6 @@ struct c2s_st {
     /** maximum stanza size */
     int                 stanza_size_limit;
 
-    /** stringprep cache */
-    prep_cache_t        pc;
-
     /** access controls */
     access_t            access;
 

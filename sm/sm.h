@@ -203,8 +203,6 @@ struct sm_st {
     int                 retry_sleep;        /**< sleep interval between retries */
     int                 retry_left;         /**< number of tries left before failure */
 
-    prep_cache_t        pc;                 /**< cache of stringprep'd ids */
-
     storage_t           st;                 /**< storage subsystem */
 
     mm_t                mm;                 /**< module subsystem */

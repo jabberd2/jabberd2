@@ -403,7 +403,6 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
                 return sx_sasl_ret_FAIL;
 
             /* authzid must be a valid jid */
-            jid.pc = c2s->pc;
             if(jid_reset(&jid, creds->authzid, -1) == NULL)
                 return sx_sasl_ret_FAIL;
 
@@ -429,7 +428,6 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
 
         case sx_sasl_cb_GEN_AUTHZID:
             /* generate a jid for SASL ANONYMOUS */
-            jid.pc = c2s->pc;
             jid_reset(&jid, s->req_to, -1);
 
             /* make node a random string */
@@ -635,8 +633,6 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
         exit(1);
         }
 
-    c2s->pc = prep_cache_new();
-
     c2s->sessions = xhash_new(1023);
 
     c2s->conn_rates = xhash_new(101);
@@ -825,8 +821,6 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     mio_free(c2s->mio);
 
     xhash_free(c2s->sessions);
-
-    prep_cache_free(c2s->pc);
 
     authreg_free(c2s->ar);
 

@@ -61,7 +61,7 @@ xht aci_load(sm_t sm)
         {
             if(NAD_CDATA_L(sm->config->nad, jelem) > 0)
             {
-                jid = jid_new(sm->pc, NAD_CDATA(sm->config->nad, jelem), NAD_CDATA_L(sm->config->nad, jelem));
+                jid = jid_new(NAD_CDATA(sm->config->nad, jelem), NAD_CDATA_L(sm->config->nad, jelem));
                 list = jid_append(list, jid);
                 
                 log_debug(ZONE, "added '%s'", jid_user(jid));

@@ -62,7 +62,7 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     if(mod->init) return 0;
 
     /* store sm/echo jid for use when answering probes */
-    jid = jid_new(mod->mm->sm->pc, mod->mm->sm->id, -1);
+    jid = jid_new(mod->mm->sm->id, -1);
     mod->private = jid_reset_components(jid, jid->node, jid->domain, "echo");
 
     mod->pkt_sm = _echo_pkt_sm;

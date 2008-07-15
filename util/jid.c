@@ -24,107 +24,20 @@
 /** Forward declaration **/
 static jid_t jid_reset_components_internal(jid_t jid, const unsigned char *node, const unsigned char *domain, const unsigned char *resource, int prepare);
 
-/** preparation cache */
-prep_cache_t prep_cache_new(void) {
-    prep_cache_t pc;
-
-    pc = (prep_cache_t) calloc(1, sizeof(struct prep_cache_st));
-
-    pc->node = xhash_new(301);
-    pc->domain = xhash_new(301);
-    pc->resource = xhash_new(301);
-
-    return pc;
-}
-
-void prep_cache_free(prep_cache_t pc) {
-    xhash_free(pc->node);
-    xhash_free(pc->domain);
-    xhash_free(pc->resource);
-    free(pc);
-}
-
-char *prep_cache_node_get(prep_cache_t pc, char *from) {
-    return (char *) xhash_get(pc->node, from);
-}
-
-void prep_cache_node_set(prep_cache_t pc, char *from, char *to) {
-    xhash_put(pc->node, pstrdup(xhash_pool(pc->node), from), (void *) pstrdup(xhash_pool(pc->node), to));
-}
-
-char *prep_cache_domain_get(prep_cache_t pc, char *from) {
-    return (char *) xhash_get(pc->domain, from);
-}
-
-void prep_cache_domain_set(prep_cache_t pc, char *from, char *to) {
-    xhash_put(pc->domain, pstrdup(xhash_pool(pc->domain), from), (void *) pstrdup(xhash_pool(pc->domain), to));
-}
-
-char *prep_cache_resource_get(prep_cache_t pc, char *from) {
-    return (char *) xhash_get(pc->resource, from);
-}
-
-void prep_cache_resource_set(prep_cache_t pc, char *from, char *to) {
-    xhash_put(pc->resource, pstrdup(xhash_pool(pc->resource), from), (void *) pstrdup(xhash_pool(pc->resource), to));
-}
-
 /** do stringprep on the pieces */
-static int jid_prep_pieces(prep_cache_t pc, char *node, char *domain, char *resource) {
+static int jid_prep_pieces(char *node, char *domain, char *resource) {
     char str[1024], *prep;
 
-    /* no cache, so do a real prep */
-    if(pc == NULL) {
-        if(node[0] != '\0')
-            if(stringprep_xmpp_nodeprep(node, 1024) != 0)
-                return 1;
-
-        if(stringprep_nameprep(domain, 1024) != 0)
+    if(node[0] != '\0')
+        if(stringprep_xmpp_nodeprep(node, 1024) != 0)
             return 1;
 
-        if(resource[0] != '\0')
-            if(stringprep_xmpp_resourceprep(resource, 1024) != 0)
-                return 1;
+    if(stringprep_nameprep(domain, 1024) != 0)
+        return 1;
 
-        return 0;
-    }
-
-    /* cache version */
-    if(node[0] != '\0') {
-        strcpy(str, node);
-        prep = prep_cache_node_get(pc, str);
-        if(prep != NULL)
-            strcpy(node, prep);
-        else {
-            if(stringprep_xmpp_nodeprep(str, 1024) != 0)
-                return 1;
-            prep_cache_node_set(pc, node, str);
-            strcpy(node, str);
-        }
-    }
-
-    strcpy(str, domain);
-    prep = prep_cache_domain_get(pc, str);
-    if(prep != NULL)
-        strcpy(domain, prep);
-    else {
-        if(stringprep_nameprep(str, 1024) != 0)
+    if(resource[0] != '\0')
+        if(stringprep_xmpp_resourceprep(resource, 1024) != 0)
             return 1;
-        prep_cache_domain_set(pc, domain, str);
-        strcpy(domain, str);
-    }
-
-    if(resource[0] != '\0') {
-        strcpy(str, resource);
-        prep = prep_cache_resource_get(pc, str);
-        if(prep != NULL)
-            strcpy(resource, prep);
-        else {
-            if(stringprep_xmpp_resourceprep(str, 1024) != 0)
-                return 1;
-            prep_cache_resource_set(pc, resource, str);
-            strcpy(resource, str);
-        }
-    }
 
     return 0;
 }
@@ -157,7 +70,7 @@ int jid_prep(jid_t jid)
     else
         resource[0] = '\0';
 
-    if(jid_prep_pieces(jid->pc, node, domain, resource) != 0)
+    if(jid_prep_pieces(node, domain, resource) != 0)
         return 1;
 
     /* put prepared components into jid */
@@ -167,11 +80,10 @@ int jid_prep(jid_t jid)
 }
 
 /** make a new jid */
-jid_t jid_new(prep_cache_t pc, const unsigned char *id, int len) {
+jid_t jid_new(const unsigned char *id, int len) {
     jid_t jid, ret;
 
     jid = malloc(sizeof(struct jid_st));
-    jid->pc = pc;
     jid->jid_data = NULL;
 
     ret = jid_reset(jid, id, len);
@@ -201,12 +113,10 @@ void jid_static(jid_t jid, jid_static_buf *buf)
 
 /** build a jid from an id */
 jid_t jid_reset(jid_t jid, const unsigned char *id, int len) {
-    prep_cache_t pc;
     unsigned char *myid, *cur, *olddata=NULL;
 
     assert((int) (jid != NULL));
 
-    pc = jid->pc;
     if (jid->jid_data != NULL) {
         if(jid->jid_data_len != 0)
             free(jid->jid_data);
@@ -215,7 +125,6 @@ jid_t jid_reset(jid_t jid, const unsigned char *id, int len) {
     }
     memset(jid, 0, sizeof(struct jid_st));
     jid->dirty = 1;
-    jid->pc = pc;
     jid->node = "";
     jid->domain = "";
     jid->resource = "";
@@ -290,7 +199,6 @@ jid_t jid_reset(jid_t jid, const unsigned char *id, int len) {
 
 /** build a jid from components - internal version */
 static jid_t jid_reset_components_internal(jid_t jid, const unsigned char *node, const unsigned char *domain, const unsigned char *resource, int prepare) {
-    prep_cache_t pc;
     unsigned char *olddata=NULL;
     int node_l,domain_l,resource_l;
     int dataStatic;
@@ -298,7 +206,6 @@ static jid_t jid_reset_components_internal(jid_t jid, const unsigned char *node,
 
     assert((int) (jid != NULL));
 
-    pc = jid->pc;
     if(jid->jid_data != NULL)
         olddata = jid->jid_data; /* Store old data before clearing JID */
 
@@ -308,7 +215,6 @@ static jid_t jid_reset_components_internal(jid_t jid, const unsigned char *node,
     free(jid->_full);
 
     memset(jid, 0, sizeof(struct jid_st));
-    jid->pc = pc;
 
     /* get lengths */
     node_l = strlen(node);

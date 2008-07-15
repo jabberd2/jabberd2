@@ -329,9 +329,9 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
 
     data->index = mod->index;
 
-    jid = jid_new(mod->mm->sm->pc, mod->mm->sm->id, -1);
+    jid = jid_new(mod->mm->sm->id, -1);
     data->announcejid = jid_reset_components(jid, jid->node, jid->domain, "announce");
-    jid = jid_new(mod->mm->sm->pc, mod->mm->sm->id, -1);
+    jid = jid_new(mod->mm->sm->id, -1);
     data->onlinejid = jid_reset_components(jid, jid->node, jid->domain, "announce/online");
 
     mod->in_sess = _announce_in_sess;

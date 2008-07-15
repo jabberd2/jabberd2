@@ -182,7 +182,7 @@ static mod_ret_t _roster_in_sess_s10n(mod_instance_t mi, sess_t sess, pkt_t pkt)
     if(pkt->from != NULL)
         jid_free(pkt->from);
 
-    pkt->from = jid_new(mod->mm->sm->pc, jid_user(sess->jid), -1);
+    pkt->from = jid_new(jid_user(sess->jid), -1);
     nad_set_attr(pkt->nad, 1, -1, "from", jid_full(pkt->from), 0);
 
     /* see if they're already on the roster */
@@ -280,7 +280,7 @@ static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi
 
     /* extract the jid */
     attr = nad_find_attr(pkt->nad, elem, -1, "jid", NULL);
-    jid = jid_new(pkt->sm->pc, NAD_AVAL(pkt->nad, attr), NAD_AVAL_L(pkt->nad, attr));
+    jid = jid_new(NAD_AVAL(pkt->nad, attr), NAD_AVAL_L(pkt->nad, attr));
     if(jid == NULL) {
         log_debug(ZONE, "jid failed prep check, skipping");
         return;
@@ -675,7 +675,7 @@ static int _roster_user_load(mod_instance_t mi, user_t user) {
                     /* new one */
                     item = (item_t) calloc(1, sizeof(struct item_st));
 
-                    item->jid = jid_new(mi->mod->mm->sm->pc, str, -1);
+                    item->jid = jid_new(str, -1);
                     if(item->jid == NULL) {
                         log_debug(ZONE, "eek! invalid jid %s, skipping it", str);
                         free(item);

@@ -157,9 +157,6 @@ struct s2s_st {
     time_t              next_check;
     time_t              next_expiry;
 
-    /** stringprep cache */
-    prep_cache_t        pc;
-
     /** list of sx_t on the way out */
     jqueue_t            dead;
 

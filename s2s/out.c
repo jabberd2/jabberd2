@@ -1489,14 +1489,14 @@ static void _out_result(conn_t out, nad_t nad) {
     char *rkey;
 
     attr = nad_find_attr(nad, 0, -1, "from", NULL);
-    if(attr < 0 || (from = jid_new(out->s2s->pc, NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
+    if(attr < 0 || (from = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
         log_debug(ZONE, "missing or invalid from on db result packet");
         nad_free(nad);
         return;
     }
 
     attr = nad_find_attr(nad, 0, -1, "to", NULL);
-    if(attr < 0 || (to = jid_new(out->s2s->pc, NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
+    if(attr < 0 || (to = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
         log_debug(ZONE, "missing or invalid to on db result packet");
         jid_free(from);
         nad_free(nad);
@@ -1558,14 +1558,14 @@ static void _out_verify(conn_t out, nad_t nad) {
     int valid;
     
     attr = nad_find_attr(nad, 0, -1, "from", NULL);
-    if(attr < 0 || (from = jid_new(out->s2s->pc, NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
+    if(attr < 0 || (from = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
         log_debug(ZONE, "missing or invalid from on db verify packet");
         nad_free(nad);
         return;
     }
 
     attr = nad_find_attr(nad, 0, -1, "to", NULL);
-    if(attr < 0 || (to = jid_new(out->s2s->pc, NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
+    if(attr < 0 || (to = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
         log_debug(ZONE, "missing or invalid to on db verify packet");
         jid_free(from);
         nad_free(nad);

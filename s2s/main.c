@@ -676,8 +676,6 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
     s2s->dnscache = xhash_new(401);
     s2s->dns_bad = xhash_new(401);
 
-    s2s->pc = prep_cache_new();
-
     s2s->dead = jqueue_new();
     s2s->dead_conn = jqueue_new();
 
@@ -924,8 +922,6 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
     xhash_free(s2s->dnscache);
     xhash_free(s2s->dns_bad);
     xhash_free(s2s->hosts);
-
-    prep_cache_free(s2s->pc);
 
     jqueue_free(s2s->dead);
     jqueue_free(s2s->dead_conn);

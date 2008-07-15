@@ -124,10 +124,7 @@ struct router_st {
     int                 check_keepalive;
 
     time_t              next_check;
-                       
-    /** stringprep cache */
-    prep_cache_t        pc;
-    
+
     /** attached components, key is 'ip:port', var is component_t */
     xht                 components;
 

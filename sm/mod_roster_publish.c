@@ -233,7 +233,7 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                         /* check that published item exists in sm database */
                         checksm=0;
                         if( jid ) jid_free(jid);
-                        jid = jid_new(user->sm->pc, str, -1);
+                        jid = jid_new(str, -1);
                         if( roster_publish->removedomain ) {
                             if( strcmp(jid->domain,roster_publish->removedomain) == 0 ) {
                                 checksm = 1;
@@ -306,7 +306,7 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                             log_debug(ZONE, "user has no %s in roster, adding", jid_user(jid));
                             item = (item_t) calloc(1, sizeof(struct item_st));
 
-                            item->jid = jid_new(mi->mod->mm->sm->pc, jid_user(jid), -1);
+                            item->jid = jid_new(jid_user(jid), -1);
                             if(item->jid == NULL) {
                                 log_debug(ZONE, "eek! invalid jid %s, skipping it", jid_user(jid));
                                 log_write(user->sm->log, LOG_ERR, "roster_publish: eek! invalid jid %s, skipping it", jid_user(jid));

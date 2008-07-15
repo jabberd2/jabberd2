@@ -332,7 +332,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
         sprintf(sess->resources->c2s_id, "%d", sess->s->tag);
 
         /* the full user jid for this session */
-        sess->resources->jid = jid_new(c2s->pc, sess->s->req_to, -1);
+        sess->resources->jid = jid_new(sess->s->req_to, -1);
         jid_reset_components(sess->resources->jid, username, sess->resources->jid->domain, resource);
 
         log_write(sess->c2s->log, LOG_NOTICE, "[%d] requesting session: jid=%s", sess->s->tag, jid_full(sess->resources->jid));
@@ -593,7 +593,7 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
     sprintf(sess->resources->c2s_id, "%d", sess->s->tag);
 
     /* the user jid for this transaction */
-    sess->resources->jid = jid_new(c2s->pc, sess->s->req_to, -1);
+    sess->resources->jid = jid_new(sess->s->req_to, -1);
     jid_reset_components(sess->resources->jid, username, sess->resources->jid->domain, sess->resources->jid->resource);
 
     log_write(c2s->log, LOG_NOTICE, "[%d] registration succeeded, requesting user creation: jid=%s", sess->s->tag, jid_user(sess->resources->jid));
