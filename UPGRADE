@@ -4,10 +4,16 @@ This file contains upgrade instructions between different versions of jabberd2.
 
 What changed:
 - new ./configure option --without-subst
+- fixed router-filter
+- fixed rate limiting
+- removed "leaking" caches etc.
 
 You may disable the "license unsure" subst/ function replacements library
 with --without-subst. This allows Debian to include jabberd.
-
+Please see example router-filter.xml for additional notes how it works.
+(Please note that filter does not match resources as suggested before.)
+You may now expect rate limiting to actually work.
+Jabberd should now grow memory usage like before, but may eat a bit more CPU power.
 
 * 2.1.24 to 2.2.0 upgrade:
 
