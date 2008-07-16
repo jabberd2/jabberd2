@@ -1,3 +1,12 @@
+2008-07-15 Tomasz Sterna <tomek@xiaoka.com>
+	* Removed jid prep cache and mysql filters cache.
+	  These are known to grow without restrictions causing memory "leak".
+	  Patches by Mark Doliner. Refs #219
+	* Fix in jabber:iq:register example in router-filter.xml
+
+2008-07-14 Tomasz Sterna <tomek@xiaoka.com>
+	* Fix in lookup.resolve-ipv6 in s2s.xml handling
+
 2008-07-11 Mark Doliner <mark@meebo.com>
 	* Fix c2s's byte rate limiting.
 	* Make c2s's connection rate limiting and router's byte rate limiting
@@ -7,10 +16,54 @@
 	* Add a note to sm.xml that our Berkeley DB storage module doesn't
 	  support the roster maxitems or offline quota limits.
 
+2008-07-09 Tomasz Sterna <tomek@xiaoka.com>
+	* Merged pointer size overflow patch. Fixes #231
+
+2008-07-08 Mark Doliner <mark@meebo.com>
+	* Comments and spelling errors fixes
+
 2008-07-04 Mark Doliner <mark@meebo.com>
 	* Fix a potential memory leak when attempting to read from a socket that
 	  has been closed.
 	* Improve the documentation for <max_fds> in the configuration files.
+
+2008-07-01 Tomasz Sterna <tomek@xiaoka.com>
+	* Merged MySQL crypt()ed password full implementation. Closes #228
+
+2008-06-25 Tomasz Sterna <tomek@xiaoka.com>
+	* Note about filter rules order
+
+2008-06-15 Tomasz Sterna <tomek@xiaoka.com>
+	* Added SSL verify-mode note
+
+2008-06-12 Mark Doliner <mark@meebo.com>
+	* Fixed debug message
+	* Re-use DB query the filter instead of recreating it.
+
+2008-06-05 Tomasz Sterna <tomek@xiaoka.com>
+	* Changed order of subdirs building
+
+2008-06-04 Tomasz Sterna <tomek@xiaoka.com>
+	* Added --without-subst option to disable subst/ library building.
+
+2008-06-03 Adam Strzelecki <ono@java.pl>
+	* Fix function names and add some forward declarations for apt_base64_*
+
+2008-05-27 Tomasz Sterna <tomek@xiaoka.com>
+	* Do not bounce s2s error packets
+
+2008-05-26 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed filtered packets error reporting
+	* Changed router-filter example, because resource is not matched
+	* Fixed errors generation on filter drops
+
+2008-05-25 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed base64 lib replacement. Closes #221
+
+2008-05-23 Tomasz Sterna <tomek@xiaoka.com>
+	* Removed obsolete contrib/debian dir
+	* Small fixes in pool handling
+	* Fixes in config files options
 
 2008-05-20 Tomasz Sterna <tomek@xiaoka.com>
 	* Ported apr_base64.c from Apache httpd 2.2.8
