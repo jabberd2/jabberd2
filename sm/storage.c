@@ -103,7 +103,7 @@ st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
 
         /* see if we already have one */
         if(xhash_get(st->types, type) != NULL) {
-            log_debug(ZONE, "we already have a handler for type '%s', ignoring this one");
+            log_debug(ZONE, "we already have a handler for type '%s', ignoring this one", type);
             return st_FAILED;
         }
     }
