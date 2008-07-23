@@ -548,7 +548,14 @@ static void _in_packet(conn_t in, nad_t nad) {
         }
     }
 
-    ns = nad_find_namespace(nad, 0, uri_CLIENT, NULL);
+    /*
+     * If stanza is not in any namespace (either because we removed the
+     * jabber:server namespace above or because it's in the default
+     * namespace for this stream) then this packet is intended to be
+     * handled by sm (and not just routed through the server), so set the
+     * jabber:client namespace.
+     */
+    ns = nad->elems[0].ns;
     if(ns < 0) {
         ns = nad_add_namespace(nad, uri_CLIENT, NULL);
         nad->scope = -1;

@@ -1,8 +1,11 @@
 2008-07-23 Mark Doliner <mark@meebo.com>
-	* Removed scod module
+	* Removed scod module.
 	* Added a maximum stanza limit to c2s.  This can be used to set an
 	  upper limit on the number of individual requests that can be made
 	  in a given window of time.
+	* Fix a bug in s2s where xmlns="jabber:client" would get appended to an
+	  incoming stanza even though the stanza already had an xmlns attribute
+	  set.
 
 2008-07-15 Tomasz Sterna <tomek@xiaoka.com>
 	* Removed jid prep cache and mysql filters cache.
