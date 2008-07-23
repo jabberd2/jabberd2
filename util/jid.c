@@ -26,8 +26,6 @@ static jid_t jid_reset_components_internal(jid_t jid, const unsigned char *node,
 
 /** do stringprep on the pieces */
 static int jid_prep_pieces(char *node, char *domain, char *resource) {
-    char str[1024], *prep;
-
     if(node[0] != '\0')
         if(stringprep_xmpp_nodeprep(node, 1024) != 0)
             return 1;
