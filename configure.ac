@@ -407,10 +407,6 @@ for backend in $sasl_check ; do
                 fi
             fi
             ;;
-
-        x-scod)
-            sasl_backend='scod'
-            ;;
     esac
 done
 
@@ -420,7 +416,6 @@ fi
 
 AM_CONDITIONAL(SASL_GSASL, [test "x-$sasl_backend" = "x-gsasl"])
 AM_CONDITIONAL(SASL_CYRUS, [test "x-$sasl_backend" = "x-cyrus"])
-AM_CONDITIONAL(SASL_SCOD, [test "x-$sasl_backend" = "x-scod"])
 
 #
 # optional libs
@@ -930,7 +925,6 @@ AC_CONFIG_FILES([Doxyfile
                  util/Makefile
                  mio/Makefile
                  sx/Makefile
-                 sx/scod/Makefile
                  storage/Makefile
                  c2s/Makefile
                  router/Makefile

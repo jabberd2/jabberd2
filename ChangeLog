@@ -1,3 +1,6 @@
+2008-07-23 Mark Doliner <mark@meebo.com>
+	* Removed scod module
+
 2008-07-15 Tomasz Sterna <tomek@xiaoka.com>
 	* Removed jid prep cache and mysql filters cache.
 	  These are known to grow without restrictions causing memory "leak".

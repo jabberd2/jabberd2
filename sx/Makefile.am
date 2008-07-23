@@ -14,12 +14,6 @@ if SASL_CYRUS
 libsx_la_SOURCES += sasl_cyrus.c
 endif
 
-if SASL_SCOD
-SUBDIRS += scod
-libsx_la_SOURCES += sasl_scod.c
-libsx_la_LIBADD += scod/libscod.la
-endif
-
 if HAVE_SSL
 libsx_la_SOURCES += ssl.c
 endif
