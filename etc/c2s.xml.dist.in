@@ -204,6 +204,15 @@
            Default Y is 1, default Z is 5. set X to 0 to disable. -->
       <bytes>0</bytes>
 
+      <!-- Maximum number of stanzas per second - if more than X stanzas
+           are sent in Y seconds, connection is throttled for Z seconds.
+           The format is:
+
+             <stanzas seconds='Y' throttle='Z'>X</bytes>
+
+           Default Y 1, default Z is 5. Set X to 0 to disable -->
+      <stanzas>1000</stanzas>
+
       <!-- Maximum connects per second - if more than X connects are
            attempted from a single IP in Y seconds, that IP is throttled
            for Z seconds. The format is:

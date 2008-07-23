@@ -156,6 +156,17 @@ static void _c2s_config_expand(c2s_t c2s)
         }
     }
 
+    elem = config_get(c2s->config, "io.limits.stanzas");
+    if(elem != NULL)
+    {
+        c2s->stanza_rate_total = j_atoi(elem->values[0], 0);
+        if(c2s->stanza_rate_total != 0)
+        {
+            c2s->stanza_rate_seconds = j_atoi(j_attr((const char **) elem->attrs[0], "seconds"), 1);
+            c2s->stanza_rate_wait = j_atoi(j_attr((const char **) elem->attrs[0], "throttle"), 5);
+        }
+    }
+
     elem = config_get(c2s->config, "io.limits.connects");
     if(elem != NULL)
     {

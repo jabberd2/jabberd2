@@ -85,6 +85,9 @@ struct sess_st {
     rate_t              rate;
     int                 rate_log;
 
+    rate_t              stanza_rate;
+    int                 stanza_rate_log;
+
     time_t              last_activity;
     unsigned int        packet_count;
 
@@ -232,6 +235,11 @@ struct c2s_st {
     int                 byte_rate_total;
     int                 byte_rate_seconds;
     int                 byte_rate_wait;
+
+    /** stanza rates */
+    int                 stanza_rate_total;
+    int                 stanza_rate_seconds;
+    int                 stanza_rate_wait;
 
     /** maximum stanza size */
     int                 stanza_size_limit;

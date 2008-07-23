@@ -224,6 +224,34 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
             sess->packet_count++;
             sess->c2s->packet_count++;
 
+            /* check rate limits */
+            if(sess->stanza_rate != NULL) {
+                if(rate_check(sess->stanza_rate) == 0) {
+
+                    /* inform the app if we haven't already */
+                    if(!sess->stanza_rate_log) {
+                        if(s->state >= state_STREAM && sess->resources != NULL)
+                            log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s] is being stanza rate limited", sess->fd->fd, jid_user(sess->resources->jid));
+                        else
+                            log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] is being stanza rate limited", sess->fd->fd, sess->ip, sess->port);
+
+                        sess->stanza_rate_log = 1;
+                    }
+
+                    log_write(sess->c2s->log, LOG_NOTICE, "%d is throttled, disconnecting", sess->fd->fd);
+
+                    /* Disconnect the user.  Ideally we would just stop
+                       reading from their socket and delay processing of this
+                       stanza until the throttle time expires.  But that's
+                       difficult. */
+                    sx_kill(s);
+                    return -1;
+                }
+
+                /* update rate limits */
+                rate_add(sess->stanza_rate, 1);
+            }
+
             nad = (nad_t) data;
 
             /* we only want (message|presence|iq) in jabber:client, everything else gets dropped */
@@ -576,6 +604,9 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
 
             if(c2s->byte_rate_total != 0)
                 sess->rate = rate_new(c2s->byte_rate_total, c2s->byte_rate_seconds, c2s->byte_rate_wait);
+
+            if(c2s->stanza_rate_total != 0)
+                sess->stanza_rate = rate_new(c2s->stanza_rate_total, c2s->stanza_rate_seconds, c2s->stanza_rate_wait);
 
             /* find out which port this is */
             getsockname(fd->fd, (struct sockaddr *) &sa, &namelen);
