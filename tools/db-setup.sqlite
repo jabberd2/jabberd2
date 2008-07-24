@@ -1,7 +1,7 @@
 --
 -- This is the required schema for sqlite.
 --
---     sqlite3 jabberd2.db <  db-setup.sqlite
+--     sqlite3 db/sqlite.db < tools/db-setup.sqlite
 --
 
 --
