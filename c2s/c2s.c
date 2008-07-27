@@ -58,12 +58,6 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                         sess->rate_log = 1;
                     }
 
-                    log_write(sess->c2s->log, LOG_NOTICE, "%d is throttled, disconnecting", sess->fd->fd);
-
-                    /* Disconnect the user.  Ideally we would just stop
-                       reading from their socket until the throttle time
-                       expires.  But that's difficult. */
-                    sx_kill(s);
                     return -1;
                 }
 
@@ -237,15 +231,6 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 
                         sess->stanza_rate_log = 1;
                     }
-
-                    log_write(sess->c2s->log, LOG_NOTICE, "%d is throttled, disconnecting", sess->fd->fd);
-
-                    /* Disconnect the user.  Ideally we would just stop
-                       reading from their socket and delay processing of this
-                       stanza until the throttle time expires.  But that's
-                       difficult. */
-                    sx_kill(s);
-                    return -1;
                 }
 
                 /* update rate limits */
@@ -518,7 +503,7 @@ static int _c2s_client_accept_check(c2s_t c2s, mio_fd_t fd, char *ip) {
         }
 
         if(rate_check(rt) == 0) {
-            log_write(c2s->log, LOG_NOTICE, "[%d] [%s] is being rate limited", fd->fd, ip);
+            log_write(c2s->log, LOG_NOTICE, "[%d] [%s] is being connect rate limited", fd->fd, ip);
             return 1;
         }
 

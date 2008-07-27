@@ -180,6 +180,15 @@ static void _c2s_config_expand(c2s_t c2s)
 
     c2s->stanza_size_limit = j_atoi(config_get_one(c2s->config, "io.limits.stanzasize", 0), 0);
 
+    /* tweak timed checks with rate times */
+    if(c2s->io_check_interval == 0) {
+        if(c2s->byte_rate_total != 0)
+            c2s->io_check_interval = c2s->byte_rate_wait;
+
+        if(c2s->stanza_rate_total != 0 && c2s->io_check_interval > c2s->stanza_rate_wait)
+            c2s->io_check_interval = c2s->stanza_rate_wait;
+    }
+
     str = config_get_one(c2s->config, "io.access.order", 0);
     if(str == NULL || strcmp(str, "deny,allow") != 0)
         c2s->access = access_new(0);
@@ -474,7 +483,7 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
                     return sx_sasl_ret_FAIL;
             }
 
-            /* Using SSF is potentially dangerous, as SASL can alse set the
+            /* Using SSF is potentially dangerous, as SASL can also set the
              * SSF of the connection. However, SASL shouldn't do so until after
              * we've finished mechanism establishment 
              */
@@ -528,6 +537,13 @@ static void _c2s_time_checks(c2s_t c2s) {
                 sx_raw_write(sess->s, " ", 1);
             }
 
+            if(sess->rate != NULL && sess->rate->bad != 0 && rate_check(sess->rate) != 0) {
+                /* read the pending bytes when rate limit is no longer in effect */
+                log_debug(ZONE, "reading throttled %d", sess->fd->fd);
+                sess->s->want_read = 1;
+                sx_can_read(sess->s);
+            }
+
         } while(xhash_iter_next(c2s->sessions));
 }
 
@@ -536,6 +552,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     c2s_t c2s;
     char *config_file;
     int optchar;
+    int mio_timeout;
     sess_t sess;
     bres_t res;
     union xhashv xhv;
@@ -705,8 +722,11 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     c2s->retry_left = c2s->retry_init;
     _c2s_router_connect(c2s);
 
+    mio_timeout = ((c2s->io_check_interval != 0 && c2s->io_check_interval < 5) ?
+        c2s->io_check_interval : 5);
+
     while(!c2s_shutdown) {
-        mio_run(c2s->mio, 5);
+        mio_run(c2s->mio, mio_timeout);
 
         if(c2s_logrotate) {
             log_write(c2s->log, LOG_NOTICE, "reopening log ...");

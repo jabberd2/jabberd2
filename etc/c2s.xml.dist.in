@@ -208,7 +208,7 @@
            are sent in Y seconds, connection is throttled for Z seconds.
            The format is:
 
-             <stanzas seconds='Y' throttle='Z'>X</bytes>
+             <stanzas seconds='Y' throttle='Z'>X</stanzas>
 
            Default Y 1, default Z is 5. Set X to 0 to disable -->
       <stanzas>1000</stanzas>

@@ -1,8 +1,6 @@
 noinst_LTLIBRARIES = libsx.la
 noinst_HEADERS = plugins.h sasl.h sx.h
 
-SUBDIRS =
-
 libsx_la_SOURCES = callback.c chain.c client.c env.c error.c io.c server.c sx.c
 libsx_la_LIBADD = @LDFLAGS@
 
