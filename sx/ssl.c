@@ -738,8 +738,6 @@ int sx_ssl_server_addcert(sx_plugin_t p, char *name, char *pemfile, char *cachai
     if(pemfile == NULL)
         return 1;
 
-    /* !!! output openssl error messages to the debug log */
-
     /* create the context */
     ctx = SSL_CTX_new(SSLv23_method());
     if(ctx == NULL) {
@@ -751,14 +749,14 @@ int sx_ssl_server_addcert(sx_plugin_t p, char *name, char *pemfile, char *cachai
     if (cachain != NULL) {
         ret = SSL_CTX_load_verify_locations (ctx, cachain, NULL);
         if(ret != 1) {
-            _sx_debug(ZONE, "WARNING: couldn't load CA chain: %s", cachain);
+            _sx_debug(ZONE, "WARNING: couldn't load CA chain: %s; %s", cachain, ERR_error_string(ret, NULL));
         }
     }
 
     /* load the certificate */
     ret = SSL_CTX_use_certificate_chain_file(ctx, pemfile);
     if(ret != 1) {
-        _sx_debug(ZONE, "couldn't load certificate from %s", pemfile);
+        _sx_debug(ZONE, "couldn't load certificate from %s; %s", pemfile, ERR_error_string(ret, NULL));
         SSL_CTX_free(ctx);
         return 1;
     }
@@ -766,7 +764,7 @@ int sx_ssl_server_addcert(sx_plugin_t p, char *name, char *pemfile, char *cachai
     /* load the private key */
     ret = SSL_CTX_use_PrivateKey_file(ctx, pemfile, SSL_FILETYPE_PEM);
     if(ret != 1) {
-        _sx_debug(ZONE, "couldn't load private key from %s", pemfile);
+        _sx_debug(ZONE, "couldn't load private key from %s; %s", pemfile, ERR_error_string(ret, NULL));
         SSL_CTX_free(ctx);
         return 1;
     }
@@ -774,7 +772,7 @@ int sx_ssl_server_addcert(sx_plugin_t p, char *name, char *pemfile, char *cachai
     /* check the private key matches the certificate */
     ret = SSL_CTX_check_private_key(ctx);
     if(ret != 1) {
-        _sx_debug(ZONE, "private key does not match certificate public key");
+        _sx_debug(ZONE, "private key does not match certificate public key; %s", ERR_error_string(ret, NULL));
         SSL_CTX_free(ctx);
         return 1;
     }
