@@ -700,8 +700,6 @@ int sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args) {
         SSL_load_error_strings();
     }
     sx_openssl_initialized = 1;
-	/* begin with fresh error stack */
-	ERR_clear_error();
 
     ret = sx_ssl_server_addcert(p, name, pemfile, cachain, mode);
     if(ret)
@@ -739,6 +737,9 @@ int sx_ssl_server_addcert(sx_plugin_t p, char *name, char *pemfile, char *cachai
 
     if(pemfile == NULL)
         return 1;
+
+    /* begin with fresh error stack */
+    ERR_clear_error();
 
     /* create the context */
     ctx = SSL_CTX_new(SSLv23_method());
