@@ -1,3 +1,14 @@
+2008-07-28 Tomasz Sterna <tomek@xiaoka.com>
+	* Clear SSL error stack on each new SSL ctx
+	* Added SSL error messages to debug output
+
+2008-07-27 Tomasz Sterna <tomek@xiaoka.com>
+	* Implemented MIO read throttling in c2s. Now we pause reading socket
+	  instead of disconnection on throttle.
+
+2008-07-24 Tomasz Sterna <tomek@xiaoka.com>
+	* Referring the default sqlite.db in db-setup.sqlite example. Fixes #238
+
 2008-07-23 Mark Doliner <mark@meebo.com>
 	* Removed scod module.
 	* Added a maximum stanza limit to c2s.  This can be used to set an
@@ -6,6 +17,9 @@
 	* Fix a bug in s2s where xmlns="jabber:client" would get appended to an
 	  incoming stanza even though the stanza already had an xmlns attribute
 	  set.
+
+2008-07-19 Tomasz Sterna <tomek@xiaoka.com>
+	* Added missing %s argument in printf call. Refs #237
 
 2008-07-15 Tomasz Sterna <tomek@xiaoka.com>
 	* Removed jid prep cache and mysql filters cache.
