@@ -22,6 +22,7 @@
 
 #include "c2s.h"
 #include <mysql.h>
+#include <unistd.h>
 
 #define MYSQL_LU  1024   /* maximum length of username - should correspond to field length */
 #define MYSQL_LR   256   /* maximum length of realm - should correspond to field length */
@@ -146,13 +147,13 @@ static int _ar_mysql_check_password(authreg_t ar, char *username, char *realm, c
                 ret = (strcmp(password, db_pw_value) != 0);
                 break;
 
-	case MPC_CRYPT:
+        case MPC_CRYPT:
                 crypted_pw = crypt(password,db_pw_value);
                 ret = (strcmp(crypted_pw, db_pw_value) != 0);
                 break;
 
         default:
-		/* should never happen */
+        /* should never happen */
                 ret = 1;
                 log_write(ar->c2s->log, LOG_ERR, "Unknown encryption type which passed through config check.");
                 break;
