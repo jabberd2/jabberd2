@@ -48,7 +48,7 @@
   #define C2S_API
 #endif
 
-/* forward decl */
+/* forward declarations */
 typedef struct host_st      *host_t;
 typedef struct c2s_st       *c2s_t;
 typedef struct bres_st      *bres_t;
@@ -67,6 +67,10 @@ struct bres_st {
     bres_t              next;
 };
 
+/**
+ * There is one instance of this struct per user who is logged in to
+ * this c2s instance.
+ */
 struct sess_st {
     c2s_t               c2s;
 
