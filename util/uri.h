@@ -42,6 +42,7 @@
 #define uri_BIND        "urn:ietf:params:xml:ns:xmpp-bind"
 #define uri_XSESSION    "urn:ietf:params:xml:ns:xmpp-session"
 #define uri_COMPRESS    "http://jabber.org/protocol/compress"
+#define uri_COMPRESS_FEATURE "http://jabber.org/features/compress"
 #define uri_ACK         "http://www.xmpp.org/extensions/xep-0198.html#ns"
 #define uri_IQAUTH      "http://jabber.org/features/iq-auth"
 #define uri_IQREGISTER  "http://jabber.org/features/iq-register"

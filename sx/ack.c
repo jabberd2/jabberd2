@@ -53,7 +53,7 @@ static int _sx_ack_process(sx_t s, sx_plugin_t p, nad_t nad) {
         return 1;
 
     /* only want ack packets */
-    if((NAD_ENS(nad, 0) < 0 || NAD_NURI_L(nad, NAD_ENS(nad, 0)) != strlen(uri_ACK) || strncmp(NAD_NURI(nad, NAD_ENS(nad, 0)), uri_ACK, strlen(uri_COMPRESS)) != 0))
+    if((NAD_ENS(nad, 0) < 0 || NAD_NURI_L(nad, NAD_ENS(nad, 0)) != strlen(uri_ACK) || strncmp(NAD_NURI(nad, NAD_ENS(nad, 0)), uri_ACK, strlen(uri_ACK)) != 0))
         return 1;
 
     /* pings */

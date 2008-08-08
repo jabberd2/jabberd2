@@ -125,7 +125,7 @@ static void _sx_compress_features(sx_t s, sx_plugin_t p, nad_t nad) {
 
     _sx_debug(ZONE, "offering compression");
 
-    ns = nad_add_namespace(nad, uri_COMPRESS, NULL);
+    ns = nad_add_namespace(nad, uri_COMPRESS_FEATURE, NULL);
     nad_append_elem(nad, ns, "compression", 1);
     nad_append_elem(nad, ns, "method", 2);
     nad_append_cdata(nad, "zlib", 4, 3);
