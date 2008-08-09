@@ -102,7 +102,7 @@ static int _sx_ssl_process(sx_t s, sx_plugin_t p, nad_t nad) {
     if(s->type == type_SERVER) {
         if(NAD_ENAME_L(nad, 0) == 8 && strncmp(NAD_ENAME(nad, 0), "starttls", 8) == 0) {
             nad_free(nad);
-    
+
             /* can't go on if we've been here before */
             if(s->ssf > 0) {
                 _sx_debug(ZONE, "starttls requested on already encrypted channel, dropping packet");
@@ -254,8 +254,6 @@ static int _sx_ssl_handshake(sx_t s, _sx_ssl_conn_t sc) {
                 _sx_error(s, stream_err_INTERNAL_SERVER_ERROR, errstring);
                 _sx_close(s);
 
-                /* !!! drop queue */
-
                 return -1;
             }
         }
@@ -271,9 +269,9 @@ static int _sx_ssl_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     char *errstring;
     sx_error_t sxe;
 
-    /* sanity */
+    /* do not encrypt when error */
     if(sc->last_state == SX_SSL_STATE_ERROR)
-        return -2;
+        return 1;
 
     _sx_debug(ZONE, "in _sx_ssl_wio");
 
@@ -484,7 +482,7 @@ static int _sx_ssl_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     /* flag if we want to read */
     if(sc->last_state == SX_SSL_STATE_WANT_READ || sc->last_state == SX_SSL_STATE_NONE)
         s->want_read = 1;
-    
+
     if(buf->len == 0)
         return 0;
 
@@ -654,7 +652,7 @@ static void _sx_ssl_free(sx_t s, sx_plugin_t p) {
     }
 
     free(sc);
-    
+
     s->plugin_data[p->index] = NULL;
 }
 
@@ -747,7 +745,7 @@ int sx_ssl_server_addcert(sx_plugin_t p, char *name, char *pemfile, char *cachai
         _sx_debug(ZONE, "ssl context creation failed; %s", ERR_error_string(ERR_get_error(), NULL));
         return 1;
     }
-    
+
     /* Load the CA chain, if configured */
     if (cachain != NULL) {
         ret = SSL_CTX_load_verify_locations (ctx, cachain, NULL);

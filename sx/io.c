@@ -467,11 +467,13 @@ void sx_raw_write(sx_t s, char *buf, int len) {
 void _sx_close(sx_t s) {
     /* close the stream if necessary */
     if(s->state >= state_STREAM_SENT) {
+        _sx_debug(ZONE, "sending closing </stream:stream>");
         jqueue_push(s->wbufq, _sx_buffer_new("</stream:stream>", 16, NULL, NULL), 0);
         s->want_write = 1;
-    }
-
-    _sx_state(s, state_CLOSING);
+        _sx_state(s, state_CLOSING);
+        _sx_event(s, event_WANT_WRITE, NULL);
+    } else
+        _sx_state(s, state_CLOSING);
 }
 
 void sx_close(sx_t s) {

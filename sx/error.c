@@ -83,6 +83,8 @@ void _sx_error(sx_t s, int err, const char *text) {
 
     /* stuff to write */
     s->want_write = 1;
+
+	_sx_event(s, event_WANT_WRITE, NULL);
 }
 
 void sx_error(sx_t s, int err, const char *text) {
