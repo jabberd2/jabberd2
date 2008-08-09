@@ -1,3 +1,15 @@
+2008-08-09 Tomasz Sterna <tomek@xiaoka.com>
+	* Checking return value of gsasl_base64_to/from(). Fixes #242
+	* Merged GSSAPI support patch by Jelmer Vernooij
+	* Required GnuSASL version 0.2.27
+	* Removied gsasl DIGEST-MD5 patch
+
+2008-08-08 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed XEP-0138 compression feature offer
+
+2008-08-05 Tomasz Sterna <tomek@xiaoka.com>
+	* Included crypt() function prototype from unistd.h
+
 2008-07-28 Tomasz Sterna <tomek@xiaoka.com>
 	* Clear SSL error stack on each new SSL ctx
 	* Added SSL error messages to debug output

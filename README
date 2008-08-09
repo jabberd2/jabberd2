@@ -11,7 +11,7 @@ Required packages:
 
  - expat - XML parsing libraries
      http://expat.sourceforge.net/
- - GnuSASL (0.2.26 or higher) - Simple Authentication and Security Layer library
+ - GnuSASL (0.2.27 or higher) - Simple Authentication and Security Layer library
      http://www.gnu.org/software/gsasl/
      (please see contrib/ subdir for an important patch)
  - UDNS - asynchronous DNS resolver library
