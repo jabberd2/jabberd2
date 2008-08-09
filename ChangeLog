@@ -3,7 +3,7 @@
 	* Checking return value of gsasl_base64_to/from(). Fixes #242
 	* Merged GSSAPI support patch by Jelmer Vernooij
 	* Required GnuSASL version 0.2.27
-	* Removied gsasl DIGEST-MD5 patch
+	* Removed gsasl DIGEST-MD5 patch
 
 2008-08-08 Tomasz Sterna <tomek@xiaoka.com>
 	* Fixed XEP-0138 compression feature offer
