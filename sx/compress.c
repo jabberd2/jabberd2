@@ -49,7 +49,7 @@ static int _sx_compress_process(sx_t s, sx_plugin_t p, nad_t nad) {
     if(s->type == type_SERVER) {
         if(NAD_ENAME_L(nad, 0) == 8 && strncmp(NAD_ENAME(nad, 0), "compress", 8) == 0) {
             nad_free(nad);
-    
+
             /* can't go on if we've been here before */
             if(s->compressed) {
                 _sx_debug(ZONE, "compress requested on already compressed channel, dropping packet");
@@ -146,33 +146,33 @@ static int _sx_compress_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     if(buf->len > 0) {
         _sx_debug(ZONE, "loading %d bytes into zlib write buffer", buf->len);
 
-	_sx_buffer_alloc_margin(sc->wbuf, 0, buf->len);
-	memcpy(sc->wbuf->data + sc->wbuf->len, buf->data, buf->len);
-	sc->wbuf->len += buf->len;
+        _sx_buffer_alloc_margin(sc->wbuf, 0, buf->len);
+        memcpy(sc->wbuf->data + sc->wbuf->len, buf->data, buf->len);
+        sc->wbuf->len += buf->len;
 
         _sx_buffer_clear(buf);
     }
 
     /* compress the data */
     if(sc->wbuf->len > 0) {
-	sc->wstrm.avail_in = sc->wbuf->len;
-	sc->wstrm.next_in = sc->wbuf->data;
-	/* deflate() on write buffer until there is data to compress */
-	do {
-	    /* make place for deflated data */
-	    _sx_buffer_alloc_margin(buf, 0, sc->wbuf->len + SX_COMPRESS_CHUNK);
+        sc->wstrm.avail_in = sc->wbuf->len;
+        sc->wstrm.next_in = sc->wbuf->data;
+        /* deflate() on write buffer until there is data to compress */
+        do {
+            /* make place for deflated data */
+            _sx_buffer_alloc_margin(buf, 0, sc->wbuf->len + SX_COMPRESS_CHUNK);
 
-            sc->wstrm.avail_out = sc->wbuf->len + SX_COMPRESS_CHUNK;
-	    sc->wstrm.next_out = buf->data + buf->len;
+                sc->wstrm.avail_out = sc->wbuf->len + SX_COMPRESS_CHUNK;
+            sc->wstrm.next_out = buf->data + buf->len;
 
-	    ret = deflate(&(sc->wstrm), Z_SYNC_FLUSH);
-	    assert(ret != Z_STREAM_ERROR);
-            
-	    buf->len += sc->wbuf->len + SX_COMPRESS_CHUNK - sc->wstrm.avail_out;
+            ret = deflate(&(sc->wstrm), Z_SYNC_FLUSH);
+            assert(ret != Z_STREAM_ERROR);
 
-	} while (sc->wstrm.avail_out == 0);
+            buf->len += sc->wbuf->len + SX_COMPRESS_CHUNK - sc->wstrm.avail_out;
 
-	if(ret != Z_OK || sc->wstrm.avail_in != 0) {
+        } while (sc->wstrm.avail_out == 0);
+
+        if(ret != Z_OK || sc->wstrm.avail_in != 0) {
             /* throw an error */
             _sx_gen_error(sxe, SX_ERR_COMPRESS, "compression error", "Error during compression");
             _sx_event(s, event_ERROR, (void *) &sxe);
@@ -183,8 +183,8 @@ static int _sx_compress_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
             return -2;  /* fatal */
         }
 
-	sc->wbuf->len = sc->wstrm.avail_in;
-	sc->wbuf->data = sc->wstrm.next_in;
+        sc->wbuf->len = sc->wstrm.avail_in;
+        sc->wbuf->data = sc->wstrm.next_in;
     }
 
     _sx_debug(ZONE, "passing %d bytes from zlib write buffer", buf->len);
@@ -207,55 +207,55 @@ static int _sx_compress_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     if(buf->len > 0) {
         _sx_debug(ZONE, "loading %d bytes into zlib read buffer", buf->len);
 
-	_sx_buffer_alloc_margin(sc->rbuf, 0, buf->len);
-	memcpy(sc->rbuf->data + sc->rbuf->len, buf->data, buf->len);
-	sc->rbuf->len += buf->len;
+        _sx_buffer_alloc_margin(sc->rbuf, 0, buf->len);
+        memcpy(sc->rbuf->data + sc->rbuf->len, buf->data, buf->len);
+        sc->rbuf->len += buf->len;
 
         _sx_buffer_clear(buf);
     }
 
     /* decompress the data */
     if(sc->rbuf->len > 0) {
-	sc->rstrm.avail_in = sc->rbuf->len;
-	sc->rstrm.next_in = sc->rbuf->data;
-	/* run inflate() on read buffer while able to fill the output buffer */
-	do {
-	    /* make place for inflated data */
-	    _sx_buffer_alloc_margin(buf, 0, SX_COMPRESS_CHUNK);
+        sc->rstrm.avail_in = sc->rbuf->len;
+        sc->rstrm.next_in = sc->rbuf->data;
+        /* run inflate() on read buffer while able to fill the output buffer */
+        do {
+            /* make place for inflated data */
+            _sx_buffer_alloc_margin(buf, 0, SX_COMPRESS_CHUNK);
 
-            sc->rstrm.avail_out = SX_COMPRESS_CHUNK;
-	    sc->rstrm.next_out = buf->data + buf->len;
+                sc->rstrm.avail_out = SX_COMPRESS_CHUNK;
+            sc->rstrm.next_out = buf->data + buf->len;
 
-	    ret = inflate(&(sc->rstrm), Z_SYNC_FLUSH);
-	    assert(ret != Z_STREAM_ERROR);
-	    switch (ret) {
-		case Z_NEED_DICT:
-		case Z_DATA_ERROR:
-		case Z_MEM_ERROR:
-                    /* throw an error */
-                    _sx_gen_error(sxe, SX_ERR_COMPRESS, "compression error", "Error during decompression");
-                    _sx_event(s, event_ERROR, (void *) &sxe);
-    
-                    _sx_error(s, stream_err_INVALID_XML, "Error during decompression");
-                    _sx_close(s);
-    
-                    return -2;
-	    }
-            
-	    buf->len += SX_COMPRESS_CHUNK - sc->rstrm.avail_out;
+            ret = inflate(&(sc->rstrm), Z_SYNC_FLUSH);
+            assert(ret != Z_STREAM_ERROR);
+            switch (ret) {
+            case Z_NEED_DICT:
+            case Z_DATA_ERROR:
+            case Z_MEM_ERROR:
+                /* throw an error */
+                _sx_gen_error(sxe, SX_ERR_COMPRESS, "compression error", "Error during decompression");
+                _sx_event(s, event_ERROR, (void *) &sxe);
 
-	} while (sc->rstrm.avail_out == 0);
+                _sx_error(s, stream_err_INVALID_XML, "Error during decompression");
+                _sx_close(s);
 
-	sc->rbuf->len = sc->rstrm.avail_in;
-	sc->rbuf->data = sc->rstrm.next_in;
+                return -2;
+            }
+
+            buf->len += SX_COMPRESS_CHUNK - sc->rstrm.avail_out;
+
+        } while (sc->rstrm.avail_out == 0);
+
+        sc->rbuf->len = sc->rstrm.avail_in;
+        sc->rbuf->data = sc->rstrm.next_in;
     }
 
     _sx_debug(ZONE, "passing %d bytes from zlib read buffer", buf->len);
 
     /* flag if we want to read */
     if(sc->rbuf->len > 0)
-	s->want_read = 1;
-    
+    s->want_read = 1;
+
     if(buf->len == 0)
         return 0;
 
@@ -322,7 +322,7 @@ static void _sx_compress_free(sx_t s, sx_plugin_t p) {
     _sx_buffer_free(sc->wbuf);
 
     free(sc);
-    
+
     s->plugin_data[p->index] = NULL;
 }
 
