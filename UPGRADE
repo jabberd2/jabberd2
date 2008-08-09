@@ -1,6 +1,16 @@
 This file contains upgrade instructions between different versions of jabberd2.
 
 
+* 2.2.2 to 2.2.3 upgrade:
+
+What changed:
+- GnuSASL 0.2.27 is required
+- GSSAPI support
+
+Upgrade gsasl to 0.2.27.
+You may use GSSAPI if you have it configured. Add <gssapi/> to c2s.xml mechanizms.
+
+
 * 2.2.1 to 2.2.2 upgrade:
 
 What changed:
