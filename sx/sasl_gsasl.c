@@ -56,7 +56,6 @@ struct Gsasl_session
   char *suggestedpin;
   char *service;
   char *hostname;
-  char *gssapi_display_name;
   char *realm;
 #ifndef GSASL_NO_OBSOLETE
   /* Obsolete stuff. */
@@ -157,6 +156,9 @@ void _sx_sasl_open(sx_t s, Gsasl_session *sd) {
             free(method);
             return;
         }
+    } else if (NULL != gsasl_property_fast(sd, GSASL_GSSAPI_DISPLAY_NAME)) {
+        creds.authzid = strdup(gsasl_property_fast(sd, GSASL_GSSAPI_DISPLAY_NAME));
+        authzid = NULL;
     } else {
         /* override unchecked arbitrary authzid */
         if(creds.realm && creds.realm[0] != '\0') {
@@ -176,7 +178,7 @@ void _sx_sasl_open(sx_t s, Gsasl_session *sd) {
     if(authzid) free(authzid);
 }
 
-/** make the stream suthenticated second time round */
+/** make the stream authenticated second time round */
 static void _sx_sasl_stream(sx_t s, sx_plugin_t p) {
     Gsasl_session *sd = (Gsasl_session *) s->plugin_data[p->index];
 
@@ -620,6 +622,22 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
             }
             return GSASL_NEEDS_MORE;
 
+        case GSASL_SERVICE:
+            gsasl_property_set(sd, GSASL_SERVICE, "xmpp");
+            return GSASL_OK;
+
+        case GSASL_HOSTNAME:
+            { 
+                char hostname[256];
+                /* get hostname */
+                hostname[0] = '\0';
+                gethostname(hostname, 256);
+                hostname[255] = '\0';
+
+                gsasl_property_set(sd, GSASL_HOSTNAME, hostname);
+           }
+           return GSASL_OK;
+
         case GSASL_VALIDATE_SIMPLE:
             /* GSASL_AUTHID, GSASL_AUTHZID, GSASL_PASSWORD */
             assert((ctx->cb != NULL));
@@ -633,6 +651,15 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
                 return GSASL_OK;
             else
                 return GSASL_AUTHENTICATION_ERROR;
+
+        case GSASL_VALIDATE_GSSAPI:
+            /* GSASL_AUTHZID, GSASL_GSSAPI_DISPLAY_NAME */
+            creds.authnid = gsasl_property_fast(sd, GSASL_GSSAPI_DISPLAY_NAME);
+            if(!creds.authnid) return GSASL_NO_AUTHID;
+            creds.authzid = gsasl_property_fast(sd, GSASL_AUTHZID);
+            if(!creds.authzid) return GSASL_NO_AUTHZID;
+            gsasl_property_set(sd, GSASL_AUTHID, creds.authnid);
+            return GSASL_OK;
 
         case GSASL_VALIDATE_ANONYMOUS:
             /* GSASL_ANONYMOUS_TOKEN */

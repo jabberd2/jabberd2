@@ -345,6 +345,7 @@
         <digest-md5/>
         <!--
         <anonymous/>
+        <gssapi/>
         -->
       </sasl>
 
