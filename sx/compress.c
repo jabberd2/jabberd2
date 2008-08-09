@@ -177,8 +177,8 @@ static int _sx_compress_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
             _sx_gen_error(sxe, SX_ERR_COMPRESS, "compression error", "Error during compression");
             _sx_event(s, event_ERROR, (void *) &sxe);
 
-            _sx_error(s, stream_err_INTERNAL_SERVER_ERROR, "Error during compression");
-            _sx_close(s);
+            sx_error(s, stream_err_INTERNAL_SERVER_ERROR, "Error during compression");
+            sx_close(s);
 
             return -2;  /* fatal */
         }
@@ -236,8 +236,8 @@ static int _sx_compress_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
                 _sx_gen_error(sxe, SX_ERR_COMPRESS, "compression error", "Error during decompression");
                 _sx_event(s, event_ERROR, (void *) &sxe);
 
-                _sx_error(s, stream_err_INVALID_XML, "Error during decompression");
-                _sx_close(s);
+                sx_error(s, stream_err_INVALID_XML, "Error during decompression");
+                sx_close(s);
 
                 return -2;
             }

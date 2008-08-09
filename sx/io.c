@@ -125,18 +125,18 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
                     _sx_event(s, event_ERROR, (void *) &sxe);
                     _sx_state(s, state_CLOSING);
                 }
-    
+
                 if(errstring != NULL) free(errstring);
-    
+
                 nad_free(nad);
-    
+
                 break;
             }
-    
+
             /* run it by the plugins */
             if(_sx_chain_nad_read(s, nad) == 0)
                 return;
-    
+
             /* now let the plugins process the completed nad */
             plugin_error = 0;
             if(s->env != NULL)
@@ -149,7 +149,7 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
                             break;
                         }
                     }
-    
+
             /* hand it to the app */
             if ((plugin_error == 0) && (s->state < state_CLOSING))
                 _sx_event(s, event_PACKET, (void *) nad);
@@ -158,7 +158,7 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
     /* something went wrong, bail */
     if(s->fail) {
         _sx_close(s);
-        
+
         return;
     }
 
@@ -208,7 +208,7 @@ int sx_can_read(sx_t s) {
         /* they went away */
         _sx_buffer_free(in);
         _sx_state(s, state_CLOSING);
-    
+
     } else {
         _sx_debug(ZONE, "passed %d read bytes", in->len);
 
@@ -315,7 +315,7 @@ static int _sx_get_pending_write(sx_t s) {
 int sx_can_write(sx_t s) {
     sx_buf_t out;
     int ret, written;
-    
+
     assert((int) (s != NULL));
 
     /* do we care? */
@@ -345,7 +345,7 @@ int sx_can_write(sx_t s) {
     /* get the callback to do the write */
     _sx_debug(ZONE, "handing app %d bytes to write", out->len);
     written = _sx_event(s, event_WRITE, (void *) out);
-    
+
     if(written < 0) {
         /* bail if something went wrong */
         _sx_buffer_free(out);
@@ -467,13 +467,11 @@ void sx_raw_write(sx_t s, char *buf, int len) {
 void _sx_close(sx_t s) {
     /* close the stream if necessary */
     if(s->state >= state_STREAM_SENT) {
-        _sx_debug(ZONE, "sending closing </stream:stream>");
         jqueue_push(s->wbufq, _sx_buffer_new("</stream:stream>", 16, NULL, NULL), 0);
         s->want_write = 1;
-        _sx_state(s, state_CLOSING);
-        _sx_event(s, event_WANT_WRITE, NULL);
-    } else
-        _sx_state(s, state_CLOSING);
+    }
+
+    _sx_state(s, state_CLOSING);
 }
 
 void sx_close(sx_t s) {
