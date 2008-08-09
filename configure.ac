@@ -389,9 +389,9 @@ for backend in $sasl_check ; do
                 AC_CHECK_LIB(gsasl, gsasl_check_version)
             fi
             if test "x-$ac_cv_lib_gsasl_gsasl_check_version" = "x-yes" ; then
-                AC_MSG_CHECKING(for GnuSASL version >= 0.2.26)
+                AC_MSG_CHECKING(for GnuSASL version >= 0.2.27)
                 AC_RUN_IFELSE([AC_LANG_PROGRAM([[#include <gsasl.h>]],
-                                               [[return !(gsasl_check_version("0.2.26"))]])],
+                                               [[return !(gsasl_check_version("0.2.27"))]])],
                               [AC_MSG_RESULT(yes)
                                 sasl_backend='gsasl'],
                               AC_MSG_RESULT(no))
