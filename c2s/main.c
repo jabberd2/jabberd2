@@ -354,7 +354,7 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
 
     switch(cb) {
         case sx_sasl_cb_GET_REALM:
-            
+
             if(s->req_to == NULL)   /* this shouldn't happen */
                 my_realm = "";
 
@@ -414,7 +414,7 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
 
             return sx_sasl_ret_FAIL;
             break;
-        
+
         case sx_sasl_cb_CHECK_AUTHZID:
             creds = (sx_sasl_creds_t) arg;
 
@@ -494,7 +494,7 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
                 if(config_get(c2s->config,buf) != NULL)
                     return sx_sasl_ret_OK;
             }
-            
+
             r = snprintf(buf, sizeof(buf), "authreg.mechanisms.sasl.%s",mechbuf);
             if (r < -1 || r > sizeof(buf))
                 return sx_sasl_ret_FAIL;
@@ -557,7 +557,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     bres_t res;
     union xhashv xhv;
     time_t check_time = 0;
-    
+
 #ifdef HAVE_UMASK
     umask((mode_t) 0027);
 #endif
@@ -570,9 +570,9 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
         WORD wVersionRequested;
         WSADATA wsaData;
         int err;
-        
+
         wVersionRequested = MAKEWORD( 2, 2 );
-        
+
         err = WSAStartup( wVersionRequested, &wsaData );
         if ( err != 0 ) {
             /* !!! tell user that we couldn't find a usable winsock dll */
@@ -690,7 +690,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
         }
     }
 #endif
-            
+
     /* get sasl online */
     c2s->sx_sasl = sx_env_plugin(c2s->sx_env, sx_sasl_init, "xmpp", _c2s_sx_sasl_callback, (void *) c2s);
     if(c2s->sx_sasl == NULL) {
@@ -707,6 +707,9 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
 #ifdef ENABLE_EXPERIMENTAL
     /* get stanza ack up */
     sx_env_plugin(c2s->sx_env, sx_ack_init);
+
+    /* and user IP address plugin */
+    sx_env_plugin(c2s->sx_env, sx_address_init);
 #endif
 
     /* get bind up */
@@ -757,7 +760,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
                 _c2s_router_connect(c2s);
             }
         }
-            
+
         /* cleanup dead sess (before sx_t as sess->result uses sx_t nad cache) */
         while(jqueue_size(c2s->dead_sess) > 0) {
             sess = (sess_t) jqueue_pull(c2s->dead_sess);
@@ -807,13 +810,13 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
                     c2s_shutdown = 1;
                 }
             }
-    
+
             check_time = time(NULL);
         }
     }
 
     log_write(c2s->log, LOG_NOTICE, "shutting down");
-    
+
     if(xhash_iter_first(c2s->sessions))
         do {
             xhv.sess_val = &sess;

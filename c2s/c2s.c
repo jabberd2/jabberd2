@@ -90,7 +90,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                     log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] read error: %s (%d)", sess->fd->fd, sess->ip, sess->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
                 sx_kill(s);
-                
+
                 return -1;
             }
 
@@ -116,18 +116,18 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                     "Cache-control: private\r\n"
                     "Connection: close\r\n\r\n";
                 char *answer;
-    
+
                 len = strlen(sess->c2s->http_forward) + strlen(http);
                 answer = malloc(len * sizeof(char));
                 sprintf (answer, http, sess->c2s->http_forward);
-    
+
                 log_write(sess->c2s->log, LOG_NOTICE, "[%d] bouncing HTTP request to %s", sess->fd->fd, sess->c2s->http_forward);
-    
+
                 /* send HTTP answer */
                 len = send(sess->fd->fd, answer, len-1, 0);
 
                 free(answer);
-    
+
                 /* close connection */
                 sx_kill(s);
 
@@ -149,14 +149,14 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 
             if(MIO_WOULDBLOCK)
                 return 0;
-            
+
             if(s->state >= state_OPEN && sess->resources != NULL)
                 log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s] write error: %s (%d)", sess->fd->fd, jid_user(sess->resources->jid), MIO_STRERROR(MIO_ERROR), MIO_ERROR);
             else
                 log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s. port=%d] write error: %s (%d)", sess->fd->fd, sess->ip, sess->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
-        
+
             sx_kill(s);
-        
+
             return -1;
 
         case event_ERROR:
@@ -167,7 +167,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                 log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] error: %s (%s)", sess->fd->fd, sess->ip, sess->port, sxe->generic, sxe->specific);
 
             break;
-            
+
         case event_STREAM:
 
             if(s->req_to == NULL) {
@@ -271,7 +271,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                     if (jid == NULL || jid_reset_components(jid, jid->node, jid->domain, resource_buf) == NULL) {
                         log_debug(ZONE, "invalid jid data");
                         sx_nad_write(sess->s, stanza_error(nad, 0, stanza_err_BAD_REQUEST));
-                        
+
                         return 0;
                     }
 
@@ -343,7 +343,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                 if(elem < 0 || NAD_CDATA_L(nad, elem) == 0) {
                     log_debug(ZONE, "no/empty resource given to unbind");
                     sx_nad_write(sess->s, stanza_error(nad, 0, stanza_err_BAD_REQUEST));
-                        
+
                     return 0;
                 }
 
@@ -351,7 +351,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                 if(stringprep_xmpp_resourceprep(resource_buf, 1024) != 0) {
                     log_debug(ZONE, "cannot resourceprep");
                     sx_nad_write(sess->s, stanza_error(nad, 0, stanza_err_BAD_REQUEST));
-                    
+
                     return 0;
                 }
 
@@ -363,7 +363,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                 if(bres == NULL) {
                     log_debug(ZONE, "resource /%s not bound", resource_buf);
                     sx_nad_write(sess->s, stanza_error(nad, 0, stanza_err_ITEM_NOT_FOUND));
-                    
+
                     return 0;
                 }
 
@@ -445,9 +445,9 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                     } else {
                         log_debug(ZONE, "packet without 'from' on multiple resource stream");
                     }
-    
+
                     sx_nad_write(sess->s, stanza_error(nad, 0, stanza_err_UNKNOWN_SENDER));
-    
+
                     return 0;
                 }
             } else
@@ -457,7 +457,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
             sm_packet(sess, bres, nad);
 
             break;
-        
+
         case event_OPEN:
 
             /* only send a result and bring us online if this wasn't a sasl auth */
@@ -593,6 +593,9 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
             if(c2s->stanza_rate_total != 0)
                 sess->stanza_rate = rate_new(c2s->stanza_rate_total, c2s->stanza_rate_seconds, c2s->stanza_rate_wait);
 
+            /* give IP to SX */
+            sess->s->ip = sess->ip;
+
             /* find out which port this is */
             getsockname(fd->fd, (struct sockaddr *) &sa, &namelen);
             port = j_inet_getport(&sa);
@@ -666,7 +669,7 @@ static void _c2s_component_presence(c2s_t c2s, nad_t nad) {
                     sx_close(sess->s);
                 }
             } while(xhash_iter_next(c2s->sessions));
-        
+
         xhash_zap(c2s->sm_avail, from);
     }
 }
@@ -707,7 +710,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 log_write(c2s->log, LOG_NOTICE, "[%d] [router] read error: %s (%d)", c2s->fd->fd, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
                 sx_kill(s);
-                
+
                 return -1;
             }
 
@@ -737,9 +740,9 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 return 0;
 
             log_write(c2s->log, LOG_NOTICE, "[%d] [router] write error: %s (%d)", c2s->fd->fd, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
-        
+
             sx_kill(s);
-        
+
             return -1;
 
         case event_ERROR:
@@ -846,7 +849,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                             log_write(c2s->log, LOG_NOTICE, "[%s, port=%d] listening for connections", c2s->local_ip, c2s->local_port);
                     } else
                         c2s->server_fd = NULL;
-            
+
 #ifdef HAVE_SSL
                     if(c2s->local_ssl_port != 0 && c2s->local_pemfile != NULL) {
                         c2s->server_ssl_fd = mio_listen(c2s->mio, c2s->local_ssl_port, c2s->local_ip, _c2s_client_mio_callback, (void *) c2s);
@@ -868,7 +871,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 #endif
                     exit(1);
                 }
-            
+
                 /* we're online */
                 c2s->online = c2s->started = 1;
                 log_write(c2s->log, LOG_NOTICE, "ready for connections", c2s->id);
@@ -1050,7 +1053,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     /* no more resources bound? */
                     if(sess->bound < 1){
                         sess->active = 0;
-                    
+
                         /* return the unbind result to the client */
                         if(sess->result != NULL) {
                             sx_nad_write(sess->s, sess->result);
@@ -1059,10 +1062,10 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
                         if(replaced)
                             sx_error(sess->s, stream_err_CONFLICT, NULL);
-                        
+
                         /* close them */
                         sx_close(sess->s);
-    
+
                         nad_free(nad);
                         return 0;
                     }
@@ -1137,7 +1140,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                             assert(ires != NULL);
                             ires->next = bres->next;
                         }
-    
+
                         jid_free(bres->jid);
                         free(bres);
 

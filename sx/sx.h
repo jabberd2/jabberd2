@@ -246,6 +246,10 @@ struct _sx_st {
     /* tag, for logging */
     int                      tag;
 
+	/* IP address of the connection */
+	/* pointing to sess.ip and owned by sess structure */
+	char                    *ip;
+
     /* callback */
     sx_callback_t            cb;
     void                    *cb_arg;

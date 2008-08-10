@@ -147,11 +147,15 @@ typedef struct _sx_compress_conn_st {
 #endif /* HAVE_LIBZ */
 
 
-/* Stanza Acknowledgements plugin */
 #ifdef ENABLE_EXPERIMENTAL
 
+/* Stanza Acknowledgements plugin */
 /** init function */
 JABBERD2_API int                         sx_ack_init(sx_env_t env, sx_plugin_t p, va_list args);
+
+/* My IP Address plugin */
+/** init function */
+JABBERD2_API int                         sx_address_init(sx_env_t env, sx_plugin_t p, va_list args);
 
 #endif /* ENABLE_EXPERIMENTAL */
 

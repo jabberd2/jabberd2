@@ -99,7 +99,7 @@ void sx_free(sx_t s) {
 
     if(s->auth_method != NULL) free(s->auth_method);
     if(s->auth_id != NULL) free(s->auth_id);
-    
+
     if(s->env != NULL) {
         _sx_debug(ZONE, "freeing %d env plugins", s->env->nplugins);
         for(i = 0; i < s->env->nplugins; i++)
@@ -157,6 +157,7 @@ void _sx_reset(sx_t s) {
     temp.cb = s->cb;
     temp.cb_arg = s->cb_arg;
 
+    temp.ip = s->ip;
     temp.flags = s->flags;
     temp.reentry = s->reentry;
     temp.ssf = s->ssf;
@@ -184,6 +185,7 @@ void _sx_reset(sx_t s) {
     XML_SetUserData(s->expat, (void *) s);
 
     s->env = temp.env;
+    s->ip = temp.ip;
     s->flags = temp.flags;
     s->reentry = temp.reentry;
     s->ssf = temp.ssf;
@@ -249,7 +251,7 @@ void _sx_buffer_clear(sx_buf_t buf) {
 void _sx_buffer_alloc_margin(sx_buf_t buf, int before, int after)
 {
     char *new_heap;
-    
+
     assert( before >= 0 );
     assert( after >= 0 );
 

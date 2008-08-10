@@ -21,5 +21,5 @@ libsx_la_SOURCES += compress.c
 endif
 
 if ENABLE_EXPERIMENTAL
-libsx_la_SOURCES += ack.c
+libsx_la_SOURCES += ack.c address.c
 endif
