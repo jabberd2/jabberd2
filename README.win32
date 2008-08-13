@@ -23,9 +23,7 @@ Prerequisites:
 
    1. http://josefsson.org/libidn/releases/
 
-      libidn, sources, linking to: libidn.lib, since there are no VC project
-      files provided along with sources, please use the ones I provide at:
-      http://www.nanoant.com/projects/jabberd2-win32#download
+      libidn, sources, linking to: libidn.lib, use win32/libidn.sln to build.
 
    2. http://www.slproweb.com/products/Win32OpenSSL.html
 
@@ -52,16 +50,15 @@ Prerequisites:
       there are no libraries for VC except DLLs you shall make one using
       sqlite-source-3.x.zip from SQLite downloads.
 
-   7. http://www.zlatkovic.com/pub/libxml/
-      http://subversion.tigris.org/
+   7. http://tortoisesvn.tigris.org/
 
-      xsltproc (libxml) for Windows and Subversion (svn-win32) to generate version.h
-      from SVN using version.xsl. Put them into the executable PATH. Alternatively you
-      can disable jabberd2.rc and version.xsl compilation in the project.
+      TortoiseSVN with SubWCRev tool binary to generate version.h and version.wxi.
+      Put TortoiseSVN bin folder into the executable PATH.
+      (Done by default by TortoiseSVN installer)
 
    8. http://wix.sourceforge.net/releases/
 
-      WiX 3.0.3029.0 or newer for building MSI jabberd2 setup inside VS2005 IDE
+      WiX 3.0.4401.0 or newer for building MSI jabberd2 setup inside VS2005 IDE
 
 After all prerequisite libraries are configured for use within VC open
 win32/jabberd2.sln and build all projects.

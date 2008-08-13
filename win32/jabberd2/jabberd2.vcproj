@@ -41,7 +41,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories=".;../include;../..;../../util"
-				PreprocessorDefinitions="SX_DEBUG;MIO_DEBUG;MIO_WSASYNC;WIN32;_DEBUG;_USRDLL;JABBERD2_EXPORTS;HAVE_CONFIG_H;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;ENABLE_SUPERSEDED"
+				PreprocessorDefinitions="SX_DEBUG;MIO_DEBUG;MIO_WSASYNC;WIN32;_DEBUG;_USRDLL;JABBERD2_EXPORTS;HAVE_CONFIG_H;USE_LIBSUBST;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;ENABLE_SUPERSEDED"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -119,7 +119,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				AdditionalIncludeDirectories=".;../include;../..;../../util"
-				PreprocessorDefinitions="MIO_WSASYNC;WIN32;NDEBUG;_USRDLL;JABBERD2_EXPORTS;HAVE_CONFIG_H;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;ENABLE_SUPERSEDED"
+				PreprocessorDefinitions="MIO_WSASYNC;WIN32;NDEBUG;_USRDLL;JABBERD2_EXPORTS;HAVE_CONFIG_H;USE_LIBSUBST;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;ENABLE_SUPERSEDED"
 				RuntimeLibrary="2"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
@@ -530,7 +530,7 @@
 					>
 				</File>
 				<File
-					RelativePath="..\include\version.h.xsl"
+					RelativePath="..\include\version.h.in"
 					>
 					<FileConfiguration
 						Name="Debug|Win32"
@@ -538,7 +538,7 @@
 						<Tool
 							Name="VCCustomBuildTool"
 							Description="Updating $(InputDir)$(InputName)"
-							CommandLine="cd ..\.. &amp; svn info --xml|xsltproc --nonet $(InputPath) - &gt; $(InputDir)$(InputName)&#x0D;&#x0A;"
+							CommandLine="subwcrev ..\.. $(InputPath) $(InputDir)$(InputName)"
 							AdditionalDependencies="$(InputDir)..\.svn\entries"
 							Outputs="$(InputDir)$(InputName)"
 						/>
@@ -549,7 +549,7 @@
 						<Tool
 							Name="VCCustomBuildTool"
 							Description="Updating $(InputDir)$(InputName)"
-							CommandLine="cd ..\.. &amp; svn info --xml|xsltproc --nonet $(InputPath) - &gt; $(InputDir)$(InputName)&#x0D;&#x0A;"
+							CommandLine="subwcrev ..\.. $(InputPath) $(InputDir)$(InputName)"
 							AdditionalDependencies="$(InputDir)..\.svn\entries"
 							Outputs="$(InputDir)$(InputName)"
 						/>
@@ -560,7 +560,7 @@
 					>
 				</File>
 				<File
-					RelativePath="..\include\version.wxi.xsl"
+					RelativePath="..\include\version.wxi.in"
 					>
 					<FileConfiguration
 						Name="Debug|Win32"
@@ -568,7 +568,7 @@
 						<Tool
 							Name="VCCustomBuildTool"
 							Description="Updating $(InputDir)$(InputName)"
-							CommandLine="cd ..\.. &amp; svn info --xml|xsltproc --nonet $(InputPath) - &gt; $(InputDir)$(InputName)&#x0D;&#x0A;"
+							CommandLine="subwcrev ..\.. $(InputPath) $(InputDir)$(InputName)"
 							AdditionalDependencies="$(InputDir)..\.svn\entries"
 							Outputs="$(InputDir)$(InputName)"
 						/>
@@ -579,7 +579,7 @@
 						<Tool
 							Name="VCCustomBuildTool"
 							Description="Updating $(InputDir)$(InputName)"
-							CommandLine="cd ..\.. &amp; svn info --xml|xsltproc --nonet $(InputPath) - &gt; $(InputDir)$(InputName)&#x0D;&#x0A;"
+							CommandLine="subwcrev ..\.. $(InputPath) $(InputDir)$(InputName)"
 							AdditionalDependencies="$(InputDir)..\.svn\entries"
 							Outputs="$(InputDir)$(InputName)"
 						/>
