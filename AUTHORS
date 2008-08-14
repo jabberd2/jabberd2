@@ -26,7 +26,7 @@ The main culprits for this release are:
   Tomasz Sterna     <xmpp:smoku@xiaoka.com>
     - Maintenance, bug fixing, merging. Current coordinator of the project.
 
-  Adam Strzelecki   <ono@java.pl>
+  Adam Strzelecki   <xmpp:ono@jabber.org>
     - Win32 porting, installer and MIO
 
 Other people who chipped in:
