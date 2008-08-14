@@ -60,6 +60,11 @@ Prerequisites:
 
       WiX 3.0.4401.0 or newer for building MSI jabberd2 setup inside VS2005 IDE
 
+   9. http://www.activestate.com/store/activeperl/download/
+
+      ActivePerl (or any Perl distribution) perl command present in PATH
+      (optional for generation of default configuration XML files)
+
 After all prerequisite libraries are configured for use within VC open
 win32/jabberd2.sln and build all projects.
 

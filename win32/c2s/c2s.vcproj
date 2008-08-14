@@ -233,8 +233,58 @@
 			UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}"
 			>
 			<File
+				RelativePath="..\..\etc\c2s.xml.dist.in"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Generating configuration: $(TargetDir)$(TargetName).xml"
+						CommandLine="perl ../setup/make-config.pl $(InputPath) &gt; $(TargetDir)$(TargetName).xml"
+						AdditionalDependencies="../setup/make-config.pl"
+						Outputs="$(TargetDir)$(TargetName).xml"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Generating configuration: $(TargetDir)$(TargetName).xml"
+						CommandLine="perl ../setup/make-config.pl $(InputPath) &gt; $(TargetDir)$(TargetName).xml"
+						AdditionalDependencies="../setup/make-config.pl"
+						Outputs="$(TargetDir)$(TargetName).xml"
+					/>
+				</FileConfiguration>
+			</File>
+			<File
 				RelativePath="..\jabberd2.rc"
 				>
+			</File>
+			<File
+				RelativePath="..\setup\server.pem"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Generating default certificate: $(TargetDir)$(InputFileName)"
+						CommandLine="copy /y $(InputPath) $(TargetDir)$(InputFileName)"
+						Outputs="$(TargetDir)$(InputFileName)"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Generating default certificate: $(TargetDir)$(InputFileName)"
+						CommandLine="copy /y $(InputPath) $(TargetDir)$(InputFileName)"
+						Outputs="$(TargetDir)$(InputFileName)"
+					/>
+				</FileConfiguration>
 			</File>
 		</Filter>
 	</Files>

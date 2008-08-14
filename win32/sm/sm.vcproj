@@ -264,6 +264,56 @@
 				RelativePath="..\jabberd2.rc"
 				>
 			</File>
+			<File
+				RelativePath="..\setup\server.pem"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Generating default certificate: $(TargetDir)$(InputFileName)"
+						CommandLine="copy /y $(InputPath) $(TargetDir)$(InputFileName)"
+						Outputs="$(TargetDir)$(InputFileName)"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Generating default certificate: $(TargetDir)$(InputFileName)"
+						CommandLine="copy /y $(InputPath) $(TargetDir)$(InputFileName)"
+						Outputs="$(TargetDir)$(InputFileName)"
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="..\..\etc\sm.xml.dist.in"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Generating configuration: $(TargetDir)$(TargetName).xml"
+						CommandLine="perl ../setup/make-config.pl $(InputPath) &gt; $(TargetDir)$(TargetName).xml"
+						AdditionalDependencies="../setup/make-config.pl"
+						Outputs="$(TargetDir)$(TargetName).xml"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Generating configuration: $(TargetDir)$(TargetName).xml"
+						CommandLine="perl ../setup/make-config.pl $(InputPath) &gt; $(TargetDir)$(TargetName).xml"
+						AdditionalDependencies="../setup/make-config.pl"
+						Outputs="$(TargetDir)$(TargetName).xml"
+					/>
+				</FileConfiguration>
+			</File>
 		</Filter>
 	</Files>
 	<Globals>

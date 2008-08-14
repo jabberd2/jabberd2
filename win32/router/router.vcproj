@@ -244,6 +244,108 @@
 				RelativePath="..\jabberd2.rc"
 				>
 			</File>
+			<File
+				RelativePath="..\..\etc\router-filter.xml.dist.in"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Generating configuration: $(TargetDir)$(TargetName)-filter.xml"
+						CommandLine="perl ../setup/make-config.pl $(InputPath) &gt; $(TargetDir)$(TargetName)-filter.xml"
+						AdditionalDependencies="../setup/make-config.pl"
+						Outputs="$(TargetDir)$(TargetName)-filter.xml"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Generating configuration: $(TargetDir)$(TargetName)-filter.xml"
+						CommandLine="perl ../setup/make-config.pl $(InputPath) &gt; $(TargetDir)$(TargetName)-filter.xml"
+						AdditionalDependencies="../setup/make-config.pl"
+						Outputs="$(TargetDir)$(TargetName)-filter.xml"
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="..\..\etc\router-users.xml.dist.in"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Generating configuration: $(TargetDir)$(TargetName)-users.xml"
+						CommandLine="perl ../setup/make-config.pl $(InputPath) &gt; $(TargetDir)$(TargetName)-users.xml"
+						AdditionalDependencies="../setup/make-config.pl"
+						Outputs="$(TargetDir)$(TargetName)-users.xml"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Generating configuration: $(TargetDir)$(TargetName)-users.xml"
+						CommandLine="perl ../setup/make-config.pl $(InputPath) &gt; $(TargetDir)$(TargetName)-users.xml"
+						AdditionalDependencies="../setup/make-config.pl"
+						Outputs="$(TargetDir)$(TargetName)-users.xml"
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="..\..\etc\router.xml.dist.in"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Generating configuration: $(TargetDir)$(TargetName).xml"
+						CommandLine="perl ../setup/make-config.pl $(InputPath) &gt; $(TargetDir)$(TargetName).xml"
+						AdditionalDependencies="../setup/make-config.pl"
+						Outputs="$(TargetDir)$(TargetName).xml"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Generating configuration: $(TargetDir)$(TargetName).xml"
+						CommandLine="perl ../setup/make-config.pl $(InputPath) &gt; $(TargetDir)$(TargetName).xml"
+						AdditionalDependencies="../setup/make-config.pl"
+						Outputs="$(TargetDir)$(TargetName).xml"
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="..\setup\server.pem"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Generating default certificate: $(TargetDir)$(InputFileName)"
+						CommandLine="copy /y $(InputPath) $(TargetDir)$(InputFileName)"
+						Outputs="$(TargetDir)$(InputFileName)"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Generating default certificate: $(TargetDir)$(InputFileName)"
+						CommandLine="copy /y $(InputPath) $(TargetDir)$(InputFileName)"
+						Outputs="$(TargetDir)$(InputFileName)"
+					/>
+				</FileConfiguration>
+			</File>
 		</Filter>
 	</Files>
 	<Globals>
