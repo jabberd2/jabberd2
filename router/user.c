@@ -42,7 +42,7 @@ int user_table_load(router_t r) {
     if(userfile == NULL)
         userfile = CONFIG_DIR "/router-users.xml";
 
-    f = fopen(userfile, "r");
+    f = fopen(userfile, "rb");
     if(f == NULL) {
         log_write(r->log, LOG_ERR, "couldn't open user table file %s: %s", userfile, strerror(errno));
         return 1;

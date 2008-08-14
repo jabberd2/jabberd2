@@ -57,7 +57,7 @@ int filter_load(router_t r) {
     if(filterfile == NULL)
         filterfile = CONFIG_DIR "/router-filter.xml";
 
-    f = fopen(filterfile, "r");
+    f = fopen(filterfile, "rb");
     if(f == NULL) {
         log_write(r->log, LOG_NOTICE, "couldn't open filter file %s: %s", filterfile, strerror(errno));
         r->filter_load = time(NULL);
