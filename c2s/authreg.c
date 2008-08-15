@@ -321,7 +321,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
     /* now, are they authenticated? */
     if(authd)
     {
-        log_write(c2s->log, LOG_NOTICE, "[%d] legacy authentication succeeded: host=%s, username=%s, resource=%s%s", sess->s->tag, sess->host->realm, username, resource, sess->s->ssf ? ", TLS negotiated" : "");
+        log_write(c2s->log, LOG_NOTICE, "[%d] legacy authentication succeeded: host=%s, username=%s, resource=%s%s%s", sess->s->tag, sess->host->realm, username, resource, sess->s->ssf ? ", TLS negotiated" : "", sess->s->compressed ? ", ZLIB compression enabled" : "");
 
         /* create new bound jid holder */
         if(sess->resources == NULL) {

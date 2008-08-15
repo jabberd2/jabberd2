@@ -42,7 +42,7 @@ static int _sx_compress_process(sx_t s, sx_plugin_t p, nad_t nad) {
         return 1;
 
     /* only want compress packets */
-    if(NAD_ENS(nad, 0) < 0 || NAD_NURI_L(nad, NAD_ENS(nad, 0)) != strlen(uri_COMPRESS) || strncmp(NAD_NURI(nad, NAD_ENS(nad, 0)), uri_COMPRESS, strlen(uri_COMPRESS)) != 0)
+    if(NAD_ENS(nad, 0) < 0 || NAD_NURI_L(nad, NAD_ENS(nad, 0)) != sizeof(uri_COMPRESS)-1 || strncmp(NAD_NURI(nad, NAD_ENS(nad, 0)), uri_COMPRESS, sizeof(uri_COMPRESS)-1) != 0)
         return 1;
 
     /* compress from client */
@@ -59,7 +59,7 @@ static int _sx_compress_process(sx_t s, sx_plugin_t p, nad_t nad) {
             _sx_debug(ZONE, "compress requested, setting up");
 
             /* go ahead */
-            jqueue_push(s->wbufq, _sx_buffer_new("<compressed xmlns='" uri_COMPRESS "'/>", strlen(uri_COMPRESS) + 22, _sx_compress_notify_compress, NULL), 0);
+            jqueue_push(s->wbufq, _sx_buffer_new("<compressed xmlns='" uri_COMPRESS "'/>", sizeof(uri_COMPRESS)-1 + 22, _sx_compress_notify_compress, NULL), 0);
             s->want_write = 1;
 
             /* handled the packet */
@@ -223,7 +223,7 @@ static int _sx_compress_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
             /* make place for inflated data */
             _sx_buffer_alloc_margin(buf, 0, SX_COMPRESS_CHUNK);
 
-                sc->rstrm.avail_out = SX_COMPRESS_CHUNK;
+            sc->rstrm.avail_out = SX_COMPRESS_CHUNK;
             sc->rstrm.next_out = buf->data + buf->len;
 
             ret = inflate(&(sc->rstrm), Z_SYNC_FLUSH);
@@ -361,7 +361,7 @@ int sx_compress_client_compress(sx_plugin_t p, sx_t s, char *pemfile) {
     _sx_debug(ZONE, "initiating compress sequence");
 
     /* go */
-    jqueue_push(s->wbufq, _sx_buffer_new("<compress xmlns='" uri_COMPRESS "'><method>zlib</method></compress>", strlen(uri_COMPRESS) + 51, NULL, NULL), 0);
+    jqueue_push(s->wbufq, _sx_buffer_new("<compress xmlns='" uri_COMPRESS "'><method>zlib</method></compress>", sizeof(uri_COMPRESS)-1 + 51, NULL, NULL), 0);
     s->want_write = 1;
     _sx_event(s, event_WANT_WRITE, NULL);
 

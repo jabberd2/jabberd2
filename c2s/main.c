@@ -691,13 +691,6 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     }
 #endif
 
-    /* get sasl online */
-    c2s->sx_sasl = sx_env_plugin(c2s->sx_env, sx_sasl_init, "xmpp", _c2s_sx_sasl_callback, (void *) c2s);
-    if(c2s->sx_sasl == NULL) {
-        log_write(c2s->log, LOG_ERR, "failed to initialise SASL context, aborting");
-        exit(1);
-    }
-
 #ifdef HAVE_LIBZ
     /* get compression up and running */
     if(c2s->compression)
@@ -711,6 +704,13 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     /* and user IP address plugin */
     sx_env_plugin(c2s->sx_env, sx_address_init);
 #endif
+
+    /* get sasl online */
+    c2s->sx_sasl = sx_env_plugin(c2s->sx_env, sx_sasl_init, "xmpp", _c2s_sx_sasl_callback, (void *) c2s);
+    if(c2s->sx_sasl == NULL) {
+        log_write(c2s->log, LOG_ERR, "failed to initialise SASL context, aborting");
+        exit(1);
+    }
 
     /* get bind up */
     sx_env_plugin(c2s->sx_env, bind_init, c2s);
