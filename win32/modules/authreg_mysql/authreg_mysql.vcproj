@@ -61,7 +61,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="libmysql.lib c2s.lib jabberd2.lib libexpat.lib"
+				AdditionalDependencies="libmysql.lib c2s.lib jabberd2.lib libexpat.lib libeay32MT.lib"
 				OutputFile="../../bin/debug/modules/$(ProjectName).dll"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories="../../lib/debug;../../lib"
@@ -139,7 +139,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="libmysql.lib c2s.lib jabberd2.lib libexpat.lib"
+				AdditionalDependencies="libmysql.lib c2s.lib jabberd2.lib libexpat.lib libeay32MT.lib"
 				OutputFile="../../bin/modules/$(ProjectName).dll"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="../../lib"

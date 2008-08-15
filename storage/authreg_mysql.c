@@ -24,6 +24,12 @@
 #include <mysql.h>
 #include <unistd.h>
 
+/* Windows does not has the crypt function, let's take DES_crypt from OpenSSL instead */
+#if defined(HAVE_OPENSSL_CRYPTO_H) && defined(_WIN32)
+#include <openssl/des.h>
+#define crypt DES_crypt
+#endif
+
 #define MYSQL_LU  1024   /* maximum length of username - should correspond to field length */
 #define MYSQL_LR   256   /* maximum length of realm - should correspond to field length */
 #define MYSQL_LP   256   /* maximum length of password - should correspond to field length */
