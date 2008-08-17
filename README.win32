@@ -23,7 +23,7 @@ Prerequisites:
 
    1. http://josefsson.org/libidn/releases/
 
-      libidn, sources, linking to: libidn.lib, use win32/libidn.sln to build.
+      libidn sources, linking to: libidn.lib, use win32/libidn.sln to build.
 
    2. http://www.slproweb.com/products/Win32OpenSSL.html
 
@@ -35,32 +35,39 @@ Prerequisites:
 
    4. http://josefsson.org/gsasl/releases/
 
-      libgsasl, sources, linking to: libgsasl.lib, since there are no VC project
+      libgsasl sources, linking to: libgsasl.lib, since there are no VC project
       files provided along with sources, please use the ones I provide at:
       http://www.nanoant.com/projects/jabberd2-win32#download
       Remember to apply the patch you find there too.
 
-   5. http://dev.mysql.com/downloads/mysql/5.0.html
+   5. http://www.corpit.ru/mjt/udns.html
+
+      udns sources, linking to: udns.lib, since there are no VC project files
+      provided along with sources, please use the ones I provide at:
+      http://www.nanoant.com/projects/jabberd2-win32#download
+      Remember to apply the patch you find there too.
+
+   6. http://dev.mysql.com/downloads/mysql/5.0.html
 
       MySQL, auth & storage module, binary, linking to: libmysql.lib
 
-   6. http://www.sqlite.org/download.html
+   7. http://www.sqlite.org/download.html
 
       SQLite, auth & storage module, source, linking to: sqlite3.lib. Since
       there are no libraries for VC except DLLs you shall make one using
       sqlite-source-3.x.zip from SQLite downloads.
 
-   7. http://tortoisesvn.tigris.org/
+   8. http://tortoisesvn.tigris.org/
 
       TortoiseSVN with SubWCRev tool binary to generate version.h and version.wxi.
       Put TortoiseSVN bin folder into the executable PATH.
       (Done by default by TortoiseSVN installer)
 
-   8. http://wix.sourceforge.net/releases/
+   9. http://wix.sourceforge.net/releases/
 
       WiX 3.0.4401.0 or newer for building MSI jabberd2 setup inside VS2005 IDE
 
-   9. http://www.activestate.com/store/activeperl/download/
+  10. http://www.activestate.com/store/activeperl/download/
 
       ActivePerl (or any Perl distribution) perl command present in PATH
       (optional for generation of default configuration XML files)
@@ -108,4 +115,4 @@ Also I'm sending thanks to Tomasz Sterna (current project maintainer) for
 letting me in with my win32 modifications and support.
 
 --
-Adam Strzelecki <ono@java.pl>, 2008-01-30
+Adam Strzelecki <ono@java.pl>, 2008-08-17
