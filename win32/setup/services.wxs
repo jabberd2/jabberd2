@@ -11,7 +11,7 @@
 								Description="Jabber Open Source Server: Client to Server">
 					<ServiceDependency Id="jabberd2router" />
 				</ServiceInstall>
-				<ServiceControl Id="jabberd2c2s" Name="jabberd2c2s" Remove="uninstall" Start="install" Stop="both" />
+				<ServiceControl Id="jabberd2c2s" Name="jabberd2c2s" Remove="uninstall" Start="install" Stop="both" Wait="no" />
 			</Component>
 			<Component Id="c2s.dist.xml" Guid="{CFC12491-EB7B-4BFA-A0E1-4342A68DC481}">
 				<Condition>C2S.XML.EXISTS</Condition>
@@ -33,7 +33,7 @@
 								Description="Jabber Open Source Server: Resolver">
 					<ServiceDependency Id="jabberd2router" />
 				</ServiceInstall>
-				<ServiceControl Id="jabberd2resolver" Name="jabberd2resolver" Remove="uninstall" Start="install" Stop="both" />
+				<ServiceControl Id="jabberd2resolver" Name="jabberd2resolver" Remove="uninstall" Start="install" Stop="both" Wait="no" />
 			</Component>
 			<Component Id="resolver.dist.xml" Guid="{4C13C6BC-6FFF-46AE-A0EC-65470B75B74E}">
 				<Condition>RESOLVER.XML.EXISTS</Condition>
@@ -51,7 +51,7 @@
 				<ServiceInstall Arguments="-S" ErrorControl="normal" Start="auto" Type="ownProcess" Vital="yes"
 								Id="jabberd2router" Name="jabberd2router" DisplayName="Jabber 2 Router"
 								Description="Jabber Open Source Server: Router" />
-				<ServiceControl Id="jabberd2router" Name="jabberd2router" Remove="uninstall" Start="install" Stop="both" />
+				<ServiceControl Id="jabberd2router" Name="jabberd2router" Remove="uninstall" Start="install" Stop="both" Wait="no" />
 			</Component>
 			<Component Id="router.dist.xml" Guid="{177EB263-58C5-4E48-AFA2-C4EEBF9C5726}">
 				<Condition>ROUTER.XML.EXISTS</Condition>
@@ -87,7 +87,7 @@
 								Description="Jabber Open Source Server: Server to Server">
 					<ServiceDependency Id="jabberd2router" />
 				</ServiceInstall>
-				<ServiceControl Id="jabberd2s2s" Name="jabberd2s2s" Remove="uninstall" Start="install" Stop="both" />
+				<ServiceControl Id="jabberd2s2s" Name="jabberd2s2s" Remove="uninstall" Start="install" Stop="both" Wait="no" />
 			</Component>
 			<Component Id="s2s.dist.xml" Guid="{44A615A2-9452-4AD6-AFD6-7D52BE6E7EF5}">
 				<Condition>S2S.XML.EXISTS</Condition>
@@ -107,7 +107,7 @@
 								Description="Jabber Open Source Server: Session Manager">
 					<ServiceDependency Id="jabberd2router" />
 				</ServiceInstall>
-				<ServiceControl Id="jabberd2sm" Name="jabberd2sm" Remove="uninstall" Start="install" Stop="both" />
+				<ServiceControl Id="jabberd2sm" Name="jabberd2sm" Remove="uninstall" Start="install" Stop="both" Wait="no" />
 			</Component>
 			<Component Id="sm.dist.xml" Guid="{7A694B6F-FB52-42B2-8D23-06E6C725E1D0}">
 				<Condition>SM.XML.EXISTS</Condition>
