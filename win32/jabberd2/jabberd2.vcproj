@@ -61,7 +61,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="libidn.lib libgsasl.lib libeay32MT.lib ssleay32MT.lib dnsapi.lib ws2_32.lib libexpat.lib"
+				AdditionalDependencies="libidn.lib libgsasl.lib libeay32MT.lib ssleay32MT.lib dnsapi.lib ws2_32.lib libexpat.lib zlib1.lib"
 				OutputFile="../bin/debug/$(ProjectName).dll"
 				AdditionalLibraryDirectories="../lib/debug;../lib"
 				GenerateDebugInformation="true"
@@ -137,7 +137,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="libidn.lib libgsasl.lib libeay32MT.lib ssleay32MT.lib dnsapi.lib ws2_32.lib libexpat.lib"
+				AdditionalDependencies="libidn.lib libgsasl.lib libeay32MT.lib ssleay32MT.lib dnsapi.lib ws2_32.lib libexpat.lib zlib1.lib"
 				OutputFile="../bin/$(ProjectName).dll"
 				AdditionalLibraryDirectories="../lib"
 				ImportLibrary="../lib/$(TargetName).lib"
@@ -344,6 +344,10 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\sx\compress.c"
+					>
+				</File>
+				<File
 					RelativePath="..\..\sx\env.c"
 					>
 				</File>
@@ -538,7 +542,7 @@
 						<Tool
 							Name="VCCustomBuildTool"
 							Description="Updating $(InputDir)$(InputName)"
-							CommandLine="subwcrev ..\.. $(InputPath) $(InputDir)$(InputName)"
+							CommandLine="subwcrev ..\.. $(InputPath) $(InputDir)$(InputName)&#x0D;&#x0A;"
 							AdditionalDependencies="$(InputDir)..\.svn\entries"
 							Outputs="$(InputDir)$(InputName)"
 						/>
@@ -549,7 +553,7 @@
 						<Tool
 							Name="VCCustomBuildTool"
 							Description="Updating $(InputDir)$(InputName)"
-							CommandLine="subwcrev ..\.. $(InputPath) $(InputDir)$(InputName)"
+							CommandLine="subwcrev ..\.. $(InputPath) $(InputDir)$(InputName)&#x0D;&#x0A;"
 							AdditionalDependencies="$(InputDir)..\.svn\entries"
 							Outputs="$(InputDir)$(InputName)"
 						/>
@@ -568,7 +572,7 @@
 						<Tool
 							Name="VCCustomBuildTool"
 							Description="Updating $(InputDir)$(InputName)"
-							CommandLine="subwcrev ..\.. $(InputPath) $(InputDir)$(InputName)"
+							CommandLine="subwcrev ..\.. $(InputPath) $(InputDir)$(InputName)&#x0D;&#x0A;"
 							AdditionalDependencies="$(InputDir)..\.svn\entries"
 							Outputs="$(InputDir)$(InputName)"
 						/>
@@ -579,7 +583,7 @@
 						<Tool
 							Name="VCCustomBuildTool"
 							Description="Updating $(InputDir)$(InputName)"
-							CommandLine="subwcrev ..\.. $(InputPath) $(InputDir)$(InputName)"
+							CommandLine="subwcrev ..\.. $(InputPath) $(InputDir)$(InputName)&#x0D;&#x0A;"
 							AdditionalDependencies="$(InputDir)..\.svn\entries"
 							Outputs="$(InputDir)$(InputName)"
 						/>

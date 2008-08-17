@@ -47,27 +47,36 @@ Prerequisites:
       http://www.nanoant.com/projects/jabberd2-win32#download
       Remember to apply the patch you find there too.
 
-   6. http://dev.mysql.com/downloads/mysql/5.0.html
+   6. http://www.zlib.net/
+
+      zlib sources, linking to: zlib1.lib, convert & use VC project files at:
+      projects/visualc6, link to Win32_DLL_ASM_Release. If you encounter MASM
+      error:
+         .\inffas32.asm(647) : error A2070: invalid instruction operands
+      Add a "dword ptr" type qualifier before "[esp]" as described here:
+      http://connect.microsoft.com/VisualStudio/feedback/ViewFeedback.aspx?FeedbackID=166511
+
+   7. http://dev.mysql.com/downloads/mysql/5.0.html
 
       MySQL, auth & storage module, binary, linking to: libmysql.lib
 
-   7. http://www.sqlite.org/download.html
+   8. http://www.sqlite.org/download.html
 
       SQLite, auth & storage module, source, linking to: sqlite3.lib. Since
       there are no libraries for VC except DLLs you shall make one using
       sqlite-source-3.x.zip from SQLite downloads.
 
-   8. http://tortoisesvn.tigris.org/
+   9. http://tortoisesvn.tigris.org/
 
       TortoiseSVN with SubWCRev tool binary to generate version.h and version.wxi.
       Put TortoiseSVN bin folder into the executable PATH.
       (Done by default by TortoiseSVN installer)
 
-   9. http://wix.sourceforge.net/releases/
+  10. http://wix.sourceforge.net/releases/
 
       WiX 3.0.4401.0 or newer for building MSI jabberd2 setup inside VS2005 IDE
 
-  10. http://www.activestate.com/store/activeperl/download/
+  11. http://www.activestate.com/store/activeperl/download/
 
       ActivePerl (or any Perl distribution) perl command present in PATH
       (optional for generation of default configuration XML files)
