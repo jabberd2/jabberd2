@@ -520,13 +520,13 @@
 #define PACKAGE_NAME "jabberd"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "jabberd 2.1SVN"
+#define PACKAGE_STRING "jabberd 2.2SVN"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "jabberd"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "2.1SVN"
+#define PACKAGE_VERSION "2.2SVN"
 
 /* Define to 1 if you want to enable memory pool statistics. */
 /* #undef POOL_DEBUG */
