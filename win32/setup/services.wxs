@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 	<Fragment>
 		<DirectoryRef Id="INSTALLDIR" FileSource="$(var.TargetDir)">
@@ -15,33 +15,13 @@
 			</Component>
 			<Component Id="c2s.dist.xml" Guid="{CFC12491-EB7B-4BFA-A0E1-4342A68DC481}">
 				<Condition>C2S.XML.EXISTS</Condition>
-				<File Id="c2s.dist.xml" Name="c2s.dist.xml" Vital="yes" />
+				<File Id="c2s.dist.xml" Name="c2s.dist.xml" Vital="yes" Source="$(var.TargetDir)\c2s.xml" />
 			</Component>
 			<Component Id="c2s.xml" Guid="{C6B805D9-9171-48A3-93BC-2DF99357F791}" Permanent="yes">
 				<Condition>NOT C2S.XML.EXISTS</Condition>
-				<File Id="c2s.xml" Name="c2s.xml" Vital="yes" KeyPath="yes" Source="$(var.TargetDir)\c2s.dist.xml" />
+				<File Id="c2s.xml" Name="c2s.xml" Vital="yes" KeyPath="yes" />
 				<util:XmlFile Id="c2s.configure" Action="setValue" ElementPath="/c2s/local/id"
 							  File="[INSTALLDIR]\c2s.xml" Value="[DOMAIN]" />
-			</Component>
-
-			<Component Id="resolver.exe" Guid="{460A1925-3F0C-4138-866B-BCE36087BEEB}">
-				<File Id="resolver.exe" Name="resolver.exe" KeyPath="yes" Vital="yes" />
-				<RemoveFile Id="resolver.log" Name="resolver.log" On="uninstall" />
-				<RemoveFile Id="resolver.pid" Name="resolver.pid" On="uninstall" />
-				<ServiceInstall Arguments="-S" ErrorControl="normal" Start="auto" Type="ownProcess" Vital="yes"
-								Id="jabberd2resolver" Name="jabberd2resolver" DisplayName="Jabber 2 Resolver"
-								Description="Jabber Open Source Server: Resolver">
-					<ServiceDependency Id="jabberd2router" />
-				</ServiceInstall>
-				<ServiceControl Id="jabberd2resolver" Name="jabberd2resolver" Remove="uninstall" Start="install" Stop="both" Wait="no" />
-			</Component>
-			<Component Id="resolver.dist.xml" Guid="{4C13C6BC-6FFF-46AE-A0EC-65470B75B74E}">
-				<Condition>RESOLVER.XML.EXISTS</Condition>
-				<File Id="resolver.dist.xml" Name="resolver.dist.xml" Vital="yes" />
-			</Component>
-			<Component Id="resolver.xml" Guid="{23323231-FB9F-4FD7-BEE5-3E5255A4AFDC}" Permanent="yes">
-				<Condition>NOT RESOLVER.XML.EXISTS</Condition>
-				<File Id="resolver.xml" Name="resolver.xml" Vital="yes" KeyPath="yes" Source="$(var.TargetDir)\resolver.dist.xml" />
 			</Component>
 
 			<Component Id="router.exe" Guid="{B633B226-3A8C-4E25-A26D-0786EC08D217}">
@@ -55,27 +35,27 @@
 			</Component>
 			<Component Id="router.dist.xml" Guid="{177EB263-58C5-4E48-AFA2-C4EEBF9C5726}">
 				<Condition>ROUTER.XML.EXISTS</Condition>
-				<File Id="router.dist.xml" Name="router.dist.xml" Vital="yes" />
+				<File Id="router.dist.xml" Name="router.dist.xml" Vital="yes" Source="$(var.TargetDir)\router.xml" />
 			</Component>
 			<Component Id="router_filter.dist.xml" Guid="{C894E253-4C89-462A-89AA-66A0D353C1BA}">
 				<Condition>ROUTER_FILTER.XML.EXISTS</Condition>
-				<File Id="router_filter.dist.xml" Name="router-filter.dist.xml" Vital="yes" />
+				<File Id="router_filter.dist.xml" Name="router-filter.dist.xml" Vital="yes" Source="$(var.TargetDir)\router-filter.xml" />
 			</Component>
 			<Component Id="router_users.dist.xml" Guid="{0CD59F12-52B9-403A-8687-572D1B44A217}">
 				<Condition>ROUTER_USERS.XML.EXISTS</Condition>
-				<File Id="router_users.dist.xml" Name="router-users.dist.xml" Vital="yes" />
+				<File Id="router_users.dist.xml" Name="router-users.dist.xml" Vital="yes" Source="$(var.TargetDir)\router-users.xml" />
 			</Component>
 			<Component Id="router.xml" Guid="{15EC6601-ACB1-48B7-AC01-38F3CED13E9D}" Permanent="yes">
 				<Condition>NOT ROUTER.XML.EXISTS</Condition>
-				<File Id="router_router.xml" Name="router.xml" Vital="yes" KeyPath="yes" Source="$(var.TargetDir)\router.dist.xml" />
+				<File Id="router_router.xml" Name="router.xml" Vital="yes" KeyPath="yes" />
 			</Component>
 			<Component Id="router_filter.xml" Guid="{A73E50B0-74DA-47D1-AB12-7377271F58C6}" Permanent="yes">
 				<Condition>NOT ROUTER_FILTER.XML.EXISTS</Condition>
-				<File Id="router_filter.xml" Name="router-filter.xml" Vital="yes" KeyPath="yes" Source="$(var.TargetDir)\router-filter.dist.xml" />
+				<File Id="router_filter.xml" Name="router-filter.xml" Vital="yes" KeyPath="yes" />
 			</Component>
 			<Component Id="router_users.xml" Guid="{8A9EB164-7BE9-49A0-9C4D-4CF5FCC55233}" Permanent="yes">
 				<Condition>NOT ROUTER_USERS.XML.EXISTS</Condition>
-				<File Id="router_users.xml" Name="router-users.xml" Vital="yes" KeyPath="yes" Source="$(var.TargetDir)\router-users.dist.xml" />
+				<File Id="router_users.xml" Name="router-users.xml" Vital="yes" KeyPath="yes" />
 			</Component>
 
 			<Component Id="s2s.exe" Guid="{CEDBD464-DD63-4430-8469-3F3C27A06C90}">
@@ -91,11 +71,11 @@
 			</Component>
 			<Component Id="s2s.dist.xml" Guid="{44A615A2-9452-4AD6-AFD6-7D52BE6E7EF5}">
 				<Condition>S2S.XML.EXISTS</Condition>
-				<File Id="s2s.dist.xml" Name="s2s.dist.xml" Vital="yes" />
+				<File Id="s2s.dist.xml" Name="s2s.dist.xml" Vital="yes" Source="$(var.TargetDir)\s2s.xml" />
 			</Component>
 			<Component Id="s2s.xml" Guid="{554A5AFC-CA6C-45A8-AFB8-65F51C108861}" Permanent="yes">
 				<Condition>NOT S2S.XML.EXISTS</Condition>
-				<File Id="s2s.xml" Name="s2s.xml" Vital="yes" KeyPath="yes" Source="$(var.TargetDir)\s2s.dist.xml" />
+				<File Id="s2s.xml" Name="s2s.xml" Vital="yes" KeyPath="yes" />
 			</Component>
 
 			<Component Id="sm.exe" Guid="{B5C795C8-6FFC-441C-9F7C-6846124C2D43}">
@@ -111,11 +91,11 @@
 			</Component>
 			<Component Id="sm.dist.xml" Guid="{7A694B6F-FB52-42B2-8D23-06E6C725E1D0}">
 				<Condition>SM.XML.EXISTS</Condition>
-				<File Id="sm.dist.xml" Name="sm.dist.xml" Vital="yes" />
+				<File Id="sm.dist.xml" Name="sm.dist.xml" Vital="yes" Source="$(var.TargetDir)\sm.xml" />
 			</Component>
 			<Component Id="sm.xml" Guid="{74E3ADAC-1CE9-41A4-9B30-3CA98D2E6BDA}" Permanent="yes">
 				<Condition>NOT SM.XML.EXISTS</Condition>
-				<File Id="sm.xml" Name="sm.xml" Vital="yes" KeyPath="yes" Source="$(var.TargetDir)\sm.dist.xml" />
+				<File Id="sm.xml" Name="sm.xml" Vital="yes" KeyPath="yes" />
 				<util:XmlFile Id="smConfigure" Action="setValue" ElementPath="/sm/id"
 							  File="[INSTALLDIR]\sm.xml" Value="[DOMAIN]" />
 			</Component>
@@ -140,11 +120,11 @@
 			</Component>
 			<Component Id="sqlite.dist.db" Guid="{928DD3B5-F429-45C4-B677-F3A2FFE23051}">
 				<Condition>SQLITE.DB.EXISTS</Condition>
-				<File Id="sqlite.dist.db" Name="sqlite.dist.db" KeyPath="yes" Vital="yes" />
+				<File Id="sqlite.dist.db" Name="sqlite.dist.db" KeyPath="yes" Vital="yes" Source="$(var.TargetDir)\sqlite.db" />
 			</Component>
 			<Component Id="sqlite.db" Guid="{54949691-C375-45B4-9936-D10967CCD0B2}" Permanent="yes">
 				<Condition>NOT SQLITE.DB.EXISTS</Condition>
-				<File Id="sqlite.db" Name="sqlite.db" KeyPath="yes" Vital="yes" Source="$(var.TargetDir)\sqlite.dist.db" />
+				<File Id="sqlite.db" Name="sqlite.db" KeyPath="yes" Vital="yes" />
 			</Component>
 		</DirectoryRef>
 	</Fragment>
@@ -153,9 +133,6 @@
 			<ComponentRef Id="c2s.exe" />
 			<ComponentRef Id="c2s.xml" />
 			<ComponentRef Id="c2s.dist.xml" />
-			<ComponentRef Id="resolver.exe" />
-			<ComponentRef Id="resolver.xml" />
-			<ComponentRef Id="resolver.dist.xml" />
 			<ComponentRef Id="router.exe" />
 			<ComponentRef Id="router.xml" />
 			<ComponentRef Id="router.dist.xml" />

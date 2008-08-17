@@ -1,6 +1,5 @@
 ﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <ProductVersion>3.0</ProductVersion>
     <ProjectGuid>{8504d60e-b1c4-4fe8-a5c2-3f36b1a5e2bd}</ProjectGuid>
     <SchemaVersion>2.0</SchemaVersion>
@@ -9,17 +8,20 @@
     <WixToolPath>$(ProgramFiles)\Windows Installer XML v3\bin\</WixToolPath>
     <Cultures>en-US</Cultures>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-    <OutputPath>bin\Debug\</OutputPath>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
+    <OutputPath>..\bin\debug\</OutputPath>
     <IntermediateOutputPath>obj\Debug\</IntermediateOutputPath>
-    <DefineConstants>Debug;TargetDir=..\bin\debug\</DefineConstants>
+    <DefineConstants>Debug</DefineConstants>
     <Cultures>en-US</Cultures>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-    <OutputPath>bin\Release\</OutputPath>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
+    <OutputPath>..\bin\</OutputPath>
     <IntermediateOutputPath>obj\Release\</IntermediateOutputPath>
-    <DefineConstants>TargetDir=..\bin\</DefineConstants>
+    <DefineConstants></DefineConstants>
     <Cultures>en-US</Cultures>
+    <WixVariables>
+    </WixVariables>
+    <VerboseOutput>True</VerboseOutput>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="libraries.wxs" />

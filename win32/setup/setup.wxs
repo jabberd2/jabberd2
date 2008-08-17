@@ -48,18 +48,18 @@
 
 		<Property Id="SSLEAY32">
 			<DirectorySearch Id="SSLEAY32" Path="[WindowsFolder]\system32">
-				<FileSearch Name="ssleay32.dll"/>
+				<FileSearch Id="SSLEAY32" Name="ssleay32.dll"/>
 			</DirectorySearch>
 		</Property>
 		<Property Id="LIBEAY32">
 			<DirectorySearch Id="LIBEAY32" Path="[WindowsFolder]\system32">
-				<FileSearch Name="libeay32.dll"/>
+				<FileSearch Id="LIBEAY32" Name="libeay32.dll"/>
 			</DirectorySearch>
 		</Property>
 
 		<Property Id="VC8SP1RTM">
 			<DirectorySearch Id="VC8SP1RTM" Path="[WindowsFolder]WinSxS\x86_Microsoft.VC80.CRT_1fc8b3b9a1e18e3b_8.0.50727.762_x-ww_6b128700">
-				<FileSearch Name="msvcr80.dll"/>
+				<FileSearch Id="VC8SP1RTM" Name="msvcr80.dll"/>
 			</DirectorySearch>
 		</Property>
 
