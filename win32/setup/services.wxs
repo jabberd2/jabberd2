@@ -100,7 +100,7 @@
 							  File="[INSTALLDIR]\sm.xml" Value="[DOMAIN]" />
 			</Component>
 
-			<Component Id="sm.dist.xml" Guid="{B397D554-041C-4142-B4B0-7DB105001DE1}">
+			<Component Id="server.dist.pem" Guid="{B397D554-041C-4142-B4B0-7DB105001DE1}">
 				<Condition>SERVER.PEM.EXISTS</Condition>
 				<File Id="server.dist.pem" Name="server.dist.pem" Vital="yes" Source="$(var.TargetDir)\server.pem" />
 			</Component>
