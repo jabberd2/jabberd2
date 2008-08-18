@@ -36,16 +36,14 @@ Prerequisites:
    4. http://josefsson.org/gsasl/releases/
 
       libgsasl sources, linking to: libgsasl.lib, since there are no VC project
-      files provided along with sources, please use the ones I provide at:
+      files provided along with sources, please use patch files provided at:
       http://www.nanoant.com/projects/jabberd2-win32#download
-      Remember to apply the patch you find there too.
 
    5. http://www.corpit.ru/mjt/udns.html
 
       udns sources, linking to: udns.lib, since there are no VC project files
-      provided along with sources, please use the ones I provide at:
+      provided along with sources, please use patch files provided at:
       http://www.nanoant.com/projects/jabberd2-win32#download
-      Remember to apply the patch you find there too.
 
    6. http://www.zlib.net/
 
