@@ -104,7 +104,7 @@
 				<Condition>SERVER.PEM.EXISTS</Condition>
 				<File Id="server.dist.pem" Name="server.dist.pem" Vital="yes" Source="$(var.TargetDir)\server.pem" />
 			</Component>
-			<Component Id="server.pem" Guid="{8AA5D8A8-A7EC-4F9F-BD19-FE0DD03BA620}">
+			<Component Id="server.pem" Guid="{8AA5D8A8-A7EC-4F9F-BD19-FE0DD03BA620}" Permanent="yes">
 				<Condition>NOT SERVER.PEM.EXISTS</Condition>
 				<File Id="server.pem" Name="server.pem" KeyPath="yes" Vital="yes" />
 			</Component>
