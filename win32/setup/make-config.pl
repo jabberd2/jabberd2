@@ -7,7 +7,7 @@ s/\r//gi;
 s/localhost\.localdomain/localhost/gi;
 s/\@(?:bindir|sysconfdir|localstatedir)\@/./gi;
 s/\@(?:pkglibdir)\@/modules/gi;
-s/\/jabberd\/(?:pid|log|db)//gi;
+s/\/jabberd\/(?:pid|log|db|stats)//gi;
 s/we use the MySQL driver for all storage/we use the SQLite driver for all storage/gi;
 s/<driver>mysql<\/driver>/<driver>sqlite<\/driver>/gi;
 s/<module>mysql<\/module>/<module>sqlite<\/module>/gi;
