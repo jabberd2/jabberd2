@@ -25,6 +25,7 @@ struct
 	{"router-users.xml",	"ROUTER_USERS.XML.EXISTS"},
 	{"s2s.xml",				"S2S.XML.EXISTS"},
 	{"sm.xml",				"SM.XML.EXISTS"},
+	{"server.pem",			"SERVER.PEM.EXISTS"},
 	{"sqlite.db",			"SQLITE.DB.EXISTS"},
 	{NULL, NULL}
 };
