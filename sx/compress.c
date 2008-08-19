@@ -119,8 +119,9 @@ static int _sx_compress_process(sx_t s, sx_plugin_t p, nad_t nad) {
 static void _sx_compress_features(sx_t s, sx_plugin_t p, nad_t nad) {
     int ns;
 
-    /* if the session is already compressed, or the app told us not to, then we don't offer anything */
-    if(s->compressed || !(s->flags & SX_COMPRESS_OFFER))
+    /* if the session is already compressed, or the app told us not to,
+	 * or STARTTLS is required and stream is not encrypted yet, then we don't offer anything */
+    if(s->compressed || !(s->flags & SX_COMPRESS_OFFER) || ((s->flags & SX_SSL_STARTTLS_REQUIRE) && s->ssf == 0))
         return;
 
     _sx_debug(ZONE, "offering compression");

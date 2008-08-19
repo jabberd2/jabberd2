@@ -407,7 +407,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                 log_debug(ZONE, "pre STARTTLS packet, dropping");
                 log_write(sess->c2s->log, LOG_NOTICE, "[%d] got pre STARTTLS packet, dropping", sess->s->tag);
 
-                sx_error(s, stream_err_NOT_AUTHORIZED, "stanza sent before starttls");
+                sx_error(s, stream_err_POLICY_VIOLATION, "STARTTLS is required for this stream");
 
                 nad_free(nad);
                 return 0;
