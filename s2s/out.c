@@ -1357,7 +1357,17 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             sxe = (sx_error_t *) data;
             log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] error: %s (%s)", out->fd->fd, out->ip, out->port, sxe->generic, sxe->specific);
 
-            if (!out->online) {
+            /* mark as bad if we did not manage to connect or there is unrecoverable stream error */
+            if (!out->online ||
+                    (sxe->code == SX_ERR_STREAM &&
+                        (strstr(sxe->specific, "host-gone") ||        /* it's not there now */
+                         strstr(sxe->specific, "host-unknown") ||     /* they do not service the host */
+                         strstr(sxe->specific, "not-authorized") ||   /* they do not want us there */
+                         strstr(sxe->specific, "see-other-host") ||   /* we do not support redirections yet */
+                         strstr(sxe->specific, "system-shutdown") ||  /* they are going down */
+                         strstr(sxe->specific, "unsupported-version") /* they do not support our stream version */
+                        )))
+            {
                 dnsres_t bad;
                 char *ipport;
 
