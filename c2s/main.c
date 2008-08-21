@@ -776,6 +776,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
                     res = tmp;
                 }
             if(sess->rate != NULL) rate_free(sess->rate);
+            if(sess->stanza_rate != NULL) rate_free(sess->stanza_rate);
 
             free(sess);
         }

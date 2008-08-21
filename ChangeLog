@@ -1,3 +1,6 @@
+2008-08-21 Mark Doliner <mark@meebo.com>
+	* Fix a memory leak when using stanza rate limiting
+
 2008-08-09 Tomasz Sterna <tomek@xiaoka.com>
 	* Sending stream errors on SX wrapper errors
 	* Checking return value of gsasl_base64_to/from(). Fixes #242
