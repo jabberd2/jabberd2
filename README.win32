@@ -21,23 +21,21 @@ folder for SASL plugins respectively.
 
 Prerequisites:
 
-   1. http://josefsson.org/libidn/releases/
+   1. http://alpha.gnu.org/gnu/libidn/
 
       libidn sources, linking to: libidn.lib, use win32/libidn.sln to build.
 
-   2. http://www.slproweb.com/products/Win32OpenSSL.html
+   2. http://alpha.gnu.org/gnu/gsasl/
+
+      libgsasl sources, linking to: libgsasl.lib, use win32/libgsasl.sln to build.
+
+   3. http://www.slproweb.com/products/Win32OpenSSL.html
 
       Win32 OpenSSL, binaries, linking to: libeay32MT.lib ssleay32MT.lib
 
-   3. http://sourceforge.net/project/showfiles.php?group_id=10127&package_id=11277
+   4. http://sourceforge.net/project/showfiles.php?group_id=10127&package_id=11277
 
       Expat XML Parser win32, binaries, linking: libexpat.lib
-
-   4. http://josefsson.org/gsasl/releases/
-
-      libgsasl sources, linking to: libgsasl.lib, since there are no VC project
-      files provided along with sources, please use patch files provided at:
-      http://www.nanoant.com/projects/jabberd2-win32#download
 
    5. http://www.corpit.ru/mjt/udns.html
 
