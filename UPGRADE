@@ -1,6 +1,23 @@
 This file contains upgrade instructions between different versions of jabberd2.
 
 
+* 2.2.3 to 2.2.4 upgrade:
+
+What changed:
+- [WIN32] libidn & gsasl downloads are now at GNU servers
+- Detecting unrecoverable stream errors on establishing an outgoing s2s connection
+- Do not offer compression if STARTTLS is required and not enabled
+- Return better error on STARTTLS required failure
+- [WIN32] Don't override server.pem on upgrade
+- [WIN32] Add TLS server certificate for default win32 c2s config
+- [WIN32] Don't fail when service fails to start (Should popup ignore box)
+- Implemented logging of compressed conection established
+- Implemented My IP Address extension
+
+Fortunately you do not need to configure anything to observe these changes,
+but you should be aware of them to not get surprised.
+
+
 * 2.2.2 to 2.2.3 upgrade:
 
 What changed:

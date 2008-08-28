@@ -1,5 +1,68 @@
+2008-08-22 Adam Strzelecki <ono@java.pl>
+	* [WIN32] libidn & gsasl downloads are now at GNU servers.
+
 2008-08-21 Mark Doliner <mark@meebo.com>
 	* Fix a memory leak when using stanza rate limiting
+
+2008-08-20 Tomasz Sterna <tomek@xiaoka.com>
+
+	* Detecting unrecoverable stream errors on establishing an outgoing s2s
+	  connection. Refs #244
+
+2008-08-19 Tomasz Sterna <tomek@xiaoka.com>
+
+	* Do not offer compression if STARTTLS is required and not enabled
+	* Return better error on STARTTLS required failure.
+
+2008-08-18 Adam Strzelecki <ono@java.pl>
+
+	* [WIN32] server.pem has to be permanent in order to not disappear on upgrade.
+	* [WIN32] Put stats on the main folder of win32 distro too.
+	* [WIN32] Cleanup win32 README a bit.
+	* [WIN32] Don't override server.pem on upgrade.
+
+2008-08-17 Adam Strzelecki <ono@java.pl>
+	* [WIN32] Bump minor revision to 2.2.
+	* [WIN32] Unfortunately we need to wait on services during setup or
+	  uninstallation and upgrades will fail.
+	* [WIN32] Fix latest WiX 3 Beta compatibility.
+	* [WIN32] Add TLS server certificate for default win32 c2s config.
+	* [WIN32] Create initial SQLite database on build.
+	* [WIN32] Add stream compression support and zlib1 dependencies.
+	* [WIN32] Remove ENABLE_SUPERSEDED from projects, this is now part of config.h for win32.
+
+2008-08-17 Adam Strzelecki <ono@java.pl>
+	* [WIN32] Update win32 config.h to latest configure.ac with selected features:
+	  * ENABLE_SUPERSEDED
+	  * HAVE_ZLIB
+	  * HAVE_SQLITE
+	  ..etc.
+	* [WIN32] Don't fail when service fails to start (Should popup ignore box)
+	* [WIN32] Add udns library to setup.
+	* [WIN32] Adding udns dependency in the README.win32
+
+2008-08-15 Tomasz Sterna <tomek@xiaoka.com>
+	* Implemented logging of compressed conection established. Closes #243
+
+2008-08-15 Adam Strzelecki <ono@java.pl>
+	* [WIN32] Change default SM storage driver to SQLite on Windows.
+	* [WIN32] Use DES_crypt as a replacement for Posix crypt on Windows.
+	* [WIN32] Add UDNS dependencies for linkage.
+
+2008-08-14 Adam Strzelecki <ono@java.pl>
+	* [WIN32] File must be opened as binary (only Windows affected), so fseek & ftell tells
+	  proper size for the buffer. With single "r" buffer will be too small.
+	* [WIN32] generate configuration XML files out of dist files on build (using Perl)
+	* [WIN32] copy default server.pem (localhost)
+	* [WIN32] add Perl dependency to README.win32
+
+2008-08-13 Adam Strzelecki <ono@java.pl>
+	* [WIN32] Using SubWCRev from TortoiseSVN for version files generation, updating notes.
+	* [WIN32] Enable USE_LIBSUBST for Windows builds.
+
+2008-08-10 Tomasz Sterna <tomek@xiaoka.com>
+	* Implemented My IP Address extension
+	  http://delta.affinix.com/specs/xmppstream.html#myip
 
 2008-08-09 Tomasz Sterna <tomek@xiaoka.com>
 	* Sending stream errors on SX wrapper errors
