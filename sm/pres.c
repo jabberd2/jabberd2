@@ -344,13 +344,13 @@ void pres_deliver(sess_t sess, pkt_t pkt) {
 
 /** see if the jid is trusted (ie in the roster with s10n="from" or "both") */
 int pres_trust(user_t user, jid_t jid) {
-    item_t item;
+    item_t item = NULL;
 
     /* get roster item with bare jid*/
     item = xhash_get(user->roster, jid_user(jid));
 
     /* retry with full jid if not found */
-    if(!item)
+    if(item == NULL)
         item = xhash_get(user->roster, jid_full(jid));
 
     /* trusted if they're in the roster and they can see us */
