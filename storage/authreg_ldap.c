@@ -482,9 +482,9 @@ int ar_init(authreg_t ar)
         data->flags |= AR_LDAP_FLAGS_V3;
 
     if (l>0)
-        snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.startls", l );
+        snprintf(ldap_entry,sizeof(ldap_entry), "authreg.ldap%d.starttls", l );
     else
-        snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.startls");
+        snprintf(ldap_entry, sizeof(ldap_entry), "authreg.ldap.starttls");
     if(config_get(ar->c2s->config, ldap_entry) != NULL)
         data->flags |= AR_LDAP_FLAGS_STARTTLS;
 
