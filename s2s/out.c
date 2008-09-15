@@ -20,6 +20,8 @@
 
 #include "s2s.h"
 
+#include <idna.h>
+
 /*
  * we handle packets going from the router to the world, and stuff
  * that comes in on connections we initiated.
@@ -1026,7 +1028,15 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
 
         xhash_free(query->hosts);
         query->hosts = NULL;
-        out_resolve(query->s2s, query->name, query->results, query->expiry);
+        char *domain;
+        if (idna_to_unicode_8z8z(query->name, &domain, 0) != IDNA_SUCCESS)
+        {
+            log_write(query->s2s->log, LOG_ERR, "idna dns decode for %s failed", query->name);
+            /* TODO: Is it better to shortcut resolution failure here? */
+            domain = strdup(query->name);
+        }
+        out_resolve(query->s2s, domain, query->results, query->expiry);
+        free(domain);
         free(query->name);
         free(query);
     }
@@ -1036,7 +1046,12 @@ void dns_resolve_domain(s2s_t s2s, dnscache_t dns) {
     dnsquery_t query = (dnsquery_t) calloc(1, sizeof(struct dnsquery_st));
 
     query->s2s = s2s;
-    query->name = strdup(dns->name);
+    if (idna_to_ascii_8z(dns->name, &query->name, 0) != IDNA_SUCCESS)
+    {
+        log_write(s2s->log, LOG_ERR, "idna dns encode for %s failed", dns->name);
+        /* TODO: Is it better to shortcut resolution failure here? */
+        query->name = strdup(dns->name);
+    }
     query->srv_i = -1;
     query->hosts = xhash_new(71);
     query->results = xhash_new(71);
