@@ -203,11 +203,13 @@ int sx_can_read(sx_t s) {
         return 0;
     }
 
-    /* EOF if we got a 0-byte read from the socket */
     if(read == 0) {
-        /* they went away */
+        /* nothing to read
+         * should never happen because we did got a read event,
+         * thus there is something to read, or error handled
+         * via (read < 0) block before (errors return -1) */
+        _sx_debug(ZONE, "decoded 0 bytes read data - this should not happen");
         _sx_buffer_free(in);
-        _sx_state(s, state_CLOSING);
 
     } else {
         _sx_debug(ZONE, "passed %d read bytes", in->len);
