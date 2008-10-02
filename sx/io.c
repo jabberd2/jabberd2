@@ -205,7 +205,7 @@ int sx_can_read(sx_t s) {
 
     if(read == 0) {
         /* nothing to read
-         * should never happen because we did got a read event,
+         * should never happen because we did get a read event,
          * thus there is something to read, or error handled
          * via (read < 0) block before (errors return -1) */
         _sx_debug(ZONE, "decoded 0 bytes read data - this should not happen");
