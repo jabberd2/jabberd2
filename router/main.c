@@ -204,7 +204,7 @@ static int _router_sx_sasl_callback(int cb, void *arg, void ** res, sx_t s, void
             break;
 
         case sx_sasl_cb_GET_PASS:
-            creds = (sx_sasl_creds_t) arg;	
+            creds = (sx_sasl_creds_t) arg;    
 
             log_debug(ZONE, "sx sasl callback: get pass (authnid=%s, realm=%s)", creds->authnid, creds->realm);
 
@@ -229,11 +229,11 @@ static int _router_sx_sasl_callback(int cb, void *arg, void ** res, sx_t s, void
             break;
 
         case sx_sasl_cb_CHECK_AUTHZID:
-	    creds = (sx_sasl_creds_t) arg;
+        creds = (sx_sasl_creds_t) arg;
 
-	    if (strcmp(creds->authnid, creds->authzid) == 0)
+        if (strcmp(creds->authnid, creds->authzid) == 0)
                 return sx_sasl_ret_OK;
-	    else
+        else
                 return sx_sasl_ret_FAIL;
             break;
 
@@ -295,19 +295,19 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
 
 #ifdef HAVE_WINSOCK2_H
 /* get winsock running */
-	{
-		WORD wVersionRequested;
-		WSADATA wsaData;
-		int err;
-		
-		wVersionRequested = MAKEWORD( 2, 2 );
-		
-		err = WSAStartup( wVersionRequested, &wsaData );
-		if ( err != 0 ) {
+    {
+        WORD wVersionRequested;
+        WSADATA wsaData;
+        int err;
+        
+        wVersionRequested = MAKEWORD( 2, 2 );
+        
+        err = WSAStartup( wVersionRequested, &wsaData );
+        if ( err != 0 ) {
             /* !!! tell user that we couldn't find a usable winsock dll */
-			return 0;
-		}
-	}
+            return 0;
+        }
+    }
 #endif
 
     jabber_signal(SIGINT, router_signal);
@@ -427,8 +427,12 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
             log_write(r->log, LOG_NOTICE, "log started");
 
             log_write(r->log, LOG_NOTICE, "reloading filter ...");
-	    filter_unload(r);
-	    filter_load(r);
+            filter_unload(r);
+            filter_load(r);
+
+            log_write(r->log, LOG_NOTICE, "reloading users ...");
+            user_table_unload(r);
+            user_table_load(r);
 
             router_logrotate = 0;
         }
