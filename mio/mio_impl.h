@@ -378,8 +378,10 @@ static mio_fd_t _mio_connect(mio_t m, int port, char *hostip, mio_handler_t app,
     mio_debug(ZONE, "mio connecting to %s, port=%d",hostip,port);
 
     /* convert the hostip */
-    if(j_inet_pton(hostip, &sa)<=0)
+    if(j_inet_pton(hostip, &sa)<=0) {
+        MIO_ERROR = EFAULT;
         return NULL;
+    }
 
     /* attempt to create a socket */
     if((fd = socket(sa.ss_family,SOCK_STREAM,0)) < 0) return NULL;
