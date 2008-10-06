@@ -573,7 +573,7 @@ int out_route(s2s_t s2s, char *route, conn_t *out, int allow_bad) {
 }
 
 /** send a packet out */
-void out_packet(s2s_t s2s, pkt_t pkt) {
+int out_packet(s2s_t s2s, pkt_t pkt) {
     char *rkey;
     conn_t out;
     conn_state_t state;
@@ -593,10 +593,13 @@ void out_packet(s2s_t s2s, pkt_t pkt) {
         if (ret) {
             /* bounce queue */
             out_bounce_route_queue(s2s, rkey, stanza_err_SERVICE_UNAVAILABLE);
+
+            free(rkey);
+            return -1;
         }
 
         free(rkey);
-        return;
+        return 0;
     }
 
     /* connection in progress */
@@ -606,7 +609,7 @@ void out_packet(s2s_t s2s, pkt_t pkt) {
         _out_packet_queue(s2s, pkt);
 
         free(rkey);
-        return;
+        return 0;
     }
 
     /* connection state */
@@ -649,7 +652,7 @@ void out_packet(s2s_t s2s, pkt_t pkt) {
         free(pkt);
 
         free(rkey);
-        return;
+        return 0;
     }
 
     /* can't be handled yet, queue */
@@ -658,13 +661,14 @@ void out_packet(s2s_t s2s, pkt_t pkt) {
     /* if dialback is in progress, then we're done for now */
     if(state == conn_INPROGRESS) {
         free(rkey);
-        return;
+        return 0;
     }
 
     /* this is a new route - send dialback auth request to piggyback on the existing connection */
     _out_dialback(out, rkey);
 
     free(rkey);
+    return 0;
 }
 
 char *dns_make_ipport(char *host, int port) {
@@ -1745,7 +1749,7 @@ void out_flush_domain_queues(s2s_t s2s, const char *domain) {
 void out_flush_route_queue(s2s_t s2s, char *rkey) {
     jqueue_t q;
     pkt_t pkt;
-    int npkt, i;
+    int npkt, i, ret;
 
     q = xhash_get(s2s->outq, rkey);
     if(q == NULL)
@@ -1756,8 +1760,15 @@ void out_flush_route_queue(s2s_t s2s, char *rkey) {
 
     for(i = 0; i < npkt; i++) {
         pkt = jqueue_pull(q);
-        if(pkt)
-            out_packet(s2s, pkt);
+        if(pkt) {
+            ret = out_packet(s2s, pkt);
+            if (ret) {
+                /* uh-oh. the queue was deleted...
+                   q and pkt have been freed
+                   if q->key == rkey, rkey has also been freed */
+                return;
+            }
+        }
     }
 
     /* delete queue for route and remove route from queue hash */

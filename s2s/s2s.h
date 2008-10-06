@@ -337,7 +337,7 @@ char            *s2s_route_key(pool_t p, char *local, char *remote);
 char            *s2s_db_key(pool_t p, char *secret, char *remote, char *id);
 char            *dns_make_ipport(char *host, int port);
 
-void            out_packet(s2s_t s2s, pkt_t pkt);
+int             out_packet(s2s_t s2s, pkt_t pkt);
 int             out_route(s2s_t s2s, char *route, conn_t *out, int allow_bad);
 int             dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int allow_bad);
 void            dns_resolve_domain(s2s_t s2s, dnscache_t dns);
