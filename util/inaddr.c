@@ -53,8 +53,8 @@ int j_inet_pton(char *src, struct sockaddr_storage *dst)
     
     if(inet_aton(src, &sin->sin_addr))
     {
-    dst->ss_family = AF_INET;
-    return 1;
+        dst->ss_family = AF_INET;
+        return 1;
     }
 
     return 0;
@@ -68,17 +68,17 @@ int j_inet_pton(char *src, struct sockaddr_storage *dst)
     
     if(inet_pton(AF_INET, src, &sin->sin_addr) > 0)
     {
-    dst->ss_family = AF_INET;
-    return 1;
+        dst->ss_family = AF_INET;
+        return 1;
     }
 
     if(inet_pton(AF_INET6, src, &sin6->sin6_addr) > 0)
     {
-    dst->ss_family = AF_INET6;
+        dst->ss_family = AF_INET6;
 #ifdef SIN6_LEN
-    sin6->sin6_len = sizeof(struct sockaddr_in6);
+        sin6->sin6_len = sizeof(struct sockaddr_in6);
 #endif
-    return 1;
+        return 1;
     }
 
     return 0;
