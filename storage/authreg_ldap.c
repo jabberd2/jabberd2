@@ -30,6 +30,7 @@
 
 #include "c2s.h"
 #include <lber.h>
+#define LDAP_DEPRECATED 1
 #include <ldap.h>
 
 #define AR_LDAP_FLAGS_NONE      (0x0)

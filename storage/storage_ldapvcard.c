@@ -27,6 +27,7 @@
 
 #ifdef STORAGE_LDAP
 
+#define LDAP_DEPRECATED 1
 #include <ldap.h>
 #include <time.h>
 

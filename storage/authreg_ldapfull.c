@@ -34,6 +34,7 @@
 #ifdef STORAGE_LDAP
 
 #include <lber.h>
+#define LDAP_DEPRECATED 1
 #include <ldap.h>
 
 #define LDAPFULL_PASSBUF_MAX 257
