@@ -1,5 +1,14 @@
 This file contains upgrade instructions between different versions of jabberd2.
 
+* 2.2.4 to 2.2.5 upgrade:
+
+A key was added to the 'status' table in MySQL.  This improves performance
+for queries to that table.  The is recommended for everyone, but will have
+the biggest impact for installations with a large number of signons and
+signoffs.  It only affects installations with mod_status enabled.
+You can add the key by running this statement:
+ALTER TABLE status ADD KEY (`collection-owner`(255));
+
 
 * 2.2.3 to 2.2.4 upgrade:
 

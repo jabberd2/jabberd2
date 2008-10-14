@@ -1,3 +1,6 @@
+2008-10-14 Mark Doliner <mark@meebo.com>
+	* Added a key to the status table in db-setup.mysql.
+
 2008-08-22 Adam Strzelecki <ono@java.pl>
 	* [WIN32] libidn & gsasl downloads are now at GNU servers.
 
