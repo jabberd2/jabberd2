@@ -165,14 +165,16 @@ JABBERD2_API mio_t mio_new(int maxfd); /* returns NULL if failed */
 
 /** all MIO related routines should use those for error reporting */
 #ifndef _WIN32
-# define MIO_ERROR               errno
-# define MIO_STRERROR(errno)     strerror(errno)
-# define MIO_WOULDBLOCK          (errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)
+# define MIO_ERROR       errno
+# define MIO_SETERROR(e) (errno = e)
+# define MIO_STRERROR(e) strerror(e)
+# define MIO_WOULDBLOCK  (errno == EWOULDBLOCK || errno == EINTR || errno == EAGAIN)
 #else /* _WIN32 */
 JABBERD2_API char *mio_strerror(int code);
-# define MIO_ERROR               WSAGetLastError()
-# define MIO_STRERROR(errno)     mio_strerror(errno)
-# define MIO_WOULDBLOCK          (WSAGetLastError() == WSAEWOULDBLOCK)
+# define MIO_ERROR       WSAGetLastError()
+# define MIO_SETERROR(e) WSASetLastError(e)
+# define MIO_STRERROR(e) mio_strerror(e)
+# define MIO_WOULDBLOCK  (WSAGetLastError() == WSAEWOULDBLOCK)
 #endif /* _WIN32 */
 
 #ifdef __cplusplus

@@ -379,7 +379,7 @@ static mio_fd_t _mio_connect(mio_t m, int port, char *hostip, mio_handler_t app,
 
     /* convert the hostip */
     if(j_inet_pton(hostip, &sa)<=0) {
-        MIO_ERROR = EFAULT;
+        MIO_SETERROR(EFAULT);
         return NULL;
     }
 
