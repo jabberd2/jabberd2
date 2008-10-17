@@ -33,8 +33,6 @@ typedef struct OracleDriver
   OCIBind *ociBind;
   xht filters;
   char *prefix;
-  char *svUser;
-  char *svPass;
 } *OracleDriverPointer;
 
 #define BLOCKSIZE (1024)
@@ -199,6 +197,9 @@ static int oracle_ping(st_driver_t drv)
   {
     char szErrorBuffer[250];
     char *svHost, *svUser, *svPass;
+    char *svPort, *svSid, *oracle_server_host = NULL;
+    static char* oracle_server_parameters = "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=\"%s\")(PORT=\"%s\"))(CONNECT_DATA=(SID=\"%s\")))";
+    int _len = 0;
 
     OCIErrorGet((dvoid *)odpOracleDriver->ociError, (ub4) 1, (text *) NULL, &nResultCode, szErrorBuffer, (ub4) sizeof(szErrorBuffer), OCI_HTYPE_ERROR);
     log_write(drv->st->sm->log, LOG_ERR, "storage_oracle.c (oracle_ping): %s", szErrorBuffer);
@@ -207,9 +208,14 @@ static int oracle_ping(st_driver_t drv)
     svHost = config_get_one(drv->st->sm->config, "storage.oracle.host", 0);
     svUser = config_get_one(drv->st->sm->config, "storage.oracle.user", 0);
     svPass = config_get_one(drv->st->sm->config, "storage.oracle.pass", 0);
+    svPort = config_get_one(drv->st->sm->config, "storage.oracle.port", 0);
+    svSid  = config_get_one(drv->st->sm->config, "storage.oracle.dbname", 0);
+
+    ORACLE_SAFE( oracle_server_host, strlen(svHost) + strlen(svPort) + strlen(svSid) + strlen(oracle_server_parameters), _len );
+    sprintf( oracle_server_host, oracle_server_parameters, svHost, svPort, svSid );
 
     // Logon to the database
-    nResultCode = OCILogon((dvoid *)odpOracleDriver->ociEnvironment, (dvoid *)odpOracleDriver->ociError, &(odpOracleDriver->ociService), svUser, strlen(svUser), svPass, strlen(svPass), svHost, strlen(svHost));
+    nResultCode = OCILogon((dvoid *)odpOracleDriver->ociEnvironment, (dvoid *)odpOracleDriver->ociError, &(odpOracleDriver->ociService), svUser, strlen(svUser), svPass, strlen(svPass), oracle_server_host, strlen(oracle_server_host));
 
     
     if (nResultCode != 0)
@@ -217,6 +223,8 @@ static int oracle_ping(st_driver_t drv)
       OCIErrorGet((dvoid *)odpOracleDriver->ociError, (ub4) 1, (text *) NULL, &nResultCode, szErrorBuffer, (ub4) sizeof(szErrorBuffer), OCI_HTYPE_ERROR);
       log_write(drv->st->sm->log, LOG_ERR, "storage_oracle.c (oracle_ping): %s", szErrorBuffer);
     }
+
+    free(oracle_server_host);
   }
 
   return nResultCode;
@@ -396,7 +404,7 @@ static st_ret_t _st_oracle_put_guts(st_driver_t drv, char *type, char *owner, os
               break;
 
             case os_type_STRING:
-	      /* Ensure that we have enough space for an escaped string. */
+          /* Ensure that we have enough space for an escaped string. */
               cval = (char *) malloc(sizeof(char) * ((strlen((char *) val) * 2 + count_chars((char *) val,'&') * 8) + 1));
               vlen = oracle_escape_string(cval , (strlen((char *) val) * 2) + count_chars((char *) val,'&') * 8 + 1, (char *) val, strlen((char *) val));
               break;
@@ -404,7 +412,7 @@ static st_ret_t _st_oracle_put_guts(st_driver_t drv, char *type, char *owner, os
             /* !!! might not be a good idea to mark nads this way */
             case os_type_NAD:
               nad_print((nad_t) val, 0, &xml, &xlen);
-	      /* Ensure that we have enough space for an escaped string. */
+          /* Ensure that we have enough space for an escaped string. */
               cval = (char *) malloc(sizeof(char) * ((xlen * 2 + count_chars((char *) val,'&') * 8) + 4));
               vlen = oracle_escape_string(&cval[3],(xlen * 2 + count_chars((char *) val,'&') * 8) + 4, (char *) xml, xlen) + 3;
               strncpy(cval, "NAD", 3);
@@ -556,8 +564,8 @@ static st_ret_t _st_oracle_get(st_driver_t drv, char *a_szType, char *owner, cha
   {
     return st_NOTFOUND;
   }
-  else
-  {
+
+
     /*
      * TODO: Handle memory better. 
      * The DDL for the "vcard" table has 21 fields. The following implementation allocates 82K for 21 fields.
@@ -602,7 +610,7 @@ static st_ret_t _st_oracle_get(st_driver_t drv, char *a_szType, char *owner, cha
 
       if (arrnFieldSize[nIndex] > 4000 || arrnFieldSize[nIndex] < 1)
       {
-      	arrnFieldSize[nIndex] = 4000;
+          arrnFieldSize[nIndex] = 4000;
       }
 
       checkOCIError(drv, "_st_oracle_get: Define String", data->ociError, OCIDefineByPos(data->ociStatement, &arrFields[nIndex],
@@ -740,9 +748,80 @@ static st_ret_t _st_oracle_get(st_driver_t drv, char *a_szType, char *owner, cha
         break;
       }
     }
-  }
+
 
   return st_SUCCESS;
+}
+
+static int _st_oracle_count( st_driver_t drv, char *a_szType, char *owner, char *filter, int *count )
+{
+    OracleDriverPointer data = (OracleDriverPointer) drv->private;
+    const char *szStmtTemplate = "SELECT COUNT(*) FROM \"%s\" WHERE %s";
+    char *szQuery = NULL;
+    char szBuffer[128];
+    char *szWhereClause = NULL;
+    int  nResultCode = 0;
+    int  nQueryLength = 0;
+
+    if( !owner ) {
+        log_debug(ZONE,"_st_oracle_count: owner is null");
+        return st_FAILED;
+    }
+
+    if(oracle_ping(drv) != 0)
+    {
+        log_write(drv->st->sm->log, LOG_ERR, "_st_oracle_count: Connection to database lost!");
+        return st_FAILED;
+    }
+
+    if(data->prefix != NULL)
+    {
+        snprintf(szBuffer, sizeof(szBuffer), "%s%s", data->prefix, a_szType);
+        a_szType = szBuffer;
+    }
+
+
+    szWhereClause = _st_oracle_convert_filter(drv, owner, filter);
+    log_debug(ZONE, "_st_oracle_count: Generated Filter: %s", szWhereClause);
+
+    ORACLE_SAFE(szQuery, strlen(a_szType) + strlen(szWhereClause) + strlen(szStmtTemplate), nQueryLength);
+    sprintf(szQuery, szStmtTemplate, a_szType, szWhereClause);
+    free(szWhereClause);
+
+    nResultCode = checkOCIError(drv, "_st_oracle_count: Prepare Statement", data->ociError, OCIStmtPrepare(data->ociStatement, data->ociError,
+                                                                                        szQuery, (ub4)strlen(szQuery), OCI_NTV_SYNTAX,
+                                                                                        OCI_DEFAULT));
+
+    if (nResultCode != 0)
+    {
+        free(szQuery);
+        return st_FAILED;
+    }
+
+    nResultCode = checkOCIError(drv, "_st_oracle_count: Define Pos", data->ociError, OCIDefineByPos( data->ociStatement, &data->ociDefine, data->ociError,
+                                                                                        1, count, sizeof(int), SQLT_INT, 0, 0, 0, OCI_DEFAULT ) );
+
+    if (nResultCode != 0)
+    {
+        free(szQuery);
+        return st_FAILED;
+    }
+
+    nResultCode = checkOCIError(drv, "_st_oracle_count: Statement Execute", data->ociError, OCIStmtExecute(data->ociService,
+                                                                                         data->ociStatement, data->ociError, (ub4)0,
+                                                                                         (ub4)0, (CONST OCISnapshot *)NULL,
+                                                                                         (OCISnapshot *)NULL, OCI_STMT_SCROLLABLE_READONLY));
+
+    if (nResultCode != 0)
+    {
+        free(szQuery);
+        return st_FAILED;
+    }
+
+    OCIStmtFetch2( data->ociStatement, data->ociError, 1, OCI_FETCH_FIRST, 0, OCI_DEFAULT);
+    free(szQuery);
+
+    return st_SUCCESS;
 }
 
 static st_ret_t _st_oracle_delete(st_driver_t drv, char *type, char *owner, char *filter)
@@ -779,7 +858,7 @@ static st_ret_t _st_oracle_delete(st_driver_t drv, char *type, char *owner, char
   
   if (nResultCode != 0)
   {
-  	free(buf);
+      free(buf);
     return st_FAILED;
   }
   
@@ -840,34 +919,32 @@ static void _st_oracle_free(st_driver_t drv) {
 st_ret_t st_init(st_driver_t drv) {
     int nResultCode;
     char *svHost, *svUser, *svPass;
+    char *svPort, *svSid, *oracle_server_host = NULL;
     OCIEnv     *ociEnvironment;
     OCIError   *ociError;
     OCISvcCtx  *ociService;
     OCIStmt    *ociStatement;
+    static char* oracle_server_parameters = "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=\"%s\")(PORT=\"%s\"))(CONNECT_DATA=(SID=\"%s\")))";
+    int _len = 0;
 
     OracleDriverPointer data;
 
     svHost = config_get_one(drv->st->sm->config, "storage.oracle.host", 0);
     svUser = config_get_one(drv->st->sm->config, "storage.oracle.user", 0);
     svPass = config_get_one(drv->st->sm->config, "storage.oracle.pass", 0);
+    svPort = config_get_one(drv->st->sm->config, "storage.oracle.port", 0);
+    svSid  = config_get_one(drv->st->sm->config, "storage.oracle.dbname", 0);
 
-    if(svHost == NULL || svUser == NULL || svPass == NULL)
+    if(svHost == NULL || svUser == NULL || svPass == NULL || svPort == NULL || svSid == NULL)
     {
       log_write(drv->st->sm->log, LOG_ERR, "(st_oracle_init: ) Invalid driver config from XML file.");
       return st_FAILED;
     }
 
-    /* Initialize OCI */
-    nResultCode = OCIInitialize((ub4) OCI_DEFAULT, (dvoid *)0, (dvoid * (*)(dvoid *, size_t))0, (dvoid * (*)(dvoid *, dvoid *, size_t))0, (void (*)(dvoid *, dvoid *)) 0);
+    ORACLE_SAFE( oracle_server_host, strlen(svHost) + strlen(svPort) + strlen(svSid) + strlen(oracle_server_parameters), _len );
+    sprintf( oracle_server_host, oracle_server_parameters, svHost, svPort, svSid );
 
-    if (nResultCode != 0)
-    {
-      log_write(drv->st->sm->log, LOG_ERR, "(st_oracle_init: ) Could not Initialize OCI (%d)", nResultCode);
-      return st_FAILED;
-    }
-
-    /* Initialize evironment */
-    nResultCode = OCIEnvInit((OCIEnv **) &ociEnvironment, OCI_DEFAULT, (size_t) 0, (dvoid **) 0);
+    nResultCode = OCIEnvCreate( (OCIEnv**)&ociEnvironment, OCI_DEFAULT, (dvoid*)0, 0, 0, 0, (size_t)0, (dvoid **)0 );
 
     if (nResultCode != 0)
     {
@@ -898,7 +975,7 @@ st_ret_t st_init(st_driver_t drv) {
     /* Connect to database server */
     nResultCode = checkOCIError(drv, "st_oracle_init: Connect to Server", ociError, OCILogon(ociEnvironment, ociError, &ociService,
                                                                                     svUser, strlen(svUser), svPass, strlen(svPass),
-                                                                                    svHost, strlen(svHost)));
+                                                                                    oracle_server_host, strlen(oracle_server_host)));
 
     if (nResultCode != 0)
     {
@@ -922,6 +999,8 @@ st_ret_t st_init(st_driver_t drv) {
       return st_FAILED;
     }
 
+    free(oracle_server_host);
+
     data = (OracleDriverPointer) calloc(1, sizeof(struct OracleDriver));
 
     data->ociEnvironment = ociEnvironment;
@@ -930,8 +1009,6 @@ st_ret_t st_init(st_driver_t drv) {
     data->ociStatement = ociStatement;
     data->ociDefine = NULL;
     data->ociBind = NULL;
-    data->svUser = svUser;
-    data->svPass = svPass;
 
     data->filters = xhash_new(17);
 
@@ -941,6 +1018,7 @@ st_ret_t st_init(st_driver_t drv) {
 
     drv->add_type = _st_oracle_add_type;
     drv->put = _st_oracle_put;
+    drv->count = _st_oracle_count;
     drv->get = _st_oracle_get;
     drv->delete = _st_oracle_delete;
     drv->replace = _st_oracle_replace;

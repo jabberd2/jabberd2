@@ -1,6 +1,13 @@
 /************************************************
  * This is the schema for Oracle.
  * 
+ * To make it actually work, you need:
+ * - create database with UTF8 as default charsets,
+ *   both for NLS_CHARACTERSET and NLS_NCHAR_CHARACTERSET
+ * - set environment variable NLS_LANG to .UTF8
+ *   $ export NLS_LANG=.UTF8
+ *   for the user the server is running as
+ * 
  * The following code is used to remove the tables:
  *
  * DROP TABLE "authreg" CASCADE CONSTRAINTS;
