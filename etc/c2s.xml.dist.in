@@ -101,7 +101,7 @@
          SSL verify mode - see SSL_CTX_set_verify(3), mode parameter
 
          require-starttls
-         If this is enabled, clients must do STARTTLS
+         If this attribute is set to any value, clients must do STARTTLS
          before they can authenticate. Until the stream is encrypted,
          all packets will be dropped.
 
@@ -119,7 +119,8 @@
          password-change
          Password change only. When registration is disabled, it may
          still be useful to allow clients to change their password. If
-         you want this, add this attribute when you disable registration.
+         you want this, add this attribute with any value, when you need
+         registration disabled.
           -->
     <id register-enable='true'>localhost.localdomain</id>
     <!-- or
