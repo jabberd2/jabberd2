@@ -32,7 +32,7 @@ void _sx_element_start(void *arg, const char *name, const char **atts) {
 
     /* starting a new nad */
     if(s->nad == NULL)
-        s->nad = nad_new(s->nad_cache);
+        s->nad = nad_new();
 
     /* make a copy */
     strncpy(buf, name, 1024);
@@ -149,7 +149,7 @@ void _sx_namespace_start(void *arg, const char *prefix, const char *uri) {
 
     /* starting a new nad */
     if(s->nad == NULL)
-        s->nad = nad_new(s->nad_cache);
+        s->nad = nad_new();
 
     ns = nad_add_namespace(s->nad, (char *) uri, (char *) prefix);
 

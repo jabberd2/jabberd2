@@ -117,7 +117,7 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             /* reset connection attempts counter */
             sm->retry_left = sm->retry_init;
 
-            nad = nad_new(sm->router->nad_cache);
+            nad = nad_new();
             ns = nad_add_namespace(nad, uri_COMPONENT, NULL);
             nad_append_elem(nad, ns, "bind", 0);
             nad_append_attr(nad, -1, "name", sm->id);
@@ -266,7 +266,7 @@ void sm_c2s_action(sess_t dest, char *action, char *target) {
     nad_t nad;
     int rns, sns;
 
-    nad = nad_new(dest->user->sm->router->nad_cache);
+    nad = nad_new();
 
     rns = nad_add_namespace(nad, uri_COMPONENT, NULL);
     nad_append_elem(nad, rns, "route", 0);

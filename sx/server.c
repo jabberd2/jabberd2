@@ -44,7 +44,7 @@ static void _sx_server_notify_header(sx_t s, void *arg) {
     if(s->req_version != NULL && strcmp(s->req_version, "1.0") == 0) {
         _sx_debug(ZONE, "building features nad");
 
-        nad = nad_new(s->nad_cache);
+        nad = nad_new();
 
         ns = nad_add_namespace(nad, uri_STREAMS, "stream");
         nad_append_elem(nad, ns, "features", 0);

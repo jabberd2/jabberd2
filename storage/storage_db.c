@@ -232,7 +232,7 @@ static os_object_t _st_db_object_deserialise(st_driver_t drv, os_t os, const cha
 
             case os_type_NAD:
                 ser_string_get(&sval, &cur, buf, len);
-                nad = nad_parse(drv->st->sm->router->nad_cache, sval, strlen(sval));
+                nad = nad_parse(sval, strlen(sval));
                 free(sval);
                 if(nad == NULL) {
                     log_write(drv->st->sm->log, LOG_ERR, "db: unable to parse stored XML - database corruption?");

@@ -108,7 +108,7 @@ int s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             /* reset connection attempts counter */
             s2s->retry_left = s2s->retry_init;
 
-            nad = nad_new(s2s->router->nad_cache);
+            nad = nad_new();
             ns = nad_add_namespace(nad, uri_COMPONENT, NULL);
             nad_append_elem(nad, ns, "bind", 0);
             nad_append_attr(nad, -1, "name", s2s->id);

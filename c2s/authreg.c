@@ -172,7 +172,7 @@ static void _authreg_auth_get(c2s_t c2s, sess_t sess, nad_t nad) {
     nad_free(nad);
 
     /* build a result packet */
-    nad = nad_new(sess->s->nad_cache);
+    nad = nad_new();
 
     ns = nad_add_namespace(nad, uri_CLIENT, NULL);
 
@@ -338,7 +338,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
         log_write(sess->c2s->log, LOG_NOTICE, "[%d] requesting session: jid=%s", sess->s->tag, jid_full(sess->resources->jid));
 
         /* build a result packet, we'll send this back to the client after we have a session for them */
-        sess->result = nad_new(sess->s->nad_cache);
+        sess->result = nad_new();
 
         ns = nad_add_namespace(sess->result, uri_CLIENT, NULL);
 
@@ -385,7 +385,7 @@ static void _authreg_register_get(c2s_t c2s, sess_t sess, nad_t nad) {
     nad_free(nad);
 
     /* build a result packet */
-    nad = nad_new(sess->s->nad_cache);
+    nad = nad_new();
 
     ns = nad_add_namespace(nad, uri_CLIENT, NULL);
 
@@ -459,7 +459,7 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
         log_write(c2s->log, LOG_NOTICE, "[%d] registration remove succeeded, requesting user deletion: jid=%s", sess->s->tag, jid_user(sess->resources->jid));
 
         /* make a result nad */
-        sess->result = nad_new(sess->s->nad_cache);
+        sess->result = nad_new();
 
         ns = nad_add_namespace(sess->result, uri_CLIENT, NULL);
 
@@ -564,7 +564,7 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
     log_debug(ZONE, "updated auth creds for %s", username);
 
     /* make a result nad */
-    sess->result = nad_new(sess->s->nad_cache);
+    sess->result = nad_new();
 
     ns = nad_add_namespace(sess->result, uri_CLIENT, NULL);
 

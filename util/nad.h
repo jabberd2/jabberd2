@@ -66,8 +66,6 @@
 # endif /* _WIN32 */
 #endif /* JABBERD2_API */
 
-typedef struct nad_cache_st *nad_cache_t;
-
 struct nad_elem_st {
     int parent;
     int iname, lname;
@@ -94,7 +92,6 @@ struct nad_ns_st {
 
 typedef struct nad_st
 {
-    nad_cache_t cache;   /* he who gave us life */
     struct nad_elem_st *elems;
     struct nad_attr_st *attrs;
     struct nad_ns_st *nss;
@@ -111,20 +108,8 @@ typedef struct nad_st
     struct nad_st *next; /* for keeping a list of nads */
 } *nad_t;
 
-struct nad_cache_st
-{
-    struct nad_st *nads;
-    size_t len;
-};
-
-/** create a new cache, simple pointer to a list of nads */
-JABBERD2_API nad_cache_t nad_cache_new(void);
-
-/** free the cache and any nads in it */
-JABBERD2_API void nad_cache_free(nad_cache_t cache);
-
 /** create a new nad */
-JABBERD2_API nad_t nad_new(nad_cache_t cache);
+JABBERD2_API nad_t nad_new(void);
 
 /** copy a nad */
 JABBERD2_API nad_t nad_copy(nad_t nad);
@@ -189,10 +174,10 @@ JABBERD2_API void nad_print(nad_t nad, int elem, char **xml, int *len);
 
 /** serialize and deserialize a nad */
 JABBERD2_API void nad_serialize(nad_t nad, char **buf, int *len);
-JABBERD2_API nad_t nad_deserialize(nad_cache_t cache, const char *buf);
+JABBERD2_API nad_t nad_deserialize(const char *buf);
 
 /** create a nad from raw xml */
-JABBERD2_API nad_t nad_parse(nad_cache_t cache, const char *buf, int len);
+JABBERD2_API nad_t nad_parse(const char *buf, int len);
 
 /* these are some helpful macros */
 #define NAD_ENAME(N,E) (N->cdata + N->elems[E].iname)

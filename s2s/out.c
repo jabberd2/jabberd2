@@ -139,7 +139,7 @@ static void _out_dialback(conn_t out, char *rkey) {
     /* kick off the dialback */
     dbkey = s2s_db_key(NULL, out->s2s->local_secret, c, out->s->id);
 
-    nad = nad_new(out->s->nad_cache);
+    nad = nad_new();
 
     /* request auth */
     ns = nad_add_namespace(nad, uri_DIALBACK, "db");
@@ -1640,7 +1640,7 @@ static void _out_verify(conn_t out, nad_t nad) {
     --out->verify;
 
     /* let them know what happened */
-    nad = nad_new(in->s->nad_cache);
+    nad = nad_new();
 
     ns = nad_add_namespace(nad, uri_DIALBACK, "db");
     nad_append_elem(nad, ns, "result", 0);

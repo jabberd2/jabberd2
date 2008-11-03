@@ -30,8 +30,6 @@ config_t config_new(void)
 
     c->hash = xhash_new(501);
 
-    c->nads = nad_cache_new();
-
     return c;
 }
 
@@ -99,7 +97,7 @@ int config_load(config_t c, const char *file)
     }
 
     /* nice new nad to parse it into */
-    bd.nad = nad_new(c->nads);
+    bd.nad = nad_new();
     bd.depth = 0;
 
     /* setup the parser */
@@ -300,8 +298,6 @@ void config_free(config_t c)
     xhash_free(c->hash);
 
     nad_free(c->nad);
-
-    nad_cache_free(c->nads);
 
     free(c);
 }

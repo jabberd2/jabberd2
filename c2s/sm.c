@@ -35,7 +35,7 @@ static nad_t _sm_build_route(sess_t sess, bres_t res, const char *action, const 
     nad_t nad;
     int ns, ans;
 
-    nad = nad_new(sess->c2s->router->nad_cache);
+    nad = nad_new();
 
     ns = nad_add_namespace(nad, uri_COMPONENT, NULL);
     nad_append_elem(nad, ns, "route", 0);

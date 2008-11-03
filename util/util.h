@@ -199,7 +199,6 @@ typedef struct config_st        *config_t;
 struct config_st
 {
     xht                 hash;
-    nad_cache_t         nads;
     nad_t               nad;
 };
 

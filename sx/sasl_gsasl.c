@@ -68,7 +68,7 @@ static nad_t _sx_sasl_success(sx_t s) {
     nad_t nad;
     int ns;
 
-    nad = nad_new(s->nad_cache);
+    nad = nad_new();
     ns = nad_add_namespace(nad, uri_SASL, NULL);
 
     nad_append_elem(nad, ns, "success", 0);
@@ -81,7 +81,7 @@ static nad_t _sx_sasl_failure(sx_t s, const char *err) {
     nad_t nad;
     int ns;
 
-    nad = nad_new(s->nad_cache);
+    nad = nad_new();
     ns = nad_add_namespace(nad, uri_SASL, NULL);
 
     nad_append_elem(nad, ns, "failure", 0);
@@ -96,7 +96,7 @@ static nad_t _sx_sasl_challenge(sx_t s, char *data, int dlen) {
     nad_t nad;
     int ns;
 
-    nad = nad_new(s->nad_cache);
+    nad = nad_new();
     ns = nad_add_namespace(nad, uri_SASL, NULL);
 
     nad_append_elem(nad, ns, "challenge", 0);
@@ -111,7 +111,7 @@ static nad_t _sx_sasl_response(sx_t s, char *data, int dlen) {
     nad_t nad;
     int ns;
 
-    nad = nad_new(s->nad_cache);
+    nad = nad_new();
     ns = nad_add_namespace(nad, uri_SASL, NULL);
 
     nad_append_elem(nad, ns, "response", 0);
@@ -126,7 +126,7 @@ static nad_t _sx_sasl_abort(sx_t s) {
     nad_t nad;
     int ns;
 
-    nad = nad_new(s->nad_cache);
+    nad = nad_new();
     ns = nad_add_namespace(nad, uri_SASL, NULL);
 
     nad_append_elem(nad, ns, "abort", 0);
@@ -830,7 +830,7 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, c
     free(out);
 
     /* build the nad */
-    nad = nad_new(s->nad_cache);
+    nad = nad_new();
     ns = nad_add_namespace(nad, uri_SASL, NULL);
 
     nad_append_elem(nad, ns, "auth", 0);

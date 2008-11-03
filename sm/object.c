@@ -257,7 +257,7 @@ int os_object_get(os_t os, os_object_t o, const char *key, void **val, os_type_t
                    *val = osf->val;  
             } else {
                    /* parse the string into a NAD */
-                   nad = nad_parse(NULL, ((char *) osf->val) + 3, strlen(osf->val) - 3); 
+                   nad = nad_parse(((char *) osf->val) + 3, strlen(osf->val) - 3); 
                    if(nad == NULL) {
                             /* unparseable NAD */
                             log_debug(ZONE, "cell returned from storage for key %s has unparseable XML content (%lu bytes)", key, strlen(osf->val)-3);

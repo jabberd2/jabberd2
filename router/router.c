@@ -50,7 +50,7 @@ static void _router_advertise(router_t r, char *domain, component_t src, int una
     bc.src = src;
 
     /* create a new packet */
-    bc.nad = nad_new(src->s->nad_cache);
+    bc.nad = nad_new();
     ns = nad_add_namespace(bc.nad, uri_COMPONENT, NULL);
     nad_append_elem(bc.nad, ns, "presence", 0);
     nad_append_attr(bc.nad, -1, "from", domain);
@@ -75,7 +75,7 @@ static void _router_advertise_reverse(xht routes, const char *key, void *val, vo
     log_debug(ZONE, "informing component about %s", key);
 
     /* create a new packet */
-    nad = nad_new(dest->s->nad_cache);
+    nad = nad_new();
     ns = nad_add_namespace(nad, uri_COMPONENT, NULL);
     nad_append_elem(nad, ns, "presence", 0);
     nad_append_attr(nad, -1, "from", (char *) key);

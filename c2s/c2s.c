@@ -302,7 +302,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                 log_write(sess->c2s->log, LOG_NOTICE, "[%d] bound: jid=%s", sess->s->tag, jid_full(bres->jid));
 
                 /* build a result packet, we'll send this back to the client after we have a session for them */
-                sess->result = nad_new(sess->s->nad_cache);
+                sess->result = nad_new();
 
                 ns = nad_add_namespace(sess->result, uri_CLIENT, NULL);
 
@@ -368,7 +368,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                 }
 
                 /* build a result packet, we'll send this back to the client after we close a session for them */
-                sess->result = nad_new(sess->s->nad_cache);
+                sess->result = nad_new();
 
                 ns = nad_add_namespace(sess->result, uri_CLIENT, NULL);
 
@@ -763,7 +763,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             /* reset connection attempts counter */
             c2s->retry_left = c2s->retry_init;
 
-            nad = nad_new(c2s->router->nad_cache);
+            nad = nad_new();
             ns = nad_add_namespace(nad, uri_COMPONENT, NULL);
             nad_append_elem(nad, ns, "bind", 0);
             nad_append_attr(nad, -1, "name", c2s->id);

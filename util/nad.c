@@ -122,65 +122,13 @@ static int _nad_attr(nad_t nad, int elem, int ns, const char *name, const char *
     return attr;
 }
 
-/** create a new cache, simple pointer to a list of nads */
-nad_cache_t nad_cache_new(void)
-{
-    nad_cache_t cache;
-    cache = malloc(sizeof(struct nad_cache_st));
-    cache->len = 0;
-    cache->nads = NULL;
-
-#ifdef NAD_DEBUG
-    if(_nad_alloc_tracked == NULL) _nad_alloc_tracked = xhash_new(501);
-    if(_nad_free_tracked == NULL) _nad_free_tracked = xhash_new(501);
-#endif
-    
-    return cache;
-}
-
-
-/** free the cache and any nads in it */
-void nad_cache_free(nad_cache_t cache)
-{
-    nad_t cur;
-    while((cur = cache->nads) != NULL)
-    {
-        cache->nads = cur->next;
-        free(cur->elems);
-        free(cur->attrs);
-        free(cur->nss);
-        free(cur->cdata);
-        free(cur->depths);
-        free(cur);
-    }
-    free(cache);
-}
-
-/** get the next nad from the cache, or create some */
-nad_t nad_new(nad_cache_t cache)
+nad_t nad_new(void)
 {
     nad_t nad;
-
-#ifndef NAD_DEBUG
-    /* If cache==NULL, then this NAD is not in a cache */
-
-    if ((cache!=NULL) && (cache->nads != NULL))
-    {
-        nad = cache->nads;
-        cache->nads = nad->next;
-        cache->len--;
-        nad->ccur = nad->ecur = nad->acur = nad->ncur = 0;
-        nad->scope = -1;
-        nad->cache = cache;
-        nad->next = NULL;
-        return nad;
-    }
-#endif
 
     nad = calloc(1, sizeof(struct nad_st));
 
     nad->scope = -1;
-    nad->cache = cache;
 
 #ifdef NAD_DEBUG
     {
@@ -202,8 +150,7 @@ nad_t nad_copy(nad_t nad)
 
     if(nad == NULL) return NULL;
 
-    /* create a new nad not participating in a cache */
-    copy = nad_new(NULL);
+    copy = nad_new();
 
     /* if it's not large enough, make bigger */
     NAD_SAFE(copy->elems, nad->elen, copy->elen);
@@ -228,7 +175,6 @@ nad_t nad_copy(nad_t nad)
     return copy;
 }
 
-/** free nad, or plug nad back in the cache */
 void nad_free(nad_t nad)
 {
     if(nad == NULL) return;
@@ -241,16 +187,6 @@ void nad_free(nad_t nad)
     xhash_zap(_nad_alloc_tracked, loc);
     xhash_put(_nad_free_tracked, pstrdup(xhash_pool(_nad_free_tracked), loc), (void *) nad);
     }
-#else
-    /* If nad->cache != NULL, there are less than 100 nads in the
-     * cache and this nad isn't gigantic then put back into cache,
-     * otherwise we should just free this nad */
-    if (nad->cache != NULL && nad->cache->len < 100 && nad->elen < 100000 && nad->alen < 100000 && nad->clen < 100000 && nad->dlen < 100000) {
-       nad->next = nad->cache->nads;
-       nad->cache->nads = nad;
-       nad->cache->len++;
-       return;
-    } 
 #endif
 
     /* Free nad */
@@ -1230,8 +1166,8 @@ void nad_serialize(nad_t nad, char **buf, int *len) {
     memcpy(pos, nad->cdata, sizeof(char) * nad->ccur);
 }
 
-nad_t nad_deserialize(nad_cache_t cache, const char *buf) {
-    nad_t nad = nad_new(cache);
+nad_t nad_deserialize(const char *buf) {
+    nad_t nad = nad_new();
     const char *pos = buf + sizeof(int);  /* skip len */
 
     _nad_ptr_check(__func__, nad);
@@ -1383,7 +1319,7 @@ static void _nad_parse_namespace_start(void *arg, const char *prefix, const char
     bd->nad->scope = ns; 
 }
 
-nad_t nad_parse(nad_cache_t cache, const char *buf, int len) {
+nad_t nad_parse(const char *buf, int len) {
     struct build_data bd;
     XML_Parser p;
 
@@ -1396,7 +1332,7 @@ nad_t nad_parse(nad_cache_t cache, const char *buf, int len) {
 
     XML_SetReturnNSTriplet(p, 1);
 
-    bd.nad = nad_new(cache);
+    bd.nad = nad_new();
     bd.depth = 0;
 
     XML_SetUserData(p, (void *) &bd);

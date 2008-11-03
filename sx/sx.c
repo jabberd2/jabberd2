@@ -37,8 +37,6 @@ sx_t sx_new(sx_env_t env, int tag, sx_callback_t cb, void *arg) {
     XML_SetReturnNSTriplet(s->expat, 1);
     XML_SetUserData(s->expat, (void *) s);
 
-    s->nad_cache = nad_cache_new();
-
     s->wbufq = jqueue_new();
     s->rnadq = jqueue_new();
 
@@ -95,7 +93,6 @@ void sx_free(sx_t s) {
     XML_ParserFree(s->expat);
 
     if(s->nad != NULL) nad_free(s->nad);
-    nad_cache_free(s->nad_cache);
 
     if(s->auth_method != NULL) free(s->auth_method);
     if(s->auth_id != NULL) free(s->auth_id);

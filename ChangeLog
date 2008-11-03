@@ -1,3 +1,7 @@
+2008-11-02 Mark Doliner <mark@meebo.com>
+	* Removed all NAD caching. This should reduce memory usage and
+	  memory growth.
+
 2008-10-14 Mark Doliner <mark@meebo.com>
 	* Added a key to the status table in db-setup.mysql.
 

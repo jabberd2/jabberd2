@@ -396,7 +396,7 @@ static void _in_result(conn_t in, nad_t nad) {
     free(rkey);
 
     /* new packet */
-    verify = nad_new(in->s2s->router->nad_cache);
+    verify = nad_new();
     ns = nad_add_namespace(verify, uri_DIALBACK, "db");
 
     nad_append_elem(verify, ns, "verify", 0);

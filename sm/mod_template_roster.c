@@ -89,7 +89,7 @@ static int _template_roster_reload(template_roster_t tr) {
 
     fclose(f);
 
-    nad = nad_parse(tr->sm->router->nad_cache, buf, size);
+    nad = nad_parse(buf, size);
     if(nad == NULL) {
         log_write(tr->sm->log, LOG_ERR, "couldn't parse roster template");
         free(buf);

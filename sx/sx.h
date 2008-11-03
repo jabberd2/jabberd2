@@ -304,8 +304,7 @@ struct _sx_st {
     int                      depth;
     int                      fail;
 
-    /* nad cache and nad currently being built */
-    nad_cache_t              nad_cache;
+    /* nad currently being built */
     nad_t                    nad;
 
     /* plugin storage */

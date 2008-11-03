@@ -310,7 +310,7 @@ pkt_t pkt_create(sm_t sm, const char *elem, const char *type, const char *to, co
     nad_t nad;
     int ns;
 
-    nad = nad_new(sm->router->nad_cache);
+    nad = nad_new();
 
     ns = nad_add_namespace(nad, uri_COMPONENT, NULL);
     nad_append_elem(nad, ns, "route", 0);

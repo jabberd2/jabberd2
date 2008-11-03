@@ -27,7 +27,6 @@ int user_table_load(router_t r) {
     FILE *f;
     long size;
     char *buf;
-    nad_cache_t cache;
     nad_t nad;
     int nusers, user, name, secret;
 
@@ -64,12 +63,10 @@ int user_table_load(router_t r) {
 
     fclose(f);
 
-    cache = nad_cache_new();
-    nad = nad_parse(cache, buf, size);
+    nad = nad_parse(buf, size);
     if(nad == NULL) {
         log_write(r->log, LOG_ERR, "couldn't parse user table");
         free(buf);
-        nad_cache_free(cache);
         return 1;
     }
 
@@ -96,7 +93,6 @@ int user_table_load(router_t r) {
     }
 
     nad_free(nad);
-    nad_cache_free(cache);
 
     log_write(r->log, LOG_NOTICE, "loaded user table (%d users)", nusers);
 

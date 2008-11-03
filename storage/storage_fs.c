@@ -266,12 +266,12 @@ static st_ret_t _st_fs_get(st_driver_t drv, const char *type, const char *owner,
                     break;
 
                 case os_type_NAD:
-                    nad = nad_parse(drv->st->sm->router->nad_cache, val, 0);
+                    nad = nad_parse(val, 0);
                     if(nad == NULL) {
                         while(fgets(buf + size, STORAGE_FS_READ_BLOCKSIZE - size, f) != NULL
                               && nad == NULL && size < STORAGE_FS_READ_BLOCKSIZE) {
                             size += strlen(buf + size);
-                            nad = nad_parse(drv->st->sm->router->nad_cache, val, 0);
+                            nad = nad_parse(val, 0);
                         }
                     }
                     if(nad == NULL) {
@@ -405,12 +405,12 @@ static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *own
                     break;
 
                 case os_type_NAD:
-                    nad = nad_parse(drv->st->sm->router->nad_cache, val, 0);
+                    nad = nad_parse(val, 0);
                     if(nad == NULL) {
                         while(fgets(buf + size, STORAGE_FS_READ_BLOCKSIZE - size, f) != NULL
                               && nad == NULL && size < STORAGE_FS_READ_BLOCKSIZE) {
                             size += strlen(buf + size);
-                            nad = nad_parse(drv->st->sm->router->nad_cache, val, 0);
+                            nad = nad_parse(val, 0);
                         }
                     }
                     if(nad == NULL)
