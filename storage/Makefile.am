@@ -1,7 +1,7 @@
 INCLUDES = -I$(top_srcdir)/sm -I$(top_srcdir)/c2s
 
 MODULE_LDFLAGS = -module -avoid-version
-MODULE_LIBADD = -lutil -lexpat -L$(top_srcdir)/util
+MODULE_LIBADD = -lexpat -L$(top_srcdir)/util
 
 pkglib_LTLIBRARIES =
 
@@ -89,7 +89,7 @@ if STORAGE_PIPE
 pkglib_LTLIBRARIES += authreg_pipe.la
 authreg_pipe_la_SOURCES = authreg_pipe.c
 authreg_pipe_la_LDFLAGS = $(MODULE_LDFLAGS)
-authreg_pipe_la_LIBADD  = $(MODULE_LIBADD)
+authreg_pipe_la_LIBADD  = $(MODULE_LIBADD) ../util/libutil.la
 endif
 
 if STORAGE_SQLITE
