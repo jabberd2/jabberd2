@@ -623,6 +623,10 @@ static void _unblock_jid(user_t user, storage_t st, zebra_list_t zlist, jid_t ji
                 if(scan->next != NULL)
                     scan->next->prev = scan->prev;
             }
+
+            if (zlist->last == scan)
+                zlist->last = scan->prev;
+
             /* and from the storage */
             sprintf(filter, "(&(type=3:jid)(value=%i:%s)(deny=1)", strlen(jid_full(scan->jid)), jid_full(scan->jid));
             storage_delete(st, "privacy-items", jid_user(user->jid), filter);
