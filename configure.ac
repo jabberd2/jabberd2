@@ -612,13 +612,14 @@ AC_SUBST(SQLITE_LIBS)
 AM_CONDITIONAL(STORAGE_SQLITE, [test "x-$have_sqlite" = "x-yes"])
 
 # Berkeley DB
+_save_libs="$LIBS"
 AC_ARG_ENABLE(db, AC_HELP_STRING([--enable-db], [enable Berkeley DB auth/reg/storage support (no)]),
               want_db=$enableval, want_db=no)
 if test "x-$want_db" = "x-yes" ; then
     AC_CHECK_HEADERS(db.h)
     if test "x-$ac_cv_header_db_h" = "x-yes" ; then
-        for lib in db-4.3 db-4.2 db-4.1 db-4 db4 db41 db ; do
-            if test "x-$have_db_version" != "x-yes" ; then
+        for lib in db43 db42 db-4.3 db-4.2 db-4.1 db-4 db4 db41 db ; do
+            if test "xxx$have_db_version" != "xxxyes" ; then
                 AC_MSG_CHECKING([for db_create in -l$lib])
                 save_libs="$LIBS"
                 LIBS="-l$lib $LIBS"
@@ -632,11 +633,14 @@ if test "x-$want_db" = "x-yes" ; then
                                                                      db_version(&major, &minor, &patch);
                                                                      if(major < 4 ||
                                                                          (major == 4 && minor < 1) ||
-                                                                         (major == 4 && minor == 1 && patch < 24))
+                                                                         (major == 4 && minor == 1 && patch < 24) || 
+                                                                         (int)DB_VERSION_MAJOR != major || 
+                                                                         (int)DB_VERSION_MINOR != minor)
                                                                          return 1;
                                                                  } while(0)]])],
                                               [AC_MSG_RESULT(yes)
-                                               have_db_version=yes],
+                                               have_db_version=yes
+                                               DB_LIBS="-l$lib"],
                                               AC_MSG_RESULT(no))],
                                 AC_MSG_RESULT(no))
                 LIBS="$save_libs"
@@ -646,12 +650,12 @@ if test "x-$want_db" = "x-yes" ; then
     if test "x-$have_db_version" != "x-yes" ; then
         AC_MSG_ERROR([Berkeley DB >= 4.1.24 not found])
     else
-        DB_LIBS="-l$lib"
         AC_DEFINE(STORAGE_DB,1,[Define to 1 if you want to use Berkeley DB for auth/reg/storage.])
     fi
 fi
 AC_SUBST(DB_LIBS)
 AM_CONDITIONAL(STORAGE_DB, [test "x-$have_db_version" = "x-yes"])
+LIBS="$_save_libs"
 
 # Oracle
 AC_ARG_WITH(oracle-home,
