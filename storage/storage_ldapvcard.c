@@ -239,7 +239,7 @@ static st_ret_t _st_ldapvcard_get(st_driver_t drv, const char *type, const char 
         i = 0;
         do {
             le = ldapvcard_entry[i];
-            attrs_vcard[++i] = le.ldapentry;
+            attrs_vcard[i++] = le.ldapentry;
         } while ( le.ldapentry != NULL );
 
         snprintf(ldapfilter, 1024, "(&(objectClass=%s)(%s=%s))", data->objectclass, data->uidattr, owner);
