@@ -27,6 +27,8 @@ void _sx_element_start(void *arg, const char *name, const char **atts) {
     char *uri, *elem, *prefix;
     const char **attr;
     int ns;
+    int scope;
+    int el;
 
     if(s->fail) return;
 
@@ -64,8 +66,17 @@ void _sx_element_start(void *arg, const char *name, const char **atts) {
         ns = -1;
     }
 
+    /* remember scope */
+    scope = s->nad->scope;
+
     /* add it */
-    nad_append_elem(s->nad, ns, elem, s->depth - 1);
+    el = nad_append_elem(s->nad, ns, elem, s->depth - 1);
+
+    /* rare cases with <ns:elem xmlns:ns='uri1' xmlns='uri2' attr='val2'>
+     * where the element is in uri1 namespace but its attributes in uri2 namespace
+     */
+    if(scope != ns && uri != NULL)
+        nad_append_namespace(s->nad, el, uri, prefix);
 
     /* now the attributes, one at a time */
     attr = atts;
