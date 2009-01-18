@@ -334,6 +334,7 @@ int             s2s_router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, vo
 int             s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg);
 
 char            *s2s_route_key(pool_t p, char *local, char *remote);
+int             s2s_route_key_match(char *local, char *remote, char *rkey);
 char            *s2s_db_key(pool_t p, char *secret, char *remote, char *id);
 char            *dns_make_ipport(char *host, int port);
 

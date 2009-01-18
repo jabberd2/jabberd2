@@ -1673,7 +1673,8 @@ int out_bounce_domain_queues(s2s_t s2s, const char *domain, int err)
   if (xhash_iter_first(s2s->outq)) {
       do {
           xhash_iter_get(s2s->outq, (const char **) &rkey, NULL);
-          pktcount += out_bounce_route_queue(s2s, rkey, err);
+          if(s2s_route_key_match(NULL, domain, rkey))
+              pktcount += out_bounce_route_queue(s2s, rkey, err);
       } while(xhash_iter_next(s2s->outq));
   }
 

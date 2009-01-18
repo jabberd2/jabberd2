@@ -24,6 +24,9 @@
 char *s2s_route_key(pool_t p, char *local, char *remote) {
     char *key;
 
+    if(local == NULL) local = "";
+    if(remote == NULL) remote = "";
+
     if(p == NULL)
         key = (char *) malloc(strlen(local) + strlen(remote) + 2);
     else
@@ -32,6 +35,18 @@ char *s2s_route_key(pool_t p, char *local, char *remote) {
     sprintf(key, "%s/%s", local, remote);
 
     return key;
+}
+
+/** match route key - used for searching route hash */
+int s2s_route_key_match(char *local, char *remote, char *rkey) {
+    char *klocal, *kremote;
+
+    klocal = strdup(rkey);
+    kremote = strchr(klocal, '/');
+    if(kremote != NULL) *kremote++ = '\0';
+
+    return (local == NULL || (klocal != NULL && !strcmp(local, klocal)))
+    	&& (remote == NULL || (kremote != NULL && !strcmp(remote, kremote)));
 }
 
 /** generate a dialback key */
