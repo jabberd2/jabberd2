@@ -40,13 +40,18 @@ char *s2s_route_key(pool_t p, char *local, char *remote) {
 /** match route key - used for searching route hash */
 int s2s_route_key_match(char *local, char *remote, char *rkey) {
     char *klocal, *kremote;
+    int ret;
 
     klocal = strdup(rkey);
     kremote = strchr(klocal, '/');
     if(kremote != NULL) *kremote++ = '\0';
 
-    return (local == NULL || (klocal != NULL && !strcmp(local, klocal)))
+    ret  = (local == NULL || (klocal != NULL && !strcmp(local, klocal)))
     	&& (remote == NULL || (kremote != NULL && !strcmp(remote, kremote)));
+
+    free(klocal);
+
+    return ret;
 }
 
 /** generate a dialback key */
