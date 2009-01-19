@@ -1,9 +1,78 @@
+2009-01-18 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed an issue when one invalid outgoing domain resolution
+	  would iterate over ALL outgoing resolution queues and bounce
+	  all waiting outgoing packets.
+
+2009-01-16 Tomasz Sterna <tomek@xiaoka.com>
+	* [CRASHER] Fixed bug in _nad_lp0() that could produce 'unbound prefix'
+	  XML parse errors in rare cases. This leads to components disconnection
+	  and shutdown.
+
+2009-01-15 Tomasz Sterna <tomek@xiaoka.com>
+	* More debugging information for XML Parse ERROR
+	* Fixed double free in mod_amp. Fixes #265
+
+2009-01-07 Tomasz Sterna <tomek@xiaoka.com>
+	* Initialization of first element of attrs_vcard. Thanks to Andreas Hofmeister.
+
+2008-12-05 Tomasz Sterna <tomek@xiaoka.com>
+	* Merged FreeBSD BekeleyDB detection fix. Closes #261
+
+2008-12-01 Mark Doliner <mark@meebo.com>
+	* When unblocking the last user in the list of users, update the
+	  zlist->last pointer to avoid crashing later on.
+
+2008-11-03 Tomasz Sterna <tomek@xiaoka.com>
+	* Linking libutil.la to authreg_pipe.so statically. Fixes #257
+
 2008-11-02 Mark Doliner <mark@meebo.com>
 	* Removed all NAD caching. This should reduce memory usage and
 	  memory growth.
 
+2008-10-29 Tomasz Sterna <tomek@xiaoka.com>
+	* Clarified usage of <id/> attributes in configuration file
+
+2008-10-17 Tomasz Sterna <tomek@xiaoka.com>
+	* Merged Oracle DB fixes submitted by Oleksiy Kramarenko
+
+2008-10-16 Adam Strzelecki <ono@java.pl>
+	* MIO_ERROR is not l-value on Windows [706],
+	  one should use MIO_SETERROR(e) instead of MIO_ERROR = e (#224)
+
+2008-10-15 Mark Doliner <mark@meebo.com>
+	* Add a key to the status table in MySQL.
+	  This should make queries to that table a bit faster.
+
+2008-10-14 Tomasz Sterna <tomek@xiaoka.com>
+	* Proper check whether the connection is TLS encrypted
+	* Sending S2S client certificate during S2S encrypted session establishment
+
 2008-10-14 Mark Doliner <mark@meebo.com>
 	* Added a key to the status table in db-setup.mysql.
+
+2008-10-06 Tomasz Sterna <tomek@xiaoka.com>
+	* Setting MIO_ERROR to EFAULT:'Bad address' on IP address resolution
+	  failure. Fixes #224
+	* Merged Debian Bug #493765 patch for LDAP_DEPRECATED functions. Thanks to
+	  Dann Frazier. Fixes #240
+	* Merged patch to fix freed DNS queue data on unreachable domain. Thanks to
+	  Simon Arlott. Closes #253
+	* Merged patch to reload users file on SIGHUP. Thanks to Simon Arlott. Closes #254
+
+2008-10-02 Tomasz Sterna <tomek@xiaoka.com>
+	* Refs #252 - no closing SX on zero buffer read
+
+2008-09-15 Tomasz Sterna <tomek@xiaoka.com>
+	* Merged IDNA domains resolution support patch by Norman Rasmussen
+
+2008-09-03 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed typo in starttls option name. Fixes #247
+
+2008-09-02 Tomasz Sterna <tomek@xiaoka.com>
+	* Handle trusts based on bare and full JID roster items
+
+2008-09-01 Tomasz Sterna <tomek@xiaoka.com>
+	* Using Cyrus sasl_encode64/decode64() in CyrusSASL backend instead of APR ones
 
 2008-08-22 Adam Strzelecki <ono@java.pl>
 	* [WIN32] libidn & gsasl downloads are now at GNU servers.
@@ -12,7 +81,6 @@
 	* Fix a memory leak when using stanza rate limiting
 
 2008-08-20 Tomasz Sterna <tomek@xiaoka.com>
-
 	* Detecting unrecoverable stream errors on establishing an outgoing s2s
 	  connection. Refs #244
 
