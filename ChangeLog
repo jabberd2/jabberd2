@@ -85,12 +85,10 @@
 	  connection. Refs #244
 
 2008-08-19 Tomasz Sterna <tomek@xiaoka.com>
-
 	* Do not offer compression if STARTTLS is required and not enabled
 	* Return better error on STARTTLS required failure.
 
 2008-08-18 Adam Strzelecki <ono@java.pl>
-
 	* [WIN32] server.pem has to be permanent in order to not disappear on upgrade.
 	* [WIN32] Put stats on the main folder of win32 distro too.
 	* [WIN32] Cleanup win32 README a bit.
