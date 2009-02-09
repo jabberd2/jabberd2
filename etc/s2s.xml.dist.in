@@ -81,6 +81,13 @@
     <ip>0.0.0.0</ip>
     <port>5269</port>
 
+    <!-- Multihomed machines (with more than one interface and IP address)
+         need to specify outgoing S2S connections interface/address.
+         If not set, the <ip> section address above is used. -->
+    <!--
+    <origin>1.2.3.4</origin>
+    -->
+
     <!-- Secret used to generate dialback keys. If you have more than
          one s2s instance configured, make sure that this is the same on
          all of them. If this is commented out, a random one will be

@@ -140,7 +140,7 @@ static void _sm_config_expand(sm_t sm)
 static int _sm_router_connect(sm_t sm) {
     log_write(sm->log, LOG_NOTICE, "attempting connection to router at %s, port=%d", sm->router_ip, sm->router_port);
 
-    sm->fd = mio_connect(sm->mio, sm->router_port, sm->router_ip, sm_mio_callback, (void *) sm);
+    sm->fd = mio_connect(sm->mio, sm->router_port, sm->router_ip, NULL, sm_mio_callback, (void *) sm);
     if(sm->fd == NULL) {
         if(errno == ECONNREFUSED)
             sm_lost_router = 1;

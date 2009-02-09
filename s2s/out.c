@@ -503,7 +503,7 @@ int out_route(s2s_t s2s, char *route, conn_t *out, int allow_bad) {
             /* connect */
             log_debug(ZONE, "initiating connection to %s", ipport);
 
-            (*out)->fd = mio_connect(s2s->mio, port, ip, _out_mio_callback, (void *) *out);
+            (*out)->fd = mio_connect(s2s->mio, port, ip, s2s->origin_ip, _out_mio_callback, (void *) *out);
 
             if ((*out)->fd == NULL) {
                 dnsres_t bad;

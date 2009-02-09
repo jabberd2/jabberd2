@@ -365,11 +365,11 @@ static mio_fd_t _mio_listen(mio_t m, int port, char *sourceip, mio_handler_t app
 }
 
 /** create an fd and connect to the given ip/port */
-static mio_fd_t _mio_connect(mio_t m, int port, char *hostip, mio_handler_t app, void *arg)
+static mio_fd_t _mio_connect(mio_t m, int port, char *hostip, char *srcip, mio_handler_t app, void *arg)
 {
     int fd, flag, flags;
     mio_fd_t mio_fd;
-    struct sockaddr_storage sa;
+    struct sockaddr_storage sa, src;
 
     memset(&sa, 0, sizeof(sa));
 
@@ -385,6 +385,20 @@ static mio_fd_t _mio_connect(mio_t m, int port, char *hostip, mio_handler_t app,
 
     /* attempt to create a socket */
     if((fd = socket(sa.ss_family,SOCK_STREAM,0)) < 0) return NULL;
+
+    /* Bind to the given source IP if it was specified */
+    if (srcip != NULL) {
+        /* convert the srcip */
+        if(j_inet_pton(srcip, &src)<=0) {
+            MIO_SETERROR(EFAULT);
+            return NULL;
+        }
+        j_inet_setport(&sa, INADDR_ANY);
+        if(bind(fd,(struct sockaddr*)&src,j_inet_addrlen(&src)) < 0) {
+            close(fd);
+            return NULL;
+        }
+    }
 
     /* set the socket to non-blocking before connecting */
 #if defined(HAVE_FCNTL)

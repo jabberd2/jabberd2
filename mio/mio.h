@@ -114,7 +114,7 @@ typedef struct mio_st
 				  mio_handler_t app, void *arg);
 
   struct mio_fd_st *(*mio_connect)(struct mio_st **m, int port, char *hostip,
-				   mio_handler_t app, void *arg);
+				   char *srcip, mio_handler_t app, void *arg);
 
   struct mio_fd_st *(*mio_register)(struct mio_st **m, int fd,
 				   mio_handler_t app, void *arg);
@@ -141,8 +141,8 @@ JABBERD2_API mio_t mio_new(int maxfd); /* returns NULL if failed */
     (*m)->mio_listen(m, port, sourceip, app, arg)
 
 /** for creating a new socket connected to this ip:port (returns new fd or <0, use mio_read/write first) */
-#define mio_connect(m, port, hostip, app, arg) \
-    (*m)->mio_connect(m, port, hostip, app, arg)
+#define mio_connect(m, port, hostip, srcip, app, arg) \
+    (*m)->mio_connect(m, port, hostip, srcip, app, arg)
 
 /** for adding an existing socket connected to this mio */
 #define mio_register(m, fd, app, arg) \
