@@ -1,5 +1,11 @@
 This file contains upgrade instructions between different versions of jabberd2.
 
+* 2.2.5 to 2.2.6 upgrade:
+
+What changed:
+- added ip.origin option to s2s.xml
+
+
 * 2.2.4 to 2.2.5 upgrade:
 This is a bugfix release. There are almost none visible changes.
 NAD caching was removed. This should reduce memory usage and
