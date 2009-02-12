@@ -491,7 +491,7 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv)
 
     basedn = config_get_one(drv->st->sm->config, "storage.ldapvcard.basedn", 0);
     if(basedn == NULL) {
-        log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: no basedns specified in config file");
+        log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: no basedn specified in config file");
         return st_FAILED;
     }
 

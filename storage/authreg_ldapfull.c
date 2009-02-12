@@ -704,7 +704,7 @@ DLLEXPORT int ar_init(authreg_t ar)
     basedn = config_get(ar->c2s->config, "authreg.ldapfull.basedn");
     if(basedn == NULL)
     {
-        log_write(ar->c2s->log, LOG_ERR, "ldap: no basedns specified in config file");
+        log_write(ar->c2s->log, LOG_ERR, "ldap: no basedn specified in config file");
         return 1;
     }
 
