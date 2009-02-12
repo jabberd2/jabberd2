@@ -258,7 +258,7 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
         case event_PACKET:
             /* we're counting packets */
             in->packet_count++;
-	    in->s2s->packet_count++;
+            in->s2s->packet_count++;
 
             nad = (nad_t) data;
 
