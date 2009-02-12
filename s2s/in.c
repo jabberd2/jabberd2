@@ -546,8 +546,6 @@ static void _in_packet(conn_t in, nad_t nad) {
             for(sns = nad->elems[0].ns; sns >= 0 && nad->nss[sns].next != ns; sns = nad->nss[sns].next);
             nad->nss[sns].next = nad->nss[nad->nss[sns].next].next;
         }
-        /* trigger the next section */
-        ns = -1;
     }
 
     /*
@@ -557,13 +555,14 @@ static void _in_packet(conn_t in, nad_t nad) {
      * handled by sm (and not just routed through the server), so set the
      * jabber:client namespace.
      */
-    if(ns < 0) {
+    if(ns >= 0 || nad->elems[0].ns < 0) {
         ns = nad_add_namespace(nad, uri_CLIENT, NULL);
         nad->scope = -1;
         nad->nss[ns].next = nad->elems[0].ns;
         nad->elems[0].ns = ns;
     }
-    nad->elems[0].my_ns = ns;
+
+    nad->elems[0].my_ns = nad->elems[0].ns;
 
     /* wrap up the packet */
     ns = nad_add_namespace(nad, uri_COMPONENT, "comp");
