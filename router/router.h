@@ -58,6 +58,7 @@ struct acl_s {
     char *what;
     char *from;
     char *to;
+    int log;
     acl_t next;
 };
 

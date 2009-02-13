@@ -44,7 +44,7 @@ int filter_load(router_t r) {
     long size;
     char *buf;
     nad_t nad;
-    int i, nfilters, filter, from, to, what, error;
+    int i, nfilters, filter, from, to, what, error, log;
     acl_t list_tail, acl;
 
     log_debug(ZONE, "loading filter");
@@ -99,6 +99,7 @@ int filter_load(router_t r) {
         to = nad_find_attr(nad, filter, -1, "to", NULL);
         what = nad_find_attr(nad, filter, -1, "what", NULL);
         error = nad_find_attr(nad, filter, -1, "error", NULL);
+        log = nad_find_attr(nad, filter, -1, "log", NULL);
 
         acl = (acl_t) calloc(1, sizeof(struct acl_s));
 
@@ -135,6 +136,10 @@ int filter_load(router_t r) {
                 }
             }
         }
+        if(log >= 0) {
+            acl->log = ! strncasecmp(NAD_AVAL(nad, log), "YES", NAD_AVAL_L(nad, log));
+            acl->log |= ! strncasecmp(NAD_AVAL(nad, log), "ON", NAD_AVAL_L(nad, log));
+        }
 
         if(list_tail != NULL) {
            list_tail->next = acl;
@@ -147,7 +152,7 @@ int filter_load(router_t r) {
            list_tail = acl;
         }
         
-        log_debug(ZONE, "added %s rule: from=%s, to=%s, what=%s, error=%d", (acl->error?"deny":"allow"), acl->from, acl->to, acl->what, acl->error);
+        log_debug(ZONE, "added %s rule: from=%s, to=%s, what=%s, error=%d, log=%s", (acl->error?"deny":"allow"), acl->from, acl->to, acl->what, acl->error, (acl->log?"yes":"no"));
 
         nfilters++;
 
@@ -200,6 +205,7 @@ int filter_packet(router_t r, nad_t nad) {
         if( to != NULL && acl->to != NULL && fnmatch(acl->to, to, 0) != 0 ) continue;
         if( acl->what != NULL && nad_find_elem_path(nad, 0, -1, acl->what) < 0 ) continue;        /* match packet type */
         log_debug(ZONE, "matched packet %s->%s vs rule (%s %s->%s)", from, to, acl->what, acl->from, acl->to);
+        if (acl->log) log_write(r->log, LOG_NOTICE, "filter: %s packet from=%s to=%s - rule (from=%s to=%s what=%s)",(acl->error?"deny":"allow"), from, to, acl->from, acl->to, acl->what);
         error = acl->error;
         break;
     }

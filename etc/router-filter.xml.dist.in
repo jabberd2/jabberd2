@@ -7,6 +7,7 @@
      what     - XPath like query
      error    - none given means allow, if given means deny
                 this is an XMPP RFC defined error condition
+     log      - if set, the matched packets will be logged in router log
 
      Rules are matched in order of apperance. First match is efffective.
 -->
@@ -21,13 +22,13 @@
 
   <!-- don't allow msn registrations, but... -->
   <!-- <rule from="dearhart@example.org" to="msn.example.org"/> -->
-  <!-- <rule error="not-allowed" from="*" to="msn.example.org" what="iq/query?xmlns=jabber:iq:register"/> -->
+  <!-- <rule error="not-allowed" from="*" to="msn.example.org" what="iq/query?xmlns=jabber:iq:register" log="yes"/> -->
 
   <!-- this user should not talk with evil -->
   <!-- <rule error="not-allowed" from="user@example.org" to="*@evil.gov" what="message"/> -->
 
   <!-- I don't want evil to read my data -->
-  <!-- <rule error="forbidden" from="*@evil.gov" to="admin@example.org" what="iq/vCard"/> -->
+  <!-- <rule error="forbidden" from="*@evil.gov" to="admin@example.org" what="iq/vCard" log="on"/> -->
 
   <!-- and finally, let's blind the world with some exceptions -->
   <!--
