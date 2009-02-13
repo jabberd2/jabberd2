@@ -270,10 +270,10 @@ static void _sx_sasl_notify_success(sx_t s, void *arg) {
 /** process handshake packets from the client */
 static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, char *mech, char *in, int inlen) {
     _sx_sasl_t ctx = (_sx_sasl_t) p->private;
-    char *buf = NULL, *out = NULL, *realm = NULL, *ext_id;
+    char *buf = NULL, *dec = NULL, *out = NULL, *realm = NULL, *ext_id;
     char hostname[256];
     int ret, i;
-    size_t buflen, outlen;
+    size_t buflen, declen, outlen;
 
     if(mech != NULL) {
         _sx_debug(ZONE, "auth request from client (mechanism=%s)", mech);
@@ -339,15 +339,25 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
             if (ret != GSASL_OK) {
                 _sx_debug(ZONE, "gsasl_base64_from failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
                 _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_INCORRECT_ENCODING), 0);
-				return;
+                if(buf != NULL) free(buf);
+                return;
+            }
+            ret = gsasl_decode(sd, buf, buflen, &dec, &declen);
+            if (ret != GSASL_OK) {
+                _sx_debug(ZONE, "gsasl_decode failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
+                _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_INCORRECT_ENCODING), 0);
+                if(dec != NULL) free(dec);
+                if(buf != NULL) free(buf);
+                return;
             }
         }
 
-        ret = gsasl_step(sd, buf, buflen, &out, &outlen);
+        ret = gsasl_step(sd, dec, declen, &out, &outlen);
         if(ret != GSASL_OK && ret != GSASL_NEEDS_MORE) {
             _sx_debug(ZONE, "gsasl_step failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
             _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_MALFORMED_REQUEST), 0);
             if(out != NULL) free(out);
+            if(dec != NULL) free(dec);
             if(buf != NULL) free(buf);
             return;
         }
@@ -362,16 +372,26 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
             return;
         }
 
+        ret = gsasl_decode(sd, buf, buflen, &dec, &declen);
+        if (ret != GSASL_OK) {
+            _sx_debug(ZONE, "gsasl_decode failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
+            _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_INCORRECT_ENCODING), 0);
+            if(buf != NULL) free(buf);
+            return;
+        }
+
         if(!sd) {
             _sx_debug(ZONE, "response send before auth request enabling mechanism (decoded: %.*s)", buflen, buf);
             _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_MECH_TOO_WEAK), 0);
+            if(dec != NULL) free(dec);
             if(buf != NULL) free(buf);
             return;
         }
         _sx_debug(ZONE, "response from client (decoded: %.*s)", buflen, buf);
-        ret = gsasl_step(sd, buf, buflen, &out, &outlen);
+        ret = gsasl_step(sd, dec, declen, &out, &outlen);
     }
 
+    if(dec != NULL) free(dec);
     if(buf != NULL) free(buf);
 
     /* auth completed */
@@ -395,11 +415,14 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
         _sx_debug(ZONE, "sasl handshake in progress (challenge: %.*s)", outlen, out);
 
         /* encode the challenge */
-        ret = gsasl_base64_to(out, outlen, &buf, &buflen);
-        
+        ret = gsasl_encode(sd, out, outlen, &dec, &declen);
         if (ret == GSASL_OK) {
-            _sx_nad_write(s, _sx_sasl_challenge(s, buf, buflen), 0);
-            free(buf);
+            ret = gsasl_base64_to(dec, declen, &buf, &buflen);
+            if (ret == GSASL_OK) {
+                _sx_nad_write(s, _sx_sasl_challenge(s, buf, buflen), 0);
+                free(buf);
+            }
+            free(dec);
         }
 
         if(out != NULL) free(out);
@@ -418,40 +441,51 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
 
 /** process handshake packets from the server */
 static void _sx_sasl_server_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, char *in, int inlen) {
-    char *buf, *out;
-    size_t buflen, outlen;
+    char *buf = NULL, *dec = NULL, *out = NULL;
+    size_t buflen, declen, outlen;
     int ret;
 
     _sx_debug(ZONE, "data from client");
 
     /* decode the response */
-    ret = gsasl_base64_from(in, inlen, &buf, &buflen);
+    ret = gsasl_base64_from(in, inlen, &dec, &declen);
 
     if (ret == GSASL_OK) {
-        _sx_debug(ZONE, "decoded data: %.*s", buflen, buf);
+        ret = gsasl_decode(sd, dec, declen, &buf, &buflen);
     
-        /* process the data */
-        ret = gsasl_step(sd, buf, buflen, &out, &outlen);
-        if(buf != NULL) free(buf);
-    
-        /* in progress */
-        if(ret == GSASL_OK || ret == GSASL_NEEDS_MORE) {
-            _sx_debug(ZONE, "sasl handshake in progress (response: %.*s)", outlen, out);
-    
-            /* encode the response */
-            ret = gsasl_base64_to(out, outlen, &buf, &buflen);
-    
-            if (ret == GSASL_OK) {
-                _sx_nad_write(s, _sx_sasl_response(s, buf, buflen), 0);
+        if (ret == GSASL_OK) {
+            _sx_debug(ZONE, "decoded data: %.*s", buflen, buf);
+        
+            /* process the data */
+            ret = gsasl_step(sd, buf, buflen, &out, &outlen);
+            if(dec != NULL) free(dec); dec = NULL;
+            if(buf != NULL) free(buf); buf = NULL;
+        
+            /* in progress */
+            if(ret == GSASL_OK || ret == GSASL_NEEDS_MORE) {
+                _sx_debug(ZONE, "sasl handshake in progress (response: %.*s)", outlen, out);
+        
+                /* encode the response */
+                ret = gsasl_encode(sd, out, outlen, &dec, &declen);
+                
+                if (ret == GSASL_OK) {
+                    ret = gsasl_base64_to(dec, declen, &buf, &buflen);
+        
+                    if (ret == GSASL_OK) {
+                        _sx_nad_write(s, _sx_sasl_response(s, buf, buflen), 0);
+                    }
+                }
+        
+                if(out != NULL) free(out);
+                if(dec != NULL) free(dec);
                 if(buf != NULL) free(buf);
+        
+                return;
             }
-    
-            if(out != NULL) free(out);
-    
-            return;
         }
-    
         if(out != NULL) free(out);
+        if(dec != NULL) free(dec);
+        if(buf != NULL) free(buf);
     }
 
     /* its over */
@@ -764,10 +798,10 @@ int sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args) {
 int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, char *pass) {
     _sx_sasl_t ctx = (_sx_sasl_t) p->private;
     Gsasl_session *sd;
-    char *buf, *out;
+    char *buf = NULL, *dec = NULL, *out = NULL;
     char hostname[256];
     int ret, ns;
-    size_t buflen, outlen;
+    size_t buflen, declen, outlen;
     nad_t nad;
 
     assert((p != NULL));
@@ -819,12 +853,24 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, c
     _sx_debug(ZONE, "sending auth request to server, mech '%s': %.*s", mech, outlen, out);
 
     /* encode the challenge */
-    ret = gsasl_base64_to(out, outlen, &buf, &buflen);
-    if(ret != GSASL_OK) {
-        _sx_debug(ZONE, "gsasl_base64_to failed, not authing; (%d): %s", ret, gsasl_strerror(ret));
+    ret = gsasl_encode(sd, out, outlen, &dec, &declen);
+    if(ret == GSASL_OK) {
+        ret = gsasl_base64_to(dec, declen, &buf, &buflen);
+        free(dec);
+        if(ret != GSASL_OK) {
+            _sx_debug(ZONE, "gsasl_base64_to failed, not authing; (%d): %s", ret, gsasl_strerror(ret));
+
+            gsasl_finish(sd);
+
+            if (out != NULL) free(out);
+            return 1;
+        }
+    } else {
+        _sx_debug(ZONE, "gsasl_encode failed, not authing; (%d): %s", ret, gsasl_strerror(ret));
 
         gsasl_finish(sd);
 
+        if (dec != NULL) free(dec);
         return 1;
     }
     free(out);
