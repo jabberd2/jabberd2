@@ -15,9 +15,9 @@ mkdir "$TMPDIR"
 cd "$TMPDIR"
 svn -q checkout "$SVNPATH" "$APPNAME-$APPVER"
 cd "$APPNAME-$APPVER"
+pwd
 sed -i "/^AC_INIT/s/\[.*\], \[.*\], /[$APPNAME], [$APPVER], /" configure.ac
 autoreconf --install --force
-libtoolize --copy --force
 ./configure
 make dist
 svn -q copy . "$SVNBASE/tags/$APPNAME-$APPVER" -m "Tagging $APPVER release"
