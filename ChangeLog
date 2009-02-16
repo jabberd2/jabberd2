@@ -1,3 +1,18 @@
+2009-02-16 Tomasz Sterna <tomek@xiaoka.com>
+	* Moved gsasl_decode()/gsasl_encode() to sasl RIO/WIO
+
+2009-02-13 Tomasz Sterna <tomek@xiaoka.com>
+	* Implemented GSASL qop-int integrity checks with gsasl_decode()/gsasl_encode() functions. Refs #233
+	* Implemented router-filter packet logging. Closes #176
+
+2009-02-12 Tomasz Sterna <tomek@xiaoka.com>
+	* Proper mangling jabber:client to jabber:client namespace in incoming S2S packets. Fixes #267
+	* Changed basedns to basedn in error messages. Fixes #268
+
+2009-02-09 Tomasz Sterna <tomek@xiaoka.com>
+	* Merged patch to specify origin IP addres of S2S connections
+	  by Eygene Ryabinkin <rea-fbsd@codelabs.ru>
+
 2009-01-18 Tomasz Sterna <tomek@xiaoka.com>
 	* Fixed an issue when one invalid outgoing domain resolution
 	  would iterate over ALL outgoing resolution queues and bounce
