@@ -63,6 +63,80 @@ struct Gsasl_session
 #endif
 };
 
+/* another internal GSASL structures needed to hack into its internals */
+#define DIGEST_MD5_LENGTH 16
+
+struct digest_md5_challenge
+{
+  size_t nrealms;
+  char **realms;
+  char *nonce;
+  int qops;
+  int stale;
+  unsigned long servermaxbuf;
+  int utf8;
+  int ciphers;
+};
+typedef struct digest_md5_challenge digest_md5_challenge;
+
+enum digest_md5_qop
+{
+  DIGEST_MD5_QOP_AUTH = 1,
+  DIGEST_MD5_QOP_AUTH_INT = 2,
+  DIGEST_MD5_QOP_AUTH_CONF = 4
+};
+typedef enum digest_md5_qop digest_md5_qop;
+
+enum digest_md5_cipher
+{
+  DIGEST_MD5_CIPHER_DES = 1,
+  DIGEST_MD5_CIPHER_3DES = 2,
+  DIGEST_MD5_CIPHER_RC4 = 4,
+  DIGEST_MD5_CIPHER_RC4_40 = 8,
+  DIGEST_MD5_CIPHER_RC4_56 = 16,
+  DIGEST_MD5_CIPHER_AES_CBC = 32
+};
+typedef enum digest_md5_cipher digest_md5_cipher;
+
+#define DIGEST_MD5_RESPONSE_LENGTH 32
+struct digest_md5_response
+{
+  char *username;
+  char *realm;
+  char *nonce;
+  char *cnonce;
+  unsigned long nc;
+  digest_md5_qop qop;
+  char *digesturi;
+  unsigned long clientmaxbuf;
+  int utf8;
+  digest_md5_cipher cipher;
+  char *authzid;
+  char response[DIGEST_MD5_RESPONSE_LENGTH + 1];
+};
+typedef struct digest_md5_response digest_md5_response;
+
+struct digest_md5_finish
+{
+  char rspauth[DIGEST_MD5_RESPONSE_LENGTH + 1];
+};
+typedef struct digest_md5_finish digest_md5_finish;
+
+struct _Gsasl_digest_md5_server_state
+{
+  int step;
+  unsigned long readseqnum, sendseqnum;
+  char secret[DIGEST_MD5_LENGTH];
+  char kic[DIGEST_MD5_LENGTH];
+  char kcc[DIGEST_MD5_LENGTH];
+  char kis[DIGEST_MD5_LENGTH];
+  char kcs[DIGEST_MD5_LENGTH];
+  digest_md5_challenge challenge;
+  digest_md5_response response;
+  digest_md5_finish finish;
+};
+typedef struct _Gsasl_digest_md5_server_state _Gsasl_digest_md5_server_state;
+
 /** utility: generate a success nad */
 static nad_t _sx_sasl_success(sx_t s) {
     nad_t nad;
@@ -135,18 +209,26 @@ static nad_t _sx_sasl_abort(sx_t s) {
 }
 
 static int _sx_sasl_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
-    int len;
+    sx_error_t sxe;
+    int len, ret;
     char *out;
     Gsasl_session *sd = (Gsasl_session *) s->plugin_data[p->index];
 
     _sx_debug(ZONE, "doing sasl encode");
 
     /* encode the output */
-    gsasl_encode(sd, buf->data, buf->len, &out, &len);
+    ret = gsasl_encode(sd, buf->data, buf->len, &out, &len);
+    if (ret != GSASL_OK) {
+        _sx_debug(ZONE, "gsasl_encode failed (%d): %s", ret, gsasl_strerror (ret));
+        /* Fatal error */
+        _sx_gen_error(sxe, SX_ERR_AUTH, "SASL Stream encoding failed", (char*) gsasl_strerror (ret));
+        _sx_event(s, event_ERROR, (void *) &sxe);
+        return -1;
+    }
     
     /* replace the buffer */
     _sx_buffer_set(buf, out, len, NULL);
-	free(out);
+    free(out);
 
     _sx_debug(ZONE, "%d bytes encoded for sasl channel", buf->len);
     
@@ -155,23 +237,25 @@ static int _sx_sasl_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
 
 static int _sx_sasl_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     sx_error_t sxe;
-    int len;
+    int len, ret;
     char *out;
     Gsasl_session *sd = (Gsasl_session *) s->plugin_data[p->index];
 
     _sx_debug(ZONE, "doing sasl decode");
 
     /* decode the input */
-    if (gsasl_decode(sd, buf->data, buf->len, &out, &len) != GSASL_OK) {
-      /* Fatal error */
-      _sx_gen_error(sxe, SX_ERR_AUTH, "SASL Stream decoding failed", NULL);
-      _sx_event(s, event_ERROR, (void *) &sxe);
-      return -1;
+    ret = gsasl_decode(sd, buf->data, buf->len, &out, &len);
+    if (ret != GSASL_OK) {
+        _sx_debug(ZONE, "gsasl_decode failed (%d): %s", ret, gsasl_strerror (ret));
+        /* Fatal error */
+        _sx_gen_error(sxe, SX_ERR_AUTH, "SASL Stream decoding failed", (char*) gsasl_strerror (ret));
+        _sx_event(s, event_ERROR, (void *) &sxe);
+        return -1;
     }
     
     /* replace the buffer */
     _sx_buffer_set(buf, out, len, NULL);
-	free(out);
+    free(out);
 
     _sx_debug(ZONE, "%d bytes decoded from sasl channel", len);
     
@@ -304,6 +388,9 @@ static void _sx_sasl_features(sx_t s, sx_plugin_t p, nad_t nad) {
 
 /** auth done, restart the stream */
 static void _sx_sasl_notify_success(sx_t s, void *arg) {
+    sx_plugin_t p = (sx_plugin_t) arg;
+
+    _sx_chain_io_plugin(s, p);
     _sx_debug(ZONE, "auth completed, resetting");
 
     _sx_reset(s);
@@ -343,6 +430,12 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
         gsasl_session_hook_set(sd, (void *) ctx);
         gsasl_property_set(sd, GSASL_SERVICE, ctx->appname);
         gsasl_property_set(sd, GSASL_REALM, realm);
+
+        /* allow only qop=auth for DIGEST-MD5 */
+        if (!strncmp(mech, "DIGEST-MD5", 10)) {
+            _Gsasl_digest_md5_server_state *state = sd->mech_data;
+            state->challenge.qops = DIGEST_MD5_QOP_AUTH;
+        }
 
         /* get hostname */
         hostname[0] = '\0';
