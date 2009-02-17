@@ -1,4 +1,5 @@
 2009-02-16 Tomasz Sterna <tomek@xiaoka.com>
+	* Enforce qop=auth for DIGEST-MD5 in sasl_gsasl
 	* Moved gsasl_decode()/gsasl_encode() to sasl RIO/WIO
 
 2009-02-13 Tomasz Sterna <tomek@xiaoka.com>
