@@ -1,3 +1,8 @@
+2009-02-24 Tomasz Sterna <tomek@xiaoka.com>
+	* Handle missing authreg configuration correctly
+	* More descriptive MIO debugging
+	* Disabled Session Ticket extension on outgoing SSL connections. Refs #256
+
 2009-02-16 Tomasz Sterna <tomek@xiaoka.com>
 	* Enforce qop=auth for DIGEST-MD5 in sasl_gsasl
 	* Moved gsasl_decode()/gsasl_encode() to sasl RIO/WIO
