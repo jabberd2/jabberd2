@@ -209,7 +209,7 @@ static void _mio_run(mio_t m, int timeout)
     int retval;
     MIO_INIT_ITERATOR(iter);
 
-    mio_debug(ZONE, "mio running for %d", timeout);
+    mio_debug(ZONE, "mio running for %d sec", timeout);
 
     /* wait for a socket event */
     retval = MIO_CHECK(m, timeout);
@@ -225,7 +225,7 @@ static void _mio_run(mio_t m, int timeout)
         return;
     }
 
-    mio_debug(ZONE,"mio working: %d", retval);
+    mio_debug(ZONE,"mio processing %d file descriptors", retval);
 
     /* loop through the sockets, check for stuff to do */
     MIO_ITERATE_RESULTS(m, retval, iter)
