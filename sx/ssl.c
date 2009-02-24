@@ -524,6 +524,7 @@ static void _sx_ssl_client(sx_t s, sx_plugin_t p) {
     SSL_set_bio(sc->ssl, sc->rbio, sc->wbio);
     SSL_set_connect_state(sc->ssl);
     SSL_set_ssl_method(sc->ssl, TLSv1_client_method());
+    SSL_set_options(sc->ssl, SSL_OP_NO_TICKET);
 
     /* empty external_id */
     sc->external_id = NULL;
