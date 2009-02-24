@@ -113,8 +113,10 @@ authreg_t authreg_init(c2s_t c2s, char *name) {
 
 /** shutdown the authreg system */
 void authreg_free(authreg_t ar) {
-    if(ar->free != NULL) (ar->free)(ar);
-    free(ar);
+    if (ar) {
+        if(ar->free != NULL) (ar->free)(ar);
+        free(ar);
+    }
 }
 
 /** auth get handler */
