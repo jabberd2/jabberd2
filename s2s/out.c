@@ -994,6 +994,7 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
     /* finished */
     } else {
         time_t now = time(NULL);
+        char *domain;
 
         free(query->cur_host);
         query->cur_host = NULL;
@@ -1032,7 +1033,6 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
 
         xhash_free(query->hosts);
         query->hosts = NULL;
-        char *domain;
         if (idna_to_unicode_8z8z(query->name, &domain, 0) != IDNA_SUCCESS)
         {
             log_write(query->s2s->log, LOG_ERR, "idna dns decode for %s failed", query->name);
