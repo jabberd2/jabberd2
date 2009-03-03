@@ -100,6 +100,10 @@ struct sockaddr_storage {
 };
 #endif /* NO_SOCKADDR_STORAGE */
 
+#ifndef SSL_OP_NO_TICKET 
+#define SSL_OP_NO_TICKET		0x00004000L
+#endif
+
 #ifdef __cplusplus
 }
 #endif
