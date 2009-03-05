@@ -46,32 +46,26 @@
 			<Show Dialog="JabberWelcomeDlg" Before="ProgressDlg">NOT Installed</Show>
 		</InstallUISequence>
 
-		<Property Id="SSLEAY32">
-			<DirectorySearch Id="SSLEAY32" Path="[WindowsFolder]\system32">
-				<FileSearch Id="SSLEAY32" Name="ssleay32.dll"/>
+		<Property Id="VC9SP1RTM">
+			<DirectorySearch Id="VC9SP1RTM" Path="[WindowsFolder]WinSxS\x86_Microsoft.VC90.CRT_1fc8b3b9a1e18e3b_9.0.30729.1_x-ww_6f74963e">
+				<FileSearch Id="VC9SP1RTM" Name="msvcr90.dll"/>
 			</DirectorySearch>
 		</Property>
-		<Property Id="LIBEAY32">
-			<DirectorySearch Id="LIBEAY32" Path="[WindowsFolder]\system32">
-				<FileSearch Id="LIBEAY32" Name="libeay32.dll"/>
+		<Property Id="VC9SP1RTM_VISTA">
+			<DirectorySearch Id="VC9SP1RTM_VISTA" Path="[WindowsFolder]WinSxS\x86_microsoft.vc90.crt_1fc8b3b9a1e18e3b_9.0.30729.1_none_e163563597edeada">
+				<FileSearch Id="VC9SP1RTM_VISTA" Name="msvcr90.dll"/>
+			</DirectorySearch>
+		</Property>
+		<Property Id="VC9SP1RTM_WINDOWS7">
+			<DirectorySearch Id="VC9SP1RTM_WINDOWS7" Path="[WindowsFolder]WinSxS\x86_microsoft.vc90.crt_1fc8b3b9a1e18e3b_9.0.30729.715_none_90ba96fe148b75ae">
+				<FileSearch Id="VC9SP1RTM_WINDOWS7" Name="msvcr90.dll"/>
 			</DirectorySearch>
 		</Property>
 
-		<Property Id="VC8SP1RTM">
-			<DirectorySearch Id="VC8SP1RTM" Path="[WindowsFolder]WinSxS\x86_Microsoft.VC80.CRT_1fc8b3b9a1e18e3b_8.0.50727.762_x-ww_6b128700">
-				<FileSearch Id="VC8SP1RTM" Name="msvcr80.dll"/>
-			</DirectorySearch>
-		</Property>
+		<Condition Message="Please install Visual C++ 2008 SP1 Redistributable Package (x86).
 
-		<Condition Message="Please install Visual C++ 2005 SP1 Redistributable Package (x86).
-
-http://www.microsoft.com/downloads/details.aspx?FamilyID=200B2FD9-AE1A-4A14-984D-389C36F85647">
-			VC8SP1RTM
-		</Condition>
-		<Condition Message="Please install Win32 OpenSSL (Light) 0.9.8 or higher.
-
-http://www.slproweb.com/products/Win32OpenSSL.html">
-			SSLEAY32 AND LIBEAY32
+http://www.microsoft.com/downloads/details.aspx?familyid=A5C84275-3B97-4AB7-A40D-3802B2AF5FC2">
+			VC9SP1RTM OR VC9SP1RTM_VISTA OR VC9SP1RTM_WINDOWS7
 		</Condition>
 		<Condition Message="A later version of [ProductName] is already installed.">
 			NOT NEWER_VER_FOUND
