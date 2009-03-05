@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="windows-1250"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="8,00"
+	Version="9,00"
 	Name="jabberd2"
 	ProjectGUID="{98466767-1F2C-4134-A331-A05502191A29}"
 	RootNamespace="jabberd2"
 	Keyword="Win32Proj"
+	TargetFrameworkVersion="131072"
 	>
 	<Platforms>
 		<Platform
@@ -40,7 +41,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories=".;../include;../..;../../util"
+				AdditionalIncludeDirectories=".;../include;../.."
 				PreprocessorDefinitions="SX_DEBUG;MIO_DEBUG;MIO_WSASYNC;WIN32;_DEBUG;_USRDLL;JABBERD2_EXPORTS;HAVE_CONFIG_H;USE_LIBSUBST;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -61,10 +62,12 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="libidn.lib libgsasl.lib libeay32MT.lib ssleay32MT.lib dnsapi.lib ws2_32.lib libexpat.lib zlib1.lib"
+				AdditionalDependencies="libidn.lib libgsasl.lib libeay32.lib ssleay32.lib dnsapi.lib ws2_32.lib libexpat.lib zlib1.lib"
 				OutputFile="../bin/debug/$(ProjectName).dll"
 				AdditionalLibraryDirectories="../lib/debug;../lib"
 				GenerateDebugInformation="true"
+				RandomizedBaseAddress="1"
+				DataExecutionPrevention="0"
 				ImportLibrary="../lib/debug/$(TargetName).lib"
 			/>
 			<Tool
@@ -84,9 +87,6 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
-			/>
-			<Tool
-				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -118,7 +118,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="2"
-				AdditionalIncludeDirectories=".;../include;../..;../../util"
+				AdditionalIncludeDirectories=".;../include;../.."
 				PreprocessorDefinitions="MIO_WSASYNC;WIN32;NDEBUG;_USRDLL;JABBERD2_EXPORTS;HAVE_CONFIG_H;USE_LIBSUBST;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE"
 				RuntimeLibrary="2"
 				UsePrecompiledHeader="0"
@@ -137,9 +137,11 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="libidn.lib libgsasl.lib libeay32MT.lib ssleay32MT.lib dnsapi.lib ws2_32.lib libexpat.lib zlib1.lib"
+				AdditionalDependencies="libidn.lib libgsasl.lib libeay32.lib ssleay32.lib dnsapi.lib ws2_32.lib libexpat.lib zlib1.lib"
 				OutputFile="../bin/$(ProjectName).dll"
 				AdditionalLibraryDirectories="../lib"
+				RandomizedBaseAddress="1"
+				DataExecutionPrevention="0"
 				ImportLibrary="../lib/$(TargetName).lib"
 			/>
 			<Tool
@@ -159,9 +161,6 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
-			/>
-			<Tool
-				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"

@@ -1,11 +1,19 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 9.00
-# Visual Studio 2005
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "modules", "modules", "{748E13A9-CB00-4155-BF1F-577157A8645F}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "libraries", "libraries", "{FFA1FCE5-6E7F-4147-A9F7-FCE221877A6D}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "services", "services", "{BE878F38-A049-4E47-979E-2AB6003DB0D7}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "mod", "mod", "{2962D7DD-D503-43EF-AA84-7CC9975B9B2D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "authreg", "authreg", "{3DB4EFDA-D609-4EB0-A848-CF18B2F1EDC4}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "storage", "storage", "{5206401A-8DFD-44E2-B956-B12559C314F7}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "setup", "setup", "{19C6C799-93B4-4E76-82E8-138843083850}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "jabberd2", "jabberd2\jabberd2.vcproj", "{98466767-1F2C-4134-A331-A05502191A29}"
 EndProject
@@ -28,12 +36,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "router", "router\router.vcp
 	ProjectSection(ProjectDependencies) = postProject
 		{98466767-1F2C-4134-A331-A05502191A29} = {98466767-1F2C-4134-A331-A05502191A29}
 	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "mod", "mod", "{2962D7DD-D503-43EF-AA84-7CC9975B9B2D}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "authreg", "authreg", "{3DB4EFDA-D609-4EB0-A848-CF18B2F1EDC4}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "storage", "storage", "{5206401A-8DFD-44E2-B956-B12559C314F7}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mod_active", "modules\mod_active\mod_active.vcproj", "{F2D80B75-C182-4649-A5E7-93F32A1BDC4A}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -255,8 +257,6 @@ Project("{930C7802-8A8C-48F9-8165-68863BCCD9DD}") = "setup", "setup\setup.wixpro
 		{ED3C330D-5C59-4C10-AA0B-7EF5FB575A47} = {ED3C330D-5C59-4C10-AA0B-7EF5FB575A47}
 		{07A3A407-B1FC-4E63-8F14-9EEAF205610B} = {07A3A407-B1FC-4E63-8F14-9EEAF205610B}
 	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "setup", "setup", "{19C6C799-93B4-4E76-82E8-138843083850}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ca", "setup\ca\ca.vcproj", "{4AC65E06-5A7F-4E52-9623-CE18666AFF52}"
 EndProject
