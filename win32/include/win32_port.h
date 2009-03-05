@@ -3,6 +3,13 @@
 
 #define FD_SETSIZE 16384
 
+/* Declare we support Win2000 & IE4.
+ * Needed to avoid inet_ntop & inet_ption Vista SDK inclusion. */
+#define WINVER			0x0500
+#define _WIN32_WINNT	0x0500
+#define _WIN32_IE		0x0400
+#define _RICHEDIT_VER	0x0100
+
 #include <winsock2.h>
 #include <io.h>
 #include <process.h>
@@ -20,25 +27,6 @@
 #ifndef S_IRGRP
 #define S_IRGRP 0
 #endif
-
-/*
-#define sleep Sleep
-#define strcasecmp	stricmp
-#define strncasecmp	strnicmp
-#define off_t		_off_t
-
-#define socket(af,type,protocol) WSASocket(af,type,protocol,0,0,WSA_FLAG_OVERLAPPED)
-#define write(handle,buf,len) send(handle,(void *)buf,len,0)
-#define read(handle,buf,len) recv(handle,(void *)buf,len,0)
-#define close(handle) closesocket(handle)
-*/
-
-/* getopt is defined inside Cyrus SASL library, include optarg */
-/*
-#ifdef _WIN32
-__declspec(dllimport) char *optarg;
-#endif
-*/
 
 #ifdef _DEBUG
 #define DEBUG 1
