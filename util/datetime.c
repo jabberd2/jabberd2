@@ -18,7 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
-#include "util/util.h"
+#include "util.h"
 
 /* ISO 8601 / JEP-0082 date/time manipulation */
 

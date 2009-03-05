@@ -4,7 +4,7 @@
  */
 
 #include <signal.h>
-#include <util.h>
+#include "util.h"
 
 #ifdef _WIN32
 /* Those routines define Windows jabberd2 services */
