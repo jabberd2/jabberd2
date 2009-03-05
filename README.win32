@@ -6,11 +6,12 @@ This guide describes briefly how to build jabberd2 on Windows platforms.
 NOTE: Windows platforms prior to Windows 2000 are NOT supported, so this won't
 work on Windows 95/98/ME/NT.
 
-Building jabberd2 win32 with Visual Studio 2005
------------------------------------------------
+Building jabberd2 win32 with Visual Studio 2008 (SP1)
+-----------------------------------------------------
 
 Starting from revision #229 complete win32 support with Visual Studio 2005
 project files is present and maintained in the repository "win32" folder.
+Starting from revision #751 project files require Visual Studio 2008 (SP1).
 
 All libraries shall be installed locally and added to VC Include files and
 Library files paths using:
@@ -23,29 +24,29 @@ Prerequisites:
 
    1. http://alpha.gnu.org/gnu/libidn/
 
-      libidn sources, linking to: libidn.lib, use win32/libidn.sln to build.
+      libidn source build using win32/libidn.sln, provides: libidn.lib
 
    2. http://alpha.gnu.org/gnu/gsasl/
 
-      libgsasl sources, linking to: libgsasl.lib, use win32/libgsasl.sln to build.
+      libgsasl source build using win32/libgsasl.sln, provides: libgsasl.lib
 
-   3. http://www.slproweb.com/products/Win32OpenSSL.html
+   3. http://www.openssl.org/source/
 
-      Win32 OpenSSL, binaries, linking to: libeay32MT.lib ssleay32MT.lib
+      OpenSSL source build, provides: libeay32.lib ssleay32.lib
 
-   4. http://sourceforge.net/project/showfiles.php?group_id=10127&package_id=11277
+   4. http://sourceforge.net/projects/expat/
 
-      Expat XML Parser win32, binaries, linking: libexpat.lib
+      Expat XML Parser source build using expat.dsw, provides: libexpat.lib
 
    5. http://www.corpit.ru/mjt/udns.html
 
-      udns sources, linking to: udns.lib, since there are no VC project files
+      udns source build, provides: udns.lib, since there are no VC project files
       provided along with sources, please use patch files provided at:
       http://www.nanoant.com/projects/jabberd2-win32#download
 
    6. http://www.zlib.net/
 
-      zlib sources, linking to: zlib1.lib, convert & use VC project files at:
+      zlib source build, provides: zlib1.lib, convert & use VC project files at:
       projects/visualc6, link to Win32_DLL_ASM_Release. If you encounter MASM
       error:
          .\inffas32.asm(647) : error A2070: invalid instruction operands
@@ -54,13 +55,13 @@ Prerequisites:
 
    7. http://dev.mysql.com/downloads/mysql/5.0.html
 
-      MySQL, auth & storage module, binary, linking to: libmysql.lib
+      MySQL (auth & storage module) binary, provides: libmysql.lib
 
    8. http://www.sqlite.org/download.html
 
-      SQLite, auth & storage module, source, linking to: sqlite3.lib. Since
-      there are no libraries for VC except DLLs you shall make one using
-      sqlite-source-3.x.zip from SQLite downloads.
+      SQLite (auth & storage module) source build, provides: sqlite3.lib.
+      Since there are no libraries for VC except DLLs you shall make one using
+      sqlite-amalgamation-3.x.zip from SQLite downloads.
 
       sqlite3 command present in PATH, needed for initial database.
 
@@ -71,7 +72,7 @@ Prerequisites:
 
   10. http://wix.sourceforge.net/releases/
 
-      WiX 3.0.4401.0 or newer for building MSI jabberd2 setup inside VS2005 IDE
+      WiX 3.0.4401.0 or newer for building MSI jabberd2 setup inside VS2008 IDE
 
   11. http://www.activestate.com/store/activeperl/download/
 
@@ -107,7 +108,7 @@ Once all this kit is up and running, its business as usual:
   % make install
 
 Note that you'll still need the various external packages as stated at Visual
-Studio 2005 section (eg MySQL dev packages) available in order to build a
+Studio 2008 section (eg MySQL dev packages) available in order to build a
 working server. Getting these up and running under MinGW is outside the scope of
 this short guide.
 
@@ -121,4 +122,4 @@ Also I'm sending thanks to Tomasz Sterna (current project maintainer) for
 letting me in with my win32 modifications and support.
 
 --
-Adam Strzelecki <ono@java.pl>, 2008-08-17
+Adam Strzelecki <ono@java.pl>
