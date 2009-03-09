@@ -988,8 +988,8 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
                 _dns_result_a(ctx, NULL, query);
         }
 
-        *c = '/';
         c--;
+        *c = '/';
 
     /* finished */
     } else {
