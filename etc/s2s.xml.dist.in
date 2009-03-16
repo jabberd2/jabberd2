@@ -258,6 +258,9 @@
     <!-- Maximum time that DNS lookup results are cached. -->
     <max-ttl>86400</max-ttl>
 
+    <!-- Time /etc/hosts lookup results are cached for (default: 86400). -->
+    <etc-hosts-ttl>86400</etc-hosts-ttl>
+
     <!-- Minimum time to wait before using hosts that we have failed to
          establish a connection to (unless there are no alternatives).
          Do not set this too low - it is required to detect permanent

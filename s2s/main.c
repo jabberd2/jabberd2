@@ -171,6 +171,7 @@ static void _s2s_config_expand(s2s_t s2s) {
     if (s2s->dns_min_ttl < 5)
         s2s->dns_min_ttl = 5;
     s2s->dns_max_ttl = j_atoi(config_get_one(s2s->config, "lookup.max-ttl", 0), 86400);
+    s2s->etc_hosts_ttl = j_atoi(config_get_one(s2s->config, "lookup.etc-hosts-ttl", 0), 86400);
     s2s->out_reuse = config_count(s2s->config, "out-conn-reuse") ? 1 : 0;
 }
 

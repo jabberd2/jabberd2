@@ -145,6 +145,9 @@ struct s2s_st {
     int                 dns_min_ttl;
     int                 dns_max_ttl;
 
+    /** /etc/hosts ttl limits */
+    int                 etc_hosts_ttl;
+
     /** time checks */
     int                 check_interval;
     int                 check_queue;
