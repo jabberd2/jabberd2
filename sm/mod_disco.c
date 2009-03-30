@@ -678,7 +678,8 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg)
     nad = mod->mm->sm->config->nad;
 
     /* we support a number of things */
-    feature_register(mod->mm->sm, uri_DISCO);
+    feature_register(mod->mm->sm, uri_DISCO_INFO);
+    feature_register(mod->mm->sm, uri_DISCO_ITEMS);
     if(d->agents)
         feature_register(mod->mm->sm, uri_AGENTS);
     if(d->browse)
