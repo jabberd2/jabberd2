@@ -933,8 +933,52 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             /* find the session, quietly drop if we don't have it */
             sess = xhash_get(c2s->sessions, skey);
             if(sess == NULL) {
-                /* !!! might want to send a stop to the sm; maybe it thinks we're still here? */
+                /* if we get this, the SM probably thinks the session is still active
+                 * so we need to tell SM to free it up */
                 log_debug(ZONE, "no session for %s", skey);
+
+                /* check if it's a started action; otherwise we could end up in an infinite loop
+                 * trying to tell SM to close in response to errors */
+                action = nad_find_attr(nad, 1, -1, "action", NULL);
+                if(action >= 0 && NAD_AVAL_L(nad, action) == 7 && strncmp("started", NAD_AVAL(nad, action), 7) == 0) {
+                    log_write(c2s->log, LOG_NOTICE, "session %s does not exist; telling sm to close", skey);
+
+                    /* we don't have a session and we don't have a resource; we need to forge them both
+                     * to get SM to close stuff */
+                    int target = nad_find_attr(nad, 1, -1, "target", NULL);
+                    smid = nad_find_attr(nad, 1, ns, "sm", NULL);
+                    if(target < 0 || smid < 0) {
+                        char *buf;
+                        int len;
+                        nad_print(nad, 0, &buf, &len);
+                        log_write(c2s->log, LOG_NOTICE, "sm sent an invalid start packet: %.*s", len, buf );
+                        nad_free(nad);
+                        return 0;
+                    }
+
+                    /* build temporary resource to close session for */
+                    bres_t tres = NULL;
+                    tres = (bres_t) calloc(1, sizeof(struct bres_st));
+                    tres->jid = jid_new(NAD_AVAL(nad, target), NAD_AVAL_L(nad, target));
+
+                    strncpy(tres->c2s_id, skey, sizeof(tres->c2s_id));
+                    snprintf(tres->sm_id, sizeof(tres->sm_id), "%.*s", NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
+
+                    /* make a temporary session */
+                    sess_t tsess = (sess_t) calloc(1, sizeof(struct sess_st));
+                    tsess->c2s = c2s;
+                    tsess->result = nad_new();
+                    strncpy(tsess->skey, skey, sizeof(tsess->skey));
+
+                    /* end a session with the sm */
+                    sm_end(tsess, tres);
+
+                    /* free our temporary messes */
+                    nad_free(tsess->result);
+                    jid_free(tres->jid); //TODO will this crash?
+                    free(tsess);
+                    free(tres);
+                }
 
                 nad_free(nad);
                 return 0;
