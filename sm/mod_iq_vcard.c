@@ -32,6 +32,11 @@ static int ns_VCARD = 0;
 
 #define VCARD_MAX_FIELD_SIZE    (16384)
 
+typedef struct _mod_iq_vcard_st {
+    size_t vcard_max_field_size_default;
+    size_t vcard_max_field_size_avatar;
+} *mod_iq_vcard_t;
+
 /**
  * these are the vcard attributes that gabber supports. they're also
  * all strings, and thus easy to automate. there might be more in
@@ -90,12 +95,14 @@ static const char *_iq_vcard_map[] = {
     NULL,           NULL
 };
 
-static os_t _iq_vcard_to_object(pkt_t pkt) {
+static os_t _iq_vcard_to_object(mod_instance_t mi, pkt_t pkt) {
     os_t os;
     os_object_t o;
     int i = 0, elem;
-    char ekey[10], cdata[VCARD_MAX_FIELD_SIZE];
+    char ekey[10], *cdata;
     const char *vkey, *dkey, *vskey;
+    size_t fieldsize;
+    mod_iq_vcard_t iq_vcard = (mod_iq_vcard_t) mi->mod->private;
 
     log_debug(ZONE, "building object from packet");
 
@@ -107,6 +114,12 @@ static os_t _iq_vcard_to_object(pkt_t pkt) {
         dkey = _iq_vcard_map[i + 1];
 
         i += 2;
+
+        if( !strcmp(vkey, "PHOTO/BINVAL") ) {
+            fieldsize = iq_vcard->vcard_max_field_size_avatar;
+        } else {
+            fieldsize = iq_vcard->vcard_max_field_size_default;
+        }
 
         vskey = strchr(vkey, '/');
         if(vskey == NULL) {
@@ -126,9 +139,13 @@ static os_t _iq_vcard_to_object(pkt_t pkt) {
 
         log_debug(ZONE, "extracted vcard key %s val '%.*s' for db key %s", vkey, NAD_CDATA_L(pkt->nad, elem), NAD_CDATA(pkt->nad, elem), dkey);
 
-        snprintf(cdata, sizeof(cdata), "%.*s", NAD_CDATA_L(pkt->nad, elem), NAD_CDATA(pkt->nad, elem));
-        cdata[sizeof(cdata)-1] = '\0';
-        os_object_put(o, dkey, cdata, os_type_STRING);
+        cdata = malloc(fieldsize);
+        if(cdata) {
+            snprintf(cdata, fieldsize, "%.*s", NAD_CDATA_L(pkt->nad, elem), NAD_CDATA(pkt->nad, elem));
+            cdata[fieldsize-1] = '\0';
+            os_object_put(o, dkey, cdata, os_type_STRING);
+            free(cdata);
+        }
     }
 
     return os;
@@ -227,7 +244,7 @@ static mod_ret_t _iq_vcard_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
         return mod_HANDLED;
     }
 
-    os = _iq_vcard_to_object(pkt);
+    os = _iq_vcard_to_object(mi, pkt);
     ret = storage_replace(sess->user->sm->st, "vcard", jid_user(sess->jid), NULL, os);
     os_free(os);
 
@@ -365,10 +382,12 @@ static void _iq_vcard_user_delete(mod_instance_t mi, jid_t jid) {
 static void _iq_vcard_free(module_t mod) {
     sm_unregister_ns(mod->mm->sm, uri_VCARD);
     feature_unregister(mod->mm->sm, uri_VCARD);
+    free(mod->private);
 }
 
 DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     module_t mod = mi->mod;
+    mod_iq_vcard_t iq_vcard;
 
     if(mod->init) return 0;
 
@@ -380,6 +399,11 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
 
     ns_VCARD = sm_register_ns(mod->mm->sm, uri_VCARD);
     feature_register(mod->mm->sm, uri_VCARD);
+
+    iq_vcard = (mod_iq_vcard_t) calloc(1, sizeof(struct _mod_iq_vcard_st));
+    iq_vcard->vcard_max_field_size_default = j_atoi(config_get_one(mod->mm->sm->config, "user.vcard.max-field-size.default", 0), VCARD_MAX_FIELD_SIZE);
+    iq_vcard->vcard_max_field_size_avatar = j_atoi(config_get_one(mod->mm->sm->config, "user.vcard.max-field-size.avatar", 0), VCARD_MAX_FIELD_SIZE);
+    mod->private = iq_vcard;
 
     return 0;
 }
