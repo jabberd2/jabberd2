@@ -122,7 +122,7 @@ Start ( ) {
 		rm -f /var/lock/subsys/${prog}
 		rm -f ${pidPath}/${prog}.pid
 		args="-c ${confPath}/${prog}.xml"
-		${progsPath}/${prog} ${args} & 2> /dev/null
+		${progsPath}/${prog} ${args} & >/dev/null 2>&1 <&1
 		retval=$?
 		if [ ${retval} == 0 ]; then
 			StatusOK
