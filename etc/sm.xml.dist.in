@@ -566,7 +566,7 @@
     <auto-create/>
     -->
 
-    <!-- Define maximum size of fields of vcards.
+    <!-- Define maximum size in bytes of fields of vcards.
          There is a recommendation that the avatar picture SHOULD NOT
          be larger than 16 KiB. --> 
     <!--
