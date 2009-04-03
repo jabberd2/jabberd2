@@ -29,32 +29,26 @@
 
 static mod_ret_t _deliver_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)
 {
-    /* all messages and everything thats not for us gets sent out */
-    if(pkt->type & pkt_MESSAGE || (pkt->to != NULL && jid_compare_full(pkt->to, sess->jid) != 0))
+    /* ensure from is set correctly if not already by client */
+    if(pkt->from == NULL || jid_compare_user(pkt->from, sess->jid) != 0)
     {
-        /* ensure from is set correctly if not already by client */
-        if(pkt->from == NULL || jid_compare_user(pkt->from, sess->jid) != 0)
-        {
-            if(pkt->from != NULL)
-                jid_free(pkt->from);
+        if(pkt->from != NULL)
+            jid_free(pkt->from);
 
-            pkt->from = jid_dup(sess->jid);
-            nad_set_attr(pkt->nad, 1, -1, "from", jid_full(pkt->from), 0);
-        }
-
-        /* no to address means its to us */
-        if(pkt->to == NULL)
-        {
-            pkt->to = jid_dup(sess->jid);
-            nad_set_attr(pkt->nad, 1, -1, "to", jid_full(pkt->to), 0);
-        }
-    
-        pkt_router(pkt);
-
-        return mod_HANDLED;
+        pkt->from = jid_dup(sess->jid);
+        nad_set_attr(pkt->nad, 1, -1, "from", jid_full(pkt->from), 0);
     }
 
-    return mod_PASS;
+    /* no to address means its to us */
+    if(pkt->to == NULL)
+    {
+        pkt->to = jid_dup(sess->jid);
+        nad_set_attr(pkt->nad, 1, -1, "to", jid_full(pkt->to), 0);
+    }
+
+    pkt_router(pkt);
+
+    return mod_HANDLED;
 }
 
 static mod_ret_t _deliver_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt)
