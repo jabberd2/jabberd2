@@ -19,7 +19,7 @@ authreg_db_la_LDFLAGS = $(MODULE_LDFLAGS)
 authreg_db_la_LIBADD  = $(MODULE_LIBADD) $(DB_LIBS)
 storage_db_la_SOURCES = storage_db.c
 storage_db_la_LDFLAGS = $(MODULE_LDFLAGS)
-storage_db_la_LIBADD  = $(MODULE_LIBADD) $(DB_LIBS)
+storage_db_la_LIBADD  = $(MODULE_LIBADD) $(DB_LIBS) ../util/libutil.la
 endif
 
 if STORAGE_FS
