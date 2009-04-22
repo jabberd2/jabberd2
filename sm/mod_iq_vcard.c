@@ -30,8 +30,6 @@
 #define uri_VCARD    "vcard-temp"
 static int ns_VCARD = 0;
 
-#define VCARD_MAX_FIELD_SIZE    (16384)
-
 typedef struct _mod_iq_vcard_st {
     size_t vcard_max_field_size_default;
     size_t vcard_max_field_size_avatar;
