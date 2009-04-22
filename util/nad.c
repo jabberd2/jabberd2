@@ -265,8 +265,8 @@ int nad_find_namespace(nad_t nad, int elem, const char *uri, const char *prefix)
 
     _nad_ptr_check(__func__, nad);
 
-    if(uri == NULL)
-        return -1;
+    /* make sure there are valid args */
+    if(elem >= nad->ecur || uri == NULL) return -1;
 
     /* work backwards through our parents, looking for our namespace on each one.
      * if we find it, link it. if not, the namespace is undeclared - for now, just drop it */
