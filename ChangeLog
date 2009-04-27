@@ -1,3 +1,43 @@
+2009-04-22 Tomasz Sterna <tomek@xiaoka.com>
+	* Proper check for valid arguments in nad_find_namespace(). Fixes Bug #364816.
+
+2009-04-16 Tomasz Sterna <tomek@xiaoka.com>
+	* fix for ser_string_get missing from storage_db.so by Michael Weiser. Fixes Bug #345947
+
+2009-04-03 Tomasz Sterna <tomek@xiaoka.com>
+	* Send all in-sess generated and not processed packets to the wild.
+
+2009-04-01 Tomasz Sterna <tomek@xiaoka.com>
+	* Proper order of redirect and background job operators
+	* Specify that vCard field size is in bytes
+	* Merged support for settable vCard and vCard-avatar fields size by Sylvain Rochet. Fixes Bug #336123
+	* Redirecting both stdout and stdin to /dev/null on daemon launch. Fixes Bug #349714
+
+2009-03-30 Tomasz Sterna <tomek@xiaoka.com>
+	* Give both disco#info and disco#items to disco#info query. Fixes Bug #349134.
+	* End SM session when client disconnects before session start recieved
+	* Replying with presence-unsubscribed to presence-probe only. Fixes Bug #341170.
+
+2009-03-16 Tomasz Sterna <tomek@xiaoka.com>
+	* Added /etc/hosts support in s2s resolver. Thanks to Gebi Miguel. Fixes #63
+
+2009-03-05 Adam Strzelecki <ono@java.pl>
+	* New Visual Studio 2008 compatible README.win32
+	* Visual Studio 2008 (SP1) projects migration
+	* Use only necessary link libraries
+	* Use own OpenSSL libraries (i.e. libeay32.lib instad of libeay32MT.lib from Shining Light Productions)
+	* Add OpenSSL directly to the build, avoiding problems with OpenSSL installation on some systems
+	* Remove OpenSSL check (now it is installed inside jabberd2 folder)
+	* Check VS 2008 RTM on Vista and Windows 7 too
+	* Define target versions to Win2k and IE4 to avoid problems with Vista SDK + cleanup junky comments
+	* util.h is local in util folder
+
+2009-03-03 Tomasz Sterna <tomek@xiaoka.com>
+	* Add SSL_OP_NO_TICKET definition for older OpenSSL installations. Fixes #256
+
+2009-03-02 Adam Strzelecki <ono@java.pl>
+	* ANSI C compatibility, variable declaration at the beginning of the block.
+
 2009-02-24 Tomasz Sterna <tomek@xiaoka.com>
 	* Handle missing authreg configuration correctly
 	* More descriptive MIO debugging

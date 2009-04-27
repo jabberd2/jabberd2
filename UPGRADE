@@ -1,6 +1,19 @@
 This file contains upgrade instructions between different versions of jabberd2.
 
 
+* 2.2.7 to 2.2.8 upgrade:
+
+What changed:
+- User can message/query own resources
+- Settable size for vCard image field
+- Proper server disco#info answer
+- Support for /etc/hosts lookup (as a last resort)
+- Workaround for Java SSL bug (Google servers connection problems)
+
+You may configure the vCard field size limit in sm.xml.
+Look at sm.xml.dist for example.
+
+
 * 2.2.6 to 2.2.7.1 upgrade:
 
 What changed:
