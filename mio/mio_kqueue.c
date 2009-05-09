@@ -29,40 +29,13 @@
 
 #include "mio.h"
 
-mio_t mio_kqueue_new(int maxfd);
-mio_t mio_epoll_new(int maxfd);
-mio_t mio_poll_new(int maxfd);
-mio_t mio_select_new(int maxfd);
-mio_t mio_wsasync_new(int maxfd);
-
-mio_t mio_new(int maxfd)
-{
-  mio_t m = NULL;
 
 #ifdef MIO_KQUEUE
-  m = mio_kqueue_new(maxfd);
-  if (m != NULL) return m;
-#endif
+#include "mio_kqueue.h"
+#include "mio_impl.h"
 
-#ifdef MIO_EPOLL
-  m = mio_epoll_new(maxfd);
-  if (m != NULL) return m;
-#endif
-
-#ifdef MIO_WSASYNC
-  m = mio_wsasync_new(maxfd);
-  if (m != NULL) return m;
-#endif
-
-#ifdef MIO_SELECT
-  m = mio_select_new(maxfd);
-  if (m != NULL) return m;
-#endif
-
-#ifdef MIO_POLL
-  m = mio_poll_new(maxfd);
-  if (m != NULL) return m;
-#endif
-
-  return m;
+mio_t mio_kqueue_new(int maxfd)
+{
+  return _mio_new(maxfd);
 }
+#endif

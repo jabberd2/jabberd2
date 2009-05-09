@@ -231,6 +231,7 @@ static void _mio_run(mio_t m, int timeout)
     MIO_ITERATE_RESULTS(m, retval, iter)
     {
         mio_fd_t fd = MIO_ITERATOR_FD(m,iter);
+		if (fd == NULL) continue;
 
         /* skip already dead slots */ 
         if(FD(m,fd)->type == type_CLOSED) continue; 

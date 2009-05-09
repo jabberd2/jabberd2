@@ -846,12 +846,21 @@ fi
 #
 # mio backend selection
 
-AC_ARG_ENABLE(mio, AC_HELP_STRING([--enable-mio=BACKENDS], [use one of BACKENDS to drive MIO (select poll epoll)]),
-              mio_check=$enableval, mio_check='epoll poll select')
+AC_ARG_ENABLE(mio, AC_HELP_STRING([--enable-mio=BACKENDS], [use one of BACKENDS to drive MIO (select poll epoll kqueue)]),
+              mio_check=$enableval, mio_check='kqueue epoll poll select')
 
 mio_backend=''
 for backend in $mio_check ; do
     case x-$backend in
+
+		x-kqueue)
+		AC_CHECK_HEADERS(sys/event.h)
+		if test "x-$ac_cv_header_sys_event_h" = "x-yes" ; then
+			AC_CHECK_FUNCS(kqueue,[
+				mio_backend='kqueue'
+				AC_DEFINE(MIO_KQUEUE,1,[Define to 1 if you want to use 'kqueue' for non-blocking I/O.])])
+		fi
+		;;
 
         x-epoll)
             AC_CHECK_HEADERS(sys/epoll.h)
