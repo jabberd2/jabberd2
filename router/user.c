@@ -105,6 +105,7 @@ void user_table_unload(router_t r) {
 
     if(r->users != NULL)
         xhash_free(r->users);
+	r->users = NULL;
 
     return;
 } 
