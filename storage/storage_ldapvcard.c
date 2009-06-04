@@ -96,7 +96,7 @@ ldapvcard_entry_st ldapvcard_entry[] =
 };
 
 #ifndef NO_SM_CACHE
-os_t os_copy(os_t src, os_t dst) {
+void os_copy(os_t src, os_t dst) {
     os_object_t o,dsto;
     char *key;
     void *val, *cval;
