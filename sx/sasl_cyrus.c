@@ -720,13 +720,13 @@ static nad_t _sx_sasl_abort(sx_t s) {
 /** utility: decode incoming handshake data */
 static void _sx_sasl_decode(char *in, int inlen, char **out, int *outlen) {
     *out = (char *) malloc(sizeof(char) * (2 * inlen));
-    sasl_decode64(in,inlen,out,2*inlen,outlen);
+    sasl_decode64(in,inlen,*out,2*inlen,outlen);
 }
 
 /** utility: encode outgoing handshake data */
 static void _sx_sasl_encode(char *in, int inlen, char **out, int *outlen) {
     *out = (char *) malloc(sizeof(char) * (2 * inlen));
-    sasl_encode64(in,inlen,out,2*inlen,outlen);
+    sasl_encode64(in,inlen,*out,2*inlen,outlen);
 }
 
 /** auth done, restart the stream */
