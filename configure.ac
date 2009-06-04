@@ -747,14 +747,11 @@ AC_ARG_ENABLE(pam, AC_HELP_STRING([--enable-pam], [enable PAM auth/reg support (
 if test "x-$want_pam" = "x-yes" ; then
     AC_CHECK_HEADERS(security/pam_appl.h)
     if test "x-$ac_cv_header_security_pam_appl_h" = "x-yes" ; then
-        AC_CHECK_LIB(pam, pam_start)
-    fi
-    if test "x-$ac_cv_lib_pam_pam_start" != "x-yes" ; then
-        AC_MSG_ERROR([PAM application libraries not found])
-    else
-        have_pam="yes"
-        PAM_LIBS="-lpam"
-        AC_DEFINE(STORAGE_PAM,1,[Define to 1 if you want to use PAM for auth/reg.])
+        AC_CHECK_LIB(pam, pam_start, [
+	    have_pam="yes"
+            PAM_LIBS="-lpam"
+            AC_DEFINE(STORAGE_PAM,1,[Define to 1 if you want to use PAM for auth/reg.])
+	], [AC_MSG_ERROR([PAM application libraries not found])])
     fi
 fi
 AC_SUBST(PAM_LIBS)
