@@ -137,6 +137,8 @@ static void _c2s_config_expand(c2s_t c2s)
     c2s->io_check_idle = j_atoi(config_get_one(c2s->config, "io.check.idle", 0), 0);
     c2s->io_check_keepalive = j_atoi(config_get_one(c2s->config, "io.check.keepalive", 0), 0);
 
+    c2s->pbx_pipe = config_get_one(c2s->config, "pbx.pipe", 0);
+
     c2s->ar_module_name = config_get_one(c2s->config, "authreg.module", 0);
 
     if(config_get(c2s->config, "authreg.mechanisms.traditional.plain") != NULL) c2s->ar_mechanisms |= AR_MECH_TRAD_PLAIN;
@@ -241,8 +243,8 @@ static void _c2s_hosts_expand(c2s_t c2s)
 
     elem = config_get(c2s->config, "local.id");
     if(!elem) {
-        log_write(c2s->log, LOG_ERR, "no local.id configured, aborting");
-        exit(1);
+        log_write(c2s->log, LOG_NOTICE, "no local.id configured - skipping local domains configuration");
+        return;
     }
     for(i = 0; i < elem->nvalues; i++) {
         host_t host = (host_t) pmalloco(xhash_pool(c2s->hosts), sizeof(struct host_st));
@@ -522,7 +524,7 @@ static void _c2s_time_checks(c2s_t c2s) {
             xhv.sess_val = &sess;
             xhash_iter_get(c2s->sessions, NULL, xhv.val);
 
-            if(c2s->io_check_idle > 0 && now > sess->last_activity + c2s->io_check_idle) {
+            if(c2s->io_check_idle > 0 && sess->s && now > sess->last_activity + c2s->io_check_idle) {
                 log_write(c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] timed out", sess->fd->fd, sess->ip, sess->port);
 
                 sx_error(sess->s, stream_err_HOST_GONE, "connection timed out");
@@ -645,21 +647,15 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     _c2s_pidfile(c2s);
 
     if(c2s->ar_module_name == NULL) {
-        log_write(c2s->log, LOG_ERR, "no authreg module specified in config file");
+        log_write(c2s->log, LOG_NOTICE, "no authreg module specified in config file");
+    }
+    else if((c2s->ar = authreg_init(c2s, c2s->ar_module_name)) == NULL) {
         access_free(c2s->access);
         config_free(c2s->config);
         log_free(c2s->log);
         free(c2s);
         exit(1);
     }
-
-    if((c2s->ar = authreg_init(c2s, c2s->ar_module_name)) == NULL) {
-        access_free(c2s->access);
-        config_free(c2s->config);
-        log_free(c2s->log);
-        free(c2s);
-        exit(1);
-        }
 
     c2s->sessions = xhash_new(1023);
 
@@ -823,7 +819,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
             xhv.sess_val = &sess;
             xhash_iter_get(c2s->sessions, NULL, xhv.val);
 
-            if(sess->active)
+            if(sess->active && sess->s)
                 sx_close(sess->s);
 
         } while(xhash_iter_next(c2s->sessions));

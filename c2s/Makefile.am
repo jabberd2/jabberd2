@@ -1,6 +1,6 @@
 bin_PROGRAMS = c2s
 
-c2s_SOURCES = authreg.c bind.c c2s.c main.c sm.c
+c2s_SOURCES = authreg.c bind.c c2s.c main.c sm.c pbx.c pbx_commands.c
 c2s_CPPFLAGS = -DCONFIG_DIR=\"$(sysconfdir)\" -DLIBRARY_DIR=\"$(pkglibdir)\"
 c2s_LDFLAGS = -export-dynamic
 

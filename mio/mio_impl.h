@@ -384,6 +384,8 @@ static mio_fd_t _mio_connect(mio_t m, int port, char *hostip, char *srcip, mio_h
         return NULL;
     }
 
+    if(!sa.ss_family) sa.ss_family = AF_INET;
+    
     /* attempt to create a socket */
     if((fd = socket(sa.ss_family,SOCK_STREAM,0)) < 0) return NULL;
 
@@ -394,7 +396,8 @@ static mio_fd_t _mio_connect(mio_t m, int port, char *hostip, char *srcip, mio_h
             MIO_SETERROR(EFAULT);
             return NULL;
         }
-        j_inet_setport(&sa, INADDR_ANY);
+        if(!src.ss_family) src.ss_family = AF_INET;
+        j_inet_setport(&src, INADDR_ANY);
         if(bind(fd,(struct sockaddr*)&src,j_inet_addrlen(&src)) < 0) {
             close(fd);
             return NULL;

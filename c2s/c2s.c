@@ -666,7 +666,7 @@ static void _c2s_component_presence(c2s_t c2s, nad_t nad) {
                     log_debug(ZONE, "killing session %s", jid_user(sess->resources->jid));
 
                     sess->active = 0;
-                    sx_close(sess->s);
+                    if(sess->s) sx_close(sess->s);
                 }
             } while(xhash_iter_next(c2s->sessions));
 
@@ -680,7 +680,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
     sx_error_t *sxe;
     nad_t nad;
     int len, elem, from, c2sid, smid, action, id, ns, attr, scan, replaced;
-    char skey[10];
+    char skey[24];
     sess_t sess;
     bres_t bres, ires;
 
@@ -863,14 +863,18 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 }
 
 #ifdef HAVE_SSL
-                if(c2s->server_fd == NULL && c2s->server_ssl_fd == NULL) {
+                if(c2s->server_fd == NULL && c2s->server_ssl_fd == NULL && c2s->pbx_pipe == NULL) {
                     log_write(c2s->log, LOG_ERR, "both normal and SSL ports are disabled, nothing to do!");
 #else
-                if(c2s->server_fd == NULL) {
+                if(c2s->server_fd == NULL && c2s->pbx_pipe == NULL) {
                     log_write(c2s->log, LOG_ERR, "server port is disabled, nothing to do!");
 #endif
                     exit(1);
                 }
+
+                /* open PBX integration FIFO */
+                if(c2s->pbx_pipe != NULL)
+                    c2s_pbx_init(c2s);
 
                 /* we're online */
                 c2s->online = c2s->started = 1;
@@ -928,13 +932,13 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 nad_free(nad);
                 return 0;
             }
-            snprintf(skey, 10, "%.*s", NAD_AVAL_L(nad, c2sid), NAD_AVAL(nad, c2sid));
+            snprintf(skey, 24, "%.*s", NAD_AVAL_L(nad, c2sid), NAD_AVAL(nad, c2sid));
 
             /* find the session, quietly drop if we don't have it */
             sess = xhash_get(c2s->sessions, skey);
             if(sess == NULL) {
                 /* if we get this, the SM probably thinks the session is still active
-                 * so we need to tell SM to free it up */
+				 * so we need to tell SM to free it up */
                 log_debug(ZONE, "no session for %s", skey);
 
                 /* check if it's a started action; otherwise we could end up in an infinite loop
@@ -985,7 +989,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             }
 
             /* if they're pre-stream, then this is leftovers from a previous session */
-            if(sess->s->state < state_STREAM) {
+            if(sess->s && sess->s->state < state_STREAM) {
                 log_debug(ZONE, "session %s is pre-stream", skey);
 
                 nad_free(nad);
@@ -1014,8 +1018,10 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             if(nad_find_attr(nad, 0, -1, "error", NULL) >= 0) {
                 log_debug(ZONE, "routing error");
 
-                sx_error(sess->s, stream_err_INTERNAL_SERVER_ERROR, "internal server error");
-                sx_close(sess->s);
+                if(sess->s) {
+                    sx_error(sess->s, stream_err_INTERNAL_SERVER_ERROR, "internal server error");
+                    sx_close(sess->s);
+                }
 
                 nad_free(nad);
                 return 0;
@@ -1073,7 +1079,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
             /* it has to have come from the session manager */
             from = nad_find_attr(nad, 0, -1, "from", NULL);
-            if(!sess->s->req_to || strlen(sess->s->req_to) != NAD_AVAL_L(nad, from) || strncmp(sess->s->req_to, NAD_AVAL(nad, from), NAD_AVAL_L(nad, from)) != 0) {
+            if(sess->s && (!sess->s->req_to || strlen(sess->s->req_to) != NAD_AVAL_L(nad, from) || strncmp(sess->s->req_to, NAD_AVAL(nad, from), NAD_AVAL_L(nad, from))) != 0) {
                 log_debug(ZONE, "packet from '%.*s' for %s, but they're not the sm for this sess", NAD_AVAL_L(nad, from), NAD_AVAL(nad, from), skey);
                 nad_free(nad);
                 return 0;
@@ -1107,8 +1113,8 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                         if(replaced)
                             sx_error(sess->s, stream_err_CONFLICT, NULL);
 
-                        /* close them */
-                        sx_close(sess->s);
+                        /* close the stream if there is one */
+                        if(sess->s) sx_close(sess->s);
 
                         nad_free(nad);
                         return 0;
@@ -1210,13 +1216,17 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     nad_free(nad);
 
                     /* bring them online, old-skool */
-                    if(!sess->sasl_authd) {
+                    if(!sess->sasl_authd && sess->s) {
                         sx_auth(sess->s, "traditional", jid_full(bres->jid));
                         return 0;
                     }
 
-                    /* return the auth result to the client */
-                    if(sess->result) sx_nad_write(sess->s, sess->result);
+                    if(sess->result) {
+                        /* return the auth result to the client */
+                        if(sess->s) sx_nad_write(sess->s, sess->result);
+                        /* or follow-up the session creation with cached presence packet */
+                        else sm_packet(sess, bres, sess->result);
+                    }
                     sess->result = NULL;
 
                     /* we're good to go */
@@ -1237,7 +1247,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
             /* client packets */
             if(NAD_NURI_L(nad, NAD_ENS(nad, 1)) == strlen(uri_CLIENT) && strncmp(uri_CLIENT, NAD_NURI(nad, NAD_ENS(nad, 1)), strlen(uri_CLIENT)) == 0) {
-                if(!sess->active) {
+                if(!sess->active || !sess->s) {
                     /* its a strange world .. */
                     nad_free(nad);
                     return 0;
@@ -1245,9 +1255,11 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
                 /* sm is bouncing something */
                 if(nad_find_attr(nad, 1, ns, "failed", NULL) >= 0) {
-                    /* there's really no graceful way to handle this */
-                    sx_error(s, stream_err_INTERNAL_SERVER_ERROR, "session manager failed control action");
-                    sx_close(s);
+                    if(s) {
+                        /* there's really no graceful way to handle this */
+                        sx_error(s, stream_err_INTERNAL_SERVER_ERROR, "session manager failed control action");
+                        sx_close(s);
+                    }
 
                     nad_free(nad);
                     return 0;

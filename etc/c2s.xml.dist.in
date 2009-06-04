@@ -231,7 +231,7 @@
 
       <!-- Maximum stanza size - if more than given number of bytes
            are read in one incoming stanza, the stream is closed
-	   with policy-violation error.
+           with policy-violation error.
 
            Set to 0 to disable.
            Values less than 16384 might not work. -->
@@ -315,6 +315,15 @@
     <packet>@localstatedir@/jabberd/stats/c2s.packets</packet>
     -->
   </stats>
+
+  <!-- PBX integration -->
+  <pbx>
+    <!-- Commands named pipe path. Allows creating "fake" sessions
+         with given resource and status -->
+    <!--
+    <pipe>@localstatedir@/jabberd/run/pbx</pipe>
+    -->
+  </pbx>
 
   <!-- Authentication/registration database configuration -->
   <authreg>
