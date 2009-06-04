@@ -20,6 +20,7 @@
 
 /* this module talks to a MySQL server via libmysqlclient */
 
+#define _XOPEN_SOURCE 500
 #include "c2s.h"
 #include <mysql.h>
 #include <unistd.h>
