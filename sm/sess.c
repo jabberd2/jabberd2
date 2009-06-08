@@ -113,7 +113,7 @@ sess_t sess_start(sm_t sm, jid_t jid) {
     /* unknown user */
     if(user == NULL) {
         if(config_get(sm->config, "user.auto-create") == NULL) {
-            log_write(sm->log, LOG_NOTICE, "user not found, can't start session: jid=%s", jid_full(jid));
+            log_write(sm->log, LOG_NOTICE, "user not found and user.auto-create not enabled, can't start session: jid=%s", jid_full(jid));
             return NULL;
         }
 
