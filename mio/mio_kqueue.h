@@ -131,7 +131,7 @@
     } while(0)
 
 #define MIO_ALLOC_FD(m, rfd) _mio_alloc_fd(m,rfd)
-#define MIO_FREE_FD(m, mfd)     free(mfd);mfd=NULL
+#define MIO_FREE_FD(m, mfd)     free(mfd)
 #define MIO_REMOVE_FD(m, mfd) _mio_set_events(m, mfd->mio_fd.fd, 0, 0, NULL)
 #define MIO_CHECK(m, t)         _mio_poll(m, t)
 
