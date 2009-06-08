@@ -120,6 +120,9 @@ static mio_fd_t _mio_setup_fd(mio_t m, int fd, mio_handler_t app, void *arg)
 /** internal close function */
 static void _mio_close(mio_t m, mio_fd_t fd)
 {
+    if(FD(m,fd)->type == type_CLOSED)
+        return;
+
     mio_debug(ZONE,"actually closing fd #%d", fd->fd);
 
     /* take out of poll sets */
