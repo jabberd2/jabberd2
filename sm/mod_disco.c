@@ -27,6 +27,8 @@
   * $Revision: 1.35 $
   */
 
+#define ACTIVE_SESSIONS_NAME "Active sessions"
+
 /** holder for a single service */
 typedef struct service_st *service_t;
 struct service_st {
@@ -411,7 +413,7 @@ static mod_ret_t _disco_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     module_t mod = mi->mod;
     disco_t d = (disco_t) mod->private;
     pkt_t result;
-    int node;
+    int node, ns;
     
     /* disco info results go to a seperate function */
     if(pkt->type == pkt_IQ_RESULT && pkt->ns == ns_DISCO_INFO)
@@ -425,22 +427,54 @@ static mod_ret_t _disco_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     if(d->disco_info_result == NULL)
         _disco_generate_packets(mod, d);
 
+    node = nad_find_attr(pkt->nad, 2, -1, "node", NULL);
+
     /* they want to know about us */
     if(pkt->ns == ns_DISCO_INFO) {
-        result = pkt_dup(d->disco_info_result, jid_full(pkt->from), jid_full(pkt->to));
+        /* respond with cached disco info packet if no node given */
+        if(node < 0) {
+            result = pkt_dup(d->disco_info_result, jid_full(pkt->from), jid_full(pkt->to));
 
-        node = nad_find_attr(pkt->nad, 2, -1, "node", NULL);
-        if(node >= 0) {
-            nad_set_attr(result->nad, 2, -1, "node", NAD_AVAL(pkt->nad, node), NAD_AVAL_L(pkt->nad, node));
+            node = nad_find_attr(pkt->nad, 2, -1, "node", NULL);
+            if(node >= 0) {
+                nad_set_attr(result->nad, 2, -1, "node", NAD_AVAL(pkt->nad, node), NAD_AVAL_L(pkt->nad, node));
+            }
+
+            pkt_id(pkt, result);
+            pkt_free(pkt);
+
+            /* off it goes */
+            pkt_router(result);
+
+            return mod_HANDLED;
         }
+        else if(NAD_AVAL_L(pkt->nad, node) == 8 && strncmp("sessions", NAD_AVAL(pkt->nad, node), 8) == 0) {
+            /* priviliged op, make sure they're allowed */
+            if(!aci_check(mod->mm->sm->acls, "disco", pkt->from))
+                return -stanza_err_ITEM_NOT_FOUND;  /* we never advertised it, so we can pretend its not here */
 
-        pkt_id(pkt, result);
-        pkt_free(pkt);
+            result = pkt_create(mod->mm->sm, "iq", "result", jid_full(pkt->from), jid_full(pkt->to));
+            pkt_id(pkt, result);
+            pkt_free(pkt);
 
-        /* off it goes */
-        pkt_router(result);
+            ns = nad_add_namespace(result->nad, uri_DISCO_INFO, NULL);
+            nad_append_elem(result->nad, ns, "query", 2);
+            nad_append_elem(result->nad, ns, "identity", 3);
+            nad_append_attr(result->nad, -1, "category", "hierarchy");
+            nad_append_attr(result->nad, -1, "type", "branch");
+            nad_append_attr(result->nad, -1, "name", ACTIVE_SESSIONS_NAME);
+            nad_append_elem(result->nad, -1, "feature", 3);
+            nad_append_attr(result->nad, -1, "var", uri_DISCO_INFO);
+            nad_append_elem(result->nad, -1, "feature", 3);
+            nad_append_attr(result->nad, -1, "var", uri_DISCO_ITEMS);
 
-        return mod_HANDLED;
+            /* off it goes */
+            pkt_router(result);
+
+            return mod_HANDLED;
+        }
+        else
+            return -stanza_err_ITEM_NOT_FOUND;
     }
 
     /* handle agents */
@@ -476,7 +510,6 @@ static mod_ret_t _disco_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     }
 
     /* they want to know who we know about */
-    node = nad_find_attr(pkt->nad, 2, -1, "node", NULL);
     if(node < 0) {
         /* no node, so toplevel services */
         result = pkt_dup(d->disco_items_result, jid_full(pkt->from), jid_full(pkt->to));
@@ -488,7 +521,7 @@ static mod_ret_t _disco_pkt_sm(mod_instance_t mi, pkt_t pkt) {
             nad_append_elem(result->nad, NAD_ENS(result->nad, 2), "item", 3);
             nad_append_attr(result->nad, -1, "jid", mod->mm->sm->id);
             nad_append_attr(result->nad, -1, "node", "sessions");
-            nad_append_attr(result->nad, -1, "name", "Active sessions");
+            nad_append_attr(result->nad, -1, "name", ACTIVE_SESSIONS_NAME);
         }
 
         pkt_router(result);
