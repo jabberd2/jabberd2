@@ -186,6 +186,10 @@ AC_CHECK_FUNCS([close \
                 uname \
 ])
 
+AC_CHECK_FUNC([crypt], ,[AC_CHECK_LIB([crypt], [crypt])])
+if test "x$ac_cv_lib_crypt_crypt" = "xyes"; then
+  AC_DEFINE(HAVE_CRYPT, 1, [Define to 1 if you have the crypt() function])
+fi
 AC_CHECK_FUNC([connect], ,[AC_CHECK_LIB([socket], [connect])])
 AC_CHECK_LIB([ws2_32], [_head_libws2_32_a])
 

@@ -29,6 +29,7 @@
  */
 
 #include "c2s.h"
+#include <stddef.h>
 #include <lber.h>
 #define LDAP_DEPRECATED 1
 #include <ldap.h>

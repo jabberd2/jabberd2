@@ -29,9 +29,17 @@
  * !!! this blocks for every auth.
  */
 
+#define _XOPEN_SOURCE	// need this to get crypt()
 #include "c2s.h"
 
 #ifdef STORAGE_LDAP
+#ifdef HAVE_CRYPT
+#include <unistd.h>
+#endif
+
+#ifdef HAVE_SSL
+#include <openssl/rand.h>
+#endif
 
 #include <lber.h>
 #define LDAP_DEPRECATED 1
@@ -98,6 +106,10 @@ int _ldapfull_hash_init(); // call it before use of other stuff
 int _ldapfull_chk_hashed(moddata_t data, const char *scheme, int salted, const char *hash, const char *passwd);
 int _ldapfull_set_hashed(moddata_t data, const char *scheme, const char *prefix, int saltlen, const char *passwd, char *buf, int buflen);
 #endif
+#ifdef HAVE_CRYPT
+int _ldapfull_chk_crypt(moddata_t data, const char *scheme, int salted, const char *hash, const char *passwd);
+int _ldapfull_set_crypt(moddata_t data, const char *scheme, const char *prefix, int saltlen, const char *passwd, char *buf, int buflen);
+#endif
 int _ldapfull_chk_clear(moddata_t data, const char *scheme, int salted, const char *hash, const char *passwd);
 int _ldapfull_set_clear(moddata_t data, const char *scheme, const char *prefix, int saltlen, const char *passwd, char *buf, int buflen);
 
@@ -108,6 +120,9 @@ ldapfull_pw_scheme _ldapfull_pw_schemas[] = {
 #ifdef HAVE_SSL
     { "sha", "sha1", "{SHA}", 0, _ldapfull_chk_hashed, _ldapfull_set_hashed },
     { "ssha", "sha1", "{SSHA}", 4, _ldapfull_chk_hashed, _ldapfull_set_hashed },
+#endif
+#ifdef HAVE_CRYPT
+    { "crypt", "crypt", "", 2, _ldapfull_chk_crypt, _ldapfull_set_crypt },
 #endif
     { "clear", "", "", 0, _ldapfull_chk_clear, _ldapfull_set_clear },
     { NULL, NULL, NULL, 0, NULL, NULL }
@@ -163,8 +178,6 @@ int _ldapfull_check_passhash(moddata_t data, const char *hash, const char *passw
 // must provide with buffer of sufficient length, or it will fail
 int _ldapfull_set_passhash(moddata_t data, char *scheme_name, const char *passwd, char *buf, int buflen) {
     int n;
-    int plen;
-    int nlen;
 
     if( ! passwd ) {
         log_write(data->ar->c2s->log,LOG_ERR,"_ldapfull_set_passhash: passwd is NULL");
@@ -350,9 +363,54 @@ int _ldapfull_set_hashed(moddata_t data, const char *scheme, const char *prefix,
 }
 #endif // HAVE_SSL
 
+#ifdef HAVE_CRYPT
+/* UNIX style crypt hashed password */
+int _ldapfull_chk_crypt(moddata_t data, const char *scheme, int salted, const char *hash, const char *passwd) {
+    const char *encrypted;
+    char salt[3];
+    if (strlen(hash) != 13) {
+        log_write(data->ar->c2s->log, LOG_ERR, "Invalid crypt hash length %d", strlen(hash));
+        return 0;
+    }
+    salt[0] = hash[0];
+    salt[1] = hash[1];
+    salt[2] = 0;
+    encrypted = crypt(passwd, salt);
+    return !strcmp(encrypted, hash);
+}
+
+int _ldapfull_set_crypt(moddata_t data, const char *scheme, const char *prefix, int saltlen, const char *passwd, char *buf, int buflen) {
+    const char *encrypted;
+    unsigned char salt[3];
+    static const char saltchars[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890./";
+    if ((saltlen != 2) || (buflen < 14)) {
+        log_write(data->ar->c2s->log, LOG_ERR, "Invalid crypt hash params");
+        return 0;
+    }
+#ifdef HAVE_SSL
+    if( !RAND_bytes(salt,saltlen) )
+        return 0;
+    salt[0] = saltchars[salt[0] % 64];
+    salt[1] = saltchars[salt[1] % 64];
+    salt[2] = 0;
+#else
+    /* Note: This is not a cryptographically secure random number generator */
+    salt[0] = saltchars[random() % 64];
+    salt[1] = saltchars[random() % 64];
+    salt[2] = 0;
+#endif
+    encrypted = crypt(passwd, salt);
+    strncpy(buf, encrypted, buflen);
+    buf[buflen-1] = 0;
+    return 1;
+}
+#endif // HAVE_CRYPT
+
 int _ldapfull_hash_init() {
 #ifdef HAVE_SSL
     OpenSSL_add_all_digests();
+#else
+    srandom(time(NULL) ^ getpid());
 #endif
     return 1;
 }
@@ -799,4 +857,4 @@ DLLEXPORT int ar_init(authreg_t ar)
     return 0;
 }
 
-#endif
+#endif // STORAGE_LDAP

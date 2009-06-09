@@ -505,7 +505,7 @@
            text and digest authentication may be done.
            If passwords are hashed, then you cannot use digest authentication
            and should use plain text authentication.
-           For now, sha, ssha and plain may be specified -->
+           For now, sha, ssha, crypt and plain may be specified -->
       <!-- <pwscheme>ssha</pwscheme> -->
 
       <!-- base DN of the tree. You should specify a DN for each
