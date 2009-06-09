@@ -54,15 +54,30 @@ static xhn _xhash_node_new(xht h, int index)
     /* track total */
     h->count++;
 
-    /* get existing empty one */
-    for(n = &h->zen[i]; n != NULL; n = n->next)
-        if(n->key == NULL)
-            return n;
+#ifdef XHASH_DEBUG
+    h->stat[i]++;
+#endif
+ 
+    // if the zen[i] is empty, reuse it, else get a new one.
+    n = &h->zen[i];
+    
+    if( n->key != NULL ) 
+    {
+        if( h->free_list )
+        {
+            n = h->free_list;
+            h->free_list = h->free_list->next;        
+        }else
+            n = pmalloco(h->p, sizeof(_xhn));
 
-    /* overflowing, new one! */
-    n = pmalloco(h->p, sizeof(_xhn));
-    n->next = h->zen[i].next;
-    h->zen[i].next = n;
+        //add it to the bucket list head.
+        n->prev = &h->zen[i];
+        n->next = h->zen[i].next;
+
+        if( n->next ) n->next->prev = n;
+        h->zen[i].next = n;
+    }
+
     return n;
 }
 
@@ -91,8 +106,17 @@ xht xhash_new(int prime)
     xnew->p = p;
     xnew->zen = pmalloco(p, sizeof(_xhn)*prime); /* array of xhn size of prime */
 
+    xnew->free_list = NULL;
+    
     xnew->iter_bucket = -1;
     xnew->iter_node = NULL;
+
+#ifdef XHASH_DEBUG
+    xnew->stat = malloc( sizeof(int)*prime );
+    memset( xnew->stat, 0 , sizeof(int)*prime );
+#else
+    xnew->stat = NULL;
+#endif
 
     return xnew;
 }
@@ -156,17 +180,27 @@ void *xhash_get(xht h, const char *key)
     return xhash_getx(h,key,strlen(key));
 }
 
-
-void xhash_zapx(xht h, const char *key, int len)
+void xhash_zap_inner( xht h, xhn n, int index)
 {
-    xhn n;
+    int i = index % h->prime;
+    
+    /* if we just killed the current iter, move to the next one */
+    if(h->iter_node == n)
+        xhash_iter_next(h);
+    
+    // if element:n is in bucket list.
+    if( &h->zen[i] != n ) 
+    {
+        n->prev->next = n->next;
+        n->next->prev = n->prev;
 
-    if(h == NULL || key == NULL || (n = _xhash_node_get(h, key, len, _xhasher(key,len))) == NULL)
-        return;
+        // add it to the free_list head.
+        n->prev = NULL;
+        n->next = h->free_list;
+        h->free_list = n;
+    }
 
-/*    log_debug(ZONE,"zapping %s",key); */
-
-    /* kill an entry by zeroing out the key */
+    //empty the value.
     n->key = NULL;
     n->val = NULL;
 
@@ -174,9 +208,25 @@ void xhash_zapx(xht h, const char *key, int len)
     h->dirty++;
     h->count--;
 
-    /* if we just killed the current iter, move to the next one */
-    if(h->iter_node == n)
-        xhash_iter_next(h);
+#ifdef XHASH_DEBUG
+    h->stat[i]--;
+#endif
+}
+
+void xhash_zapx(xht h, const char *key, int len)
+{
+    xhn n;
+    int index;
+
+    if( !h || !key ) return;
+    
+    index = _xhasher(key,len);
+    n = _xhash_node_get(h, key, len, index);
+    if( !n ) return;    
+
+/*    log_debug(ZONE,"zapping %s",key); */
+
+    xhash_zap_inner(h ,n, index );
 }
 
 void xhash_zap(xht h, const char *key)
@@ -189,8 +239,32 @@ void xhash_free(xht h)
 {
 /*    log_debug(ZONE,"hash free %X",h); */
 
-    if(h != NULL)
-        pool_free(h->p);
+    if( !h ) return;
+
+#ifdef XHASH_DEBUG
+    free( h->stat );
+#endif
+    
+    pool_free(h->p);
+
+}
+
+void xhash_stat( xht h )
+{
+#ifdef XHASH_DEBUG
+    if( !h ) return;
+    
+    fprintf(stderr, "XHASH: table prime: %d , number of elements: %d\n", h->prime, h->count );
+
+    int i;
+    for( i = 0; i< h->prime ; ++i )
+    {
+        if( h->stat[i] > 1 )
+            fprintf(stderr, "%d: %d\t", i, h->stat[i]);
+    }
+    fprintf(stderr, "\n");
+    
+#endif
 }
 
 void xhash_walk(xht h, xhash_walker w, void *arg)
@@ -275,22 +349,15 @@ int xhash_iter_next(xht h) {
     return 0;
 }
 
-void xhash_iter_zap(xht h) {
-    if(h == NULL) return;
+void xhash_iter_zap(xht h)
+{
+    int index;
 
-    if(h->iter_node == NULL)
-        return;
+    if( !h || !h->iter_node ) return;
 
-    /* pow */
-    h->iter_node->key = NULL;
-    h->iter_node->val = NULL;
+    index = _xhasher( h->iter_node->key, strlen( h->iter_node->key ) );
 
-    /* dirty the xht and track the total */
-    h->dirty++;
-    h->count--;
-
-    /* next one */
-    xhash_iter_next(h);
+    xhash_zap_inner( h ,h->iter_node, index);
 }
 
 int xhash_iter_get(xht h, const char **key, void **val) {

@@ -36,6 +36,7 @@
 typedef struct xhn_struct
 {
     struct xhn_struct *next;
+    struct xhn_struct *prev;
     const char *key;
     void *val;
 } *xhn, _xhn;
@@ -47,8 +48,10 @@ typedef struct xht_struct
     int dirty;
     int count;
     struct xhn_struct *zen;
+    struct xhn_struct *free_list; // list of zaped elements to be reused.
     int iter_bucket;
     xhn iter_node;
+    int *stat;
 } *xht, _xht;
 
 typedef void (*xhash_walker_t)(xht h, const char *key, void *val, void *arg);
@@ -60,6 +63,7 @@ JABBERD2_API void *xhash_get(xht h, const char *key);
 JABBERD2_API void *xhash_getx(xht h, const char *key, int len);
 JABBERD2_API void xhash_zap(xht h, const char *key);
 JABBERD2_API void xhash_zapx(xht h, const char *key, int len);
+JABBERD2_API void xhash_stat(xht h);
 JABBERD2_API void xhash_free(xht h);
 typedef void (*xhash_walker)(xht h, const char *key, void *val, void *arg);
 JABBERD2_API void xhash_walk(xht h, xhash_walker w, void *arg);
