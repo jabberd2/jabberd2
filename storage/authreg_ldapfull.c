@@ -382,7 +382,7 @@ int _ldapfull_chk_crypt(moddata_t data, const char *scheme, int salted, const ch
 int _ldapfull_set_crypt(moddata_t data, const char *scheme, const char *prefix, int saltlen, const char *passwd, char *buf, int buflen) {
     const char *encrypted;
     unsigned char salt[3];
-    static const char saltchars[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890./";
+    static const char saltchars[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./";
     if ((saltlen != 2) || (buflen < 14)) {
         log_write(data->ar->c2s->log, LOG_ERR, "Invalid crypt hash params");
         return 0;
