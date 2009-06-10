@@ -39,11 +39,11 @@ typedef struct moddata_st {
     time_t      t;
     os_t        tos;
     int         index;
-    jid_t       announcejid;
-    jid_t       onlinejid;
+    char        *announce_resource;
+    char        *online_resource;
 } *moddata_t;
 
-static void _announce_load(module_t mod, moddata_t data) {
+static void _announce_load(module_t mod, moddata_t data, const char *domain) {
     st_ret_t ret;
     os_t os;
     os_object_t o;
@@ -56,9 +56,9 @@ static void _announce_load(module_t mod, moddata_t data) {
     memset(&tm, 0, sizeof(struct tm));
 
     data->loaded = 1;
-    
+
     /* load the current message */
-    if((ret = storage_get(mod->mm->sm->st, "motd-message", mod->mm->sm->id, NULL, &os)) == st_SUCCESS) {
+    if((ret = storage_get(mod->mm->sm->st, "motd-message", domain, NULL, &os)) == st_SUCCESS) {
         os_iter_first(os);
         o = os_iter_object(os);
         if(os_object_get_nad(os, o, "xml", &nad)) {
@@ -129,7 +129,7 @@ static mod_ret_t _announce_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     if(data->nad == NULL) {
         if(data->loaded)
             return mod_PASS;        /* nothing to give them */
-        _announce_load(mod, data);
+        _announce_load(mod, data, sess->user->jid->domain);
         if(data->nad == NULL)
             return mod_PASS;
     }
@@ -155,7 +155,7 @@ static mod_ret_t _announce_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 
         nad = nad_copy(data->nad);
         nad_set_attr(nad, 1, -1, "to", jid_full(sess->jid), strlen(jid_full(sess->jid)));
-        nad_set_attr(nad, 1, -1, "from", mod->mm->sm->id, strlen(mod->mm->sm->id));
+        nad_set_attr(nad, 1, -1, "from", sess->user->jid->domain, strlen(sess->user->jid->domain));
 
         motd = pkt_new(mod->mm->sm, nad);
         if(motd == NULL) {
@@ -185,7 +185,7 @@ static void _announce_broadcast_user(xht users, const char *key, void *val, void
 
         nad = nad_copy(data->nad);
         nad_set_attr(nad, 1, -1, "to", jid_full(sess->jid), strlen(jid_full(sess->jid)));
-        nad_set_attr(nad, 1, -1, "from", user->sm->id, strlen(user->sm->id));
+        nad_set_attr(nad, 1, -1, "from", sess->jid->domain, strlen(sess->jid->domain));
 
         pkt_router(pkt_new(user->sm, nad));
 
@@ -199,6 +199,7 @@ static mod_ret_t _announce_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     moddata_t data = (moddata_t) mod->private;
     pkt_t store;
     nad_t nad;
+    jid_t jid;
     time_t t;
     os_t os;
     os_object_t o;
@@ -213,12 +214,19 @@ static mod_ret_t _announce_pkt_sm(mod_instance_t mi, pkt_t pkt) {
         log_debug(ZONE, "answering presence probe/sub from %s with /announce resources", jid_full(pkt->from));
 
         /* send presences */
-        pkt_router(pkt_create(mod->mm->sm, "presence", NULL, jid_user(pkt->from), jid_full(data->announcejid)));
-        pkt_router(pkt_create(mod->mm->sm, "presence", NULL, jid_user(pkt->from), jid_full(data->onlinejid)));
+        jid = jid_new(pkt->from->domain, -1);
+        jid_reset_components(jid, jid->node, jid->domain, data->announce_resource);
+        pkt_router(pkt_create(mod->mm->sm, "presence", NULL, jid_user(pkt->from), jid_full(jid)));
+        jid_free(jid);
+
+        jid = jid_new(pkt->from->domain, -1);
+        jid_reset_components(jid, jid->node, jid->domain, data->online_resource);
+        pkt_router(pkt_create(mod->mm->sm, "presence", NULL, jid_user(pkt->from), jid_full(jid)));
+        jid_free(jid);
     }
 
     /* we want messages addressed to /announce */
-    if(!(pkt->type & pkt_MESSAGE) || strlen(pkt->to->resource) < 8 || strncmp(pkt->to->resource, "announce", 8) != 0)
+    if(!(pkt->type & pkt_MESSAGE) || strlen(pkt->to->resource) < 8 || strncmp(pkt->to->resource, data->announce_resource, 8) != 0)
         return mod_PASS;
     
     /* make sure they're allowed */
@@ -239,7 +247,7 @@ static mod_ret_t _announce_pkt_sm(mod_instance_t mi, pkt_t pkt) {
 
         store = pkt_dup(pkt, NULL, NULL);
 
-        pkt_delay(store, t, mod->mm->sm->id);
+        pkt_delay(store, t, pkt->to->domain);
 
         /* prepare for storage */
         os = os_new();
@@ -248,7 +256,7 @@ static mod_ret_t _announce_pkt_sm(mod_instance_t mi, pkt_t pkt) {
         os_object_put(o, "xml", store->nad, os_type_NAD);
 
         /* store it */
-        ret = storage_replace(mod->mm->sm->st, "motd-message", mod->mm->sm->id, NULL, os);
+        ret = storage_replace(mod->mm->sm->st, "motd-message", pkt->to->domain, NULL, os);
         os_free(os);
 
         switch(ret) {
@@ -311,8 +319,6 @@ static void _announce_free(module_t mod) {
 
     if(data->nad != NULL) nad_free(data->nad);
     if(data->tos != NULL) os_free(data->tos);
-    jid_free(data->announcejid);
-    jid_free(data->onlinejid);
     free(data);
 }
 
@@ -329,10 +335,8 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
 
     data->index = mod->index;
 
-    jid = jid_new(mod->mm->sm->id, -1);
-    data->announcejid = jid_reset_components(jid, jid->node, jid->domain, "announce");
-    jid = jid_new(mod->mm->sm->id, -1);
-    data->onlinejid = jid_reset_components(jid, jid->node, jid->domain, "announce/online");
+    data->announce_resource = "announce";
+    data->online_resource = "announce/online";
 
     mod->in_sess = _announce_in_sess;
     mod->pkt_sm = _announce_pkt_sm;

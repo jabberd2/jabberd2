@@ -52,7 +52,6 @@ struct disco_st {
 
     /** compatibility */
     int         agents;
-    int         browse;
 
     /** the lists */
     xht         dyn;
@@ -65,7 +64,6 @@ struct disco_st {
     pkt_t       disco_info_result;
     pkt_t       disco_items_result;
     pkt_t       agents_result;
-    pkt_t       browse_result;
 };
 
 /* union for xhash_iter_get to comply with strict-alias rules for gcc3 */
@@ -208,69 +206,6 @@ static pkt_t _disco_agents_result(module_t mod, disco_t d) {
     return pkt;
 }
 
-/** build a browse result */
-static pkt_t _disco_browse_result(module_t mod, disco_t d) {
-    pkt_t pkt;
-    int ns;
-    const char *key;
-    service_t svc;
-    union xhashv xhv;
-
-    pkt = pkt_create(mod->mm->sm, "iq", "result", NULL, NULL);
-    ns = nad_add_namespace(pkt->nad, uri_BROWSE, NULL);
-    nad_append_elem(pkt->nad, ns, "service", 2);
-
-    nad_append_attr(pkt->nad, -1, "jid", mod->mm->sm->id);
-    nad_append_attr(pkt->nad, -1, "type", "jabber");
-
-    /* fill in our features */
-    if(xhash_iter_first(mod->mm->sm->features))
-        do {
-            xhash_iter_get(mod->mm->sm->features, &key, NULL);
-            
-            /* hackishly seperate generic features from namespaces */
-            if(!((strlen(key) >= 7 && (strncmp(key, "jabber:", 7) == 0 || strncmp(key, "http://", 7) == 0)) || strcmp(key, "vcard-temp") == 0))
-                continue;
-
-            nad_append_elem(pkt->nad, ns, "ns", 3);
-            nad_append_cdata(pkt->nad, (char *) key, strlen(key), 4);
-        } while(xhash_iter_next(mod->mm->sm->features));
-
-    /* fill in the items */
-    if(xhash_iter_first(d->un))
-        do {
-            xhv.svc_val = &svc;
-            xhash_iter_get(d->un, NULL, xhv.val);
-
-            if(strcmp(svc->category, "gateway") == 0)
-                nad_append_elem(pkt->nad, ns, "service", 3);
-            else
-                nad_append_elem(pkt->nad, ns, svc->category, 3);
-
-            nad_append_attr(pkt->nad, -1, "jid", jid_full(svc->jid));
-
-            if(svc->name[0] != '\0')
-                nad_append_attr(pkt->nad, -1, "name", svc->name);
-
-            nad_append_attr(pkt->nad, -1, "type", svc->type);
-
-            /* service features */
-            if(xhash_iter_first(svc->features))
-                do {
-                    xhash_iter_get(svc->features, &key, NULL);
-            
-                    /* hackishly seperate generic features from namespaces */
-                    if(!((strlen(key) >= 7 && (strncmp(key, "jabber:", 7) == 0 || strncmp(key, "http://", 7) == 0)) || strcmp(key, "vcard-temp") == 0))
-                        continue;
-
-                    nad_append_elem(pkt->nad, ns, "ns", 4);
-                    nad_append_cdata(pkt->nad, (char *) key, strlen(key), 5);
-                } while(xhash_iter_next(svc->features));
-        } while(xhash_iter_next(d->un));
-
-    return pkt;
-}
-
 /** generate cached result packets */
 static void _disco_generate_packets(module_t mod, disco_t d) {
     log_debug(ZONE, "regenerating packets");
@@ -289,11 +224,6 @@ static void _disco_generate_packets(module_t mod, disco_t d) {
         d->agents_result = _disco_agents_result(mod, d);
     }
 
-    if(d->browse) {
-        if(d->browse_result != NULL)
-            pkt_free(d->browse_result);
-        d->browse_result = _disco_browse_result(mod, d);
-    }
 }
 
 /** catch responses and populate the table */
@@ -415,12 +345,16 @@ static mod_ret_t _disco_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     pkt_t result;
     int node, ns;
     
+    /* check whether the requested domain is serviced here */
+    if(xhash_get(mod->mm->sm->hosts, pkt->to->domain) == NULL)
+        return -stanza_err_ITEM_NOT_FOUND;
+
     /* disco info results go to a seperate function */
     if(pkt->type == pkt_IQ_RESULT && pkt->ns == ns_DISCO_INFO)
         return _disco_pkt_sm_populate(mi, pkt);
 
-    /* we want disco, browse or agents gets */
-    if(pkt->type != pkt_IQ || !(pkt->ns == ns_DISCO_INFO || pkt->ns == ns_DISCO_ITEMS || pkt->ns == ns_BROWSE || pkt->ns == ns_AGENTS))
+    /* we want disco or agents gets */
+    if(pkt->type != pkt_IQ || !(pkt->ns == ns_DISCO_INFO || pkt->ns == ns_DISCO_ITEMS || pkt->ns == ns_AGENTS))
         return mod_PASS;
 
     /* generate the caches if we haven't yet */
@@ -493,22 +427,6 @@ static mod_ret_t _disco_pkt_sm(mod_instance_t mi, pkt_t pkt) {
         return mod_HANDLED;
     }
 
-    /* handle browse */
-    if(pkt->ns == ns_BROWSE) {
-        /* make sure we're supporting compat */
-        if(!d->browse)
-            return -stanza_err_NOT_ALLOWED;
-
-        result = pkt_dup(d->browse_result, jid_full(pkt->from), jid_full(pkt->to));
-        pkt_id(pkt, result);
-        pkt_free(pkt);
-
-        /* off it goes */
-        pkt_router(result);
-
-        return mod_HANDLED;
-    }
-
     /* they want to know who we know about */
     if(node < 0) {
         /* no node, so toplevel services */
@@ -519,7 +437,7 @@ static mod_ret_t _disco_pkt_sm(mod_instance_t mi, pkt_t pkt) {
         /* if they have privs, then show them any administrative things they can disco to */
         if(aci_check(mod->mm->sm->acls, "disco", result->to)) {
             nad_append_elem(result->nad, NAD_ENS(result->nad, 2), "item", 3);
-            nad_append_attr(result->nad, -1, "jid", mod->mm->sm->id);
+            nad_append_attr(result->nad, -1, "jid", jid_full(result->from));
             nad_append_attr(result->nad, -1, "node", "sessions");
             nad_append_attr(result->nad, -1, "name", ACTIVE_SESSIONS_NAME);
         }
@@ -656,7 +574,6 @@ static void _disco_free(module_t mod) {
     if(d->disco_info_result != NULL) pkt_free(d->disco_info_result);
     if(d->disco_items_result != NULL) pkt_free(d->disco_items_result);
     if(d->agents_result != NULL) pkt_free(d->agents_result);
-    if(d->browse_result != NULL) pkt_free(d->browse_result);
 
     free(d);
 }
@@ -690,14 +607,8 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg)
     /* agents compatibility */
     d->agents = config_get(mod->mm->sm->config, "discovery.agents") != NULL;
 
-    /* browse compatibility */
-    /* CODE READERS, NOTE WELL: Browse is very deprecated. Don't use this :) */
-    d->browse = config_get(mod->mm->sm->config, "discovery.browse") != NULL;
-
     if(d->agents)
         log_debug(ZONE, "agents compat enabled");
-    if(d->browse)
-        log_debug(ZONE, "browse compat enabled");
     
     /* our data */
     mod->private = (void *) d;
@@ -715,8 +626,6 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg)
     feature_register(mod->mm->sm, uri_DISCO_ITEMS);
     if(d->agents)
         feature_register(mod->mm->sm, uri_AGENTS);
-    if(d->browse)
-        feature_register(mod->mm->sm, uri_BROWSE);
 
     /* populate the static list from the config file */
     if((items = nad_find_elem(nad, 0, -1, "discovery", 1)) < 0 || (items = nad_find_elem(nad, items, -1, "items", 1)) < 0)

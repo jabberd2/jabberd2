@@ -32,7 +32,6 @@
 typedef struct _status_st {
     sm_t    sm;
     char    *resource;
-    jid_t   jid;
 } *status_t;
 
 static void _status_os_replace(storage_t st, const unsigned char *jid, char *status, char *show, time_t *lastlogin, time_t *lastlogout, nad_t nad) {
@@ -188,6 +187,7 @@ static mod_ret_t _status_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 /* presence packets incoming from other servers */
 static mod_ret_t _status_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     time_t t;
+    jid_t jid;
     module_t mod = mi->mod;
     status_t st = (status_t) mod->private;
 
@@ -205,7 +205,10 @@ static mod_ret_t _status_pkt_sm(mod_instance_t mi, pkt_t pkt) {
         log_debug(ZONE, "answering presence probe/sub from %s with /%s resource", jid_full(pkt->from), st->resource);
 
         /* send presence */
-        pkt_router(pkt_create(st->sm, "presence", NULL, jid_user(pkt->from), jid_full(st->jid)));
+        jid = jid_new(pkt->to->domain, -1);
+        jid = jid_reset_components(jid, jid->node, jid->domain, st->resource);
+        pkt_router(pkt_create(st->sm, "presence", NULL, jid_user(pkt->from), jid_full(jid)));
+        jid_free(jid);
     }
 
     /* and handle over */
@@ -221,7 +224,6 @@ static void _status_user_delete(mod_instance_t mi, jid_t jid) {
 
 static void _status_free(module_t mod) {
     status_t st = (status_t) mod->private;
-    if(st->jid) jid_free(st->jid);
     free(mod->private);
 }
 
@@ -236,10 +238,6 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
 
     tr->sm = mod->mm->sm;
     tr->resource = config_get_one(mod->mm->sm->config, "status.resource", 0);
-    if(tr->resource) {
-        tr->jid = jid_new(mod->mm->sm->id, -1);
-        tr->jid = jid_reset_components(tr->jid, tr->jid->node, tr->jid->domain, tr->resource);
-    }
 
     mod->private = tr;
 

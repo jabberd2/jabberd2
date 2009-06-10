@@ -96,7 +96,7 @@ static void _sm_config_expand(sm_t sm)
 
     sm->id = config_get_one(sm->config, "id", 0);
     if(sm->id == NULL)
-        sm->id = "localhost";
+        sm->id = "sm";
 
     sm->router_ip = config_get_one(sm->config, "router.ip", 0);
     if(sm->router_ip == NULL)
@@ -135,6 +135,36 @@ static void _sm_config_expand(sm_t sm)
             sm->log_ident = "jabberd/sm";
     } else if(sm->log_type == log_FILE)
         sm->log_ident = config_get_one(sm->config, "log.file", 0);
+}
+
+static void _sm_hosts_expand(sm_t sm)
+{
+    config_elem_t elem;
+    char id[1024];
+    int i;
+
+    elem = config_get(sm->config, "local.id");
+    if(!elem) {
+        /* use SM id */
+        xhash_put(sm->hosts, pstrdup(xhash_pool(sm->hosts), sm->id), sm);
+        log_write(sm->log, LOG_NOTICE, "id: %s", sm->id);
+        return;
+    }
+
+    for(i = 0; i < elem->nvalues; i++) {
+        /* stringprep ids (domain names) so that they are in canonical form */
+        strncpy(id, elem->values[i], 1024);
+        id[1023] = '\0';
+        if (stringprep_nameprep(id, 1024) != 0) {
+            log_write(sm->log, LOG_ERR, "cannot stringprep id %s, aborting", id);
+            exit(1);
+        }
+
+        /* insert into vHosts xhash */
+        xhash_put(sm->hosts, pstrdup(xhash_pool(sm->hosts), id), sm);
+
+        log_write(sm->log, LOG_NOTICE, "[%s] configured", id);
+    }
 }
 
 static int _sm_router_connect(sm_t sm) {
@@ -256,8 +286,6 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
     }
     sm->id = id;
 
-    log_write(sm->log, LOG_NOTICE, "id: %s", sm->id);
-
     _sm_pidfile(sm);
 
     sm_signature(sm, PACKAGE " sm " VERSION);
@@ -324,6 +352,10 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
     }
 
     sm->mio = mio_new(MIO_MAXFD);
+
+    /* vHosts map */
+    sm->hosts = xhash_new(1021);
+    _sm_hosts_expand(sm);
 
     sm->retry_left = sm->retry_init;
     _sm_router_connect(sm);
@@ -392,6 +424,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
     xhash_free(sm->xmlns);
     xhash_free(sm->xmlns_refcount);
     xhash_free(sm->users);
+    xhash_free(sm->hosts);
 
     sx_free(sm->router);
 

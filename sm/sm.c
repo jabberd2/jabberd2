@@ -37,6 +37,7 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
     nad_t nad;
     pkt_t pkt;
     int len, ns, elem, attr;
+    char *domain;
 
     switch(e) {
         case event_WANT_READ:
@@ -121,11 +122,25 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             ns = nad_add_namespace(nad, uri_COMPONENT, NULL);
             nad_append_elem(nad, ns, "bind", 0);
             nad_append_attr(nad, -1, "name", sm->id);
-
             log_debug(ZONE, "requesting component bind for '%s'", sm->id);
-
             sx_nad_write(sm->router, nad);
 
+            if(xhash_iter_first(sm->hosts))
+            do {
+                xhash_iter_get(sm->hosts, (void *) &domain, NULL);
+
+                /* skip already requested SM id */
+                if (!strcmp(sm->id, domain))
+                    continue;
+
+                nad = nad_new();
+                ns = nad_add_namespace(nad, uri_COMPONENT, NULL);
+                nad_append_elem(nad, ns, "bind", 0);
+                nad_append_attr(nad, -1, "name", domain);
+                log_debug(ZONE, "requesting domain bind for '%s'", domain);
+                sx_nad_write(sm->router, nad);
+            
+            } while(xhash_iter_next(sm->hosts));
             break;
 
         case event_PACKET:
@@ -194,7 +209,7 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
                 /* we're online */
                 sm->online = sm->started = 1;
-                log_write(sm->log, LOG_NOTICE, "ready for sessions", sm->id);
+                log_write(sm->log, LOG_NOTICE, "%s ready for sessions", sm->id);
 
                 nad_free(nad);
                 return 0;

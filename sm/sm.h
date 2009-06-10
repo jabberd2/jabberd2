@@ -163,7 +163,7 @@ typedef struct item_st {
 
 /** session manager global context */
 struct sm_st {
-    char                *id;                /**< component id (hostname) */
+    char                *id;                /**< component id */
 
     char                *router_ip;         /**< ip to connect to the router at */
     int                 router_port;        /**< port to connect to the router at */
@@ -215,6 +215,9 @@ struct sm_st {
     int                 started;            /**< true if we've connected to the router at least once */
 
     int                 online;             /**< true if we're currently bound in the router */
+
+    xht                 hosts;              /**< vHosts map */
+
 };
 
 /** data for a single user */
@@ -243,7 +246,7 @@ struct sess_st {
 
     jid_t               jid;                /**< session jid (user@@host/res) */
 
-    char                c2s[1024];           /**< id of c2s that is handling their connection */
+    char                c2s[1024];          /**< id of c2s that is handling their connection */
 
     char                sm_id[41];          /**< local id (for session control) */
     char                c2s_id[10];         /**< remote id (for session control) */

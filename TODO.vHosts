@@ -1,0 +1,2 @@
+- check if c2s allows connections to 'component' domains
+- filter incoming packets to allow only sm->hosts requests (mod_disco)

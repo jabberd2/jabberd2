@@ -29,14 +29,18 @@
 
 static mod_ret_t _echo_pkt_sm(mod_instance_t mi, pkt_t pkt)
 {
-    jid_t smjid = (jid_t) mi->mod->private;
+    jid_t jid;
+    char *resource = (char *) mi->mod->private;
 
     /* answer to probes and subscription requests */
     if(pkt->type == pkt_PRESENCE_PROBE || pkt->type == pkt_S10N) {
         log_debug(ZONE, "answering presence probe/sub from %s with /echo resource", jid_full(pkt->from));
 
         /* send presence */
-        pkt_router(pkt_create(mi->mod->mm->sm, "presence", NULL, jid_user(pkt->from), jid_full(smjid)));
+        jid = jid_new(jid_user(pkt->to), -1);
+        jid_reset_components(jid, jid->node, jid->domain, resource);
+        pkt_router(pkt_create(mi->mod->mm->sm, "presence", NULL, jid_user(pkt->from), jid_full(jid)));
+        jid_free(jid);
     }
 
     /* we want messages addressed to /echo */
@@ -52,21 +56,19 @@ static mod_ret_t _echo_pkt_sm(mod_instance_t mi, pkt_t pkt)
 }
 
 static void _echo_free(module_t mod) {
-    jid_free(mod->private);
+    /* data is static so nothing to be done here */
 }
 
 DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
-    jid_t jid;
     module_t mod = mi->mod;
 
     if(mod->init) return 0;
 
-    /* store sm/echo jid for use when answering probes */
-    jid = jid_new(mod->mm->sm->id, -1);
-    mod->private = jid_reset_components(jid, jid->node, jid->domain, "echo");
+    /* store /echo resource for use when answering probes */
+    mod->private = "echo";
 
     mod->pkt_sm = _echo_pkt_sm;
-    mod->free = _echo_free;
+    /* mod->free = _echo_free; */
 
     return 0;
 }

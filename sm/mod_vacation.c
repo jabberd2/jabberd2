@@ -178,7 +178,7 @@ static mod_ret_t _vacation_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     t = time(NULL);
 
     if(v->start < t && (t < v->end || v->end == 0)) {
-        res = pkt_create(mod->mm->sm, "message", NULL, jid_full(pkt->from), mod->mm->sm->id);
+        res = pkt_create(mod->mm->sm, "message", NULL, jid_full(pkt->from), user->jid->domain);
         nad_insert_elem(res->nad, 1, NAD_ENS(res->nad, 1), "subject", "Automated reply");
         nad_insert_elem(res->nad, 1, NAD_ENS(res->nad, 1), "body", v->msg);
         pkt_router(res);
