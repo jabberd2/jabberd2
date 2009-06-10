@@ -1,9 +1,7 @@
 <!-- Session manager configuration -->
 <sm>
-  <!-- Our ID on the network. Users will have this as the domain part of
-       their JID. If you want your server to be accessible from other
-       Jabber servers, this ID must be FQDN resolvable by DNSes -->
-  <id>localhost.localdomain</id>
+  <!-- Our ID on the network (default: sm) -->
+  <id>sm</id>
 
   <!-- The process ID file. Comment this out if you don't need to know
        the process ID from outside the process (eg for control scripts) -->
@@ -65,6 +63,21 @@
     <file>@localstatedir@/jabberd/log/sm.log</file>
     -->
   </log>
+
+  <!-- Local network configuration -->
+  <local>
+    <!-- Who we identify ourselves as.
+         Users will have this as the domain part of their JID.
+         If you want your server to be accessible from other
+         Jabber servers, this IDs must be FQDN resolvable by DNSes.
+         If not set, the SM id is used. -->
+    <id>localhost.localdomain</id>
+    <!--
+    <id>vhost1.localdomain</id>
+    <id>vhost2.localdomain</id>
+    -->
+
+  </local>
 
   <!-- Storage database configuration -->
   <storage>
