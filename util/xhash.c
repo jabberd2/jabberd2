@@ -191,8 +191,8 @@ void xhash_zap_inner( xht h, xhn n, int index)
     // if element:n is in bucket list.
     if( &h->zen[i] != n ) 
     {
-        n->prev->next = n->next;
-        n->next->prev = n->prev;
+        if(n->prev) n->prev->next = n->next;
+        if(n->next) n->next->prev = n->prev;
 
         // add it to the free_list head.
         n->prev = NULL;
