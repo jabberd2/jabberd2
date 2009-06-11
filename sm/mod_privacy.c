@@ -256,7 +256,7 @@ static int _privacy_user_load(mod_instance_t mi, user_t user) {
                 os_object_get_int(os, o, "order", &(zitem->order));
                 log_debug(ZONE, "order %d", zitem->order);
 
-                os_object_get_int(os, o, "block", &(zitem->block));
+                os_object_get_int(os, o, "block", (int*) &(zitem->block));
                 log_debug(ZONE, "block 0x%x", zitem->block);
 
                 /* insert it */

@@ -161,7 +161,7 @@ static mod_ret_t _offline_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
 
 	log_debug(ZONE, "saving packet for later");
 
-        pkt_delay(pkt, time(NULL), user->sm->id);
+        pkt_delay(pkt, time(NULL), user->jid->domain);
 
         /* new object */
         os = os_new();

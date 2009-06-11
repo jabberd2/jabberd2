@@ -134,11 +134,13 @@ static mod_ret_t _presence_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
 static mod_ret_t _presence_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     time_t t;
     module_t mod = mi->mod;
-    jid_t smjid = (jid_t) mod->private;
+    jid_t smjid;
 
     /* only check presence/subs to server JID */
     if(!(pkt->type & pkt_PRESENCE || pkt->type & pkt_S10N))
         return mod_PASS;
+
+    smjid = jid_new(jid_user(pkt->to), -1);
 
     /* handle subscription requests */
     if(pkt->type == pkt_S10N) {
@@ -151,6 +153,7 @@ static mod_ret_t _presence_pkt_sm(mod_instance_t mi, pkt_t pkt) {
         pkt_router(pkt_create(mod->mm->sm, "presence", "subscribe", jid_user(pkt->from), jid_user(smjid)));
 
         pkt_free(pkt);
+        jid_free(smjid);
         return mod_HANDLED;
     }
 
@@ -162,28 +165,26 @@ static mod_ret_t _presence_pkt_sm(mod_instance_t mi, pkt_t pkt) {
         pkt_router(pkt_create(mod->mm->sm, "presence", "unsubscribed", jid_user(pkt->from), jid_user(smjid)));
 
         pkt_free(pkt);
+        jid_free(smjid);
         return mod_HANDLED;
     }
 
     /* drop the rest */
     log_debug(ZONE, "dropping presence from %s", jid_full(pkt->from));
     pkt_free(pkt);
+    jid_free(smjid);
     return mod_HANDLED;
 
 }
 
 static void _presence_free(module_t mod) {
     feature_unregister(mod->mm->sm, "presence");
-    jid_free(mod->private);
 }
 
 DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     module_t mod = mi->mod;
 
     if(mod->init) return 0;
-
-    /* store sm jid for use when answering probes */
-    mod->private = jid_new(mod->mm->sm->id, -1);
 
     mod->in_sess = _presence_in_sess;
     mod->in_router = _presence_in_router;
