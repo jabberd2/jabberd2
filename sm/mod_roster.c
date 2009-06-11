@@ -131,7 +131,7 @@ static void _roster_insert_item(pkt_t pkt, item_t item, int elem)
 
     if(item->ask == 1)
         nad_set_attr(pkt->nad, elem, -1, "ask", "subscribe", 9);
-    else if(item->ask == 2)
+    else if(item->ask == 2) /* XXX there is no ask='unsubscribe' in RFC bis anymore */
         nad_set_attr(pkt->nad, elem, -1, "ask", "unsubscribe", 11);
 
     if(item->name != NULL)
@@ -226,14 +226,12 @@ static mod_ret_t _roster_in_sess_s10n(mod_instance_t mi, sess_t sess, pkt_t pkt)
     else if(pkt->type == pkt_S10N_ED)
     {
         /* they're allowed to see us, send them presence */
-        item->ask = 0;
         item->from = 1;
         pres_roster(sess, item);
     }
     else if(pkt->type == pkt_S10N_UNED)
     {
         /* they're not allowed to see us anymore */
-        item->ask = 0;
         item->from = 0;
         pres_roster(sess, item);
     }
