@@ -30,8 +30,7 @@
 static mod_ret_t _deliver_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)
 {
     /* ensure from is set correctly if not already by client */
-    if(pkt->from == NULL || jid_compare_user(pkt->from, sess->jid) != 0)
-    {
+    if(pkt->from == NULL || jid_compare_user(pkt->from, sess->jid) != 0) {
         if(pkt->from != NULL)
             jid_free(pkt->from);
 
@@ -40,12 +39,21 @@ static mod_ret_t _deliver_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)
     }
 
     /* no to address means its to us */
-    if(pkt->to == NULL)
-    {
+    if(pkt->to == NULL) {
+        /* drop iq-result packets */
+        /* user client is confirming all iq-set, but we usually do not track these
+         * confirmations and we need to drop it here, not loop back to client */
+        if(pkt->type == pkt_IQ_RESULT) {
+            pkt_free(pkt);
+            return mod_HANDLED;
+        }
+
+        /* supplant user jid as 'to' */
         pkt->to = jid_dup(sess->jid);
         nad_set_attr(pkt->nad, 1, -1, "to", jid_full(pkt->to), 0);
     }
 
+    /* let it go on the wire */
     pkt_router(pkt);
 
     return mod_HANDLED;
