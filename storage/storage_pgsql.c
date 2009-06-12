@@ -68,7 +68,7 @@ static size_t _st_pgsql_realloc(char **oblocks, size_t len) {
 /** this is the safety check used to make sure there's always enough mem */
 #define PGSQL_SAFE(blocks, size, len) if((size) >= len) len = _st_pgsql_realloc(&(blocks),(size + 1));
 
-static void _st_pgsql_convert_filter_recursive(st_driver_t drv, st_filter_t f, char **buf, int *buflen, int *nbuf) {
+static void _st_pgsql_convert_filter_recursive(st_driver_t drv, st_filter_t f, char **buf, unsigned int *buflen, unsigned int *nbuf) {
     st_filter_t scan;
     int vlen;
     char *cval;
@@ -135,9 +135,9 @@ static void _st_pgsql_convert_filter_recursive(st_driver_t drv, st_filter_t f, c
 }
 
 static char *_st_pgsql_convert_filter(st_driver_t drv, const char *owner, const char *filter) {
-    drvdata_t data = (drvdata_t) drv->private;
+    /* drvdata_t data = (drvdata_t) drv->private;*/
     char *buf = NULL;
-    int buflen = 0, nbuf = 0;
+    unsigned int buflen = 0, nbuf = 0;
     st_filter_t f;
 
     PGSQL_SAFE(buf, 24 + strlen(owner), buflen);
