@@ -105,8 +105,8 @@ int s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
         case event_OPEN:
             log_write(s2s->log, LOG_NOTICE, "connection to router established");
 
-            /* reset connection attempts counter */
-            s2s->retry_left = s2s->retry_init;
+            /* set connection attempts counter */
+            s2s->retry_left = s2s->retry_lost;
 
             nad = nad_new();
             ns = nad_add_namespace(nad, uri_COMPONENT, NULL);

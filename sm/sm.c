@@ -115,8 +115,8 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
         case event_OPEN:
             log_write(sm->log, LOG_NOTICE, "connection to router established");
 
-            /* reset connection attempts counter */
-            sm->retry_left = sm->retry_init;
+            /* set connection attempts counter */
+            sm->retry_left = sm->retry_lost;
 
             nad = nad_new();
             ns = nad_add_namespace(nad, uri_COMPONENT, NULL);
