@@ -157,11 +157,11 @@ pkt_t pkt_new(sm_t sm, nad_t nad) {
                 if(attr >= 0) {
                     if(NAD_AVAL_L(pkt->nad, attr) == 4 && strncmp("chat", NAD_AVAL(pkt->nad, attr), 4) == 0)
                         pkt->type = pkt_MESSAGE_CHAT;
-		    else if(NAD_AVAL_L(pkt->nad, attr) == 8 && strncmp("headline", NAD_AVAL(pkt->nad, attr), 8) == 0)
+                    else if(NAD_AVAL_L(pkt->nad, attr) == 8 && strncmp("headline", NAD_AVAL(pkt->nad, attr), 8) == 0)
                         pkt->type = pkt_MESSAGE_HEADLINE;
-		    else if(NAD_AVAL_L(pkt->nad, attr) == 9 && strncmp("groupchat", NAD_AVAL(pkt->nad, attr), 9) == 0)
+                    else if(NAD_AVAL_L(pkt->nad, attr) == 9 && strncmp("groupchat", NAD_AVAL(pkt->nad, attr), 9) == 0)
                         pkt->type = pkt_MESSAGE_GROUPCHAT;
-		    else if(NAD_AVAL_L(pkt->nad, attr) == 5 && strncmp("error", NAD_AVAL(pkt->nad, attr), 5) == 0)
+                    else if(NAD_AVAL_L(pkt->nad, attr) == 5 && strncmp("error", NAD_AVAL(pkt->nad, attr), 5) == 0)
                         pkt->type = pkt_MESSAGE | pkt_ERROR;
                 }
 
@@ -404,7 +404,7 @@ void pkt_router(pkt_t pkt) {
             
             /* remove sm specifics */
             ns = nad_find_namespace(pkt->nad, 1, uri_SESSION, NULL);
-            if(ns > 0) {
+            if(ns >= 0) {
                 nad_set_attr(pkt->nad, 1, ns, "c2s", NULL, 0);
                 nad_set_attr(pkt->nad, 1, ns, "sm", NULL, 0);
 
@@ -503,6 +503,6 @@ void pkt_delay(pkt_t pkt, time_t t, const char *from) {
     elem = nad_insert_elem(pkt->nad, 1, ns, "delay", NULL);
     nad_set_attr(pkt->nad, elem, -1, "stamp", timestamp, 0);
     if(from != NULL)
-	nad_set_attr(pkt->nad, elem, -1, "from", from, 0);
+        nad_set_attr(pkt->nad, elem, -1, "from", from, 0);
     log_debug(ZONE, "added pkt XEP-0203 delay stamp %s", timestamp);
 }
