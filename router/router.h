@@ -50,6 +50,7 @@
 
 typedef struct router_st    *router_t;
 typedef struct component_st *component_t;
+typedef struct routes_st    *routes_t;
 typedef struct alias_st     *alias_t;
 
 typedef struct acl_s *acl_t;
@@ -180,6 +181,13 @@ struct component_st {
 
     /** timestamps for idle timeouts */
     time_t              last_activity;
+};
+
+struct routes_st
+{
+    char                *name;
+    component_t         *comp;
+    int                 ncomp;
 };
 
 struct alias_st {

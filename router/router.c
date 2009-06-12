@@ -28,15 +28,18 @@ typedef struct broadcast_st {
 } *broadcast_t;
 
 /** broadcast a packet */
-static void _router_broadcast(xht routes, const char *key, void *val, void *arg) {
+static void _router_broadcast(xht hroutes, const char *key, void *val, void *arg) {
+    int i;
     broadcast_t bc = (broadcast_t) arg;
-    component_t comp = (component_t) val;
+    routes_t routes = (routes_t) val;
 
-    /* I don't care about myself or the elderly (!?) */
-    if(comp == bc->src || comp->legacy)
-        return;
+    for(i = 0; i < routes->ncomp; i++) {
+        /* I don't care about myself or the elderly (!?) */
+        if(routes->comp[i] == bc->src || routes->comp[i]->legacy)
+            continue;
 
-    sx_nad_write(comp->s, nad_copy(bc->nad));
+        sx_nad_write(routes->comp[i]->s, nad_copy(bc->nad));
+    }
 }
 
 /** domain advertisement */
@@ -63,14 +66,20 @@ static void _router_advertise(router_t r, char *domain, component_t src, int una
 }
 
 /** tell a component about all the others */
-static void _router_advertise_reverse(xht routes, const char *key, void *val, void *arg) {
-    component_t dest = (component_t) arg, comp = (component_t) val;
-    int ns;
+static void _router_advertise_reverse(xht hroutes, const char *key, void *val, void *arg) {
+    component_t dest = (component_t) arg;
+    routes_t routes = (routes_t) val;
+    int ns, i;
     nad_t nad;
 
+    assert((int) (routes->name != NULL));
+    assert((int) (routes->comp != NULL));
+    assert(routes->ncomp);
+
     /* don't tell me about myself */
-    if(comp == dest)
-        return;
+    for(i = 0; i < routes->ncomp; i++)
+        if(routes->comp[i] == dest)
+            return;
 
     log_debug(ZONE, "informing component about %s", key);
 
@@ -136,8 +145,48 @@ static void _router_process_handshake(component_t comp, nad_t nad) {
     nad_free(nad);
 }
 
+static int _route_add(xht hroutes, const char *name, component_t comp) {
+    routes_t routes;
+
+    routes = xhash_get(hroutes, name);
+    if(routes == NULL) {
+        routes = (routes_t) calloc(1, sizeof(struct routes_st));
+        routes->name = strdup(name);
+    }
+    routes->comp = (component_t *) realloc(routes->comp, sizeof(component_t *) * (routes->ncomp + 1));
+    routes->comp[routes->ncomp] = comp;
+    routes->ncomp++;
+    xhash_put(hroutes, routes->name, (void *) routes);
+
+    return routes->ncomp;
+}
+
+static void _route_remove(xht hroutes, const char *name, component_t comp) {
+    routes_t routes;
+    int i;
+
+    routes = xhash_get(hroutes, name);
+    assert((int) routes);
+    if(routes->ncomp > 1) {
+        for(i = 0; i < routes->ncomp; i++) {
+            if(routes->comp[i] == comp) {
+                if(i != routes->ncomp - 1) {
+                    routes->comp[i] = routes->comp[routes->ncomp - 1];
+                }
+                routes->ncomp--;
+            }
+        }
+    }
+    else {
+        free(routes->name);
+        free(routes->comp);
+        free(routes);
+        xhash_zap(hroutes, name);
+    }
+}
+
 static void _router_process_bind(component_t comp, nad_t nad) {
-    int attr;
+    int attr, n;
     jid_t name;
     alias_t alias;
     char *user, *c;
@@ -158,16 +207,6 @@ static void _router_process_bind(component_t comp, nad_t nad) {
         log_write(comp->r->log, LOG_NOTICE, "[%s, port=%d] tried to bind '%s', but their username (%s) is not permitted to bind other names", comp->ip, comp->port, name->domain, user);
         nad_set_attr(nad, 0, -1, "name", NULL, 0);
         nad_set_attr(nad, 0, -1, "error", "403", 3);
-        sx_nad_write(comp->s, nad);
-        jid_free(name);
-        free(user);
-        return;
-    }
-
-    if(xhash_get(comp->r->routes, name->domain) != NULL) {
-        log_write(comp->r->log, LOG_NOTICE, "[%s, port=%d] tried to bind '%s', but it's already bound", comp->ip, comp->port, name->domain);
-        nad_set_attr(nad, 0, -1, "name", NULL, 0);
-        nad_set_attr(nad, 0, -1, "error", "409", 3);
         sx_nad_write(comp->s, nad);
         jid_free(name);
         free(user);
@@ -230,10 +269,10 @@ static void _router_process_bind(component_t comp, nad_t nad) {
 
     free(user);
 
-    xhash_put(comp->r->routes, pstrdup(xhash_pool(comp->r->routes), name->domain), (void *) comp);
+    n = _route_add(comp->r->routes, name->domain, comp);
     xhash_put(comp->routes, pstrdup(xhash_pool(comp->routes), name->domain), (void *) comp);
 
-    log_write(comp->r->log, LOG_NOTICE, "[%s] online (bound to %s, port %d)", name->domain, comp->ip, comp->port);
+    log_write(comp->r->log, LOG_NOTICE, "[%s]*%d online (bound to %s, port %d)", name->domain, n, comp->ip, comp->port);
 
     nad_set_attr(nad, 0, -1, "name", NULL, 0);
     sx_nad_write(comp->s, nad);
@@ -247,8 +286,8 @@ static void _router_process_bind(component_t comp, nad_t nad) {
     /* bind aliases */
     for(alias = comp->r->aliases; alias != NULL; alias = alias->next) {
         if(strcmp(alias->target, name->domain) == 0) {
-            xhash_put(comp->r->routes, pstrdup(xhash_pool(comp->r->routes), alias->name), (void *) comp);
-            xhash_put(comp->routes, pstrdup(xhash_pool(comp->r->routes), alias->name), (void *) comp);
+            _route_add(comp->r->routes, name->domain, comp);
+            xhash_put(comp->routes, pstrdup(xhash_pool(comp->routes), alias->name), (void *) comp);
             
             log_write(comp->r->log, LOG_NOTICE, "[%s] online (alias of '%s', bound to %s, port %d)", alias->name, name->domain, comp->ip, comp->port);
 
@@ -283,7 +322,7 @@ static void _router_process_unbind(component_t comp, nad_t nad) {
     }
 
     xhash_zap(comp->r->log_sinks, name->domain);
-    xhash_zap(comp->r->routes, name->domain);
+    _route_remove(comp->r->routes, name->domain, comp);
     xhash_zap(comp->routes, name->domain);
 
     if(comp->r->default_route != NULL && strcmp(comp->r->default_route, name->domain) == 0) {
@@ -347,6 +386,7 @@ static void _router_process_route(component_t comp, nad_t nad) {
     struct jid_st sto, sfrom;
     jid_static_buf sto_buf, sfrom_buf;
     jid_t to = NULL, from = NULL;
+    routes_t targets;
     component_t target;
     union xhashv xhv;
 
@@ -387,18 +427,18 @@ static void _router_process_route(component_t comp, nad_t nad) {
         }
 
         /* find a target */
-        target = xhash_get(comp->r->routes, to->domain);
-        if(target == NULL) {
+        targets = xhash_get(comp->r->routes, to->domain);
+        if(targets == NULL) {
             if(comp->r->default_route != NULL && strcmp(from->domain, comp->r->default_route) == 0) {
                 log_debug(ZONE, "%s is unbound, bouncing", from->domain);
                 nad_set_attr(nad, 0, -1, "error", "404", 3);
                 _router_comp_write(comp, nad);
                 return;
             }
-            target = xhash_get(comp->r->routes, comp->r->default_route);
+            targets = xhash_get(comp->r->routes, comp->r->default_route);
         }
 
-        if(target == NULL) {
+        if(targets == NULL) {
             log_debug(ZONE, "%s is unbound, and no default route, bouncing", to->domain);
             nad_set_attr(nad, 0, -1, "error", "404", 3);
             _router_comp_write(comp, nad);
@@ -418,6 +458,14 @@ static void _router_process_route(component_t comp, nad_t nad) {
                 _router_comp_write(comp, nad);
                 return;
             }
+        }
+
+        /* get route candidate */
+        if(targets->ncomp == 1)
+            target = targets->comp[0];
+        else {
+            log_debug(ZONE, "Multiple routes not finished yet!");
+            exit(1);
         }
 
         /* push it out */
@@ -656,7 +704,7 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     }
 
 
-                xhash_put(comp->r->routes, pstrdup(xhash_pool(comp->r->routes), s->req_to), (void *) comp);
+                _route_add(comp->r->routes, s->req_to, comp);
                 xhash_put(comp->routes, pstrdup(xhash_pool(comp->routes), s->req_to), (void *) comp);
 
                 log_write(comp->r->log, LOG_NOTICE, "[%s] online (bound to %s, port %d)", s->req_to, comp->ip, comp->port);
@@ -669,8 +717,8 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 /* bind aliases */
                 for(alias = comp->r->aliases; alias != NULL; alias = alias->next) {
                     if(strcmp(alias->target, s->req_to) == 0) {
-                        xhash_put(comp->r->routes, pstrdup(xhash_pool(comp->r->routes), alias->name), (void *) comp);
-                        xhash_put(comp->routes, pstrdup(xhash_pool(comp->r->routes), alias->name), (void *) comp);
+                        _route_add(comp->r->routes, alias->name, comp);
+                        xhash_put(comp->routes, pstrdup(xhash_pool(comp->routes), alias->name), (void *) comp);
             
                         log_write(comp->r->log, LOG_NOTICE, "[%s] online (alias of '%s', bound to %s, port %d)", alias->name, s->req_to, comp->ip, comp->port);
 
@@ -829,7 +877,7 @@ static void _router_route_unbind_walker(xht routes, const char *key, void *val, 
     component_t comp = (component_t) arg;
 
     xhash_zap(comp->r->log_sinks, key);
-    xhash_zap(comp->r->routes, key);
+    _route_remove(comp->r->routes, key, comp);
     xhash_zap(comp->routes, key);
 
     if(comp->r->default_route != NULL && strcmp(key, comp->r->default_route) == 0) {
