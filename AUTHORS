@@ -24,7 +24,8 @@ The main culprits for this release are:
     - Uber bug fixer. Many new features.
 
   Tomasz Sterna     <xmpp:smoku@xiaoka.com>
-    - Maintenance, bug fixing, merging. Current coordinator of the project.
+    - Maintenance, new features, bug fixing, merging.
+	  Current coordinator of the project.
 
   Adam Strzelecki   <xmpp:ono@jabber.org>
     - Win32 porting, installer and MIO

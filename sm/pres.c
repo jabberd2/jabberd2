@@ -70,7 +70,6 @@ void pres_update(sess_t sess, pkt_t pkt) {
     jid_t scan, next;
     sess_t sscan;
     user_t user;
-    int user_is_local;
     int user_connected = 0;
 
     switch(pkt->type) {
@@ -90,13 +89,6 @@ void pres_update(sess_t sess, pkt_t pkt) {
             do {
                 xhash_iter_get(sess->user->roster, NULL, (void *) &item);
 
-                /* Is the user local ? */
-                user_is_local = (item->jid->node[0] != '\0' && strcmp(pkt->sm->id, item->jid->domain) == 0);
-                if (user_is_local) {
-                  user = xhash_get(pkt->sm->users, jid_user(item->jid));
-                  user_connected = ((user!=NULL) && (user->sessions != NULL));
-                } 
-
                 /* if we're coming available, and we can see them, we need to probe them */
                 if(!sess->available && item->to) {
                     log_debug(ZONE, "probing %s", jid_full(item->jid));
@@ -109,13 +101,8 @@ void pres_update(sess_t sess, pkt_t pkt) {
 
                 /* if they can see us, forward */
                 if(item->from && !jid_search(sess->E, item->jid)) {
-                    /* Shortcut: if the domain of this user's jid is the same as this sm,
-                       and the user has no active sessions, don't send presence update */
-                    if ((!user_is_local) || (user_is_local && user_connected)) {
-                       log_debug(ZONE, "forwarding available to %s", jid_full(item->jid));
-                       pkt_router(pkt_dup(pkt, jid_full(item->jid), jid_full(sess->jid)));
-                    } else 
-                       log_debug(ZONE, "skipping forwarding available to %s - not connected", jid_full(item->jid));
+                    log_debug(ZONE, "forwarding available to %s", jid_full(item->jid));
+                    pkt_router(pkt_dup(pkt, jid_full(item->jid), jid_full(sess->jid)));
                 }
             } while(xhash_iter_next(sess->user->roster));
 
@@ -160,22 +147,11 @@ void pres_update(sess_t sess, pkt_t pkt) {
             do {
                 xhash_iter_get(sess->user->roster, NULL, (void *) &item);
 
-                /* Is the user local ? */
-                user_is_local = (strcmp(pkt->sm->id, item->jid->domain)==0);
-                if (user_is_local) {
-                  user = xhash_get(pkt->sm->users, jid_user(item->jid));
-                  user_connected = ((user!=NULL) && (user->sessions != NULL));
-                } 
-
                 /* forward if they're trusted and they're not E */
                 if(item->from && !jid_search(sess->E, item->jid)) {
 
-                    /* Shortcut: same technique as for presence available above */
-                    if (!user_is_local || (user_is_local && user_connected)) {
-                       log_debug(ZONE, "forwarding unavailable to %s", jid_full(item->jid));
-                       pkt_router(pkt_dup(pkt, jid_full(item->jid), jid_full(sess->jid)));
-                    } else
-                       log_debug(ZONE, "skipping forwarding unavailable to %s - not connected", jid_full(item->jid));
+                    log_debug(ZONE, "forwarding unavailable to %s", jid_full(item->jid));
+                    pkt_router(pkt_dup(pkt, jid_full(item->jid), jid_full(sess->jid)));
                 }
             } while(xhash_iter_next(sess->user->roster));
 
