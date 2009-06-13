@@ -43,6 +43,10 @@ pkt_t pkt_error(pkt_t pkt, int err) {
     pkt_tofrom(pkt);
     pkt->type |= pkt_ERROR;
 
+    /* supplant route destination in case there was none in original packet */
+    if(pkt->to == NULL && pkt->rto != NULL)
+        pkt->to = jid_dup(pkt->rto);
+
     /* all done, error'd and addressed */
     log_debug(ZONE, "processed %d error pkt", err);
 
@@ -59,12 +63,19 @@ pkt_t pkt_tofrom(pkt_t pkt) {
     tmp = pkt->from;
     pkt->from = pkt->to;
     pkt->to = tmp;
+    tmp = pkt->rfrom;
+    pkt->rfrom = pkt->rto;
+    pkt->rto = tmp;
 
     /* update attrs */
     if(pkt->to != NULL)
         nad_set_attr(pkt->nad, 1, -1, "to", jid_full(pkt->to), 0);
     if(pkt->from != NULL)
         nad_set_attr(pkt->nad, 1, -1, "from", jid_full(pkt->from), 0);
+    if(pkt->rto != NULL)
+        nad_set_attr(pkt->nad, 0, -1, "to", jid_full(pkt->rto), 0);
+    if(pkt->rfrom != NULL)
+        nad_set_attr(pkt->nad, 0, -1, "from", jid_full(pkt->rfrom), 0);
 
     return pkt;
 }
@@ -404,7 +415,8 @@ void pkt_router(pkt_t pkt) {
             
             /* remove sm specifics */
             ns = nad_find_namespace(pkt->nad, 1, uri_SESSION, NULL);
-            if(ns >= 0) {
+            /* remove them if there is no session elements in packet */
+            if(ns >= 0 && nad_find_elem(pkt->nad, 0, ns, NULL, 1) < 0) {
                 nad_set_attr(pkt->nad, 1, ns, "c2s", NULL, 0);
                 nad_set_attr(pkt->nad, 1, ns, "sm", NULL, 0);
 
