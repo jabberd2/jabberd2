@@ -107,13 +107,13 @@ char *j_attr(const char** atts, const char *attr)
 
 /** like strchr, but only searches n chars */
 char *j_strnchr(const char *s, int c, int n) {
-	int count;
+    int count;
 
-	for(count = 0; count < n; count++)
-		if(s[count] == (char) c)
-			return &((char *)s)[count];
-	
-	return NULL;
+    for(count = 0; count < n; count++)
+        if(s[count] == (char) c)
+            return &((char *)s)[count];
+    
+    return NULL;
 }
 
 spool spool_new(pool_t p)
@@ -358,6 +358,10 @@ char *strescape(pool_t p, char *buf, int len)
 void shahash_r(const char* str, char hashbuf[41]) {
     unsigned char hashval[20];
     
+    shahash_raw(str, hashval);
+    hex_from_raw(hashval, 20, hashbuf);
+}
+void shahash_raw(const char* str, unsigned char hashval[20]) {
 #ifdef HAVE_SSL
     /* use OpenSSL functions when available */
 #   include <openssl/sha.h>
@@ -365,6 +369,4 @@ void shahash_r(const char* str, char hashbuf[41]) {
 #else
     sha1_hash((unsigned char *)str, strlen(str), hashval);
 #endif
-
-    hex_from_raw(hashval, 20, hashbuf);
 }
