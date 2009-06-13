@@ -60,7 +60,7 @@ nad_t stanza_error(nad_t nad, int elem, int err) {
 
     nad_set_attr(nad, elem, -1, "type", "error", 5);
 
-    elem = nad_insert_elem(nad, elem, NAD_ENS(nad, elem), "error", NULL);
+    elem = nad_insert_elem(nad, elem, 0, "error", NULL);
     if(_stanza_errors[err].code != NULL)
     nad_set_attr(nad, elem, -1, "code", _stanza_errors[err].code, 0);
     if(_stanza_errors[err].type != NULL)
