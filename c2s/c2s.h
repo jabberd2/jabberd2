@@ -78,6 +78,8 @@ struct sess_st {
 
     char                skey[24];
 
+    char                *smcomp; /* sm component servicing this session */
+
     char                *ip;
     int                 port;
 

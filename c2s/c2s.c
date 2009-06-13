@@ -938,7 +938,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             sess = xhash_get(c2s->sessions, skey);
             if(sess == NULL) {
                 /* if we get this, the SM probably thinks the session is still active
-				 * so we need to tell SM to free it up */
+                 * so we need to tell SM to free it up */
                 log_debug(ZONE, "no session for %s", skey);
 
                 /* check if it's a started action; otherwise we could end up in an infinite loop
@@ -1056,7 +1056,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 tres = (bres_t) calloc(1, sizeof(struct bres_st));
                 tres->jid = jid;
                 sprintf(tres->c2s_id, "%d", sess->s->tag);
-                snprintf(tres->sm_id, 41, "%.*s", NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
+                snprintf(tres->sm_id, sizeof(tres->sm_id), "%.*s", NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
 
                 if(sess->resources) {
                     log_debug(ZONE, "expected packet from sm session %s, but got one from %.*s, ending sm session", sess->resources->sm_id, NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
@@ -1074,14 +1074,6 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 jid_free(jid);
                 free(tres);
 
-                return 0;
-            }
-
-            /* it has to have come from the session manager */
-            from = nad_find_attr(nad, 0, -1, "from", NULL);
-            if(sess->s && (!sess->s->req_to || strlen(sess->s->req_to) != NAD_AVAL_L(nad, from) || strncmp(sess->s->req_to, NAD_AVAL(nad, from), NAD_AVAL_L(nad, from))) != 0) {
-                log_debug(ZONE, "packet from '%.*s' for %s, but they're not the sm for this sess", NAD_AVAL_L(nad, from), NAD_AVAL(nad, from), skey);
-                nad_free(nad);
                 return 0;
             }
 
@@ -1211,7 +1203,12 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
                     /* copy the sm id */
                     if(smid >= 0)
-                        snprintf(bres->sm_id, 41, "%.*s", NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
+                        snprintf(bres->sm_id, sizeof(bres->sm_id), "%.*s", NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
+
+                    /* and remember the SM that services us */
+                    from = nad_find_attr(nad, 0, -1, "from", NULL);
+                    sess->smcomp = malloc(NAD_AVAL_L(nad, from) + 1);
+                    snprintf(sess->smcomp, NAD_AVAL_L(nad, from) + 1, "%.*s", NAD_AVAL_L(nad, from), NAD_AVAL(nad, from));
 
                     nad_free(nad);
 

@@ -147,6 +147,9 @@ struct router_st {
 
     /** list of sx_t waiting to be cleaned up */
     jqueue_t            dead;
+
+    /** list of routes_t waiting to be cleaned up */
+    jqueue_t            deadroutes;
 };
 
 /** a single component */
@@ -183,9 +186,17 @@ struct component_st {
     time_t              last_activity;
 };
 
+/** route types */
+typedef enum {
+    route_SINGLE = 0x00,         /**< single component route */
+    route_MULTI_TO = 0x10,       /**< multi component route - route by 'to' */
+    route_MULTI_FROM = 0x11,     /**< multi component route - route by 'from' */
+} route_type_t;
+
 struct routes_st
 {
     char                *name;
+    route_type_t        rtype;
     component_t         *comp;
     int                 ncomp;
 };
@@ -210,6 +221,8 @@ void    user_table_unload(router_t r);
 int     filter_load(router_t r);
 void    filter_unload(router_t r);
 int     filter_packet(router_t r, nad_t nad);
+
+void routes_free(routes_t routes);
 
 /* union for xhash_iter_get to comply with strict-alias rules for gcc3 */
 union xhashv

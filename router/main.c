@@ -387,6 +387,7 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
     r->log_sinks = xhash_new(101);
 
     r->dead = jqueue_new();
+    r->deadroutes = jqueue_new();
 
     r->sx_env = sx_env_new();
 
@@ -440,6 +441,10 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
         /* cleanup dead sx_ts */
         while(jqueue_size(r->dead) > 0)
             sx_free((sx_t) jqueue_pull(r->dead));
+
+        /* cleanup dead routes */
+        while(jqueue_size(r->deadroutes) > 0)
+            routes_free((routes_t) jqueue_pull(r->deadroutes));
 
         /* time checks */
         if(r->check_interval > 0 && time(NULL) >= r->next_check) {

@@ -145,18 +145,28 @@ static void _router_process_handshake(component_t comp, nad_t nad) {
     nad_free(nad);
 }
 
-static int _route_add(xht hroutes, const char *name, component_t comp) {
+void routes_free(routes_t routes) {
+    if(routes->name) free(routes->name);
+    if(routes->comp) free(routes->comp);
+    free(routes);
+}
+
+static int _route_add(xht hroutes, const char *name, component_t comp, route_type_t rtype) {
     routes_t routes;
 
     routes = xhash_get(hroutes, name);
     if(routes == NULL) {
         routes = (routes_t) calloc(1, sizeof(struct routes_st));
         routes->name = strdup(name);
+        routes->rtype = rtype;
     }
     routes->comp = (component_t *) realloc(routes->comp, sizeof(component_t *) * (routes->ncomp + 1));
     routes->comp[routes->ncomp] = comp;
     routes->ncomp++;
     xhash_put(hroutes, routes->name, (void *) routes);
+
+    if(routes->rtype != rtype)
+        log_write(comp->r->log, LOG_ERR, "Mixed route types for '%s' bind request", name);
 
     return routes->ncomp;
 }
@@ -166,7 +176,8 @@ static void _route_remove(xht hroutes, const char *name, component_t comp) {
     int i;
 
     routes = xhash_get(hroutes, name);
-    assert((int) routes);
+    if(routes == NULL) return;
+
     if(routes->ncomp > 1) {
         for(i = 0; i < routes->ncomp; i++) {
             if(routes->comp[i] == comp) {
@@ -178,15 +189,13 @@ static void _route_remove(xht hroutes, const char *name, component_t comp) {
         }
     }
     else {
-        free(routes->name);
-        free(routes->comp);
-        free(routes);
+        jqueue_push(comp->r->deadroutes, (void *) routes, 0);
         xhash_zap(hroutes, name);
     }
 }
 
 static void _router_process_bind(component_t comp, nad_t nad) {
-    int attr, n;
+    int attr, multi, n;
     jid_t name;
     alias_t alias;
     char *user, *c;
@@ -207,6 +216,17 @@ static void _router_process_bind(component_t comp, nad_t nad) {
         log_write(comp->r->log, LOG_NOTICE, "[%s, port=%d] tried to bind '%s', but their username (%s) is not permitted to bind other names", comp->ip, comp->port, name->domain, user);
         nad_set_attr(nad, 0, -1, "name", NULL, 0);
         nad_set_attr(nad, 0, -1, "error", "403", 3);
+        sx_nad_write(comp->s, nad);
+        jid_free(name);
+        free(user);
+        return;
+    }
+
+    multi = nad_find_attr(nad, 0, -1, "multi", NULL);
+    if(xhash_get(comp->r->routes, name->domain) != NULL && multi < 0) {
+        log_write(comp->r->log, LOG_NOTICE, "[%s, port=%d] tried to bind '%s', but it's already bound", comp->ip, comp->port, name->domain);
+        nad_set_attr(nad, 0, -1, "name", NULL, 0);
+        nad_set_attr(nad, 0, -1, "error", "409", 3);
         sx_nad_write(comp->s, nad);
         jid_free(name);
         free(user);
@@ -269,10 +289,13 @@ static void _router_process_bind(component_t comp, nad_t nad) {
 
     free(user);
 
-    n = _route_add(comp->r->routes, name->domain, comp);
+    n = _route_add(comp->r->routes, name->domain, comp, multi<0?route_SINGLE:route_MULTI_TO);
     xhash_put(comp->routes, pstrdup(xhash_pool(comp->routes), name->domain), (void *) comp);
 
-    log_write(comp->r->log, LOG_NOTICE, "[%s]*%d online (bound to %s, port %d)", name->domain, n, comp->ip, comp->port);
+    if(n>1)
+        log_write(comp->r->log, LOG_NOTICE, "[%s]:%d online (bound to %s, port %d)", name->domain, n, comp->ip, comp->port);
+    else
+        log_write(comp->r->log, LOG_NOTICE, "[%s] online (bound to %s, port %d)", name->domain, comp->ip, comp->port);
 
     nad_set_attr(nad, 0, -1, "name", NULL, 0);
     sx_nad_write(comp->s, nad);
@@ -286,7 +309,7 @@ static void _router_process_bind(component_t comp, nad_t nad) {
     /* bind aliases */
     for(alias = comp->r->aliases; alias != NULL; alias = alias->next) {
         if(strcmp(alias->target, name->domain) == 0) {
-            _route_add(comp->r->routes, name->domain, comp);
+            _route_add(comp->r->routes, name->domain, comp, route_MULTI_TO);
             xhash_put(comp->routes, pstrdup(xhash_pool(comp->routes), alias->name), (void *) comp);
             
             log_write(comp->r->log, LOG_NOTICE, "[%s] online (alias of '%s', bound to %s, port %d)", alias->name, name->domain, comp->ip, comp->port);
@@ -337,7 +360,8 @@ static void _router_process_unbind(component_t comp, nad_t nad) {
     sx_nad_write(comp->s, nad);
 
     /* deadvertise name */
-    _router_advertise(comp->r, name->domain, comp, 1);
+    if(xhash_get(comp->r->routes, name->domain) == NULL)
+        _router_advertise(comp->r, name->domain, comp, 1);
 
     jid_free(name);
 }
@@ -383,6 +407,7 @@ static void _router_route_log_sink(xht log_sinks, const char *key, void *val, vo
 
 static void _router_process_route(component_t comp, nad_t nad) {
     int atype, ato, afrom;
+    unsigned int dest;
     struct jid_st sto, sfrom;
     jid_static_buf sto_buf, sfrom_buf;
     jid_t to = NULL, from = NULL;
@@ -461,15 +486,65 @@ static void _router_process_route(component_t comp, nad_t nad) {
         }
 
         /* get route candidate */
-        if(targets->ncomp == 1)
-            target = targets->comp[0];
+        if(targets->ncomp == 1) {
+            dest = 0;
+        }
         else {
-            log_debug(ZONE, "Multiple routes not finished yet!");
-            exit(1);
+            switch(targets->rtype) {
+                case route_MULTI_TO:
+                    ato = nad_find_attr(nad, 1, -1, "to", NULL);
+                    if(ato >= 0) to = jid_reset(&sto, NAD_AVAL(nad, ato), NAD_AVAL_L(nad, ato));
+                    else {
+                        ato = nad_find_attr(nad, 1, -1, "target", NULL);
+                        if(ato >= 0) to = jid_reset(&sto, NAD_AVAL(nad, ato), NAD_AVAL_L(nad, ato));
+                        else {
+                            char *out; int len;
+                            nad_print(nad, 0, &out, &len);
+                            log_write(comp->r->log, LOG_ERR, "Cannot get destination for multiple route: %.*s", len, out);
+                        }
+                    }
+                    break;
+                case route_MULTI_FROM:
+                    ato = nad_find_attr(nad, 1, -1, "from", NULL);
+                    if(ato >= 0) to = jid_reset(&sto, NAD_AVAL(nad, ato), NAD_AVAL_L(nad, ato));
+                    else {
+                        char *out; int len;
+                        nad_print(nad, 0, &out, &len);
+                        log_write(comp->r->log, LOG_ERR, "Cannot get source for multiple route: %.*s", len, out);
+                    }
+                    break;
+                default:
+                    log_write(comp->r->log, LOG_ERR, "Multiple components bound to single component route '%s'", targets->name);
+                    /* simulate no 'to' info in this case */
+            }
+            if(to->node == NULL || strlen(to->node) == 0) {
+                /* no node in destination JID - going random */
+                dest = rand();
+                log_debug(ZONE, "randomized to %u %% %d = %d", dest, targets->ncomp, dest % targets->ncomp);
+            }
+            else {
+                /* use JID hash */
+                unsigned char hashval[20];
+                unsigned int *val;
+                int i;
+                
+                shahash_raw(jid_user(to), hashval);
+                
+                val = (unsigned int *) hashval;
+                dest = *val;
+                for(i=1; i < 20 / (sizeof(unsigned int)/sizeof(unsigned char)); i++, val++) {
+                    dest ^= *val;
+                }
+				dest >>= 2;
+                log_debug(ZONE, "JID %s hashed to %u %% %d = %d", jid_user(to), dest, targets->ncomp, dest % targets->ncomp);
+            }
+            dest = dest % targets->ncomp;
         }
 
+        target = targets->comp[dest];
+
         /* push it out */
-        log_debug(ZONE, "writing route for '%s' to %s, port %d", to->domain, target->ip, target->port);
+        log_debug(ZONE, "writing route for '%s'*%u to %s, port %d", to->domain, dest+1, target->ip, target->port);
 
         _router_comp_write(target, nad);
 
@@ -546,7 +621,7 @@ static void _router_process_throttle(component_t comp, nad_t nad) {
 static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
     component_t comp = (component_t) arg;
     sx_buf_t buf = (sx_buf_t) data;
-    int rlen, len, attr, ns, sns;
+    int rlen, len, attr, ns, sns, n;
     sx_error_t *sxe;
     nad_t nad;
     struct jid_st sto, sfrom;
@@ -704,10 +779,13 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     }
 
 
-                _route_add(comp->r->routes, s->req_to, comp);
+                n = _route_add(comp->r->routes, s->req_to, comp, route_MULTI_FROM);
                 xhash_put(comp->routes, pstrdup(xhash_pool(comp->routes), s->req_to), (void *) comp);
 
-                log_write(comp->r->log, LOG_NOTICE, "[%s] online (bound to %s, port %d)", s->req_to, comp->ip, comp->port);
+                if(n>1)
+                    log_write(comp->r->log, LOG_NOTICE, "[%s]:%d online (bound to %s, port %d)", s->req_to, n, comp->ip, comp->port);
+                else
+                    log_write(comp->r->log, LOG_NOTICE, "[%s] online (bound to %s, port %d)", s->req_to, comp->ip, comp->port);
 
                 /* advertise the name */
                 _router_advertise(comp->r, s->req_to, comp, 0);
@@ -717,7 +795,7 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 /* bind aliases */
                 for(alias = comp->r->aliases; alias != NULL; alias = alias->next) {
                     if(strcmp(alias->target, s->req_to) == 0) {
-                        _route_add(comp->r->routes, alias->name, comp);
+                        _route_add(comp->r->routes, alias->name, comp, route_MULTI_FROM);
                         xhash_put(comp->routes, pstrdup(xhash_pool(comp->routes), alias->name), (void *) comp);
             
                         log_write(comp->r->log, LOG_NOTICE, "[%s] online (alias of '%s', bound to %s, port %d)", alias->name, s->req_to, comp->ip, comp->port);
@@ -889,7 +967,8 @@ static void _router_route_unbind_walker(xht routes, const char *key, void *val, 
     log_write(comp->r->log, LOG_NOTICE, "[%s] offline", key);
 
     /* deadvertise name */
-    _router_advertise(comp->r, (char *) key, comp, 1);
+    if(xhash_get(comp->r->routes, key) == NULL)
+        _router_advertise(comp->r, (char *) key, comp, 1);
 }
 
 int router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg) {
@@ -992,4 +1071,3 @@ int router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *
 
     return 0;
 }
-

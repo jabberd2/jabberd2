@@ -124,6 +124,7 @@ JABBERD2_API char *j_strnchr(const char *s, int c, int n); /* like strchr, but o
 
 /** old convenience function, now in str.c */
 JABBERD2_API void shahash_r(const char* str, char hashbuf[41]);
+JABBERD2_API void shahash_raw(const char* str, unsigned char hashval[20]);
 
 /* --------------------------------------------------------- */
 /*                                                           */
@@ -291,7 +292,7 @@ JABBERD2_API int         rate_check(rate_t rt);
  * helpers for ip addresses
  */
 
-#include "inaddr.h"		/* used in mio as well */
+#include "inaddr.h"        /* used in mio as well */
 
 /*
  * serialisation helper functions
