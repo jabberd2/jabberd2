@@ -209,7 +209,7 @@ int nad_find_elem(nad_t nad, int elem, int ns, const char *name, int depth)
     _nad_ptr_check(__func__, nad);
 
     /* make sure there are valid args */
-    if(elem >= nad->ecur || name == NULL) return -1;
+    if(elem >= nad->ecur) return -1;
 
     /* set up args for searching */
     depth = nad->elems[elem].depth + depth;
@@ -346,12 +346,12 @@ int nad_find_elem_path(nad_t nad, int elem, int ns, const char *name) {
 
         for(elem = nad_find_elem(nad, elem, ns, str, 1); ; elem = nad_find_elem(nad, elem, ns, str, 0)) {
             if(elem < 0) break;
-	    if(strcmp(qmark, "xmlns") == 0) {
-	        if(nad_find_namespace(nad, elem, equals, NULL) >= 0) break;
+        if(strcmp(qmark, "xmlns") == 0) {
+            if(nad_find_namespace(nad, elem, equals, NULL) >= 0) break;
             }
-	    else {
-	        if(nad_find_attr(nad, elem, ns, qmark, equals) >= 0) break;
-	    }
+        else {
+            if(nad_find_attr(nad, elem, ns, qmark, equals) >= 0) break;
+        }
         }
 
         free(str);
@@ -364,7 +364,7 @@ int nad_find_elem_path(nad_t nad, int elem, int ns, const char *name) {
 
     for(elem = nad_find_elem(nad, elem, ns, str, 1); ; elem = nad_find_elem(nad, elem, ns, str, 0)) {
         if(elem < 0) break;
-	if(nad_find_elem_path(nad, elem, ns, slash) >= 0) break;
+    if(nad_find_elem_path(nad, elem, ns, slash) >= 0) break;
     }
 
     free(str);
