@@ -61,7 +61,7 @@ static mod_ret_t _session_in_router(mod_instance_t mi, pkt_t pkt) {
         return mod_PASS;
 
     /* and if it is not for a serviced domain */
-    if(xhash_get(sm->hosts, pkt->rto->domain) == NULL)
+    if(pkt->to != NULL && xhash_get(sm->hosts, pkt->to->domain) == NULL)
         return mod_PASS;
 
     /* don't bother if its a failure */
@@ -117,8 +117,13 @@ static mod_ret_t _session_in_router(mod_instance_t mi, pkt_t pkt) {
             /* add our id */
             nad_set_attr(pkt->nad, 1, ns, "sm", sess->sm_id, 0);
 
-            /* inform c2s */
+            /* mark that it started OK */
             nad_set_attr(pkt->nad, 1, -1, "action", "started", 7);
+
+			/* set this SM name */
+			nad_set_attr(pkt->nad, 0, -1, "to", sm->id, 0);
+
+			/* inform c2s */
             sx_nad_write(sm->router, stanza_tofrom(pkt->nad, 0));
 
             pkt->nad = NULL;
