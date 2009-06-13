@@ -345,13 +345,13 @@ static mod_ret_t _disco_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     pkt_t result;
     int node, ns;
     
-    /* check whether the requested domain is serviced here */
-    if(xhash_get(mod->mm->sm->hosts, pkt->to->domain) == NULL)
-        return -stanza_err_ITEM_NOT_FOUND;
-
     /* disco info results go to a seperate function */
     if(pkt->type == pkt_IQ_RESULT && pkt->ns == ns_DISCO_INFO)
         return _disco_pkt_sm_populate(mi, pkt);
+
+    /* check whether the requested domain is serviced here */
+    if(xhash_get(mod->mm->sm->hosts, pkt->to->domain) == NULL)
+        return -stanza_err_ITEM_NOT_FOUND;
 
     /* we want disco or agents gets */
     if(pkt->type != pkt_IQ || !(pkt->ns == ns_DISCO_INFO || pkt->ns == ns_DISCO_ITEMS || pkt->ns == ns_AGENTS))
