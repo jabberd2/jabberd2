@@ -1,5 +1,5 @@
 sysconf_DATA = c2s.xml.dist router.xml.dist s2s.xml.dist sm.xml.dist jabberd.cfg.dist router-users.xml.dist router-filter.xml.dist
-EXTRA_DIST = c2s.xml.dist.in router.xml.dist.in s2s.xml.dist.in sm.xml.dist.in jabberd.cfg.dist.in router-users.xml.dist.in router-filter.xml.dist.in
+EXTRA_DIST = $(sysconf_DATA:%.dist=%.dist.in)
 
 SUBDIRS = templates
 
@@ -12,7 +12,7 @@ edit = sed \
 	-e 's,@libdir\@,$(libdir),g' \
 	-e 's,@pkglibdir\@,$(pkglibdir),g'
 
-$(sysconf_DATA):
+$(sysconf_DATA): $(sysconf_DATA:%.dist=%.dist.in)
 	@echo "generating $@ from $@.in"; \
     edit='$(edit)'; \
     list='$(jabberd_bin)'; for p in $$list; do \
