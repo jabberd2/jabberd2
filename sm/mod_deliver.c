@@ -48,6 +48,11 @@ static mod_ret_t _deliver_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)
             return mod_HANDLED;
         }
 
+        /* iq packets without to should have been already handled by modules */
+        if(pkt->type & pkt_IQ) {
+            return -stanza_err_FEATURE_NOT_IMPLEMENTED;
+        }
+
         /* supplant user jid as 'to' */
         pkt->to = jid_dup(sess->jid);
         nad_set_attr(pkt->nad, 1, -1, "to", jid_full(pkt->to), 0);
