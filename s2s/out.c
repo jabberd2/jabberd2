@@ -1470,7 +1470,12 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                          strstr(sxe->specific, "not-authorized") ||   /* they do not want us there */
                          strstr(sxe->specific, "see-other-host") ||   /* we do not support redirections yet */
                          strstr(sxe->specific, "system-shutdown") ||  /* they are going down */
-                         strstr(sxe->specific, "unsupported-version") /* they do not support our stream version */
+                         strstr(sxe->specific, "policy-violation") || /* they do not want us there */
+                         strstr(sxe->specific, "remote-connection-failed") ||  /* the required remote entity is gone */
+                         strstr(sxe->specific, "unsupported-encoding") ||      /* they do not like our encoding */
+                         strstr(sxe->specific, "undefined-condition") ||       /* something bad happend */
+                         strstr(sxe->specific, "internal-server-error") ||     /* that server is broken */
+                         strstr(sxe->specific, "unsupported-version")          /* they do not support our stream version */
                         )))
             {
                 dnsres_t bad;
