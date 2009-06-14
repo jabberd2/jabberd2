@@ -253,11 +253,19 @@ int s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
             pkt->nad = nad;
 
-            attr = nad_find_attr(nad, 0, -1, "from", NULL);
-            pkt->from = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr));
+            if((attr = nad_find_attr(pkt->nad, 1, -1, "from", NULL)) >= 0 && NAD_AVAL_L(pkt->nad, attr) > 0)
+                pkt->from = jid_new(NAD_AVAL(pkt->nad, attr), NAD_AVAL_L(pkt->nad, attr));
+            else {
+                attr = nad_find_attr(nad, 0, -1, "from", NULL);
+                pkt->from = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr));
+            }
 
-            attr = nad_find_attr(nad, 0, -1, "to", NULL);
-            pkt->to = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr));
+            if((attr = nad_find_attr(pkt->nad, 1, -1, "to", NULL)) >= 0 && NAD_AVAL_L(pkt->nad, attr) > 0)
+                pkt->to = jid_new(NAD_AVAL(pkt->nad, attr), NAD_AVAL_L(pkt->nad, attr));
+            else {
+                attr = nad_find_attr(nad, 0, -1, "to", NULL);
+                pkt->to = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr));
+            }
 
             /* change the packet so it looks like it came to us, so the router won't reject it if we bounce it later */
             nad_set_attr(nad, 0, -1, "to", s2s->id, 0);
