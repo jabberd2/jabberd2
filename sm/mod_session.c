@@ -234,7 +234,7 @@ static mod_ret_t _session_in_router(mod_instance_t mi, pkt_t pkt) {
 
     /* otherwise, its a normal packet for the session */
 
-#ifdef ---ENABLE_SUPERSEDED /* FIXME XXX TODO clients are not yet ready for this */
+#ifdef ___ENABLE_SUPERSEDED /* FIXME XXX TODO clients are not yet ready for this */
         /* check for RFC3920 session request *
          * with RFC3920bis it is unneeded *
          * session is activated by bind, so we just return back result */
