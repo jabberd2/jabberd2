@@ -600,19 +600,19 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
 
 #ifdef HAVE_WINSOCK2_H
 /* get winsock running */
-	{
-		WORD wVersionRequested;
-		WSADATA wsaData;
-		int err;
-		
-		wVersionRequested = MAKEWORD( 2, 2 );
-		
-		err = WSAStartup( wVersionRequested, &wsaData );
-		if ( err != 0 ) {
+    {
+        WORD wVersionRequested;
+        WSADATA wsaData;
+        int err;
+        
+        wVersionRequested = MAKEWORD( 2, 2 );
+        
+        err = WSAStartup( wVersionRequested, &wsaData );
+        if ( err != 0 ) {
             /* !!! tell user that we couldn't find a usable winsock dll */
-			return 0;
-		}
-	}
+            return 0;
+        }
+    }
 #endif
 
     jabber_signal(SIGINT, _s2s_signal);
@@ -772,7 +772,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
         }
 
         /* this has to be read unconditionally - we could receive replies to queries we cancelled */
-      	mio_read(s2s->mio, s2s->udns_mio_fd);
+          mio_read(s2s->mio, s2s->udns_mio_fd);
             
         /* cleanup dead sx_ts */
         while(jqueue_size(s2s->dead) > 0)
@@ -839,15 +839,19 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
         if(xhash_iter_first(s2s->out_host))
             do {
                 xhash_iter_get(s2s->out_host, NULL, xhv.val);
-                sx_error(conn->s, stream_err_SYSTEM_SHUTDOWN, "s2s shutdown");
-                sx_close(conn->s);
+                if(conn) {
+                    sx_error(conn->s, stream_err_SYSTEM_SHUTDOWN, "s2s shutdown");
+                    sx_close(conn->s);
+                }
             } while(xhash_count(s2s->out_host));
     } else {
         if(xhash_iter_first(s2s->out_dest))
             do {
                 xhash_iter_get(s2s->out_dest, NULL, xhv.val);
-                sx_error(conn->s, stream_err_SYSTEM_SHUTDOWN, "s2s shutdown");
-                sx_close(conn->s);
+                if(conn) {
+                    sx_error(conn->s, stream_err_SYSTEM_SHUTDOWN, "s2s shutdown");
+                    sx_close(conn->s);
+                }
             } while(xhash_count(s2s->out_dest));
     }
 
