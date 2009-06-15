@@ -565,7 +565,7 @@ static void _in_packet(conn_t in, nad_t nad) {
     nad->elems[0].my_ns = nad->elems[0].ns;
 
     /* wrap up the packet */
-    ns = nad_add_namespace(nad, uri_COMPONENT, "comp");
+    ns = nad_add_namespace(nad, uri_COMPONENT, NULL);
 
     nad_wrap_elem(nad, 0, ns, "route");
 

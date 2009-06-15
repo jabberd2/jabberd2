@@ -873,7 +873,7 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 nad->elems[0].my_ns = ns;
 
                 /* wrap up the packet */
-                ns = nad_add_namespace(nad, uri_COMPONENT, "comp");
+                ns = nad_add_namespace(nad, uri_COMPONENT, NULL);
 
                 nad_wrap_elem(nad, 0, ns, "route");
 
