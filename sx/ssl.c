@@ -247,11 +247,13 @@ static int _sx_ssl_handshake(sx_t s, _sx_ssl_conn_t sc) {
                 errstring = ERR_error_string(ERR_get_error(), NULL);
                 _sx_debug(ZONE, "openssl error: %s", errstring);
 
-                /* throw an error */
-                _sx_gen_error(sxe, SX_ERR_SSL, "SSL handshake error", errstring);
-                _sx_event(s, event_ERROR, (void *) &sxe);
+                /* do not throw an error if in wrapper mode and pre-stream */
+                if(!(s->state < state_STREAM && s->flags & SX_SSL_WRAPPER)) {
+                    _sx_gen_error(sxe, SX_ERR_SSL, "SSL handshake error", errstring);
+                    _sx_event(s, event_ERROR, (void *) &sxe);
+                    sx_error(s, stream_err_UNDEFINED_CONDITION, errstring);
+                }
 
-                sx_error(s, stream_err_UNDEFINED_CONDITION, errstring);
                 sx_close(s);
 
                 /* !!! drop queue */
@@ -328,11 +330,13 @@ static int _sx_ssl_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
                 errstring = ERR_error_string(ERR_get_error(), NULL);
                 _sx_debug(ZONE, "openssl error: %s", errstring);
 
-                /* throw an error */
-                _sx_gen_error(sxe, SX_ERR_SSL, "SSL handshake error", errstring);
-                _sx_event(s, event_ERROR, (void *) &sxe);
+                /* do not throw an error if in wrapper mode and pre-stream */
+                if(!(s->state < state_STREAM && s->flags & SX_SSL_WRAPPER)) {
+                    _sx_gen_error(sxe, SX_ERR_SSL, "SSL handshake error", errstring);
+                    _sx_event(s, event_ERROR, (void *) &sxe);
+                    sx_error(s, stream_err_UNDEFINED_CONDITION, errstring);
+                }
 
-                sx_error(s, stream_err_UNDEFINED_CONDITION, errstring);
                 sx_close(s);
 
                 /* !!! drop queue */
@@ -461,11 +465,13 @@ static int _sx_ssl_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
                 errstring = ERR_error_string(ERR_get_error(), NULL);
                 _sx_debug(ZONE, "openssl error: %s", errstring);
 
-                /* throw an error */
-                _sx_gen_error(sxe, SX_ERR_SSL, "SSL handshake error", errstring);
-                _sx_event(s, event_ERROR, (void *) &sxe);
+                /* do not throw an error if in wrapper mode and pre-stream */
+                if(!(s->state < state_STREAM && s->flags & SX_SSL_WRAPPER)) {
+                    _sx_gen_error(sxe, SX_ERR_SSL, "SSL handshake error", errstring);
+                    _sx_event(s, event_ERROR, (void *) &sxe);
+                    sx_error(s, stream_err_UNDEFINED_CONDITION, errstring);
+                }
 
-                sx_error(s, stream_err_UNDEFINED_CONDITION, errstring);
                 sx_close(s);
 
                 /* !!! drop queue */
