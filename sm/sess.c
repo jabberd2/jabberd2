@@ -107,6 +107,12 @@ sess_t sess_start(sm_t sm, jid_t jid) {
 
     log_debug(ZONE, "session requested for %s", jid_full(jid));
 
+    /* check whether it is to serviced domain */
+    if(xhash_get(sm->hosts, jid->domain) == NULL) {
+        log_write(sm->log, LOG_ERR, "request to start session in non-serviced domain: jid=%s", jid_full(jid));
+        return NULL;
+    }
+
     /* get user data for this guy */
     user = user_load(sm, jid);
 

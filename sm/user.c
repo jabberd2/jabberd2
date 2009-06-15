@@ -90,6 +90,13 @@ int user_create(sm_t sm, jid_t jid) {
 
     log_debug(ZONE, "create user request for %s", jid_user(jid));
 
+    /* check whether it is to serviced domain */
+    if(xhash_get(sm->hosts, jid->domain) == NULL) {
+        log_write(sm->log, LOG_ERR, "request to create user for non-serviced domain: jid=%s", jid_user(jid));
+        log_debug(ZONE, "no such domain, not creating");
+        return 1;
+    }
+
     user = user_load(sm, jid);
     if(user != NULL) {
         log_write(sm->log, LOG_ERR, "request to create already-active user: jid=%s", jid_user(jid));

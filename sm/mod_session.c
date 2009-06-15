@@ -60,10 +60,6 @@ static mod_ret_t _session_in_router(mod_instance_t mi, pkt_t pkt) {
     if(pkt->nad->ecur <= 1 || (ns = nad_find_namespace(pkt->nad, 1, uri_SESSION, NULL)) < 0)
         return mod_PASS;
 
-    /* and if it is not for a serviced domain */
-    if(pkt->to != NULL && xhash_get(sm->hosts, pkt->to->domain) == NULL)
-        return mod_PASS;
-
     /* don't bother if its a failure */
     if(pkt->type & pkt_SESS_FAILED) {
         /* !!! check failed=1, handle */
