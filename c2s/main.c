@@ -712,6 +712,10 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     sx_env_plugin(c2s->sx_env, bind_init, c2s);
 
     c2s->mio = mio_new(c2s->io_max_fds);
+    if(c2s->mio == NULL) {
+        log_write(c2s->log, LOG_ERR, "failed to create MIO, aborting");
+        exit(1);
+    }
 
     /* hosts mapping */
     c2s->hosts = xhash_new(1021);
