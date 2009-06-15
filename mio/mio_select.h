@@ -66,15 +66,18 @@
 #define MIO_INIT_VARS(m) \
     do {                                                                \
         if (maxfd > FD_SETSIZE)                                         \
+        {                                                               \
+            mio_debug(ZONE,"wanted MIO larger than %d file descriptors", FD_SETSIZE); \
+            free(m);                                                    \
             return NULL;                                                \
+        }                                                               \
                                                                         \
-        if((MIO(m)->fds = malloc(sizeof(struct mio_priv_fd_st) * maxfd)) == NULL) \
+        if((MIO(m)->fds = calloc(1, sizeof(struct mio_priv_fd_st) * maxfd)) == NULL) \
         {                                                               \
             mio_debug(ZONE,"internal error creating new mio");          \
             free(m);                                                    \
             return NULL;                                                \
         }                                                               \
-        memset(MIO(m)->fds, 0, sizeof(struct mio_priv_fd_st) * maxfd);  \
                                                                         \
         _mio_fds_init(MIO(m));                                          \
         FD_ZERO(&MIO(m)->rfds_in);                                      \
