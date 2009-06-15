@@ -251,7 +251,7 @@ static int _sx_ssl_handshake(sx_t s, _sx_ssl_conn_t sc) {
                 _sx_gen_error(sxe, SX_ERR_SSL, "SSL handshake error", errstring);
                 _sx_event(s, event_ERROR, (void *) &sxe);
 
-                sx_error(s, stream_err_INTERNAL_SERVER_ERROR, errstring);
+                sx_error(s, stream_err_UNDEFINED_CONDITION, errstring);
                 sx_close(s);
 
                 /* !!! drop queue */
@@ -332,7 +332,7 @@ static int _sx_ssl_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
                 _sx_gen_error(sxe, SX_ERR_SSL, "SSL handshake error", errstring);
                 _sx_event(s, event_ERROR, (void *) &sxe);
 
-                sx_error(s, stream_err_INTERNAL_SERVER_ERROR, errstring);
+                sx_error(s, stream_err_UNDEFINED_CONDITION, errstring);
                 sx_close(s);
 
                 /* !!! drop queue */
@@ -465,7 +465,7 @@ static int _sx_ssl_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
                 _sx_gen_error(sxe, SX_ERR_SSL, "SSL handshake error", errstring);
                 _sx_event(s, event_ERROR, (void *) &sxe);
 
-                sx_error(s, stream_err_INTERNAL_SERVER_ERROR, errstring);
+                sx_error(s, stream_err_UNDEFINED_CONDITION, errstring);
                 sx_close(s);
 
                 /* !!! drop queue */
