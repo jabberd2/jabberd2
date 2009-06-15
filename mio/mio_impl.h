@@ -234,7 +234,7 @@ static void _mio_run(mio_t m, int timeout)
     MIO_ITERATE_RESULTS(m, retval, iter)
     {
         mio_fd_t fd = MIO_ITERATOR_FD(m,iter);
-		if (fd == NULL) continue;
+        if (fd == NULL) continue;
 
         /* skip already dead slots */ 
         if(FD(m,fd)->type == type_CLOSED) continue; 
@@ -485,7 +485,10 @@ static mio_t _mio_new(int maxfd)
 #endif
 
     /* allocate and zero out main memory */
-    if((m = malloc(sizeof(struct mio_priv_st))) == NULL) return NULL;
+    if((m = calloc(1, sizeof(struct mio_priv_st))) == NULL) {
+        fprintf(stderr,"Cannot allocate MIO memory! Exiting.\n");
+        exit(EXIT_FAILURE);
+    }
 
     /* set up our internal vars */
     *m = &mio_impl;
