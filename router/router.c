@@ -764,16 +764,9 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
             /* make a route for legacy components */
             if(comp->legacy) {
-                /* make sure the name is available */
-                if(xhash_get(comp->r->routes, s->req_to) != NULL) {
-                    sx_error(s, stream_err_HOST_UNKNOWN, "requested name is already in use");   /* !!! correct error? */
-                    sx_close(s);
-                    return 0;
-                }
-
                 for(alias = comp->r->aliases; alias != NULL; alias = alias->next)
                     if(strcmp(alias->name, s->req_to) == 0) {
-                        sx_error(s, stream_err_HOST_UNKNOWN, "requested name is already in use");   /* !!! correct error? */
+                        sx_error(s, stream_err_HOST_UNKNOWN, "requested name is aliased");   /* !!! correct error? */
                         sx_close(s);
                         return 0;
                     }
