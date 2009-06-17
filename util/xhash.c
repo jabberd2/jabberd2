@@ -100,6 +100,12 @@ xht xhash_new(int prime)
 
 /*    log_debug(ZONE,"creating new hash table of size %d",prime); */
 
+    /**
+     * NOTE:
+     * all xhash's memory should be allocated from the pool by using pmalloco()/pmallocx(),
+     * so that the xhash_free() can just call pool_free() simply.
+     */
+    
     p = pool_heap(sizeof(_xhn)*prime + sizeof(_xht));
     xnew = pmalloco(p, sizeof(_xht));
     xnew->prime = prime;
@@ -112,8 +118,7 @@ xht xhash_new(int prime)
     xnew->iter_node = NULL;
 
 #ifdef XHASH_DEBUG
-    xnew->stat = malloc( sizeof(int)*prime );
-    memset( xnew->stat, 0 , sizeof(int)*prime );
+    xnew->stat = pmalloco( sizeof(int)*prime );
 #else
     xnew->stat = NULL;
 #endif
@@ -239,13 +244,8 @@ void xhash_free(xht h)
 {
 /*    log_debug(ZONE,"hash free %X",h); */
 
-    if( !h ) return;
-
-#ifdef XHASH_DEBUG
-    free( h->stat );
-#endif
-    
-    pool_free(h->p);
+    /// want to do more things? Please see the note in xhash_new() first.
+    if(h) pool_free(h->p);
 
 }
 
