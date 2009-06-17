@@ -118,7 +118,7 @@ xht xhash_new(int prime)
     xnew->iter_node = NULL;
 
 #ifdef XHASH_DEBUG
-    xnew->stat = pmalloco( sizeof(int)*prime );
+    xnew->stat = pmalloco(p, sizeof(int)*prime );
 #else
     xnew->stat = NULL;
 #endif
