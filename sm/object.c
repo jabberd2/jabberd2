@@ -90,7 +90,7 @@ os_object_t os_object_new(os_t os) {
     o->hash = xhash_new(51);
 
     /* make sure that the hash gets freed when the os pool gets freed */
-    pool_cleanup(os->p, (pool_cleanup_t) pool_free, (void *) xhash_pool(o->hash));
+    pool_cleanup(os->p, (pool_cleaner) xhash_free, (void *)(o->hash) );
 
     /* insert at the end, we have to preserve order */
     o->prev = os->tail;
