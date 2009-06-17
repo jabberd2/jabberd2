@@ -943,5 +943,6 @@ AC_CONFIG_FILES([Doxyfile
                  router/Makefile
                  s2s/Makefile
                  sm/Makefile
-                 tools/Makefile])
+                 tools/Makefile
+                 tests/Makefile])
 AC_OUTPUT
