@@ -498,7 +498,7 @@ static void _in_verify(conn_t in, nad_t nad) {
 
 /** they're trying to send us something */
 static void _in_packet(conn_t in, nad_t nad) {
-    int attr, ns, sns;
+    int elem, attr, ns, sns;
     jid_t from, to;
     char *rkey;
     
@@ -543,7 +543,7 @@ static void _in_packet(conn_t in, nad_t nad) {
         if(nad->elems[0].ns == ns)
             nad->elems[0].ns = nad->nss[nad->elems[0].ns].next;
         else {
-            for(sns = nad->elems[0].ns; sns >= 0 && nad->nss[sns].next != ns; sns = nad->nss[sns].next);
+            for(sns = nad->elems[0].ns; sns >= 0 && nad->nss[sns].next == ns; sns = nad->nss[sns].next);
             nad->nss[sns].next = nad->nss[nad->nss[sns].next].next;
         }
     }
@@ -557,9 +557,12 @@ static void _in_packet(conn_t in, nad_t nad) {
      */
     if(ns >= 0 || nad->elems[0].ns < 0) {
         ns = nad_add_namespace(nad, uri_CLIENT, NULL);
-        nad->scope = -1;
+        for(elem = 0; elem < nad->ecur; elem++)
+            if(nad->elems[elem].ns == ns)
+                nad->elems[elem].ns = nad->nss[nad->elems[elem].ns].next;
         nad->nss[ns].next = nad->elems[0].ns;
         nad->elems[0].ns = ns;
+        nad->scope = -1;
     }
 
     nad->elems[0].my_ns = nad->elems[0].ns;
