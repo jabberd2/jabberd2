@@ -76,7 +76,7 @@ union xhashv
 };
 
 /** put val into arg */
-static void _disco_unify_walker(xht list, const char *key, void *val, void *arg) {
+static void _disco_unify_walker(const char *key, void *val, void *arg) {
     service_t svc = (service_t) val;
     xht dest = (xht) arg;
 
@@ -553,7 +553,7 @@ static mod_ret_t _disco_pkt_router(mod_instance_t mi, pkt_t pkt)
     return mod_HANDLED;
 }
 
-static void _disco_free_walker(xht h, const char *key, void *val, void *arg) {
+static void _disco_free_walker(const char *key, void *val, void *arg) {
     service_t svc = (service_t) val;
 
     jid_free(svc->jid);

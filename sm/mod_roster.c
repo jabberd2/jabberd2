@@ -32,7 +32,7 @@ typedef struct _mod_roster_st {
 } *mod_roster_t;
 
 /** free a single roster item */
-static void _roster_free_walker(xht roster, const char *key, void *val, void *arg)
+static void _roster_free_walker(const char *key, void *val, void *arg)
 {
     item_t item = (item_t) val;
     int i;
@@ -258,7 +258,7 @@ static mod_ret_t _roster_in_sess_s10n(mod_instance_t mi, sess_t sess, pkt_t pkt)
 }
 
 /** build the iq:roster packet from the hash */
-static void _roster_get_walker(xht roster, const char *id, void *val, void *arg)
+static void _roster_get_walker(const char *id, void *val, void *arg)
 {
     item_t item = (item_t) val;
     pkt_t pkt = (pkt_t) arg;
@@ -310,7 +310,7 @@ static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi
 
             /* kill it */
             xhash_zap(sess->user->roster, jid_full(jid));
-            _roster_free_walker(NULL, (const char *) jid_full(jid), (void *) item, NULL);
+            _roster_free_walker((const char *) jid_full(jid), (void *) item, NULL);
 
             snprintf(filter, 4096, "(jid=%i:%s)", strlen(jid_full(jid)), jid_full(jid));
             storage_delete(sess->user->sm->st, "roster-items", jid_user(sess->jid), filter);
@@ -690,7 +690,7 @@ static int _roster_user_load(mod_instance_t mi, user_t user) {
                         if(olditem) {
                             log_debug(ZONE, "removing old %s roster entry", jid_full(item->jid));
                             xhash_zap(user->roster, jid_full(item->jid));
-                            _roster_free_walker(user->roster, jid_full(item->jid), (void *) olditem, NULL);
+                            _roster_free_walker(jid_full(item->jid), (void *) olditem, NULL);
                         }
 
                         /* its good */

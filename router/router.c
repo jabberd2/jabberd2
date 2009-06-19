@@ -28,7 +28,7 @@ typedef struct broadcast_st {
 } *broadcast_t;
 
 /** broadcast a packet */
-static void _router_broadcast(xht hroutes, const char *key, void *val, void *arg) {
+static void _router_broadcast(const char *key, void *val, void *arg) {
     int i;
     broadcast_t bc = (broadcast_t) arg;
     routes_t routes = (routes_t) val;
@@ -66,7 +66,7 @@ static void _router_advertise(router_t r, char *domain, component_t src, int una
 }
 
 /** tell a component about all the others */
-static void _router_advertise_reverse(xht hroutes, const char *key, void *val, void *arg) {
+static void _router_advertise_reverse(const char *key, void *val, void *arg) {
     component_t dest = (component_t) arg;
     routes_t routes = (routes_t) val;
     int ns, i;
@@ -394,7 +394,7 @@ static void _router_comp_write(component_t comp, nad_t nad) {
     sx_nad_write_elem(comp->s, nad, 1);
 }
 
-static void _router_route_log_sink(xht log_sinks, const char *key, void *val, void *arg) {
+static void _router_route_log_sink(const char *key, void *val, void *arg) {
     component_t comp = (component_t) val;
     nad_t nad = (nad_t) arg;
 
@@ -944,7 +944,7 @@ static int _router_accept_check(router_t r, mio_fd_t fd, char *ip) {
     return 0;
 }
 
-static void _router_route_unbind_walker(xht routes, const char *key, void *val, void *arg) {
+static void _router_route_unbind_walker(const char *key, void *val, void *arg) {
     component_t comp = (component_t) arg;
 
     xhash_zap(comp->r->log_sinks, key);

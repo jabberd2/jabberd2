@@ -56,13 +56,13 @@ typedef struct _roster_publish_st {
 
 #ifndef NO_SM_CACHE
 /* free single item of active cache */
-static void _roster_publish_free_active_cache_walker(xht cache, const char *key, void *val, void *arg) {
+static void _roster_publish_free_active_cache_walker(const char *key, void *val, void *arg) {
     _roster_publish_active_cache_t item = (_roster_publish_active_cache_t)val;
     free(item->jid_user);
     free(item);
 }
 /* free single item of group cache */
-static void _roster_publish_free_group_cache_walker(xht cache, const char *key, void *val, void *arg) {
+static void _roster_publish_free_group_cache_walker(const char *key, void *val, void *arg) {
     _roster_publish_group_cache_t item = (_roster_publish_group_cache_t)val;
     free(item->groupid);
     free(item->groupname);

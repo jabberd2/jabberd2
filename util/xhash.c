@@ -280,7 +280,7 @@ void xhash_walk(xht h, xhash_walker w, void *arg)
     for(i = 0; i < h->prime; i++)
         for(n = &h->zen[i]; n != NULL; n = n->next)
             if(n->key != NULL && n->val != NULL)
-                (*w)(h, n->key, n->val, arg);
+                (*w)(n->key, n->val, arg);
 }
 
 /** return the dirty flag (and reset) */
