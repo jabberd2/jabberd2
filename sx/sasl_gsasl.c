@@ -210,7 +210,8 @@ static nad_t _sx_sasl_abort(sx_t s) {
 
 static int _sx_sasl_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     sx_error_t sxe;
-    int len, ret;
+    size_t len;
+    int ret;
     char *out;
     Gsasl_session *sd = (Gsasl_session *) s->plugin_data[p->index];
 
@@ -237,7 +238,8 @@ static int _sx_sasl_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
 
 static int _sx_sasl_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     sx_error_t sxe;
-    int len, ret;
+    size_t len;
+    int ret;
     char *out;
     Gsasl_session *sd = (Gsasl_session *) s->plugin_data[p->index];
 
