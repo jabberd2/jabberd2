@@ -921,8 +921,8 @@ if test "x-$want_superseded" = "x-yes" ; then
     AC_DEFINE(ENABLE_SUPERSEDED,1,[Define to 1 if you want to compile-in superseded XEP handlers.])
 fi
 
-AC_ARG_ENABLE(experimental, AC_HELP_STRING([--enable-experimental], [enable experimental XEP support (no)]),
-              want_experimental=$enableval, want_experimental=no)
+AC_ARG_ENABLE(experimental, AC_HELP_STRING([--enable-experimental], [enable experimental XEP support (yes)]),
+              want_experimental=$enableval, want_experimental=yes)
 if test "x-$want_experimental" = "x-yes" ; then
     AC_DEFINE(ENABLE_EXPERIMENTAL,1,[Define to 1 if you want to compile-in experimental XEP handlers.])
 fi
