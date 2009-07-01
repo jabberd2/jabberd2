@@ -29,7 +29,7 @@
  * !!! this blocks for every auth.
  */
 
-#define _XOPEN_SOURCE	// need this to get crypt()
+#define _XOPEN_SOURCE 500	// need this to get crypt()
 #include "c2s.h"
 
 #ifdef STORAGE_LDAP

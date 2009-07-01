@@ -1,4 +1,4 @@
-EXTRA_DIST = Doxyfile.in README.win32 README.protocol contrib UPGRADE
+EXTRA_DIST = Doxyfile.in README.win32 README.protocol contrib UPGRADE tests/Makefile.in
 
 SUBDIRS = etc man
 if USE_LIBSUBST
