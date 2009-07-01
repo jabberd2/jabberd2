@@ -244,8 +244,8 @@ int s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                         }
                 }
                 stanza_tofrom(stanza_tofrom(stanza_error(nad, 1, elem), 1), 0);
-                elem = nad_find_attr(nad, 1, -1, "to", NULL);
-                nad_set_attr(nad, 0, -1, "to",  NAD_AVAL(nad, elem), NAD_AVAL_L(nad, elem));
+                if( (elem = nad_find_attr(nad, 1, -1, "to", NULL)) >= 0 )
+                    nad_set_attr(nad, 0, -1, "to",  NAD_AVAL(nad, elem), NAD_AVAL_L(nad, elem));
             }
 
             /* new packet */
