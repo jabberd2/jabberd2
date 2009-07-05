@@ -1,3 +1,104 @@
+2009-07-01 Tomasz Sterna <tomek@xiaoka.com>
+	* Enable experimental features by default
+
+2009-06-22 Tomasz Sterna <tomek@xiaoka.com>
+	* Added external to authentication mechanisms examples
+
+2009-06-19 Eric Liang <eric.l.2046@gmail.com>
+	* change the definition of xhash_walker, in case that somebody zaps items of the
+	  hash table while walking.
+
+2009-06-19 Tomasz Sterna <tomek@xiaoka.com>
+	* Merged a patch for size_t related GSASL crash on 64bit platform. Fixes Bug #367783
+
+2009-06-17 Tomasz Sterna <tomek@xiaoka.com>
+	* VERY crude test infrastructure added
+	* Fixed S2S incoming packet beeing damaged while mangling.
+	  When there are already 'jabber:client' elements move them to next namespace
+	  before cutting uri_CLIENT chain.
+
+2009-06-17 Eric Liang <eric.l.2046@gmail.com>
+	* should put method:xhash_free to pool_cleanup instead of method:pool_free.
+	* should use method:pmalloco to allocate memory for xhash->stat.
+
+2009-06-16 Tomasz Sterna <tomek@xiaoka.com>
+	* Removed check of multiple names from legacy components connections
+
+2009-06-15 Tomasz Sterna <tomek@xiaoka.com>
+	* Inform about select() FD_SETSIZE overrun
+	* Gracefully abort when MIO was not allocated
+	* Do not throw stream errors on SSL wrapper sockets when pre-stream
+	* Gracefully abort when MIO was not created
+	* SSL errors are undefined-condition not internal errors
+	* Do not send invalid XML down the outgoing stream
+	* Correctly iterate streams while shutdown
+	* Proper checks for serviced domains in SM
+
+2009-06-14 Tomasz Sterna <tomek@xiaoka.com>
+	* Do not crash on shutdown with pending streams
+	* Get outgoing packets to/from addresses from the packet data
+	* Do not disable superseeded <session> request yet
+	* Return feature-not-implemented when user client requested not implemented feature
+	* Proper Makefile dependencies for etc/ files
+
+2009-06-13 Tomasz Sterna <tomek@xiaoka.com>
+	* Remove presence routing optimisations.
+	  We now do not have authoritative domain information.
+	  There may be other SM servicing the domain.
+	* Implemented component clustering.
+	  You may now connect many SM instances and external components
+	  servicing the same domain. The routing is based on user JID,
+	  which (after hashing) selects the component to deliver packet to.
+	* Split shahash to shahas_raw() and shahash_r()
+	* Attach <error/> element in root namespace
+	* Use SM id as a response packet source
+	* Process disco results to sm id also
+	* Better error packet generation
+	* Use router.lost setting after router disconnection.
+	* Minor ns check fix
+	* Added preliminary support for multiple component routes for one domain name.
+	* Fixed some signedness compilation warnings
+	* Defaulting to SQLite storage
+	* Implemented virtual hosts support in SM.
+	  (merged r791-792,r797 from vhosts branch)
+	  Session Manager is now able to handle more than one domain.
+	  This means that you do not need to launch more than one
+	  sm process instance for many domains with same configuration.
+
+2009-06-11 Tomasz Sterna <tomek@xiaoka.com>
+	* Drop IQ result packet before delivering them to the router.
+	  User client is generating IQ result packet for every server generated
+	  IQ set. If we do not process them in SM module, we should not deliver them
+	  back to the client.
+	* Fixed mutual subscription flow
+
+2009-06-10 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed xhash freeing related crash
+
+2009-06-09 Tomasz Sterna <tomek@xiaoka.com>
+	* Implemented correct disco#info for 'sessions' node
+	* Merged xhash optimisations by Eric Liang. Refs Bug #385035
+	* Merged crypt() password support for LDAP backend by Dan Fandrich. Closes Bug #384940
+
+2009-06-08 Tomasz Sterna <tomek@xiaoka.com>
+	* Do not null first bytes of just freed memory
+	* Do not close already closed sockets
+	* Give hint on user.auto-create when user not found in storage
+
+2009-06-05 Tomasz Sterna <tomek@xiaoka.com>
+	* Removed unneded C++ compiler check from configure. Fixes Bug #383571
+
+2009-06-04 Tomasz Sterna <tomek@xiaoka.com>
+	* Merged patch for problem with os_copy() compilation in ldap_vcard backend. Fixes Bug #383526
+	* Merged patch for problem with crypt() support compilation in MySQL backend. Fixes Bug #383516
+	* Merged patch fixing Cyrus SASL decode calls. Fies Bug #383512
+	* Merged patch to not link PAM to every lib. Fies Bug #383506
+	* Implemented PBX integration interface. You may now start/stop "fake" sessions in SM with a pipe interface commands.
+
+2009-05-09 Tomasz Sterna <tomek@xiaoka.com>
+	* Merged patch with kqueue support by jh. Bug #373159
+	* Mark user table as freed on free
+
 2009-04-22 Tomasz Sterna <tomek@xiaoka.com>
 	* Proper check for valid arguments in nad_find_namespace(). Fixes Bug #364816.
 

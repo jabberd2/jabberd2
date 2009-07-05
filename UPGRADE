@@ -1,6 +1,25 @@
 This file contains upgrade instructions between different versions of jabberd2.
 
 
+* 2.2.8 to 2.2.9 upgrade:
+
+What changed:
+- Implemented component clustering
+- Many virtual hosts in one SM process
+- FreeBSD kqueue support
+- Implemented PBX integration interface
+- crypt() password support for LDAP backend
+
+There is new <local/> section in sm.xml. You may use it to configure domains
+serviced by the SM process. Old style domain name in <id/> section still works
+for backward compatibility, but the <local/> section overrides it.
+You need to give different <id/> names to SM instances participating in
+clustering. Router needs a way to differenciate these.
+
+There is new <pbx/> section in c2s.xml configuration file. Please see it if you
+want to use the PBX integration.
+
+
 * 2.2.7 to 2.2.8 upgrade:
 
 What changed:
