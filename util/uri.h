@@ -54,6 +54,7 @@
 #define uri_XDATA       "jabber:x:data"
 #define uri_OOB         "jabber:x:oob"
 #define uri_ADDRESS_FEATURE "http://affinix.com/jabber/address"
+#define uri_ROSTERVER   "urn:xmpp:features:rosterver"
 
 /* these are used by SM mainly */
 #define uri_AUTH        "jabber:iq:auth"

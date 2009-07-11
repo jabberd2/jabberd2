@@ -59,6 +59,8 @@ static void _bind_features(sx_t s, sx_plugin_t p, nad_t nad) {
         ns = nad_add_namespace(nad, uri_XSESSION, NULL);
         nad_append_elem(nad, ns, "session", 1);
 #endif
+        ns = nad_add_namespace(nad, uri_ROSTERVER, NULL);
+        nad_append_elem(nad, ns, "ver", 1);
     }
 }
 

@@ -426,7 +426,7 @@ static st_ret_t _st_sqlite_get (st_driver_t drv, const char *type,
     SQLITE_SAFE_CAT3 (buf, nbuf, buflen,
 		      "SELECT * FROM \"", type, "\" WHERE ");
     strcpy (&buf[nbuf], cond);
-    /* ORDER BY 'object-sequence'", type, cond); */ 
+    strcpy (&buf[strlen(buf)], " ORDER BY \"object-sequence\"");
     free (cond);
 
     log_debug (ZONE, "prepared sql: %s", buf);
@@ -461,8 +461,7 @@ static st_ret_t _st_sqlite_get (st_driver_t drv, const char *type,
 
 	    colname = sqlite3_column_name (stmt, i);
 
-	    if (strcmp (colname, "collection-owner") == 0 ||
-		strcmp (colname, "object-sequence") == 0) {
+	    if (strcmp (colname, "collection-owner") == 0) {
 		continue;
 	    }
 

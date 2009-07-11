@@ -31,6 +31,13 @@ typedef struct _mod_roster_st {
     int maxitems;
 } *mod_roster_t;
 
+typedef struct _roster_walker_st {
+    pkt_t  pkt;
+    int    req_ver;
+    int    ver;
+    sess_t sess;
+} *roster_walker_t;
+
 /** free a single roster item */
 static void _roster_free_walker(const char *key, void *val, void *arg)
 {
@@ -261,9 +268,40 @@ static mod_ret_t _roster_in_sess_s10n(mod_instance_t mi, sess_t sess, pkt_t pkt)
 static void _roster_get_walker(const char *id, void *val, void *arg)
 {
     item_t item = (item_t) val;
-    pkt_t pkt = (pkt_t) arg;
+    roster_walker_t rw = (roster_walker_t) arg;
 
-    _roster_insert_item(pkt, item, 2);
+    _roster_insert_item(rw->pkt, item, 2);
+
+    /* remember largest item version */
+    if(item->ver > rw->ver) rw->ver = item->ver;
+}
+
+/** push roster XEP-0237 updates to client */
+static void _roster_update_walker(const char *id, void *val, void *arg)
+{
+    pkt_t push;
+    char *buf;
+    int elem, ns;
+    item_t item = (item_t) val;
+    roster_walker_t rw = (roster_walker_t) arg;
+
+    /* skip unneded roster items */
+    if(item->ver <= rw->req_ver) return;
+
+    /* build a interim roster push packet */
+    push = pkt_create(rw->sess->user->sm, "iq", "set", NULL, NULL);
+    pkt_id_new(push);
+    ns = nad_add_namespace(push->nad, uri_ROSTER, NULL);
+    elem = nad_append_elem(push->nad, ns, "query", 3);
+
+    buf = (char *) malloc(sizeof(char) * 128);
+    sprintf(buf, "%d", item->ver);
+    nad_set_attr(push->nad, elem, -1, "ver", buf, 0);
+    free(buf);
+
+    _roster_insert_item(push, item, elem);
+
+    pkt_sess(push, rw->sess);
 }
 
 static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi)
@@ -440,8 +478,10 @@ static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi
 static mod_ret_t _roster_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)
 {
     module_t mod = mi->mod;
-    int elem, attr;
+    int elem, attr, ver = 0;
     pkt_t result;
+    char *buf;
+    roster_walker_t rw;
 
     /* handle s10ns in a different function */
     if(pkt->type & pkt_S10N)
@@ -464,11 +504,44 @@ static mod_ret_t _roster_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)
     /* get */
     if(pkt->type == pkt_IQ)
     {
+		/* check for "XEP-0237: Roster Versioning request" */
+        if((elem = nad_find_elem(pkt->nad, 1, -1, "query", 1)) >= 0
+         &&(attr = nad_find_attr(pkt->nad, elem, -1, "ver", NULL)) >= 0) {
+            if (NAD_AVAL_L(pkt->nad, attr) > 0)
+            {
+                buf = (char *) malloc(sizeof(char) * (NAD_AVAL_L(pkt->nad, attr) + 1));
+                sprintf(buf, "%.*s", NAD_AVAL_L(pkt->nad, attr), NAD_AVAL(pkt->nad, attr));
+                ver = j_atoi(buf, 0);
+                free(buf);
+            }
+        }
+
         /* build the packet */
-        xhash_walk(sess->user->roster, _roster_get_walker, (void *) pkt);
+        rw = (roster_walker_t) calloc(1, sizeof(struct _roster_walker_st));
+        rw->pkt = pkt;
+        rw->req_ver = ver;
+        rw->sess = sess;
 
         nad_set_attr(pkt->nad, 1, -1, "type", "result", 6);
-        pkt_sess(pkt_tofrom(pkt), sess);
+
+        if(ver > 0) {
+			/* send XEP-0237 empty result */
+            nad_drop_elem(pkt->nad, elem);
+            pkt_sess(pkt_tofrom(pkt), sess);
+            xhash_walk(sess->user->roster, _roster_update_walker, (void *) rw);
+        }
+        else {
+            xhash_walk(sess->user->roster, _roster_get_walker, (void *) rw);
+            if(elem >= 0 && attr >= 0) {
+                buf = (char *) malloc(sizeof(char) * 128);
+                sprintf(buf, "%d", rw->ver);
+                nad_set_attr(pkt->nad, elem, -1, "ver", buf, 0);
+                free(buf);
+            }
+            pkt_sess(pkt_tofrom(pkt), sess);
+        }
+
+        free(rw);
 
         /* remember that they loaded it, so we know to push updates to them */
         sess->module_data[mod->index] = (void *) 1;
@@ -685,6 +758,7 @@ static int _roster_user_load(mod_instance_t mi, user_t user) {
                         os_object_get_bool(os, o, "to", &item->to);
                         os_object_get_bool(os, o, "from", &item->from);
                         os_object_get_int(os, o, "ask", &item->ask);
+                        os_object_get_int(os, o, "object-sequence", &item->ver);
 
                         olditem = xhash_get(user->roster, jid_full(item->jid));
                         if(olditem) {
@@ -696,8 +770,8 @@ static int _roster_user_load(mod_instance_t mi, user_t user) {
                         /* its good */
                         xhash_put(user->roster, jid_full(item->jid), (void *) item);
 
-                        log_debug(ZONE, "added %s to roster (to %d from %d ask %d name %s)",
-                                  jid_full(item->jid), item->to, item->from, item->ask, item->name);
+                        log_debug(ZONE, "added %s to roster (to %d from %d ask %d ver %d name %s)",
+                                  jid_full(item->jid), item->to, item->from, item->ask, item->ver, item->name);
                     }
                 }
             } while(os_iter_next(os));

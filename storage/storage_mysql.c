@@ -369,7 +369,7 @@ static st_ret_t _st_mysql_get(st_driver_t drv, const char *type, const char *own
             break;
 
         for(j = 0; j < nfields; j++) {
-            if(strcmp(fields[j].name, "collection-owner") == 0 || strcmp(fields[j].name, "object-sequence") == 0)
+            if(strcmp(fields[j].name, "collection-owner") == 0)
                 continue;
 
             if(tuple[j] == NULL)

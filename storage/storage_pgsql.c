@@ -397,7 +397,7 @@ static st_ret_t _st_pgsql_get(st_driver_t drv, const char *type, const char *own
 
         for(j = 0; j < nfields; j++) {
             fname = PQfname(res, j);
-            if(strcmp(fname, "collection-owner") == 0 || strcmp(fname, "object-sequence") == 0)
+            if(strcmp(fname, "collection-owner") == 0)
                 continue;
 
             switch(PQftype(res, j)) {

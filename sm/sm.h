@@ -159,6 +159,8 @@ typedef struct item_st {
     int                 to, from;   /**< subscription to this item (they get presence FROM us, they send presence TO us) */
 
     int                 ask;        /**< pending subscription (0 == none, 1 == subscribe, 2 == unsubscribe) */
+
+    int                 ver;        /**< roster item version number */
 } *item_t;
 
 /** session manager global context */
