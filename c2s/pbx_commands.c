@@ -101,7 +101,7 @@ int _pbx_process_command(c2s_t c2s, char *cmd)
 	jid_t jid;
 	int action = 0, len;
 	sess_t sess;
-	unsigned char hashbuf[23] = "PBX";
+	unsigned char hashbuf[44] = "PBX";
 	unsigned char *sesshash;
 
 	sesshash = hashbuf+3;
@@ -123,12 +123,12 @@ int _pbx_process_command(c2s_t c2s, char *cmd)
 				cmd += len;
 				if(*cmd != '\0') cmd++;
 				
-				sha1_hash(jid_full(jid), strlen(jid_full(jid)), sesshash);
+				shahash_r(jid_full(jid), sesshash);
 				sess = xhash_get(c2s->sessions, hashbuf);
 
 				switch(action) {
 					case 1:
-						log_debug(ZONE, "STARTing session for %s/%s with commandline: %s", jid_user(jid), jid->resource, cmd);
+						log_debug(ZONE, "STARTing session for %s/%s (%s) with commandline: %s", jid_user(jid), jid->resource, hashbuf, cmd);
 
 						if(sess == NULL) {
 						/* create new session */

@@ -76,7 +76,7 @@ struct sess_st {
 
     mio_fd_t            fd;
 
-    char                skey[24];
+    char                skey[44];
 
     char                *smcomp; /* sm component servicing this session */
 

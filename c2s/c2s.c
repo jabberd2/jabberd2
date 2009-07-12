@@ -680,7 +680,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
     sx_error_t *sxe;
     nad_t nad;
     int len, elem, from, c2sid, smid, action, id, ns, attr, scan, replaced;
-    char skey[24];
+    char skey[44];
     sess_t sess;
     bres_t bres, ires;
 
@@ -932,7 +932,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 nad_free(nad);
                 return 0;
             }
-            snprintf(skey, 24, "%.*s", NAD_AVAL_L(nad, c2sid), NAD_AVAL(nad, c2sid));
+            snprintf(skey, 44, "%.*s", NAD_AVAL_L(nad, c2sid), NAD_AVAL(nad, c2sid));
 
             /* find the session, quietly drop if we don't have it */
             sess = xhash_get(c2s->sessions, skey);
