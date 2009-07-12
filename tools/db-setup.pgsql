@@ -175,19 +175,6 @@ CREATE TABLE "motd-times" (
     "time" integer NOT NULL);
 
 --
--- User-published discovery items
--- Used by: mod_disco_publish
---
-CREATE TABLE "disco-items" (
-    "collection-owner" text NOT NULL,
-    "object-sequence" bigint DEFAULT nextval('object-sequence'),
-    "jid" text,
-    "name" text,
-    "node" text );
-
-CREATE INDEX i_discoi_owner ON "disco-items"("collection-owner");
-
---
 -- Default privacy list
 -- Used by: mod_privacy
 --

@@ -1,6 +1,14 @@
 This file contains upgrade instructions between different versions of jabberd2.
 
 
+* 2.2.9 to 2.2.10 upgrade:
+
+What changed:
+- removed mod_disco_publish (it was removed from XEP-0030)
+
+Remove <module>disco-publish</module> lines from your sm.xml.
+
+
 * 2.2.8 to 2.2.9 upgrade:
 
 What changed:

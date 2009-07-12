@@ -311,32 +311,6 @@ ALTER TABLE "motd-times" ADD (
   PRIMARY KEY ("collection-owner"));
   
 /* 
- * User-published discovery items
- * Used by: mod_disco_publish
- */
-CREATE TABLE "disco-items" (
-    "collection-owner" varchar2(4000),
-    "object-sequence" number,
-    "jid" varchar2(4000),
-    "name" varchar2(4000),
-    "node" varchar2(4000) );
-
-CREATE OR REPLACE TRIGGER "disco-items-object-sequence"
-BEFORE INSERT
-ON "disco-items" 
-FOR EACH ROW
-BEGIN
-  IF :NEW."object-sequence" IS NULL THEN
-    SELECT "seq-disco-items".NextVal INTO :NEW."object-sequence" FROM dual;
-  END IF;
-END;
-/
-SHOW ERRORS;
-
-CREATE INDEX "disco-items-collection-owner"
- ON "disco-items"("collection-owner");
- 
-/* 
  * Default privacy list
  * Used by: mod_privacy
  */

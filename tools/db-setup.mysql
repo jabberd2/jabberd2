@@ -157,17 +157,6 @@ CREATE TABLE `motd-times` (
     `time` INT ) DEFAULT CHARSET=UTF8;
 
 --
--- User-published discovery items
--- Used by: mod_disco_publish
---
-CREATE TABLE `disco-items` (
-    `collection-owner` TEXT NOT NULL, KEY(`collection-owner`(255)),
-    `object-sequence` BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY(`object-sequence`),
-    `jid` TEXT,
-    `name` TEXT,
-    `node` TEXT ) DEFAULT CHARSET=UTF8;
-
---
 -- Default privacy list
 -- Used by: mod_privacy
 --

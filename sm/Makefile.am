@@ -5,7 +5,6 @@ pkglib_LTLIBRARIES = mod_active.la \
                   mod_amp.la \
                   mod_deliver.la \
                   mod_disco.la \
-                  mod_disco-publish.la \
                   mod_echo.la \
                   mod_help.la \
                   mod_iq-last.la \
@@ -15,6 +14,7 @@ pkglib_LTLIBRARIES = mod_active.la \
                   mod_iq-vcard.la \
                   mod_iq-version.la \
                   mod_offline.la \
+                  mod_pep.la \
                   mod_presence.la \
                   mod_privacy.la \
                   mod_roster.la \
@@ -79,12 +79,6 @@ if USE_LIBSUBST
 mod_disco_la_LIBADD = $(top_builddir)/subst/libsubst.la
 endif
 
-mod_disco_publish_la_SOURCES = mod_disco_publish.c
-mod_disco_publish_la_LDFLAGS = -module -export-dynamic
-if USE_LIBSUBST
-mod_disco_publish_la_LIBADD = $(top_builddir)/subst/libsubst.la
-endif
-
 mod_echo_la_SOURCES = mod_echo.c
 mod_echo_la_LDFLAGS = -module -export-dynamic
 if USE_LIBSUBST
@@ -137,6 +131,12 @@ mod_offline_la_SOURCES = mod_offline.c
 mod_offline_la_LDFLAGS = -module -export-dynamic
 if USE_LIBSUBST
 mod_offline_la_LIBADD = $(top_builddir)/subst/libsubst.la
+endif
+
+mod_pep_la_SOURCES = mod_pep.c
+mod_pep_la_LDFLAGS = -module -export-dynamic
+if USE_LIBSUBST
+mod_pep_la_LIBADD = $(top_builddir)/subst/libsubst.la
 endif
 
 mod_presence_la_SOURCES = mod_presence.c

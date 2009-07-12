@@ -479,6 +479,7 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
         do {
             xhash_iter_get(r->components, NULL, xhv.val);
             sx_close(comp->s);
+            mio_run(r->mio, 5);
         } while(xhash_count(r->components) > 0);
 
     xhash_free(r->components);

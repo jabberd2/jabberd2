@@ -317,6 +317,29 @@ static mod_ret_t _disco_pkt_sm_populate(mod_instance_t mi, pkt_t pkt)
     return mod_HANDLED;
 }
 
+/** respond to user quering its JID */
+static mod_ret_t _disco_in_sess_result(mod_instance_t mi, sess_t sess, pkt_t pkt)
+{
+    module_t mod = mi->mod;
+
+    /* it has to have no to address or self bare jid */
+    if(pkt->to != NULL && strcmp(jid_user(sess->jid), jid_full(pkt->to)))
+    {
+        return mod_PASS;
+    }
+
+    /* identity */
+    nad_append_elem(pkt->nad, -1, "identity", 3);
+    nad_append_attr(pkt->nad, -1, "category", "account");
+    nad_append_attr(pkt->nad, -1, "type", "registered");
+
+    /* tell them */
+    nad_set_attr(pkt->nad, 1, -1, "type", "result", 6);
+    pkt_sess(pkt_tofrom(pkt), sess);
+
+    return mod_HANDLED;
+}
+
 /** build a disco items result, active sessions */
 static void _disco_sessions_result(module_t mod, disco_t d, pkt_t pkt) {
     int ns;
@@ -474,6 +497,10 @@ static mod_ret_t _disco_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     module_t mod = mi->mod;
     disco_t d = (disco_t) mod->private;
     pkt_t result;
+
+    /* disco info requests go to a seperate function */
+    if(pkt->type == pkt_IQ && pkt->ns == ns_DISCO_INFO)
+        return _disco_in_sess_result(mi, sess, pkt);
 
     /* we want agents gets */
     if(pkt->type != pkt_IQ || pkt->ns != ns_AGENTS || pkt->to != NULL)
