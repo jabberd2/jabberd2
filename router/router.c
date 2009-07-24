@@ -535,8 +535,15 @@ static void _router_process_route(component_t comp, nad_t nad) {
                 for(i=1; i < 20 / (sizeof(unsigned int)/sizeof(unsigned char)); i++, val++) {
                     dest ^= *val;
                 }
-				dest >>= 2;
+                dest >>= 2;
+
                 log_debug(ZONE, "JID %s hashed to %u %% %d = %d", jid_user(to), dest, targets->ncomp, dest % targets->ncomp);
+
+                /* jid_user() calls jid_expand() which may allocate some memory in _user and _full */
+                if (to->_user != NULL )
+                    free(to->_user);
+                if (to->_full != NULL )
+                    free(to->_full);
             }
             dest = dest % targets->ncomp;
         }
