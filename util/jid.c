@@ -209,8 +209,10 @@ static jid_t jid_reset_components_internal(jid_t jid, const unsigned char *node,
 
     dataStatic = ((jid->jid_data != NULL) && (jid->jid_data_len == 0));
 
-    free(jid->_user);
-    free(jid->_full);
+    if (jid->_user != NULL )
+        free(jid->_user);
+    if (jid->_full != NULL )
+        free(jid->_full);
 
     memset(jid, 0, sizeof(struct jid_st));
 
