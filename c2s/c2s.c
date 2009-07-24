@@ -945,11 +945,15 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                  * trying to tell SM to close in response to errors */
                 action = nad_find_attr(nad, 1, -1, "action", NULL);
                 if(action >= 0 && NAD_AVAL_L(nad, action) == 7 && strncmp("started", NAD_AVAL(nad, action), 7) == 0) {
+					int target;
+					bres_t tres;
+					sess_t tsess;
+
                     log_write(c2s->log, LOG_NOTICE, "session %s does not exist; telling sm to close", skey);
 
                     /* we don't have a session and we don't have a resource; we need to forge them both
                      * to get SM to close stuff */
-                    int target = nad_find_attr(nad, 1, -1, "target", NULL);
+                    target = nad_find_attr(nad, 1, -1, "target", NULL);
                     smid = nad_find_attr(nad, 1, ns, "sm", NULL);
                     if(target < 0 || smid < 0) {
                         char *buf;
@@ -961,7 +965,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     }
 
                     /* build temporary resource to close session for */
-                    bres_t tres = NULL;
+                    tres = NULL;
                     tres = (bres_t) calloc(1, sizeof(struct bres_st));
                     tres->jid = jid_new(NAD_AVAL(nad, target), NAD_AVAL_L(nad, target));
 
@@ -969,7 +973,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     snprintf(tres->sm_id, sizeof(tres->sm_id), "%.*s", NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
 
                     /* make a temporary session */
-                    sess_t tsess = (sess_t) calloc(1, sizeof(struct sess_st));
+                    tsess = (sess_t) calloc(1, sizeof(struct sess_st));
                     tsess->c2s = c2s;
                     tsess->result = nad_new();
                     strncpy(tsess->skey, skey, sizeof(tsess->skey));
