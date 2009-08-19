@@ -24,6 +24,8 @@
  *
  */
 
+#error kqueue is currently unfinished and will eat your CPU alive. If you intend to use it, you need to fix it first.
+
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/event.h>
