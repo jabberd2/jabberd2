@@ -42,7 +42,7 @@ struct _roster_publish_group_cache_st {
 
 typedef struct _roster_publish_st {
     int publish, forcegroups, fixsubs, overridenames, mappedgroups;
-    char *fetchdomain, *fetchuser, *fetchfixed;
+    char *fetchdomain, *fetchuser, *fetchfixed, *dbtable;
     char *groupprefix, *groupsuffix, *removedomain;
     int groupprefixlen, groupsuffixlen;
     time_t active_cache_ttl;
@@ -231,7 +231,7 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
         else
             fetchkey = "";
 
-        if( storage_get(user->sm->st, "published-roster", fetchkey, NULL, &os) == st_SUCCESS ) {
+        if( storage_get(user->sm->st, (roster_publish->dbtable ? roster_publish->dbtable : "published-roster"), fetchkey, NULL, &os) == st_SUCCESS ) {
             if(os_iter_first(os)) {
                 /* iterate on published roster */
                 jid = NULL;
@@ -511,6 +511,7 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
         roster_publish->fetchdomain = config_get_one(mod->mm->sm->config, "user.template.publish.fetch-key.domain", 0);
         roster_publish->fetchuser = config_get_one(mod->mm->sm->config, "user.template.publish.fetch-key.user", 0);
         roster_publish->fetchfixed = config_get_one(mod->mm->sm->config, "user.template.publish.fetch-key.fixed", 0);
+        roster_publish->dbtable = config_get_one(mod->mm->sm->config, "user.template.publish.db-table", 0);
         roster_publish->removedomain = config_get_one(mod->mm->sm->config, "user.template.publish.check-remove-domain", 0);
         roster_publish->fixsubs = j_atoi(config_get_one(mod->mm->sm->config, "user.template.publish.fix-subscriptions", 0), 0);
         roster_publish->overridenames = j_atoi(config_get_one(mod->mm->sm->config, "user.template.publish.override-names", 0), 0);
