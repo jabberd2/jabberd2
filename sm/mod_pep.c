@@ -24,7 +24,24 @@
   * @author Tomasz Sterna
   */
 
+#define uri_PUBSUB   "http://jabber.org/protocol/pubsub"
+static int ns_PUBSUB = 0;
+
 static mod_ret_t _pep_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
+    int ns, elem;
+
+    /* only handle private sets and gets */
+    if((pkt->type != pkt_IQ && pkt->type != pkt_IQ_SET) || pkt->ns != ns_PUBSUB)
+        return mod_PASS;
+
+    /* we're only interested in no to, to our host, or to us */
+    if(pkt->to != NULL && jid_compare_user(sess->jid, pkt->to) != 0 && strcmp(sess->jid->domain, jid_user(pkt->to)) != 0)
+        return mod_PASS;
+
+    ns = nad_find_scoped_namespace(pkt->nad, uri_PUBSUB, NULL);
+    elem = nad_find_elem(pkt->nad, 1, ns, "pubsub", 1);
+
+    log_debug(ZONE, "_pep_in_sess() %d %d", ns, elem);
     return mod_PASS;
 }
 
@@ -33,11 +50,21 @@ static mod_ret_t _pep_out_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     if(!(pkt->type & pkt_IQ) || pkt->ns != ns_DISCO_INFO || (pkt->from != NULL && strcmp(jid_user(sess->jid), jid_full(pkt->from))))
         return mod_PASS;
 
-    log_debug(ZONE, "_pep_out_sess() %s %s", jid_user(sess->jid), jid_full(pkt->from));
     /* add PEP identity */
     nad_append_elem(pkt->nad, -1, "identity", 3);
     nad_append_attr(pkt->nad, -1, "category", "pubsub");
     nad_append_attr(pkt->nad, -1, "type", "pep");
+
+	nad_append_elem(pkt->nad, -1, "feature", 3);
+	nad_append_attr(pkt->nad, -1, "var", uri_PUBSUB "#access-presence");
+	nad_append_elem(pkt->nad, -1, "feature", 3);
+	nad_append_attr(pkt->nad, -1, "var", uri_PUBSUB "#auto-create");
+	nad_append_elem(pkt->nad, -1, "feature", 3);
+	nad_append_attr(pkt->nad, -1, "var", uri_PUBSUB "#auto-subscribe");
+	nad_append_elem(pkt->nad, -1, "feature", 3);
+	nad_append_attr(pkt->nad, -1, "var", uri_PUBSUB "#filtered-notifications");
+	nad_append_elem(pkt->nad, -1, "feature", 3);
+	nad_append_attr(pkt->nad, -1, "var", uri_PUBSUB "#publish");
 
     return mod_PASS;
 }
@@ -49,6 +76,9 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
 
     mod->in_sess = _pep_in_sess;
     mod->out_sess = _pep_out_sess;
+
+    ns_PUBSUB = sm_register_ns(mod->mm->sm, uri_PUBSUB);
+    feature_register(mod->mm->sm, uri_PUBSUB);
 
     return 0;
 }
