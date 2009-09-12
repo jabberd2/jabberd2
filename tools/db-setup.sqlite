@@ -66,6 +66,33 @@ CREATE INDEX i_rosterg_owner ON "roster-groups"("collection-owner");
 CREATE INDEX i_rosterg_owner_jid ON "roster-groups"("collection-owner", "jid");
 
 --
+-- Published roster items
+-- Used by: mod_roster_publish
+--
+CREATE TABLE "published-roster" (
+    "collection-owner" TEXT NOT NULL,
+    "object-sequence" INTEGER PRIMARY KEY,
+    "jid" TEXT NOT NULL,
+	"group" TEXT,
+    "name" TEXT,
+    "to" BOOLEAN NOT NULL,
+    "from" BOOLEAN NOT NULL,
+    "ask" INTEGER NOT NULL );
+
+CREATE INDEX i_pubrosteri_owner ON "published-roster"("collection-owner");
+
+--
+-- Published roster groups
+-- Used by: mod_roster_publish
+--
+CREATE TABLE "published-roster-groups" (
+    "collection-owner" TEXT NOT NULL,
+    "object-sequence" INTEGER PRIMARY KEY,
+    "groupname" TEXT NOT NULL );
+
+CREATE INDEX i_pubrosterg_owner ON "published-roster-groups"("collection-owner");
+
+--
 -- vCard (user profile information)
 -- Used by: mod_iq_vcard
 --

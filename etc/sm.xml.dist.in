@@ -484,8 +484,8 @@
 
     <!-- disco-extend. The modules in this chain are called when a disco
          info request is send to session manager. It implements XEP-0128
-	 Service Discovery Extensions mechanizm to add additional
-	 information to disco#info reply. -->
+     Service Discovery Extensions mechanizm to add additional
+     information to disco#info reply. -->
     <chain id='disco-extend'>
       <module>iq-version</module>       <!-- add XEP-xxxx Software Information -->
       <module>help</module>             <!-- add XEP-0157 Contact Addresses -->
@@ -599,6 +599,16 @@
       <!--
       <publish>
       -->
+        <!-- Key used for fetching published roster items.
+             Only one might be set at a time.
+             If not set, all items are fetched. -->
+        <!--
+        <fetch-key>
+          <domain/>
+          <user/>
+          <fixed>grouping-key</fixed>
+        </fetch-key>
+        -->
         <!-- If <check-remove-domain> given, then published contact checked
                against sm user database and if user is unknown to sm, contact
                will be deleted from user's roster (if it is in roster). -->
@@ -632,7 +642,7 @@
              specified number of seconds. If unspecified or 0, no cache is used.
              -->
         <!--
-        <mapped-groups/>
+        <mapped-groups>
           <map-groups/>
           <group-cache-ttl>120</group-cache-ttl>
         </mapped-groups>
@@ -665,7 +675,9 @@
       </publish>
       -->
 
-      <!-- If you defined publish, you should comment <roster> -->
+      <!-- If defined, the contents of these files will be
+           stored in the users data store when they are created. -->
+      <!-- If you defined publish, you should comment-out <roster> -->
       <!--
       <roster>@sysconfdir@/templates/roster.xml</roster>
       -->

@@ -42,6 +42,7 @@ struct _roster_publish_group_cache_st {
 
 typedef struct _roster_publish_st {
     int publish, forcegroups, fixsubs, overridenames, mappedgroups;
+    char *fetchdomain, *fetchuser, *fetchfixed;
     char *groupprefix, *groupsuffix, *removedomain;
     int groupprefixlen, groupsuffixlen;
     time_t active_cache_ttl;
@@ -80,6 +81,8 @@ static char *_roster_publish_get_group_name(sm_t sm, roster_publish_t rp, const 
     os_object_t o;
     char *str;
     char *group;
+
+    if(!groupid) return groupid;
 
 #ifndef NO_SM_CACHE
     _roster_publish_group_cache_t group_cached;
@@ -201,7 +204,7 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
     os_t os, os_active;
     os_object_t o, o_active;
     os_type_t ot, ot_active;
-    char *str, *group, filter[4096];
+    char *str, *group, filter[4096], *fetchkey;
     int i,j,gpos,found,delete,checksm,userinsm,tmp_to,tmp_from,tmp_do_change;
     item_t item;
     jid_t jid;
@@ -219,13 +222,23 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
 
         log_debug(ZONE, "publishing roster for %s",jid_user(user->jid));
         /* get published roster */
-        if( storage_get(user->sm->st, "published-roster", "", NULL, &os) == st_SUCCESS ) {
+        if(roster_publish->fetchfixed)
+            fetchkey = roster_publish->fetchfixed;
+        else if(roster_publish->fetchuser)
+            fetchkey = jid_user(user->jid);
+        else if(roster_publish->fetchdomain)
+            fetchkey = user->jid->domain;
+        else
+            fetchkey = "";
+
+        if( storage_get(user->sm->st, "published-roster", fetchkey, NULL, &os) == st_SUCCESS ) {
             if(os_iter_first(os)) {
                 /* iterate on published roster */
                 jid = NULL;
                 do {
                     o = os_iter_object(os);
                     if(os_object_get_str(os, o, "jid", &str)) {
+                        log_debug(ZONE, "got %s item for inserting in", str);
                         if( strcmp(str,jid_user(user->jid)) == 0 ) {
                             /* not adding self */
                             continue; /* do { } while( os_iter_next ) */
@@ -235,7 +248,8 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                         if( jid ) jid_free(jid);
                         jid = jid_new(str, -1);
                         if( roster_publish->removedomain ) {
-                            if( strcmp(jid->domain,roster_publish->removedomain) == 0 ) {
+                            if( strcmp("1", roster_publish->removedomain) == 0 || /* XXX HACKY!!! "1" is very config.c dependant */
+                                strcmp(jid->domain, roster_publish->removedomain) == 0 ) {
                                 checksm = 1;
                             }
                         }
@@ -318,7 +332,10 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                                 if( roster_publish->mappedgroups ) {
                                     group = _roster_publish_get_group_name(user->sm, roster_publish, str); // don't forget to free group
                                 } else {
-                                    group = strdup(str);
+                                    if(str)
+                                        group = strdup(str);
+                                    else
+                                        group = NULL;
                                 }
                                 if( group ) {
                                     item->groups = realloc(item->groups, sizeof(char *) * (item->ngroups + 1));
@@ -491,6 +508,9 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
 
     if( config_get_one(mod->mm->sm->config, "user.template.publish", 0) ) {
         roster_publish->publish = 1;
+        roster_publish->fetchdomain = config_get_one(mod->mm->sm->config, "user.template.publish.fetch-key.domain", 0);
+        roster_publish->fetchuser = config_get_one(mod->mm->sm->config, "user.template.publish.fetch-key.user", 0);
+        roster_publish->fetchfixed = config_get_one(mod->mm->sm->config, "user.template.publish.fetch-key.fixed", 0);
         roster_publish->removedomain = config_get_one(mod->mm->sm->config, "user.template.publish.check-remove-domain", 0);
         roster_publish->fixsubs = j_atoi(config_get_one(mod->mm->sm->config, "user.template.publish.fix-subscriptions", 0), 0);
         roster_publish->overridenames = j_atoi(config_get_one(mod->mm->sm->config, "user.template.publish.override-names", 0), 0);
