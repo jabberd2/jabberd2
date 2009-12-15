@@ -290,7 +290,7 @@ void mm_free(mm_t mm) {
     xhash_walk(mm->modules, _mm_reaper, NULL);
 
     /* free instances */
-    for(i = 0; i < 12; i++) {
+    for(i = 0; i < 13; i++) {
         switch(i) {
             case 0:
                 list = &mm->sess_start;
@@ -340,6 +340,10 @@ void mm_free(mm_t mm) {
                 list = &mm->user_delete;
                 nlist = &mm->nuser_delete;
                 break;
+            case 12:
+                list = &mm->disco_extend;
+                nlist = &mm->ndisco_extend;
+                break;
         }
 
         for(j = 0; j < *nlist; j++) {
@@ -363,6 +367,7 @@ void mm_free(mm_t mm) {
     free(mm->user_load);
     free(mm->user_create);
     free(mm->user_delete);
+    free(mm->disco_extend);
 
     xhash_free(mm->modules);
 
