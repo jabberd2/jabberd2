@@ -38,7 +38,7 @@ char *s2s_route_key(pool_t p, char *local, char *remote) {
 }
 
 /** match route key - used for searching route hash */
-int s2s_route_key_match(char *local, const char *remote, char *rkey) {
+int s2s_route_key_match(char *local, char *remote, char *rkey) {
     char *klocal, *kremote;
     int ret;
 

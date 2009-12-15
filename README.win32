@@ -38,9 +38,11 @@ Prerequisites:
 
       Expat XML Parser source build using expat.dsw, provides: libexpat.lib
 
-   5. http://www.unbound.net/
+   5. http://www.corpit.ru/mjt/udns.html
 
-      unbound source build, provides: unbound.lib
+      udns source build, provides: udns.lib, since there are no VC project files
+      provided along with sources, please use patch files provided at:
+      http://www.nanoant.com/projects/jabberd2-win32#download
 
    6. http://www.zlib.net/
 

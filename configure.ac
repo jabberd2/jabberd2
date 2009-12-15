@@ -369,10 +369,10 @@ if test "x-$have_idn" != "x-yes" ; then
     AC_MSG_ERROR([Libidn >= 0.3.0 not found])
 fi
 
-# unbound
-AC_CHECK_LIB(unbound, ub_ctx_create)
-if test "x-$ac_cv_lib_unbound_ub_ctx_create" != "x-yes" ; then
-    AC_MSG_ERROR([unbound library not found])
+# udns
+AC_CHECK_LIB(udns, dns_init)
+if test "x-$ac_cv_lib_udns_dns_init" != "x-yes" ; then
+    AC_MSG_ERROR([UDNS library not found])
 fi
 
 #

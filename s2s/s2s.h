@@ -32,8 +32,7 @@
 # include <sys/stat.h>
 #endif
 
-#include <ldns/ldns.h>
-#include <unbound.h>
+#include <udns.h>
 
 /* forward decl */
 typedef struct host_st      *host_t;
@@ -194,9 +193,9 @@ struct s2s_st {
     /** incoming conns prior to stream initiation (key is ip/port) */
     xht                 in_accept;
 
-    /** unbound context */
-    struct ub_ctx *     ub_ctx;
-    mio_fd_t            unbound_mio_fd;
+    /** udns fds */
+    int                 udns_fd;
+    mio_fd_t            udns_mio_fd;
 
     /** dns resolution cache */
     xht                 dnscache;
@@ -299,8 +298,7 @@ struct dnsquery_st {
     time_t              expiry;
 
     /** set when we're waiting for a resolve response */
-    int                 have_async_id;
-    int                 async_id;
+    struct dns_query   *query;
 };
 
 /** one item in the dns resolution cache */
@@ -342,7 +340,7 @@ int             s2s_router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, vo
 int             s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg);
 
 char            *s2s_route_key(pool_t p, char *local, char *remote);
-int             s2s_route_key_match(char *local, const char *remote, char *rkey);
+int             s2s_route_key_match(char *local, char *remote, char *rkey);
 char            *s2s_db_key(pool_t p, char *secret, char *remote, char *id);
 char            *dns_make_ipport(char *host, int port);
 

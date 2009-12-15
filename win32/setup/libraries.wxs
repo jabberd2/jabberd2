@@ -14,8 +14,8 @@
 			<Component Id="sqlite3.dll" Guid="{53BCD278-9B09-4246-BEED-C38695F7A6A8}">
 				<File Id="sqlite3.dll" Name="sqlite3.dll" KeyPath="yes" Vital="yes" />
 			</Component>
-			<Component Id="unbound.dll" Guid="{7A0B45E4-6A3E-48FC-9A2B-85702A398F1B}">
-				<File Id="unbound.dll" Name="unbound.dll" KeyPath="yes" Vital="yes" />
+			<Component Id="udns.dll" Guid="{7A0B45E4-6A3E-48FC-9A2B-85702A398F1B}">
+				<File Id="udns.dll" Name="udns.dll" KeyPath="yes" Vital="yes" />
 			</Component>
 			<Component Id="zlib1.dll" Guid="{D0FCED72-651D-4E1B-BFA5-85BCA9E337C9}">
 				<File Id="zlib1.dll" Name="zlib1.dll" KeyPath="yes" Vital="yes" />
@@ -34,7 +34,7 @@
 			<ComponentRef Id="libexpat.dll" />
 			<ComponentRef Id="libidn.dll" />
 			<ComponentRef Id="sqlite3.dll" />
-			<ComponentRef Id="unbound.dll" />
+			<ComponentRef Id="udns.dll" />
 			<ComponentRef Id="zlib1.dll" />
 			<ComponentRef Id="libeay32.dll" />
 			<ComponentRef Id="ssleay32.dll" />
