@@ -824,6 +824,8 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
 
     log_write(c2s->log, LOG_NOTICE, "shutting down");
 
+    if(c2s->server_fd) mio_close(c2s->mio, c2s->server_fd);
+
     if(xhash_iter_first(c2s->sessions))
         do {
             xhv.sess_val = &sess;

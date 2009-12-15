@@ -596,6 +596,7 @@ struct storage_st {
 /** data for a single storage driver */
 struct st_driver_st {
     storage_t   st;             /**< storage manager context */ 
+    void *      dlh;            /**< handle to storage shared library */
 
     char        *name;          /**< name of driver */
 

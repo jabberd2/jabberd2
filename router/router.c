@@ -1080,7 +1080,6 @@ int router_mio_accept_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data,
     comp->routes = xhash_new(51);
 
     /* register component */
-    log_debuggy(ZONE, "new component (%p) \"%s\"", comp, comp->ipport);
     xhash_put(r->components, comp->ipport, (void *) comp);
 
 #ifdef HAVE_SSL

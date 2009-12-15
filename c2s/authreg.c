@@ -88,6 +88,7 @@ authreg_t authreg_init(c2s_t c2s, char *name) {
     ar = (authreg_t) calloc(1, sizeof(struct authreg_st));
 
     ar->c2s = c2s;
+    ar->dlh = handle;
 
     /* call the initialiser */
     if((init_fn)(ar) != 0)
@@ -115,6 +116,13 @@ authreg_t authreg_init(c2s_t c2s, char *name) {
 void authreg_free(authreg_t ar) {
     if (ar) {
         if(ar->free != NULL) (ar->free)(ar);
+        if(ar->dlh) {
+#ifndef _WIN32
+            dlclose(ar->dlh);
+#else
+            FreeLibrary((HMODULE) ar->dlh);
+#endif
+        }
         free(ar);
     }
 }
