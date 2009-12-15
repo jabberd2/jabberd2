@@ -222,7 +222,7 @@ pkt_t pkt_new(sm_t sm, nad_t nad) {
                 pkt->type = pkt_IQ;
                 if (attr < 0) {
                     log_write(sm->log, LOG_ERR, "dropping iq without type");
-                    log_debuggy(ZONE, "dropping iq without type");
+                    log_debug(ZONE, "dropping iq without type");
                     pkt_free(pkt);
                     return NULL;
                 }
@@ -231,7 +231,7 @@ pkt_t pkt_new(sm_t sm, nad_t nad) {
                 else if (NAD_AVAL_L(pkt->nad, attr) == 3 && strncmp("set", NAD_AVAL(pkt->nad, attr), 3) == 0) pkt->type = pkt_IQ_SET;
                 else if (NAD_AVAL_L(pkt->nad, attr) != 3 || strncmp("get", NAD_AVAL(pkt->nad, attr), 3)) {
                     log_write(sm->log, LOG_ERR, "dropping iq with bad type \"%.*s\"", NAD_AVAL_L(pkt->nad, attr), NAD_AVAL(pkt->nad, attr));
-                    log_debuggy(ZONE, "dropping iq with bad type \"%.*s\"", NAD_AVAL_L(pkt->nad, attr), NAD_AVAL(pkt->nad, attr));
+                    log_debug(ZONE, "dropping iq with bad type \"%.*s\"", NAD_AVAL_L(pkt->nad, attr), NAD_AVAL(pkt->nad, attr));
                     pkt_free(pkt);
                     return NULL;
                 }
