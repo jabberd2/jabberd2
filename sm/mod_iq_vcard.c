@@ -126,7 +126,7 @@ static os_t _iq_vcard_to_object(mod_instance_t mi, pkt_t pkt) {
             vskey = vkey;
             elem = 2;
         } else {
-            sprintf(ekey, "%.*s", vskey - vkey, vkey);
+            sprintf(ekey, "%.*s", (int) (vskey - vkey), vkey);
             elem = nad_find_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 2), ekey, 1);
             if(elem < 0)
                 continue;
@@ -181,7 +181,7 @@ static pkt_t _iq_vcard_to_pkt(sm_t sm, os_t os) {
             vskey = vkey;
             elem = 2;
         } else {
-            sprintf(ekey, "%.*s", vskey - vkey, vkey);
+            sprintf(ekey, "%.*s", (int) (vskey - vkey), vkey);
             elem = nad_find_elem(pkt->nad, 2, NAD_ENS(pkt->nad, 2), ekey, 1);
             if(elem < 0)
                 elem = nad_append_elem(pkt->nad, NAD_ENS(pkt->nad, 2), ekey, 3);

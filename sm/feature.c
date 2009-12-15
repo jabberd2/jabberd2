@@ -38,19 +38,19 @@ void feature_register(sm_t sm, char *feature)
 {
     log_debug(ZONE, "registering feature %s", feature);
 
-    xhash_put(sm->features, pstrdup(xhash_pool(sm->features), feature), (void *) ((int) xhash_get(sm->features, feature) + 1));
+    xhash_put(sm->features, pstrdup(xhash_pool(sm->features), feature), (void *) ((long) xhash_get(sm->features, feature) + 1));
 }
 
 /** unregister feature */
 void feature_unregister(sm_t sm, char *feature)
 {
-    int refcount = (int) xhash_get(sm->features, feature);
+    int refcount = (int) (long) xhash_get(sm->features, feature);
 
     log_debug(ZONE, "unregistering feature %s", feature);
 
     if (refcount == 1) {
         xhash_zap(sm->features, feature);
     } else if (refcount > 1) {
-        xhash_put(sm->features, feature, (void *) ((int) refcount - 1));
+        xhash_put(sm->features, feature, (void *) ((long) refcount - 1));
     }
 }

@@ -325,29 +325,29 @@ void sm_signature(sm_t sm, char *str) {
 int sm_register_ns(sm_t sm, char *uri) {
     int ns_idx;
 
-    ns_idx = (int) xhash_get(sm->xmlns, uri);
+    ns_idx = (int) (long) xhash_get(sm->xmlns, uri);
     if (ns_idx == 0) {
         ns_idx = xhash_count(sm->xmlns) + 2;
-        xhash_put(sm->xmlns, pstrdup(xhash_pool(sm->xmlns), uri), (void *) ns_idx);
+        xhash_put(sm->xmlns, pstrdup(xhash_pool(sm->xmlns), uri), (void *) (long) ns_idx);
     }
-    xhash_put(sm->xmlns_refcount, uri, (void *) ((int) xhash_get(sm->xmlns_refcount, uri) + 1));
+    xhash_put(sm->xmlns_refcount, uri, (void *) ((long) xhash_get(sm->xmlns_refcount, uri) + 1));
 
     return ns_idx;
 }
 
 /** unregister a global ns */
 void sm_unregister_ns(sm_t sm, char *uri) {
-    int refcount = (int) xhash_get(sm->xmlns_refcount, uri);
+    int refcount = (int) (long) xhash_get(sm->xmlns_refcount, uri);
     if (refcount == 1) {
         xhash_zap(sm->xmlns, uri);
         xhash_zap(sm->xmlns_refcount, uri);
     } else if (refcount > 1) {
-        xhash_put(sm->xmlns_refcount, uri, (void *) ((int) xhash_get(sm->xmlns_refcount, uri) - 1));
+        xhash_put(sm->xmlns_refcount, uri, (void *) ((long) xhash_get(sm->xmlns_refcount, uri) - 1));
     }
 }
 
 /** get a globally registered ns */
 int sm_get_ns(sm_t sm, char *uri) {
-    return (int) xhash_get(sm->xmlns, uri);
+    return (int) (long) xhash_get(sm->xmlns, uri);
 }
 

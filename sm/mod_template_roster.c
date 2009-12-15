@@ -185,13 +185,13 @@ static void _template_roster_save_item(sm_t sm, jid_t jid, item_t item) {
     os_object_put(o, "from", &item->from, os_type_BOOLEAN);
     os_object_put(o, "ask", &item->ask, os_type_INTEGER);
 
-    snprintf(filter, 4096, "(jid=%i:%s)", strlen(jid_full(item->jid)), jid_full(item->jid));
+    snprintf(filter, 4096, "(jid=%zu:%s)", strlen(jid_full(item->jid)), jid_full(item->jid));
 
     storage_replace(sm->st, "roster-items", jid_user(jid), filter, os);
 
     os_free(os);
 
-    snprintf(filter, 4096, "(jid=%i:%s)", strlen(jid_full(item->jid)), jid_full(item->jid));
+    snprintf(filter, 4096, "(jid=%zu:%s)", strlen(jid_full(item->jid)), jid_full(item->jid));
 
     if(item->ngroups == 0) {
         storage_delete(sm->st, "roster-groups", jid_user(jid), filter);

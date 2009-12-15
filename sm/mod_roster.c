@@ -90,7 +90,7 @@ static void _roster_save_item(user_t user, item_t item) {
     os_object_put(o, "from", &item->from, os_type_BOOLEAN);
     os_object_put(o, "ask", &item->ask, os_type_INTEGER);
 
-    snprintf(filter, 4096, "(jid=%i:%s)", strlen(jid_full(item->jid)), jid_full(item->jid));
+    snprintf(filter, 4096, "(jid=%zu:%s)", strlen(jid_full(item->jid)), jid_full(item->jid));
 
     storage_replace(user->sm->st, "roster-items", jid_user(user->jid), filter, os);
 
@@ -350,7 +350,7 @@ static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi
             xhash_zap(sess->user->roster, jid_full(jid));
             _roster_free_walker((const char *) jid_full(jid), (void *) item, NULL);
 
-            snprintf(filter, 4096, "(jid=%i:%s)", strlen(jid_full(jid)), jid_full(jid));
+            snprintf(filter, 4096, "(jid=%zu:%s)", strlen(jid_full(jid)), jid_full(jid));
             storage_delete(sess->user->sm->st, "roster-items", jid_user(sess->jid), filter);
             storage_delete(sess->user->sm->st, "roster-groups", jid_user(sess->jid), filter);
         }

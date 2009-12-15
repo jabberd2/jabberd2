@@ -628,7 +628,7 @@ static void _unblock_jid(user_t user, storage_t st, zebra_list_t zlist, jid_t ji
                 zlist->last = scan->prev;
 
             /* and from the storage */
-            sprintf(filter, "(&(type=3:jid)(value=%i:%s)(deny=1)", strlen(jid_full(scan->jid)), jid_full(scan->jid));
+            sprintf(filter, "(&(type=3:jid)(value=%zu:%s)(deny=1)", strlen(jid_full(scan->jid)), jid_full(scan->jid));
             storage_delete(st, "privacy-items", jid_user(user->jid), filter);
 
             /* set jid for notify */
@@ -707,7 +707,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                 /* remove any previous one */
                 if((zlist = xhash_get(z->lists, urn_BLOCKING))) {
                     pool_free(zlist->p);
-                    sprintf(filter, "(list=%i:%s)", strlen(urn_BLOCKING), urn_BLOCKING);
+                    sprintf(filter, "(list=%zu:%s)", strlen(urn_BLOCKING), urn_BLOCKING);
                     storage_delete(mod->mm->sm->st, "privacy-items", jid_user(sess->user->jid), filter);
                 }
 
@@ -1113,7 +1113,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
             }
 
             /* write the whole list out */
-            sprintf(filter, "(list=%i:%s)", strlen(zlist->name), zlist->name);
+            sprintf(filter, "(list=%zu:%s)", strlen(zlist->name), zlist->name);
 
             ret = storage_replace(mod->mm->sm->st, "privacy-items", jid_user(sess->user->jid), filter, os);
             os_free(os);

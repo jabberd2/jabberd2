@@ -193,7 +193,7 @@ int os_object_get_int(os_t os, os_object_t o, const char *key, int *val) {
     int ret;
 
     ret = os_object_get(os, o, key, &ptr, os_type_INTEGER, NULL);
-    *val = (int) ptr;
+    *val = (int) (long) ptr;
 
     return ret;
 }
@@ -203,7 +203,7 @@ int os_object_get_bool(os_t os, os_object_t o, const char *key, int *val) {
     int ret;
 
     ret = os_object_get(os, o, key, &ptr, os_type_INTEGER, NULL);
-    *val = (int) ptr;
+    *val = (int) (long) ptr;
 
     return ret;
 }

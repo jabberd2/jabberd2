@@ -435,12 +435,12 @@ static int _storage_match(st_filter_t f, os_object_t o, os_t os) {
 
             switch(ot) {
                 case os_type_BOOLEAN:
-                    if((atoi(f->val) != 0) == (((int) val) != 0))
+                    if((atoi(f->val) != 0) == (((int) (long) val) != 0))
                         return 1;
                     return 0;
 
                 case os_type_INTEGER:
-                    if(atoi(f->val) == (int) val)
+                    if(atoi(f->val) == (int) (long) val)
                         return 1;
                     return 0;
 

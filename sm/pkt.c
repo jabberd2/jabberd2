@@ -229,7 +229,7 @@ pkt_t pkt_new(sm_t sm, nad_t nad) {
                 }
 
                 if(pkt->nad->ecur > 2 && (ns = NAD_ENS(pkt->nad, 2)) >= 0)
-                    pkt->ns = (int) xhash_getx(pkt->sm->xmlns, NAD_NURI(pkt->nad, ns), NAD_NURI_L(pkt->nad, ns));
+                    pkt->ns = (int) (long) xhash_getx(pkt->sm->xmlns, NAD_NURI(pkt->nad, ns), NAD_NURI_L(pkt->nad, ns));
 
                 return pkt;
             }
