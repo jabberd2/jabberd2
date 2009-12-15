@@ -375,3 +375,5 @@ union xhashv
   dnscache_t *dns_val;
   dnsres_t *dnsres_val;
 };
+
+void out_pkt_free(pkt_t pkt);

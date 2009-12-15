@@ -572,6 +572,14 @@ int out_route(s2s_t s2s, char *route, conn_t *out, int allow_bad) {
     return 0;
 }
 
+void out_pkt_free(pkt_t pkt)
+{
+    nad_free(pkt->nad);
+    jid_free(pkt->from);
+    jid_free(pkt->to);
+    free(pkt);
+}
+
 /** send a packet out */
 int out_packet(s2s_t s2s, pkt_t pkt) {
     char *rkey;

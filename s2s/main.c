@@ -889,6 +889,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
         xhash_free(conn->routes);
 
         if(conn->key != NULL) free(conn->key);
+        if(conn->dkey != NULL) free(conn->dkey);
         free(conn);
     }
 
@@ -897,6 +898,8 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
     if(xhash_iter_first(s2s->outq))
         do {
              xhash_iter_get(s2s->outq, NULL, xhv.val);
+             while (jqueue_size(q) > 0)
+                 out_pkt_free((pkt_t) jqueue_pull(q));
              free(q->key);
              jqueue_free(q);
         } while(xhash_iter_next(s2s->outq));
