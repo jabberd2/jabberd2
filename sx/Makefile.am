@@ -1,3 +1,5 @@
+LIBTOOL += --quiet
+
 noinst_LTLIBRARIES = libsx.la
 noinst_HEADERS = plugins.h sasl.h sx.h
 

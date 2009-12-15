@@ -69,8 +69,6 @@ void pres_update(sess_t sess, pkt_t pkt) {
     int self;
     jid_t scan, next;
     sess_t sscan;
-    user_t user;
-    int user_connected = 0;
 
     switch(pkt->type) {
         case pkt_PRESENCE:

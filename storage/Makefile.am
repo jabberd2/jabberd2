@@ -1,5 +1,7 @@
 INCLUDES = -I$(top_srcdir)/sm -I$(top_srcdir)/c2s
 
+LIBTOOL += --quiet
+
 MODULE_LDFLAGS = -module -avoid-version
 MODULE_LIBADD = -lexpat -L$(top_srcdir)/util
 

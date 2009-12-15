@@ -40,7 +40,7 @@ static nad_t _sm_build_route(sess_t sess, bres_t res, const char *action, const 
     ns = nad_add_namespace(nad, uri_COMPONENT, NULL);
     nad_append_elem(nad, ns, "route", 0);
     
-    nad_append_attr(nad, -1, "to", sess->smcomp?sess->smcomp:res->jid->domain);
+    nad_append_attr(nad, -1, "to", sess->smcomp?sess->smcomp:((char *) res->jid->domain));
     nad_append_attr(nad, -1, "from", sess->c2s->id);
 
     ans = nad_add_namespace(nad, uri_SESSION, "sc");
@@ -89,7 +89,7 @@ void sm_packet(sess_t sess, bres_t res, nad_t nad) {
     ns = nad_add_namespace(nad, uri_COMPONENT, NULL);
     nad_wrap_elem(nad, 0, ns, "route");
 
-    nad_set_attr(nad, 0, -1, "to", sess->smcomp?sess->smcomp:res->jid->domain, 0);
+    nad_set_attr(nad, 0, -1, "to", sess->smcomp?sess->smcomp:((char *) res->jid->domain), 0);
     nad_set_attr(nad, 0, -1, "from", sess->c2s->id, 0);
 
     ns = nad_append_namespace(nad, 1, uri_SESSION, "sc");

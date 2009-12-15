@@ -223,7 +223,6 @@ static void _status_user_delete(mod_instance_t mi, jid_t jid) {
 }
 
 static void _status_free(module_t mod) {
-    status_t st = (status_t) mod->private;
     free(mod->private);
 }
 

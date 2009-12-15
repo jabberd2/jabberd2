@@ -122,7 +122,7 @@ int config_load(config_t c, const char *file)
         /* parse it */
         if(!XML_Parse(p, buf, len, done))
         {
-            fprintf(stderr, "config_load: parse error at line %d: %s\n", XML_GetCurrentLineNumber(p), XML_ErrorString(XML_GetErrorCode(p)));
+            fprintf(stderr, "config_load: parse error at line %llu: %s\n", (unsigned long long) XML_GetCurrentLineNumber(p), XML_ErrorString(XML_GetErrorCode(p)));
             XML_ParserFree(p);
             fclose(f);
             nad_free(bd.nad);

@@ -55,10 +55,6 @@ static mod_ret_t _echo_pkt_sm(mod_instance_t mi, pkt_t pkt)
     return mod_HANDLED;
 }
 
-static void _echo_free(module_t mod) {
-    /* data is static so nothing to be done here */
-}
-
 DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     module_t mod = mi->mod;
 
@@ -68,6 +64,7 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     mod->private = "echo";
 
     mod->pkt_sm = _echo_pkt_sm;
+    /* data is static so nothing to free */
     /* mod->free = _echo_free; */
 
     return 0;

@@ -75,7 +75,7 @@ static void _roster_publish_free_group_cache_walker(const char *key, void *val, 
  * get group's descriptive name by it's text id
  * returned value needs to be freed by caller
  */
-static char *_roster_publish_get_group_name(sm_t sm, roster_publish_t rp, const char *groupid)
+static char *_roster_publish_get_group_name(sm_t sm, roster_publish_t rp, char *groupid)
 {
     os_t os;
     os_object_t o;
@@ -203,14 +203,11 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
     roster_publish_t roster_publish = (roster_publish_t) mi->mod->private;
     os_t os, os_active;
     os_object_t o, o_active;
-    os_type_t ot, ot_active;
-    char *str, *group, filter[4096], *fetchkey;
-    int i,j,gpos,found,delete,checksm,userinsm,tmp_to,tmp_from,tmp_do_change;
+    char *str, *group, filter[4096];
+    const char *fetchkey;
+    int i,j,gpos,found,delete,checksm,tmp_to,tmp_from,tmp_do_change;
     item_t item;
     jid_t jid;
-#ifndef NO_SM_CACHE
-    _roster_publish_active_cache_t active_cached;
-#endif
 
     /* update roster to match published roster */
     if( roster_publish->publish) {
@@ -253,6 +250,10 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                                 checksm = 1;
                             }
                         }
+#ifndef NO_SM_CACHE
+                        int userinsm;
+                        _roster_publish_active_cache_t active_cached = 0;
+#endif
                         if( checksm ) {
                             /* is this a hack? but i want to know was the user activated in sm or no? */
 #ifndef NO_SM_CACHE
@@ -308,7 +309,7 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                                 }
                             } // if( userinsm == -1 )
 #endif
-                        } // if( checksm )
+                        } else userinsm = 0; // if( checksm )
                         item = xhash_get(user->roster,jid_user(jid));
                         if( item == NULL ) {
                             /* user has no this jid in his roster */
@@ -522,10 +523,12 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
 #endif
         if( config_get_one(mod->mm->sm->config, "user.template.publish.force-groups", 0) ) {
             roster_publish->forcegroups = 1;
-            if( roster_publish->groupprefix = config_get_one(mod->mm->sm->config, "user.template.publish.force-groups.prefix", 0) ) {
+            roster_publish->groupprefix = config_get_one(mod->mm->sm->config, "user.template.publish.force-groups.prefix", 0);
+            if( roster_publish->groupprefix ) {
                 roster_publish->groupprefixlen = strlen(roster_publish->groupprefix);
             }
-            if( roster_publish->groupsuffix = config_get_one(mod->mm->sm->config, "user.template.publish.force-groups.suffix", 0) ) {
+            roster_publish->groupsuffix = config_get_one(mod->mm->sm->config, "user.template.publish.force-groups.suffix", 0);
+            if( roster_publish->groupsuffix ) {
                 roster_publish->groupsuffixlen = strlen(roster_publish->groupsuffix);
             }
         } else {

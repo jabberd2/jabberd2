@@ -1,3 +1,5 @@
+LIBTOOL += --quiet
+
 noinst_LTLIBRARIES = libsubst.la
 
 noinst_HEADERS = dirent.h getopt.h ip6_misc.h subst.h syslog.h

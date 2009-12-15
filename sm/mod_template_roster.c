@@ -79,8 +79,7 @@ static int _template_roster_reload(template_roster_t tr) {
 
     buf = (char *) malloc(sizeof(char) * size);
 
-    fread(buf, 1, size, f);
-    if(ferror(f)) {
+    if (fread(buf, 1, size, f) != size || ferror(f)) {
         log_write(tr->sm->log, LOG_ERR, "couldn't read from roster template %s: %s", tr->filename, strerror(errno));
         free(buf);
         fclose(f);

@@ -1,3 +1,5 @@
+LIBTOOL += --quiet
+
 sysconf_DATA = c2s.xml.dist router.xml.dist s2s.xml.dist sm.xml.dist jabberd.cfg.dist router-users.xml.dist router-filter.xml.dist
 EXTRA_DIST = $(sysconf_DATA:%.dist=%.dist.in)
 

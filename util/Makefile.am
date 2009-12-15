@@ -1,3 +1,5 @@
+LIBTOOL += --quiet
+
 noinst_LTLIBRARIES = libutil.la
 
 noinst_HEADERS = inaddr.h md5.h sha1.h util.h util_compat.h xdata.h nad.h pool.h xhash.h uri.h jid.h

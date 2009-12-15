@@ -1,5 +1,7 @@
 EXTRA_DIST = Doxyfile.in README.win32 README.protocol contrib UPGRADE tests/Makefile.in
 
+LIBTOOL += --quiet
+
 SUBDIRS = etc man
 if USE_LIBSUBST
 SUBDIRS += subst

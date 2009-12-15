@@ -154,12 +154,7 @@ static void _help_disco_extend(mod_instance_t mi, pkt_t pkt)
     }
 }
 
-static void _help_free(module_t mod) {
-    /* module data is static so nothing to be done here */
-}
-
 DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
-    jid_t hlpjid;
     module_t mod = mi->mod;
 
     if(mod->init) return 0;
@@ -169,6 +164,7 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
 
     mod->pkt_sm = _help_pkt_sm;
     mod->disco_extend = _help_disco_extend;
+    /* module data is static so nothing to free */
     /* mod->free = _help_free; */
 
     return 0;

@@ -325,7 +325,6 @@ static void _announce_free(module_t mod) {
 DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     module_t mod = mi->mod;
     moddata_t data;
-    jid_t jid;
 
     if(mod->init) return 0;
 

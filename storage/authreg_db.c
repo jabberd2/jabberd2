@@ -242,11 +242,11 @@ static int _ar_db_delete_user(authreg_t ar, char *username, char *realm)
     return err;
 }
 
-static void _ar_db_free_walker(xht realms, const char *realm, void *val, void *arg)
+static void _ar_db_free_walker(const char *key, void *val, void *arg)
 {
     DB *db = (DB *) val;
 
-    log_debug(ZONE, "closing '%s' db", realm);
+    log_debug(ZONE, "closing '%s' db", key);
 
     db->close(db, 0);
 }

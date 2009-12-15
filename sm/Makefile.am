@@ -1,3 +1,5 @@
+LIBTOOL += --quiet
+
 bin_PROGRAMS = sm
 
 pkglib_LTLIBRARIES = mod_active.la \

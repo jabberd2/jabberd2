@@ -1,3 +1,5 @@
+LIBTOOL += --quiet
+
 bin_SCRIPTS = jabberd
 EXTRA_DIST = db-setup.mysql db-update.mysql db-setup.pgsql db-setup.oracle db-setup.sqlite db-update.sqlite \
 			 jabberd.in jabberd.rc pipe-auth.pl jabberd-authpipe-pam-0.1.pl pam_jabberd jabberd2.schema \

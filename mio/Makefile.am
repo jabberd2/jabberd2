@@ -1,3 +1,5 @@
+LIBTOOL += --quiet
+
 noinst_LTLIBRARIES = libmio.la
 
 noinst_HEADERS = mio.h mio_impl.h mio_epoll.h mio_poll.h mio_select.h mio_kqueue.h

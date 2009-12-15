@@ -802,12 +802,15 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
 #endif
             if(c2s->packet_stats != NULL) {
                 int fd = open(c2s->packet_stats, O_TRUNC | O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP);
-                if(fd) {
+                if (fd >= 0) {
                     char buf[100];
                     int len = snprintf(buf, 100, "%lld\n", c2s->packet_count);
-                    write(fd, buf, len);
-                    close(fd);
-                } else {
+                    if (write(fd, buf, len) != len) {
+                        close(fd);
+                        fd = -1;
+                    } else close(fd);
+                }
+                if (fd < 0) {
                     log_write(c2s->log, LOG_ERR, "failed to write packet statistics to: %s", c2s->packet_stats);
                     c2s_shutdown = 1;
                 }

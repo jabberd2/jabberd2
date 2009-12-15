@@ -1,5 +1,7 @@
 INCLUDES = -DCONFIG_DIR=\"$(sysconfdir)\"
 
+LIBTOOL += --quiet
+
 bin_PROGRAMS = s2s
 
 noinst_HEADERS = s2s.h

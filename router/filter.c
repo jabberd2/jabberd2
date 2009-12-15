@@ -69,8 +69,7 @@ int filter_load(router_t r) {
 
     buf = (char *) malloc(sizeof(char) * size);
 
-    fread(buf, 1, size, f);
-    if(ferror(f)) {
+    if (fread(buf, 1, size, f) != size || ferror(f)) {
         log_write(r->log, LOG_ERR, "couldn't read from filter file: %s", strerror(errno));
         free(buf);
         fclose(f);

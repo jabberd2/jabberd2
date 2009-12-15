@@ -132,7 +132,6 @@ static mod_ret_t _presence_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
 
 /* presence packets to the sm */
 static mod_ret_t _presence_pkt_sm(mod_instance_t mi, pkt_t pkt) {
-    time_t t;
     module_t mod = mi->mod;
     jid_t smjid;
 

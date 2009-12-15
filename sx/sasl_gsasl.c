@@ -329,7 +329,7 @@ static void _sx_sasl_stream(sx_t s, sx_plugin_t p) {
 static void _sx_sasl_features(sx_t s, sx_plugin_t p, nad_t nad) {
     _sx_sasl_t ctx = (_sx_sasl_t) p->private;
     Gsasl_session *sd = (Gsasl_session *) s->plugin_data[p->index];
-    int ns, nmechs, ret;
+    int nmechs, ret;
     char *mechs, *mech, *c;
 
     if(s->type != type_SERVER)
@@ -369,12 +369,12 @@ static void _sx_sasl_features(sx_t s, sx_plugin_t p, nad_t nad) {
 
         if ((ctx->cb)(sx_sasl_cb_CHECK_MECH, mech, NULL, s, ctx->cbarg)==sx_sasl_ret_OK) {
             if (nmechs == 0) {
-                ns = nad_add_namespace(nad, uri_SASL, NULL);
+                int ns = nad_add_namespace(nad, uri_SASL, NULL);
                 nad_append_elem(nad, ns, "mechanisms", 1);
             }
             _sx_debug(ZONE, "offering mechanism: %s", mech);
 
-            nad_append_elem(nad, ns, "mechanism", 2);
+            nad_append_elem(nad, -1 /*ns*/, "mechanism", 2);
             nad_append_cdata(nad, mech, strlen(mech), 3);
             nmechs++;
         }

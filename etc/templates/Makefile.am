@@ -1,5 +1,7 @@
 templatesdir = $(sysconfdir)/templates
 
+LIBTOOL += --quiet
+
 templates_DATA = roster.xml.dist
 EXTRA_DIST = roster.xml.dist.in
 

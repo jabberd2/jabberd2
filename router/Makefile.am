@@ -1,5 +1,7 @@
 INCLUDES = -DCONFIG_DIR=\"$(sysconfdir)\"
 
+LIBTOOL += --quiet
+
 bin_PROGRAMS =  router
 
 noinst_HEADERS = router.h
