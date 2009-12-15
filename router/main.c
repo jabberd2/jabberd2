@@ -387,6 +387,7 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
     r->log_sinks = xhash_new(101);
 
     r->dead = jqueue_new();
+    r->closefd = jqueue_new();
     r->deadroutes = jqueue_new();
 
     r->sx_env = sx_env_new();
@@ -408,7 +409,7 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
 
     r->mio = mio_new(r->io_max_fds);
 
-    r->fd = mio_listen(r->mio, r->local_port, r->local_ip, router_mio_callback, (void *) r);
+    r->fd = mio_listen(r->mio, r->local_port, r->local_ip, router_mio_accept_callback, (void *) r);
     if(r->fd == NULL) {
         log_write(r->log, LOG_ERR, "[%s, port=%d] unable to listen (%s)", r->local_ip, r->local_port, MIO_STRERROR(MIO_ERROR));
         exit(1);
@@ -441,6 +442,8 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
         /* cleanup dead sx_ts */
         while(jqueue_size(r->dead) > 0)
             sx_free((sx_t) jqueue_pull(r->dead));
+        while(jqueue_size(r->closefd) > 0)
+            mio_close(r->mio, (mio_fd_t) jqueue_pull(r->closefd));
 
         /* cleanup dead routes */
         while(jqueue_size(r->deadroutes) > 0)
@@ -466,6 +469,9 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
 
     log_write(r->log, LOG_NOTICE, "shutting down");
 
+    /* stop accepting new connections */
+    if (r->fd) mio_close(r->mio, r->fd);
+
     /*
      * !!! issue remote shutdowns to each service, so they can clean up.
      *     we'll need to mio_run() until they all disconnect, so that
@@ -478,8 +484,11 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
     if(xhash_iter_first(r->components))
         do {
             xhash_iter_get(r->components, NULL, xhv.val);
-            sx_close(comp->s);
+            log_debug(ZONE, "close component %p", comp);
+            if (comp) sx_close(comp->s);
             mio_run(r->mio, 5);
+            while(jqueue_size(r->closefd) > 0)
+                mio_close(r->mio, (mio_fd_t) jqueue_pull(r->closefd));
         } while(xhash_count(r->components) > 0);
 
     xhash_free(r->components);
@@ -487,8 +496,16 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
     /* cleanup dead sx_ts */
     while(jqueue_size(r->dead) > 0)
        sx_free((sx_t) jqueue_pull(r->dead));
-
     jqueue_free(r->dead);
+
+    while(jqueue_size(r->closefd) > 0)
+        mio_close(r->mio, (mio_fd_t) jqueue_pull(r->closefd));
+    jqueue_free(r->closefd);
+
+    /* cleanup dead routes - probably just showed up (route was just closed) */
+    while(jqueue_size(r->deadroutes) > 0)
+        routes_free((routes_t) jqueue_pull(r->deadroutes));
+    jqueue_free(r->deadroutes);
 
     /* walk r->conn_rates and free */
     xhv.rt_val = &rt;
@@ -502,6 +519,13 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
 
     xhash_free(r->log_sinks);
 
+    /* walk r->routes and free */
+    if (xhash_iter_first(r->routes))
+        do {
+            routes_t p;
+            xhash_iter_get(r->routes, NULL, (void *) &p);
+            routes_free(p);
+        } while(xhash_iter_next(r->routes));
     xhash_free(r->routes);
 
     /* unload users */

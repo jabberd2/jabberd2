@@ -148,6 +148,9 @@ struct router_st {
     /** list of sx_t waiting to be cleaned up */
     jqueue_t            dead;
 
+    /** list of mio_fd_t waiting to be closed */
+    jqueue_t            closefd;
+
     /** list of routes_t waiting to be cleaned up */
     jqueue_t            deadroutes;
 };
@@ -209,6 +212,7 @@ struct alias_st {
 };
 
 int     router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
+int     router_mio_accept_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
 void    router_sx_handshake(sx_t s, sx_buf_t buf, void *arg);
 
 xht     aci_load(router_t r);

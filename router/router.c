@@ -918,8 +918,14 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             return 0;
 
         case event_CLOSED:
-            mio_close(comp->r->mio, comp->fd);
-            return -1;
+        {
+            /* close comp->fd by putting it in closefd ... unless it is already there */
+            _jqueue_node_t n;
+            for (n = comp->r->closefd->front; n != NULL; n = n->prev)
+                if (n->data == comp->fd) break;
+            if (!n) jqueue_push(comp->r->closefd, (void *) comp->fd, 0 /*priority*/);
+            return 0;
+        }
     }
 
     return 0;
@@ -973,9 +979,8 @@ static void _router_route_unbind_walker(const char *key, void *val, void *arg) {
 
 int router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg) {
     component_t comp = (component_t) arg;
-    router_t r = (router_t) arg;
-    struct sockaddr_storage sa;
-    int namelen = sizeof(sa), port, nbytes;
+    router_t r;
+    int nbytes;
 
     switch(a) {
         case action_READ:
@@ -1028,46 +1033,61 @@ int router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *
             break;
 
         case action_ACCEPT:
-            log_debug(ZONE, "accept action on fd %d", fd->fd);
-
-            getpeername(fd->fd, (struct sockaddr *) &sa, &namelen);
-            port = j_inet_getport(&sa);
-
-            log_write(r->log, LOG_NOTICE, "[%s, port=%d] connect", (char *) data, port);
-
-            if(_router_accept_check(r, fd, (char *) data) != 0)
-                return 1;
-
-            comp = (component_t) calloc(1, sizeof(struct component_st));
-
-            comp->r = r;
-
-            comp->fd = fd;
-
-            snprintf(comp->ip, INET6_ADDRSTRLEN, "%s", (char *) data);
-            comp->port = port;
-
-            snprintf(comp->ipport, INET6_ADDRSTRLEN, "%s:%d", comp->ip, comp->port);
-
-            comp->s = sx_new(r->sx_env, fd->fd, _router_sx_callback, (void *) comp);
-            mio_app(m, fd, router_mio_callback, (void *) comp);
-
-            if(r->byte_rate_total != 0)
-                comp->rate = rate_new(r->byte_rate_total, r->byte_rate_seconds, r->byte_rate_wait);
-
-            comp->routes = xhash_new(51);
-
-            /* register component */
-            xhash_put(r->components, comp->ipport, (void *) comp);
-
-#ifdef HAVE_SSL
-            sx_server_init(comp->s, SX_SSL_STARTTLS_OFFER | SX_SASL_OFFER);
-#else
-            sx_server_init(comp->s, SX_SASL_OFFER);
-#endif
-
             break;
     }
+
+    return 0;
+}
+
+int router_mio_accept_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg) {
+    router_t r = (router_t) arg;
+    struct sockaddr_storage sa;
+    int namelen = sizeof(sa), port;
+
+    if (a != action_ACCEPT) {
+        if (a == action_CLOSE) return 0;
+        log_write(r->log, LOG_ERR, "unexpected action %d on listening socket", a);
+        return 1;
+    }
+
+    log_debug(ZONE, "accept action on fd %d (%p)", fd->fd, fd);
+
+    getpeername(fd->fd, (struct sockaddr *) &sa, &namelen);
+    port = j_inet_getport(&sa);
+
+    log_write(r->log, LOG_NOTICE, "[%s, port=%d] connect", (char *) data, port);
+
+    if(_router_accept_check(r, fd, (char *) data) != 0)
+        return 1;
+
+    component_t comp = (component_t) calloc(1, sizeof(struct component_st));
+
+    comp->r = r;
+
+    comp->fd = fd;
+
+    snprintf(comp->ip, INET6_ADDRSTRLEN, "%s", (char *) data);
+    comp->port = port;
+
+    snprintf(comp->ipport, INET6_ADDRSTRLEN, "%s:%d", comp->ip, comp->port);
+
+    comp->s = sx_new(r->sx_env, fd->fd, _router_sx_callback, (void *) comp);
+    mio_app(m, fd, router_mio_callback, (void *) comp);
+
+    if(r->byte_rate_total != 0)
+        comp->rate = rate_new(r->byte_rate_total, r->byte_rate_seconds, r->byte_rate_wait);
+
+    comp->routes = xhash_new(51);
+
+    /* register component */
+    log_debuggy(ZONE, "new component (%p) \"%s\"", comp, comp->ipport);
+    xhash_put(r->components, comp->ipport, (void *) comp);
+
+#ifdef HAVE_SSL
+    sx_server_init(comp->s, SX_SSL_STARTTLS_OFFER | SX_SASL_OFFER);
+#else
+    sx_server_init(comp->s, SX_SASL_OFFER);
+#endif
 
     return 0;
 }
