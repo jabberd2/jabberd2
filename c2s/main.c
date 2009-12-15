@@ -745,6 +745,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
                 log_write(c2s->log, LOG_NOTICE, "attempting reconnect");
                 sleep(c2s->retry_sleep);
                 c2s_lost_router = 0;
+                if (c2s->router) sx_free(c2s->router);
                 _c2s_router_connect(c2s);
             }
 
@@ -757,6 +758,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
                 c2s->retry_left--;
                 sleep(c2s->retry_sleep);
                 c2s_lost_router = 0;
+                if (c2s->router) sx_free(c2s->router);
                 _c2s_router_connect(c2s);
             }
         }
@@ -853,6 +855,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     while(jqueue_size(c2s->dead) > 0)
         sx_free((sx_t) jqueue_pull(c2s->dead));
 
+    if (c2s->fd != NULL) mio_close(c2s->mio, c2s->fd);
     sx_free(c2s->router);
 
     sx_env_free(c2s->sx_env);
