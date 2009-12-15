@@ -841,6 +841,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
                 xhash_iter_get(s2s->out_host, NULL, xhv.val);
                 if(conn) {
                     sx_error(conn->s, stream_err_SYSTEM_SHUTDOWN, "s2s shutdown");
+                    out_bounce_conn_queues(conn, stanza_err_SERVICE_UNAVAILABLE);
                     sx_close(conn->s);
                 }
             } while(xhash_iter_next(s2s->out_host));
@@ -850,6 +851,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
                 xhash_iter_get(s2s->out_dest, NULL, xhv.val);
                 if(conn) {
                     sx_error(conn->s, stream_err_SYSTEM_SHUTDOWN, "s2s shutdown");
+                    out_bounce_conn_queues(conn, stanza_err_SERVICE_UNAVAILABLE);
                     sx_close(conn->s);
                 }
             } while(xhash_iter_next(s2s->out_dest));
@@ -860,6 +862,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
             xhash_iter_get(s2s->in, NULL, xhv.val);
             if(conn) {
                 sx_error(conn->s, stream_err_SYSTEM_SHUTDOWN, "s2s shutdown");
+                out_bounce_conn_queues(conn, stanza_err_SERVICE_UNAVAILABLE);
                 sx_close(conn->s);
             }
         } while(xhash_iter_next(s2s->in));
@@ -867,8 +870,10 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
     if(xhash_iter_first(s2s->in_accept))
         do {
             xhash_iter_get(s2s->in_accept, NULL, xhv.val);
-            if(conn)
+            if(conn) {
+                out_bounce_conn_queues(conn, stanza_err_SERVICE_UNAVAILABLE);
                 sx_close(conn->s);
+            }
         } while(xhash_iter_next(s2s->in_accept));
 
 
