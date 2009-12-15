@@ -755,6 +755,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
                 log_write(s2s->log, LOG_NOTICE, "attempting reconnect");
                 sleep(s2s->retry_sleep);
                 s2s_lost_router = 0;
+                if (s2s->router) sx_free(s2s->router);
                 _s2s_router_connect(s2s);
             }
 
@@ -767,6 +768,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
                 s2s->retry_left--;
                 sleep(s2s->retry_sleep);
                 s2s_lost_router = 0;
+                if (s2s->router) sx_free(s2s->router);
                 _s2s_router_connect(s2s);
             }
         }
