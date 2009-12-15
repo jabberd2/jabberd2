@@ -39,7 +39,7 @@ typedef struct _roster_walker_st {
 } *roster_walker_t;
 
 /** free a single roster item */
-static void _roster_free_walker(const char *key, void *val, void *arg)
+static void _roster_freeuser_walker(const char *key, void *val, void *arg)
 {
     item_t item = (item_t) val;
     int i;
@@ -57,14 +57,14 @@ static void _roster_free_walker(const char *key, void *val, void *arg)
 }
 
 /** free the roster */
-static void _roster_free(user_t user)
+static void _roster_freeuser(user_t user)
 {
     if(user->roster == NULL)
         return;
 
     log_debug(ZONE, "freeing roster for %s", jid_user(user->jid));
 
-    xhash_walk(user->roster, _roster_free_walker, NULL);
+    xhash_walk(user->roster, _roster_freeuser_walker, NULL);
 
     xhash_free(user->roster);
     user->roster = NULL;
@@ -348,7 +348,7 @@ static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi
 
             /* kill it */
             xhash_zap(sess->user->roster, jid_full(jid));
-            _roster_free_walker((const char *) jid_full(jid), (void *) item, NULL);
+            _roster_freeuser_walker((const char *) jid_full(jid), (void *) item, NULL);
 
             snprintf(filter, 4096, "(jid=%zu:%s)", strlen(jid_full(jid)), jid_full(jid));
             storage_delete(sess->user->sm->st, "roster-items", jid_user(sess->jid), filter);
@@ -764,7 +764,7 @@ static int _roster_user_load(mod_instance_t mi, user_t user) {
                         if(olditem) {
                             log_debug(ZONE, "removing old %s roster entry", jid_full(item->jid));
                             xhash_zap(user->roster, jid_full(item->jid));
-                            _roster_free_walker(jid_full(item->jid), (void *) olditem, NULL);
+                            _roster_freeuser_walker(jid_full(item->jid), (void *) olditem, NULL);
                         }
 
                         /* its good */
@@ -801,7 +801,7 @@ static int _roster_user_load(mod_instance_t mi, user_t user) {
         os_free(os);
     }
 
-    pool_cleanup(user->p, (void (*))(void *) _roster_free, user);
+    pool_cleanup(user->p, (void (*))(void *) _roster_freeuser, user);
 
     return 0;
 }
@@ -811,6 +811,12 @@ static void _roster_user_delete(mod_instance_t mi, jid_t jid) {
 
     storage_delete(mi->sm->st, "roster-items", jid_user(jid), NULL);
     storage_delete(mi->sm->st, "roster-groups", jid_user(jid), NULL);
+}
+
+static void _roster_free(module_t mod)
+{
+    mod_roster_t mroster = (mod_roster_t) mod->private;
+    free(mroster);
 }
 
 DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
@@ -829,6 +835,7 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
     mod->pkt_user = _roster_pkt_user;
     mod->user_load = _roster_user_load;
     mod->user_delete = _roster_user_delete;
+    mod->free = _roster_free;
 
     feature_register(mod->mm->sm, uri_ROSTER);
 
