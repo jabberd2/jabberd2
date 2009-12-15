@@ -112,14 +112,15 @@ void dispatch(sm_t sm, pkt_t pkt) {
 
             case mod_PASS:
                 /* ignore IQ result packets that haven't been handled - XMPP 9.2.3.4 */
-                if(pkt->type == pkt_IQ_RESULT)
+                if(pkt->type == pkt_IQ_RESULT) {
+                    pkt_free(pkt);
                     break;
-                 else
+                } else
                     ret = -stanza_err_FEATURE_NOT_IMPLEMENTED;
 
             default:
                 pkt_router(pkt_error(pkt, -ret));
-    
+
                 break;
         }
 
@@ -143,7 +144,7 @@ void dispatch(sm_t sm, pkt_t pkt) {
         pkt_router(pkt_error(pkt, stanza_err_SERVICE_UNAVAILABLE));
         return;
     }
-   
+
     if (pkt != NULL && pkt->sm != NULL) {
         ret = mm_pkt_user(pkt->sm->mm, user, pkt);
         switch(ret) {
@@ -152,9 +153,10 @@ void dispatch(sm_t sm, pkt_t pkt) {
     
             case mod_PASS:
                 /* ignore IQ result packets that haven't been handled - XMPP 9.2.3.4 */
-                if(pkt->type == pkt_IQ_RESULT)
+                if(pkt->type == pkt_IQ_RESULT) {
+                    pkt_free(pkt);
                     break;
-                 else
+                } else
                     ret = -stanza_err_FEATURE_NOT_IMPLEMENTED;
 
             default:

@@ -83,7 +83,7 @@ static mod_ret_t _vacation_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 
         pkt_tofrom(pkt);
         nad_set_attr(pkt->nad, 1, -1, "type", "result", 6);
-            
+
         pkt_sess(pkt, sess);
 
         return mod_HANDLED;
