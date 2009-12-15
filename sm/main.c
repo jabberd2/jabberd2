@@ -377,6 +377,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
                 log_write(sm->log, LOG_NOTICE, "attempting reconnect");
                 sleep(sm->retry_sleep);
                 sm_lost_router = 0;
+                if (sm->router) sx_free(sm->router);
                 _sm_router_connect(sm);
             }
 
@@ -389,6 +390,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
                 sm->retry_left--;
                 sleep(sm->retry_sleep);
                 sm_lost_router = 0;
+                if (sm->router) sx_free(sm->router);
                 _sm_router_connect(sm);
             }
         }
@@ -413,6 +415,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
 
     xhash_free(sm->sessions);
 
+    if (sm->fd) mio_close(sm->mio, sm->fd);
     mio_free(sm->mio);
 
     mm_free(sm->mm);
