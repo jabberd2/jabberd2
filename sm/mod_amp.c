@@ -59,16 +59,16 @@ typedef struct amp_rule_st {
 
 
 void amp_rule_free(amp_rule_t rule) {
-	amp_rule_t rule_c = rule;
+    amp_rule_t rule_c = rule;
     amp_rule_t rule_tmp;
-	while (rule_c != NULL) {
-		if (rule_c->condition) free(rule_c->condition);
-		if (rule_c->value) free(rule_c->value);
-		if (rule_c->action) free(rule_c->action);
+    while (rule_c != NULL) {
+        if (rule_c->condition) free(rule_c->condition);
+        if (rule_c->value) free(rule_c->value);
+        if (rule_c->action) free(rule_c->action);
         rule_tmp = rule_c->next;
         free(rule_c);
         rule_c = rule_tmp;
-	}
+    }
 }
 
 pkt_t amp_build_response_pkt(pkt_t pkt, amp_rule_t rule) {
