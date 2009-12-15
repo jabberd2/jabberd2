@@ -102,8 +102,8 @@ static int _out_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, v
 static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg);
 static void _out_result(conn_t out, nad_t nad);
 static void _out_verify(conn_t out, nad_t nad);
-static void _dns_result_aaaa(struct dns_ctx *ctx, struct dns_rr_a6 *result, void *data);
-static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *data);
+static void _dns_result_aaaa(void *data, int err, struct ub_result *result);
+static void _dns_result_a(void *data, int err, struct ub_result *result);
 
 /** queue the packet */
 static void _out_packet_queue(s2s_t s2s, pkt_t pkt) {
@@ -177,8 +177,8 @@ int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int a
     int rw_aaaa[DNS_MAX_RESULTS];
     int rw_a[DNS_MAX_RESULTS];
     int s_reuse = 0, s_aaaa = 0, s_a = 0, s_bad = 0; /* count */
-    int p_reuse, p_aaaa, p_a; /* list prio */
-    int wt_reuse, wt_aaaa, wt_a; /* weight total */
+    int p_reuse = 0, p_aaaa = 0, p_a = 0; /* list prio */
+    int wt_reuse = 0, wt_aaaa = 0, wt_a = 0; /* weight total */
     int c_expired_good = 0;
     union xhashv xhv;
     dnsres_t res;
@@ -406,14 +406,6 @@ int out_route(s2s_t s2s, char *route, conn_t *out, int allow_bad) {
             strcpy(dns->name, dkey);
 
             xhash_put(s2s->dnscache, dns->name, (void *) dns);
-
-#if 0
-            /* this is good for testing */
-            dns->pending = 0;
-            strcpy(dns->ip, "127.0.0.1");
-            dns->port = 3000;
-            dns->expiry = time(NULL) + 99999999;
-#endif
         }
 
         /* resolution in progress */
@@ -782,249 +774,208 @@ static void _dns_add_host(dnsquery_t query, char *ip, int port, int prio, int we
     free(ipport);
 }
 
-/* this function is called with a NULL ctx to start the SRV process */
-static void _dns_result_srv(struct dns_ctx *ctx, struct dns_rr_srv *result, void *data) {
+static void _dns_start_aaaa(dnsquery_t query)
+{
+    int err;
+    log_debug(ZONE, "dns request for %s@%p: AAAA %s", query->name, query, query->cur_host ? query->cur_host : query->name);
+
+    err = ub_resolve_async(query->s2s->ub_ctx, query->cur_host ? query->cur_host : query->name, LDNS_RR_TYPE_AAAA /*rrtype*/, LDNS_RR_CLASS_IN /*rrclass*/,
+        query, _dns_result_aaaa, &query->async_id);
+    query->have_async_id = 1;
+
+    /* if submit failed, call ourselves with the error */
+    if (err) _dns_result_aaaa(query, err, NULL);
+}
+
+static void _dns_start_a(dnsquery_t query)
+{
+    int err;
+    log_debug(ZONE, "dns request for %s@%p: A %s", query->name, query, query->cur_host ? query->cur_host : query->name);
+
+    err = ub_resolve_async(query->s2s->ub_ctx, query->cur_host ? query->cur_host : query->name, LDNS_RR_TYPE_A /*rrtype*/, LDNS_RR_CLASS_IN /*rrclass*/,
+        query, _dns_result_a, &query->async_id);
+    query->have_async_id = 1;
+
+    /* if submit failed, call ourselves with the error */
+    if (err) _dns_result_a(query, err, NULL);
+}
+
+/* this function is called with 0 err and a NULL result to start the SRV process */
+static void _dns_result_srv(void *data, int err, struct ub_result *result) {
     dnsquery_t query = data;
     assert(query != NULL);
-    query->query = NULL;
+    query->have_async_id = 0;
 
-    if (ctx != NULL && result == NULL) {
-        log_debug(ZONE, "dns failure for %s@%p: SRV %s (%d)", query->name, query,
-            query->s2s->lookup_srv[query->srv_i], dns_status(ctx));
-    } else if (result != NULL) {
-        int i;
+    ldns_pkt *pkt = 0;
+    ldns_buffer *buf = ldns_buffer_new(1024);
+    if (!buf) {
+        log_write(query->s2s->log, LOG_ERR, "ldns_buffer(1024) failed");
+    } else if (err == 0 && result != NULL && !result->nxdomain && !result->bogus && result->havedata &&
+            ldns_wire2pkt(&pkt, result->answer_packet, result->answer_len) != LDNS_STATUS_OK) {
+        log_write(query->s2s->log, LOG_ERR, "ldns_wire2pkt failed to parse DNS answer");
+    } else if (err == 0 && result != NULL && !result->nxdomain && !result->bogus && result->havedata) {
+        unsigned i;
+        ldns_rr_list *rrs = ldns_pkt_answer(pkt);
+        log_debug(ZONE, "dns response for %s@%p: SRV", query->name, query);
 
-        log_debug(ZONE, "dns response for %s@%p: SRV %s %d (%d)", query->name, query,
-            result->dnssrv_qname, result->dnssrv_nrr, result->dnssrv_ttl);
-
-        for (i = 0; i < result->dnssrv_nrr; i++) {
-            if (strlen(result->dnssrv_srv[i].name) > 0
-                    && result->dnssrv_srv[i].port > 0
-                    && result->dnssrv_srv[i].port < 65536) {
-                log_debug(ZONE, "dns response for %s@%p: SRV %s[%d] %s/%d (%d/%d)", query->name,
-                    query, result->dnssrv_qname, i,
-                    result->dnssrv_srv[i].name, result->dnssrv_srv[i].port,
-                    result->dnssrv_srv[i].priority, result->dnssrv_srv[i].weight);
-
-                _dns_add_host(query, result->dnssrv_srv[i].name,
-                    result->dnssrv_srv[i].port, result->dnssrv_srv[i].priority,
-                    result->dnssrv_srv[i].weight, result->dnssrv_ttl);
+        for (i = 0; i < ldns_rr_list_rr_count(rrs); i++) {
+            ldns_rr *rr = ldns_rr_list_rr(rrs, i);
+            if (ldns_rr_get_class(rr) != LDNS_RR_CLASS_IN) continue;
+            if (ldns_rr_get_type(rr) != LDNS_RR_TYPE_SRV) continue;
+            if (ldns_rr_rd_count(rr) != 4) {
+                log_write(query->s2s->log, LOG_ERR, "dns response for %s: SRV with %zu fields (should be 4) - ignoring broken DNS server", query->name, ldns_rr_rd_count(rr));
+                continue;
             }
+            int ttl = ldns_rr_ttl(rr);
+            if (query->cur_expiry > 0 && ttl > query->cur_expiry) ttl = query->cur_expiry;
+            uint16_t priority = ldns_rdf2native_int16(ldns_rr_rdf(rr, 0));
+            uint16_t weight = ldns_rdf2native_int16(ldns_rr_rdf(rr, 1));
+            uint16_t port = ldns_rdf2native_int16(ldns_rr_rdf(rr, 2));
+            ldns_buffer_rewind(buf);
+            if (ldns_rdf2buffer_str_dname(buf, ldns_rr_rdf(rr, 3)) != LDNS_STATUS_OK) {
+                log_write(query->s2s->log, LOG_ERR, "dns response for %s: SRV name invalid - ignoring DNS server", query->name);
+                continue;
+            } else if (ldns_buffer_position(buf) < 2) {
+                log_write(query->s2s->log, LOG_ERR, "dns response for %s: SRV empty name - ignoring DNS server", query->name);
+                continue;
+            }
+            if (!ldns_buffer_reserve(buf, 1)) {
+                log_write(query->s2s->log, LOG_ERR, "dns response for %s: SRV name exceeded buffer capacity - ignoring", query->name);
+                continue;
+            }
+            char nullterminator = 0;
+            ldns_buffer_write(buf, &nullterminator, sizeof(nullterminator));
+
+            log_debug(ZONE, "dns response for %s@%p: SRV %s[%d] %s/%d (%d/%d)", query->name, query,
+                query->name, i, ldns_buffer_at(buf, 0), port, priority, weight);
+            _dns_add_host(query, ldns_buffer_at(buf, 0), port, priority, weight, ttl);
         }
-        
-        free(result);
+    } else if (err != 0) {
+        log_debug(ZONE, "dns failure for %s@%p: SRV %s (%s)", query->name, query,
+            query->s2s->lookup_srv[query->srv_i], ub_strerror(err));
+    } else if (result != NULL) {
+        const char * msg = "attempted dnssec with bogus key, response discarded";
+        if (!result->bogus) {
+            if (result->nxdomain) msg = "NXDOMAIN";
+            else if (!result->havedata) msg = "empty response (broken DNS server)";
+        }
+        log_debug(ZONE, "dns %s for %s@%p: SRV %s", msg, query->name, query,
+            query->s2s->lookup_srv[query->srv_i]);
     }
+    if (pkt) ldns_pkt_free(pkt);
+    if (buf) ldns_buffer_free(buf);
+    if (result) ub_resolve_free(result);
 
     /* check next SRV service name */
     query->srv_i++;
     if (query->srv_i < query->s2s->lookup_nsrv) {
+        int err;
         log_debug(ZONE, "dns request for %s@%p: SRV %s", query->name, query,
             query->s2s->lookup_srv[query->srv_i]);
 
-        query->query = dns_submit_srv(NULL, query->name, query->s2s->lookup_srv[query->srv_i], "tcp",
-            DNS_NOSRCH, _dns_result_srv, query);
+        err = ub_resolve_async(query->s2s->ub_ctx, query->name, LDNS_RR_TYPE_SRV /*rrtype*/, LDNS_RR_CLASS_IN /*rrclass*/,
+            query, _dns_result_srv, &query->async_id);
+        query->have_async_id = 1;
 
-        /* if submit failed, call ourselves with a NULL result */
-        if (query->query == NULL)
-            _dns_result_srv(ctx, NULL, query);
+        /* if submit failed, call ourselves with the error */
+        if (err) _dns_result_srv(query, err, NULL);
     } else {
         /* no more SRV records to check, resolve hosts */
         if (xhash_count(query->hosts) > 0) {
-            _dns_result_a(NULL, NULL, query);
+            query->cur_host = 0;
+            _dns_start_a(query);
 
-        /* no SRV records returned, resolve hostname */
         } else {
+            /* no SRV records returned, resolve hostname */
             query->cur_host = strdup(query->name);
             query->cur_port = 5269;
             query->cur_prio = 0;
             query->cur_weight = 0;
             query->cur_expiry = 0;
-            if (query->s2s->resolve_aaaa) {
-                log_debug(ZONE, "dns request for %s@%p: AAAA %s", query->name, query, query->name);
-
-                query->query = dns_submit_a6(NULL, query->name,
-                    DNS_NOSRCH, _dns_result_aaaa, query);
-
-                /* if submit failed, call ourselves with a NULL result */
-                if (query->query == NULL)
-                    _dns_result_aaaa(ctx, NULL, query);
-            } else {
-                log_debug(ZONE, "dns request for %s@%p: A %s", query->name, query, query->name);
-
-                query->query = dns_submit_a4(NULL, query->name,
-                    DNS_NOSRCH, _dns_result_a, query);
-
-                /* if submit failed, call ourselves with a NULL result */
-                if (query->query == NULL)
-                    _dns_result_a(ctx, NULL, query);
-            }
+            if (query->s2s->resolve_aaaa) _dns_start_aaaa(query); else _dns_start_a(query);
         }
     }
 }
 
-static void _dns_result_aaaa(struct dns_ctx *ctx, struct dns_rr_a6 *result, void *data) {
+static void _dns_result_aaaa(void *data, int err, struct ub_result *result) {
     dnsquery_t query = data;
     char ip[INET6_ADDRSTRLEN];
-    int i;
     assert(query != NULL);
-    query->query = NULL;
+    query->have_async_id = 0;
+    const char * name = query->cur_host ? query->cur_host : query->name;
 
-    if (ctx != NULL && result == NULL) {
-        log_debug(ZONE, "dns failure for %s@%p: AAAA %s (%d)", query->name, query,
-            query->cur_host, dns_status(ctx));
-    } else if (result != NULL) {
-        log_debug(ZONE, "dns response for %s@%p: AAAA %s %d (%d)", query->name, query,
-            result->dnsa6_qname, result->dnsa6_nrr, result->dnsa6_ttl);
+    if (err == 0 && result != NULL && !result->nxdomain && !result->bogus && result->havedata && result->data != NULL && *result->data != NULL) {
+        int i;
+        log_debug(ZONE, "dns response for %s@%p: AAAA", query->name, query);
 
-        if (query->cur_expiry > 0 && result->dnsa6_ttl > query->cur_expiry)
-            result->dnsa6_ttl = query->cur_expiry;
 
-        for (i = 0; i < result->dnsa6_nrr; i++) {
-            if (inet_ntop(AF_INET6, &result->dnsa6_addr[i], ip, INET6_ADDRSTRLEN) != NULL) {
+        for (i = 0; result->data[i]; i++) {
+            if (inet_ntop(AF_INET6, &result->data[i], ip, INET6_ADDRSTRLEN) != NULL) {
                 log_debug(ZONE, "dns response for %s@%p: AAAA %s[%d] %s/%d", query->name,
-                    query, result->dnsa6_qname, i, ip, query->cur_port);
+                    query, query->name, i, ip, query->cur_port);
 
-                _dns_add_result(query, ip, query->cur_port,
-                    query->cur_prio, query->cur_weight, result->dnsa6_ttl);
+                int ttl = result->ttl[i]; /* getting ttl from libunbound requires a patch to libunbound to pass the ttl */
+                if (query->cur_expiry > 0 && ttl > query->cur_expiry) ttl = query->cur_expiry;
+                _dns_add_result(query, ip, query->cur_port, query->cur_prio, query->cur_weight, ttl);
             }
         }
+
+        ub_resolve_free(result);
+    } else if (err != 0) {
+        log_debug(ZONE, "dns failure for %s@%p: AAAA %s (%s)", query->name, query, name, ub_strerror(err));
+        if (result) ub_resolve_free(result);
+    } else if (result != NULL) {
+        const char * msg = "attempted dnssec with bogus key, response discarded";
+        if (!result->bogus) {
+            if (result->nxdomain) msg = "NXDOMAIN";
+            else if (!result->havedata) msg = "empty response (broken DNS server)";
+        }
+        log_debug(ZONE, "dns %s for %s@%p: AAAA %s", msg, query->name, query, name);
+        ub_resolve_free(result);
     }
 
-    if (query->cur_host != NULL) {
-        /* do ipv4 resolution too */
-        log_debug(ZONE, "dns request for %s@%p: A %s", query->name, query, query->cur_host);
-
-        query->query = dns_submit_a4(NULL, query->cur_host,
-            DNS_NOSRCH, _dns_result_a, query);
-
-        /* if submit failed, call ourselves with a NULL result */
-        if (query->query == NULL)
-            _dns_result_a(ctx, NULL, query);
-    } else {
+    if (query->cur_host == NULL)
         /* uh-oh */
         log_debug(ZONE, "dns result for %s@%p: AAAA host vanished...", query->name, query);
-        _dns_result_a(NULL, NULL, query);
-    }
-
-    free(result);
+    _dns_start_a(query);
 }
 
-/* try /etc/hosts if the A process did not return any results */
-static int _etc_hosts_lookup(const char *cszName, char *szIP, const int ciMaxIPLen) {
-#define EHL_LINE_LEN 260
-    int iSuccess = 0;
-    size_t iLen;
-    char szLine[EHL_LINE_LEN + 1]; /* one extra for the space character (*) */
-    char *pcStart, *pcEnd;
-    FILE *fHosts;
-
-    do {
-        /* initialization */
-        fHosts = NULL;
-
-        /* sanity checks */
-        if ((cszName == NULL) || (szIP == NULL) || (ciMaxIPLen <= 0))
-            break;
-        szIP[0] = 0;
-
-        /* open the hosts file */
-#ifdef _WIN32
-        pcStart = getenv("WINDIR");
-        if (pcStart != NULL) {
-            sprintf(szLine, "%s\\system32\\drivers\\etc\\hosts", pcStart);
-        } else {
-            strcpy(szLine, "C:\\WINDOWS\\system32\\drivers\\etc\\hosts");
-        }
-#else
-        strcpy(szLine, "/etc/hosts");
-#endif
-        fHosts = fopen(szLine, "r");
-        if (fHosts == NULL)
-            break;
-
-        /* read line by line ... */
-        while (fgets(szLine, EHL_LINE_LEN, fHosts) != NULL) {
-            /* remove comments */
-            pcStart = strchr (szLine, '#');
-            if (pcStart != NULL)
-                *pcStart = 0;
-            strcat(szLine, " "); /* append a space character for easier parsing (*) */
-
-            /* first to appear: IP address */
-            iLen = strspn(szLine, "1234567890.");
-            if ((iLen < 7) || (iLen > 15)) /* superficial test for anything between x.x.x.x and xxx.xxx.xxx.xxx */
-                continue;
-            pcEnd = szLine + iLen;
-            *pcEnd = 0;
-            pcEnd++; /* not beyond the end of the line yet (*) */
-
-            /* check strings separated by blanks, tabs or newlines */
-            pcStart = pcEnd + strspn(pcEnd, " \t\n");
-            while (*pcStart != 0) {
-                pcEnd = pcStart + strcspn(pcStart, " \t\n");
-                *pcEnd = 0;
-                pcEnd++; /* not beyond the end of the line yet (*) */
-
-                if (strcasecmp(pcStart, cszName) == 0) {
-                    strncpy(szIP, szLine, ciMaxIPLen - 1);
-                    szIP[ciMaxIPLen - 1] = 0;
-                    iSuccess = 1;
-                    break;
-                }
-
-                pcStart = pcEnd + strspn(pcEnd, " \t\n");
-            }
-            if (iSuccess)
-                break;
-        }
-    } while (0);
-
-    if (fHosts != NULL)
-        fclose(fHosts);
-
-    return (iSuccess);
-}
-
-/* this function is called with a NULL ctx to start the A/AAAA process */
-static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *data) {
+/* this function is called with 0 err and a NULL result to start the A/AAAA process */
+static void _dns_result_a(void *data, int err, struct ub_result *result) {
     dnsquery_t query = data;
     assert(query != NULL);
-    query->query = NULL;
+    query->have_async_id = 0;
+    const char * name = query->cur_host ? query->cur_host : query->name;
 
-    if (ctx != NULL && result == NULL) {
-#define DRA_IP_LEN 16
-        char szIP[DRA_IP_LEN];
-        if (_etc_hosts_lookup (query->name, szIP, DRA_IP_LEN)) {
-            log_debug(ZONE, "/etc/lookup for %s@%p: %s (%d)", query->name,
-                query, szIP, query->s2s->etc_hosts_ttl);
-
-            _dns_add_result (query, szIP, query->cur_port,
-                query->cur_prio, query->cur_weight, query->s2s->etc_hosts_ttl);
-        } else {
-            log_debug(ZONE, "dns failure for %s@%p: A %s (%d)", query->name, query,
-                query->cur_host, dns_status(ctx));
-        }
-    } else if (result != NULL) {
+    if (err == 0 && result != NULL && !result->nxdomain && !result->bogus && result->havedata && result->data != NULL && *result->data != NULL) {
         char ip[INET_ADDRSTRLEN];
         int i;
 
-        log_debug(ZONE, "dns response for %s@%p: A %s %d (%d)", query->name,
-            query, result->dnsa4_qname, result->dnsa4_nrr, result->dnsa4_ttl);
+        log_debug(ZONE, "dns response for %s@%p: A", query->name, query);
 
-        if (query->cur_expiry > 0 && result->dnsa4_ttl > query->cur_expiry)
-            result->dnsa4_ttl = query->cur_expiry;
+        for (i = 0; result->data[i]; i++) {
+            if (inet_ntop(AF_INET, &result->data[i], ip, INET_ADDRSTRLEN) != NULL) {
+                log_debug(ZONE, "dns response for %s@%p: A %s[%d] %s/%d", query->name, query,
+                    query->name, i, ip, query->cur_port);
 
-        for (i = 0; i < result->dnsa4_nrr; i++) {
-            if (inet_ntop(AF_INET, &result->dnsa4_addr[i], ip, INET_ADDRSTRLEN) != NULL) {
-                log_debug(ZONE, "dns response for %s@%p: A %s[%d] %s/%d", query->name,
-                    query, result->dnsa4_qname, i, ip, query->cur_port);
-
-                _dns_add_result(query, ip, query->cur_port,
-                    query->cur_prio, query->cur_weight, result->dnsa4_ttl);
+                int ttl = result->ttl[i]; /* getting ttl from libunbound requires a patch to libunbound to pass the ttl */
+                if (query->cur_expiry > 0 && ttl > query->cur_expiry) ttl = query->cur_expiry;
+                _dns_add_result(query, ip, query->cur_port, query->cur_prio, query->cur_weight, ttl);
             }
         }
 
-        free(result);
+        ub_resolve_free(result);
+    } else if (err != 0) {
+        log_debug(ZONE, "dns failure for %s@%p: A %s (%s)", query->name, query, name, ub_strerror(err));
+        if (result) ub_resolve_free(result);
+    } else if (result != NULL) {
+        const char * msg = "attempted dnssec with bogus key, response discarded";
+        if (!result->bogus) {
+            if (result->nxdomain) msg = "NXDOMAIN";
+            else if (!result->havedata) msg = "empty response (broken DNS server)";
+        }
+        log_debug(ZONE, "dns %s for %s@%p: A %s", msg, query->name, query, name);
+        ub_resolve_free(result);
     }
 
     /* resolve the next host in the list */
@@ -1052,27 +1003,9 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
         query->cur_prio = res->prio;
         query->cur_weight = res->weight;
         query->cur_expiry = res->expiry;
-        log_debug(ZONE, "dns ttl for %s@%p limited to %d", query->name, query, query->cur_expiry);
+        log_debug(ZONE, "dns ttl for %s@%p limited to %lld", query->name, query, (long long) query->cur_expiry);
 
-        if (query->s2s->resolve_aaaa) {
-            log_debug(ZONE, "dns request for %s@%p: AAAA %s", query->name, query, ipport);
-
-            query->query = dns_submit_a6(NULL, ipport,
-                DNS_NOSRCH, _dns_result_aaaa, query);
-
-            /* if submit failed, call ourselves with a NULL result */
-            if (query->query == NULL)
-                _dns_result_aaaa(ctx, NULL, query);
-        } else {
-            log_debug(ZONE, "dns request for %s@%p: A %s", query->name, query, ipport);
-
-            query->query = dns_submit_a4(NULL, ipport,
-                DNS_NOSRCH, _dns_result_a, query);
-
-            /* if submit failed, call ourselves with a NULL result */
-            if (query->query == NULL)
-                _dns_result_a(ctx, NULL, query);
-        }
+        if (query->s2s->resolve_aaaa) _dns_start_aaaa(query); else _dns_start_a(query);
 
         c--;
         *c = '/';
@@ -1085,8 +1018,8 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
         free(query->cur_host);
         query->cur_host = NULL;
 
-        log_debug(ZONE, "dns requests for %s@%p complete: %d (%d)", query->name,
-            query, xhash_count(query->results), query->expiry);
+        log_debug(ZONE, "dns requests for %s@%p complete: %d (%lld)", query->name,
+            query, xhash_count(query->results), (long long) query->expiry);
 
         /* update query TTL */
         if (query->expiry > query->s2s->dns_max_ttl)
@@ -1149,7 +1082,7 @@ void dns_resolve_domain(s2s_t s2s, dnscache_t dns) {
     query->cur_host = NULL;
     query->cur_port = 0;
     query->cur_expiry = 0;
-    query->query = NULL;
+    query->have_async_id = 0;
     dns->query = query;
 
     log_debug(ZONE, "dns resolve for %s@%p started", query->name, query);
@@ -1157,9 +1090,9 @@ void dns_resolve_domain(s2s_t s2s, dnscache_t dns) {
     /* - resolve all SRV records to host/port
      * - if no results, include domain/5269
      * - resolve all host/port combinations
-     * - return result
+     * - query is stored in dns->query and runs asynchronously, calls out_resolve() with results
      */
-    _dns_result_srv(NULL, NULL, query);
+    _dns_result_srv(query, 0, NULL);
 }
 
 /** responses from the resolver */

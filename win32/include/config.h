@@ -182,9 +182,6 @@
 /* Define to 1 if you have the `ssl' library (-lssl). */
 /* #undef HAVE_LIBSSL */
 
-/* Define to 1 if you have the `udns' library (-ludns). */
-#define HAVE_LIBUDNS 1
-
 /* Define to 1 if you have the `ws2_32' library (-lws2_32). */
 #define HAVE_LIBWS2_32 1
 

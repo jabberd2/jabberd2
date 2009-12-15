@@ -14,8 +14,8 @@ Required packages:
  - GnuSASL (0.2.27 or higher) - Simple Authentication and Security Layer library
      http://www.gnu.org/software/gsasl/
      (please see contrib/ subdir for an important patch)
- - UDNS - asynchronous DNS resolver library
-     http://www.corpit.ru/mjt/udns.html
+ - unbound - DNS resolver library
+     http://www.unbound.net/
 
 Optional packages:
 

@@ -326,8 +326,8 @@ static void _s2s_time_checks(s2s_t s2s) {
                         xhash_zap(s2s->dnscache, dns->name);
                         xhash_free(dns->results);
                         if (dns->query != NULL) {
-                            if (dns->query->query != NULL)
-                                dns_cancel(NULL, dns->query->query);
+                            if (dns->query->have_async_id)
+                                ub_cancel(s2s->ub_ctx, dns->query->async_id);
                             xhash_free(dns->query->hosts);
                             xhash_free(dns->query->results);
                             free(dns->query->name);
@@ -540,8 +540,8 @@ static void _s2s_dns_expiry(s2s_t s2s) {
 
                 xhash_free(dns->results);
                 if (dns->query != NULL) {
-                    if (dns->query->query != NULL)
-                        dns_cancel(NULL, dns->query->query);
+                    if (dns->query->have_async_id)
+                        ub_cancel(s2s->ub_ctx, dns->query->async_id);
                     xhash_free(dns->query->hosts);
                     xhash_free(dns->query->results);
                     free(dns->query->name);
@@ -569,9 +569,9 @@ static int _mio_resolver_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *da
 
     switch(a) {
         case action_READ:
-            log_debug(ZONE, "read action on fd %d", fd->fd);
+            log_debug(ZONE, "read action on ub_ctx fd %d", fd->fd);
 
-            dns_ioevent(0, time(NULL));
+            return ub_process(((s2s_t) arg)->ub_ctx);
 
         default:
             break;
@@ -727,17 +727,23 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
 
     s2s->mio = mio_new(s2s->io_max_fds);
 
-    if((s2s->udns_fd = dns_init(NULL, 1)) < 0) {
-        log_write(s2s->log, LOG_ERR, "unable to initialize dns library, aborting");
+    if((s2s->ub_ctx = ub_ctx_create()) == 0) {
+        log_write(s2s->log, LOG_ERR, "unable to initialize unbound library, aborting");
         exit(1);
     }
-    s2s->udns_mio_fd = mio_register(s2s->mio, s2s->udns_fd, _mio_resolver_callback, (void *) s2s);
+    /* re-purpose optchar to store an error code */
+    if ((optchar = ub_ctx_resolvconf(s2s->ub_ctx, NULL /*uses system-defined "/etc/resolv.conf"*/)) ||
+            (optchar = ub_ctx_hosts(s2s->ub_ctx, NULL /*uses system-defined "/etc/hosts"*/))) {
+        log_write(s2s->log, LOG_ERR, "failed to read /etc/resolv.conf and /etc/hosts: %s", ub_strerror(optchar));
+        exit(1);
+    }
+    s2s->unbound_mio_fd = mio_register(s2s->mio, ub_fd(s2s->ub_ctx), _mio_resolver_callback, (void *) s2s);
 
     s2s->retry_left = s2s->retry_init;
     _s2s_router_connect(s2s);
 
     while(!s2s_shutdown) {
-        mio_run(s2s->mio, dns_timeouts(0, 5, time(NULL)));
+        mio_run(s2s->mio, 5);
 
         now = time(NULL);
 
@@ -772,8 +778,8 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
         }
 
         /* this has to be read unconditionally - we could receive replies to queries we cancelled */
-          mio_read(s2s->mio, s2s->udns_mio_fd);
-            
+        mio_read(s2s->mio, s2s->unbound_mio_fd);
+
         /* cleanup dead sx_ts */
         while(jqueue_size(s2s->dead) > 0)
             sx_free((sx_t) jqueue_pull(s2s->dead));
@@ -819,7 +825,9 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
                 if(fd) {
                     char buf[100];
                     int len = snprintf(buf, 100, "%lld\n", s2s->packet_count);
-                    write(fd, buf, len);
+                    if (write(fd, buf, len) != len) {
+                        log_write(s2s->log, LOG_ERR, "failed to write packet statistics to: %s (%d %s)", s2s->packet_stats, errno, strerror(errno));
+                    }
                     close(fd);
                 } else {
                     log_write(s2s->log, LOG_ERR, "failed to write packet statistics to: %s", s2s->packet_stats);
@@ -903,8 +911,8 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
              xhash_iter_get(s2s->dnscache, NULL, xhv.val);
              xhash_free(dns->results);
              if (dns->query != NULL) {
-                 if (dns->query->query != NULL)
-                     dns_cancel(NULL, dns->query->query);
+                 if (dns->query->have_async_id)
+                     ub_cancel(s2s->ub_ctx, dns->query->async_id);
                  xhash_free(dns->query->hosts);
                  xhash_free(dns->query->results);
                  free(dns->query->name);
@@ -921,9 +929,8 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
              free(res);
         } while(xhash_iter_next(s2s->dns_bad));
 
-    if (dns_active(NULL) > 0)
-        log_debug(ZONE, "there are still active dns queries (%d)", dns_active(NULL));
-    dns_close(NULL);
+    ub_ctx_delete(s2s->ub_ctx); /* man 3 libunbound: outstanding async queries are killed and callbacks are not called for them */
+    s2s->ub_ctx = 0;
 
     /* close mio */
     if(s2s->fd != NULL)
