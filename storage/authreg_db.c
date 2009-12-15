@@ -168,7 +168,7 @@ static int _ar_db_store_user(authreg_t ar, creds_t creds)
 
 static int _ar_db_user_exists(authreg_t ar, char *username, char *realm)
 {
-    return (int) _ar_db_fetch_user(ar, username, realm);
+    return (int) (long) _ar_db_fetch_user(ar, username, realm);
 }
 
 static int _ar_db_get_password(authreg_t ar, char *username, char *realm, char password[257])
