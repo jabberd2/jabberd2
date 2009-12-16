@@ -68,15 +68,8 @@ storage_t storage_new(sm_t sm) {
 static void _st_driver_reaper(const char *driver, void *val, void *arg) {
     st_driver_t drv = (st_driver_t) val;
 
-    if (drv->free) (drv->free)(drv);
+    (drv->free)(drv);
 
-    if (drv->dlh != NULL) {
-#ifndef _WIN32
-        dlclose(drv->dlh);
-#else
-        FreeLibrary((HMODULE) drv->dlh);
-#endif
-    }
     free(drv);
 }
 
@@ -141,7 +134,7 @@ st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
         if (handle != NULL)
             init_fn = (st_driver_init_fn)GetProcAddress((HMODULE) handle, "st_init");
 #endif
-
+    
         if (handle != NULL && init_fn != NULL) {
             log_debug(ZONE, "preloaded module '%s' (not initialized yet)", driver);
         } else {
@@ -161,7 +154,6 @@ st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
         drv = (st_driver_t) calloc(1, sizeof(struct st_driver_st));
 
         drv->st = st;
-        drv->dlh = handle;
 
         log_debug(ZONE, "calling driver initializer");
 

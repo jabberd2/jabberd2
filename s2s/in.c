@@ -62,7 +62,10 @@ static void _in_packet(conn_t in, nad_t nad);
 
 int in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg) {
     conn_t in = (conn_t) arg;
-    int nbytes;
+    s2s_t s2s = (s2s_t) arg;
+    struct sockaddr_storage sa;
+    int namelen = sizeof(sa), port, nbytes;
+    char ipport[INET6_ADDRSTRLEN + 17];
 
     switch(a) {
         case action_READ:
@@ -92,7 +95,6 @@ int in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg)
             if (in->online)
                 xhash_zap(in->s2s->in, in->key);
             else {
-                char ipport[INET6_ADDRSTRLEN + 17];
                 snprintf(ipport, INET6_ADDRSTRLEN + 16, "%s/%d", in->ip, in->port);
                 xhash_zap(in->s2s->in_accept, ipport);
             }
@@ -102,57 +104,48 @@ int in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg)
             break;
 
         case action_ACCEPT:
-            log_write(in->s2s->log, LOG_ERR, "%s:%d unexpected action_ACCEPT", ZONE);
+            s2s = (s2s_t) arg;
+
+            log_debug(ZONE, "accept action on fd %d", fd->fd);
+            
+            getpeername(fd->fd, (struct sockaddr *) &sa, &namelen);
+            port = j_inet_getport(&sa);
+
+            log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] incoming connection", fd->fd, (char *) data, port);
+
+            /* new conn */
+            in = (conn_t) calloc(1, sizeof(struct conn_st));
+
+            in->s2s = s2s;
+
+            strncpy(in->ip, (char *) data, INET6_ADDRSTRLEN);
+            in->port = port;
+
+            in->states = xhash_new(101);
+            in->states_time = xhash_new(101);
+
+            in->fd = fd;
+
+            in->init_time = time(NULL);
+
+            in->s = sx_new(s2s->sx_env, in->fd->fd, _in_sx_callback, (void *) in);
+            mio_app(m, in->fd, in_mio_callback, (void *) in);
+
+            if(s2s->stanza_size_limit != 0)
+                in->s->rbytesmax = s2s->stanza_size_limit;
+
+            /* add to incoming connections hash */
+            snprintf(ipport, INET6_ADDRSTRLEN + 16, "%s/%d", in->ip, in->port);
+            xhash_put(s2s->in_accept, pstrdup(xhash_pool(s2s->in_accept),ipport), (void *) in);
+
+#ifdef HAVE_SSL
+            sx_server_init(in->s, S2S_DB_HEADER | ((s2s->sx_ssl != NULL) ? SX_SSL_STARTTLS_OFFER : 0) );
+#else
+            sx_server_init(in->s, S2S_DB_HEADER);
+#endif
             break;
     }
 
-    return 0;
-}
-
-int mio_accept_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg) {
-    struct sockaddr_storage sa;
-    int namelen = sizeof(sa), port;
-    char ipport[INET6_ADDRSTRLEN + 17];
-
-    if (a != action_ACCEPT) {
-        if (a == action_CLOSE) return 0;
-        log_debug(ZONE, "unexpected action %d", a);
-        return 1;
-    }
-
-    s2s_t s2s = (s2s_t) arg;
-
-    log_debug(ZONE, "accept action on fd %d", fd->fd);
-
-    getpeername(fd->fd, (struct sockaddr *) &sa, &namelen);
-    port = j_inet_getport(&sa);
-
-    log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] incoming connection", fd->fd, (char *) data, port);
-
-    /* new conn */
-    conn_t in = (conn_t) calloc(1, sizeof(struct conn_st));
-    in->s2s = s2s;
-    strncpy(in->ip, (char *) data, INET6_ADDRSTRLEN);
-    in->port = port;
-    in->states = xhash_new(101);
-    in->states_time = xhash_new(101);
-    in->fd = fd;
-    in->init_time = time(NULL);
-    in->s = sx_new(s2s->sx_env, in->fd->fd, _in_sx_callback, (void *) in);
-    mio_app(m, in->fd, in_mio_callback, (void *) in);
-
-    if(s2s->stanza_size_limit != 0)
-        in->s->rbytesmax = s2s->stanza_size_limit;
-
-    /* add to incoming connections hash */
-    snprintf(ipport, INET6_ADDRSTRLEN + 16, "%s/%d", in->ip, in->port);
-    xhash_put(s2s->in_accept, pstrdup(xhash_pool(s2s->in_accept),ipport), (void *) in);
-
-#ifdef HAVE_SSL
-    sx_server_init(in->s, S2S_DB_HEADER | ((s2s->sx_ssl != NULL) ? SX_SSL_STARTTLS_OFFER : 0) );
-#else
-    sx_server_init(in->s, S2S_DB_HEADER);
-#endif
     return 0;
 }
 

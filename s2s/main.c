@@ -936,7 +936,6 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
     dns_close(NULL);
 
     /* close mio */
-    if(s2s->server_fd != NULL) mio_close(s2s->mio, s2s->server_fd);
     if(s2s->fd != NULL)
         mio_close(s2s->mio, s2s->fd);
 

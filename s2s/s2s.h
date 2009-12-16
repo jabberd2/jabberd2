@@ -357,7 +357,6 @@ void            out_flush_domain_queues(s2s_t s2s, const char *domain);
 void            out_flush_route_queue(s2s_t s2s, char *rkey);
 
 int             in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
-int             mio_accept_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
 
 /* sx flag for outgoing dialback streams */
 #define S2S_DB_HEADER   (1<<10)

@@ -515,8 +515,10 @@ static int _c2s_client_accept_check(c2s_t c2s, mio_fd_t fd, char *ip) {
 
 static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg) {
     sess_t sess = (sess_t) arg;
+    c2s_t c2s = (c2s_t) arg;
     bres_t bres;
-    int nbytes;
+    struct sockaddr_storage sa;
+    int namelen = sizeof(sa), port, nbytes, flags = 0;
 
     switch(a) {
         case action_READ:
@@ -556,19 +558,6 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
 
             break;
 
-        case action_ACCEPT: /* doesn't apply unless the fd is a listen fd */
-            break;
-    }
-
-    return 0;
-}
-
-static int _c2s_accept_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg) {
-    sess_t sess;
-    c2s_t c2s = (c2s_t) arg;
-    struct sockaddr_storage sa;
-    int namelen = sizeof(sa), port, flags = 0;
-    switch(a) {
         case action_ACCEPT:
             log_debug(ZONE, "accept action on fd %d", fd->fd);
 
@@ -628,11 +617,8 @@ static int _c2s_accept_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data
             sx_server_init(sess->s, flags);
 
             break;
-
-        default:
-            log_debug(ZONE, "unknown action on server_fd: %d", a);
-            break;
     }
+
     return 0;
 }
 
@@ -856,7 +842,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 if(c2s->server_fd == 0) {
 #endif
                     if(c2s->local_port != 0) {
-                        c2s->server_fd = mio_listen(c2s->mio, c2s->local_port, c2s->local_ip, _c2s_accept_callback, (void *) c2s);
+                        c2s->server_fd = mio_listen(c2s->mio, c2s->local_port, c2s->local_ip, _c2s_client_mio_callback, (void *) c2s);
                         if(c2s->server_fd == NULL)
                             log_write(c2s->log, LOG_ERR, "[%s, port=%d] failed to listen", c2s->local_ip, c2s->local_port);
                         else

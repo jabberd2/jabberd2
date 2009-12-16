@@ -296,7 +296,6 @@ C2S_API void            c2s_pbx_init(c2s_t c2s);
 struct authreg_st
 {
     c2s_t       c2s;
-    void *      dlh;
 
     /** module private data */
     void        *private;

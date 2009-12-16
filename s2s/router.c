@@ -185,7 +185,7 @@ int s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 /* if we're coming online for the first time, setup listening sockets */
                 if(s2s->server_fd == 0) {
                     if(s2s->local_port != 0) {
-                        s2s->server_fd = mio_listen(s2s->mio, s2s->local_port, s2s->local_ip, mio_accept_callback, (void *) s2s);
+                        s2s->server_fd = mio_listen(s2s->mio, s2s->local_port, s2s->local_ip, in_mio_callback, (void *) s2s);
                         if(s2s->server_fd == NULL) {
                             log_write(s2s->log, LOG_ERR, "[%s, port=%d] failed to listen", s2s->local_ip, s2s->local_port);
                             exit(1);
