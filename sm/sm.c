@@ -218,15 +218,9 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
             log_debug(ZONE, "got a packet");
 
-            pkt = pkt_new(sm, (nad_t) data);
-            if (pkt == NULL) {
-                log_debug(ZONE, "invalid packet, dropping");
-
-                nad_free(nad);
-                return 0;
-            }
-
-            /* go */
+            pkt = pkt_new(sm, nad);
+            
+			/* go */
             dispatch(sm, pkt);
 
             return 0;

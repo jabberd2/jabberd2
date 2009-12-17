@@ -121,7 +121,6 @@ pkt_t pkt_new(sm_t sm, nad_t nad) {
     ns = nad_find_namespace(nad, 0, uri_COMPONENT, NULL);
     if(ns < 0) {
         log_debug(ZONE, "packet not in component namespace");
-        nad_free(nad);
         return NULL;
     }
 
@@ -220,20 +219,13 @@ pkt_t pkt_new(sm_t sm, nad_t nad) {
             /* iq's are pretty easy, but also set xmlns */
             if(NAD_ENAME_L(pkt->nad, 1) == 2 && strncmp("iq", NAD_ENAME(pkt->nad, 1), 2) == 0) {
                 pkt->type = pkt_IQ;
-                if (attr < 0) {
-                    log_write(sm->log, LOG_ERR, "dropping iq without type");
-                    log_debug(ZONE, "dropping iq without type");
-                    pkt_free(pkt);
-                    return NULL;
-                }
-                if (NAD_AVAL_L(pkt->nad, attr) == 6 && strncmp("result", NAD_AVAL(pkt->nad, attr), 6) == 0) pkt->type = pkt_IQ_RESULT;
-                else if (NAD_AVAL_L(pkt->nad, attr) == 5 && strncmp("error", NAD_AVAL(pkt->nad, attr), 5) == 0) pkt->type = pkt_IQ | pkt_ERROR;
-                else if (NAD_AVAL_L(pkt->nad, attr) == 3 && strncmp("set", NAD_AVAL(pkt->nad, attr), 3) == 0) pkt->type = pkt_IQ_SET;
-                else if (NAD_AVAL_L(pkt->nad, attr) != 3 || strncmp("get", NAD_AVAL(pkt->nad, attr), 3)) {
-                    log_write(sm->log, LOG_ERR, "dropping iq with bad type \"%.*s\"", NAD_AVAL_L(pkt->nad, attr), NAD_AVAL(pkt->nad, attr));
-                    log_debug(ZONE, "dropping iq with bad type \"%.*s\"", NAD_AVAL_L(pkt->nad, attr), NAD_AVAL(pkt->nad, attr));
-                    pkt_free(pkt);
-                    return NULL;
+                if(attr >= 0) {
+                    if(NAD_AVAL_L(pkt->nad, attr) == 3 && strncmp("set", NAD_AVAL(pkt->nad, attr), 3) == 0)
+                        pkt->type = pkt_IQ_SET;
+                    else if(NAD_AVAL_L(pkt->nad, attr) == 6 && strncmp("result", NAD_AVAL(pkt->nad, attr), 6) == 0)
+                        pkt->type = pkt_IQ_RESULT;
+                    else if(NAD_AVAL_L(pkt->nad, attr) == 5 && strncmp("error", NAD_AVAL(pkt->nad, attr), 5) == 0)
+                        pkt->type = pkt_IQ | pkt_ERROR;
                 }
 
                 if(pkt->nad->ecur > 2 && (ns = NAD_ENS(pkt->nad, 2)) >= 0)
