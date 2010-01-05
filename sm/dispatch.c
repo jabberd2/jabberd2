@@ -97,14 +97,14 @@ void dispatch(sm_t sm, pkt_t pkt) {
         }
     }
 
-    /* has to come from someone */
-    if(pkt->from == NULL) {
+    /* has to come from someone and be directed to someone */
+    if(pkt->from == NULL || pkt->to == NULL) {
         pkt_router(pkt_error(pkt, stanza_err_BAD_REQUEST));
         return;
     }
 
     /* packet is for the sm itself */
-    if(pkt->to != NULL && *pkt->to->node == '\0') {
+    if(*pkt->to->node == '\0') {
         ret = mm_pkt_sm(pkt->sm->mm, pkt);
         switch(ret) {
             case mod_HANDLED:
@@ -145,7 +145,7 @@ void dispatch(sm_t sm, pkt_t pkt) {
         return;
     }
 
-    if (pkt != NULL && pkt->sm != NULL) {
+    if (pkt->sm != NULL) {
         ret = mm_pkt_user(pkt->sm->mm, user, pkt);
         switch(ret) {
             case mod_HANDLED:
