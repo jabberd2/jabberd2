@@ -19,6 +19,12 @@
 
 #include "sm.h"
 
+/*
+ * XEP-0163 is some lunatic nightmare...
+ *
+ * If you want it - YOU implement it!
+ */
+
 /** @file sm/mod_pep.c
   * @brief XEP-0163: Personal Eventing Protocol
   * @author Tomasz Sterna

@@ -366,7 +366,7 @@
       <module>privacy</module>          <!-- manage privacy lists -->
       <module>roster</module>           <!-- handle roster get/sets and s10ns -->
       <module>vacation</module>         <!-- manage vacation settings -->
-      <module>pep</module>              <!-- personal eventing -->
+      <!-- <module>pep</module>         <!- - personal eventing -->
       <module>iq-vcard</module>         <!-- store and retrieve the user's vcard -->
       <module>iq-ping</module>          <!-- return the server ping -->
       <module>iq-private</module>       <!-- manage the user's private data store -->
@@ -381,7 +381,7 @@
     <!-- out-sess. The modules in this chain are called just before a
          packet is delivered to an active user session. -->
     <chain id='out-sess'>
-      <module>pep</module>              <!-- personal eventing -->
+      <!-- <module>pep</module>         <!- - personal eventing -->
     </chain>
 
     <!-- in-router. The modules in this chain are called when a packet
