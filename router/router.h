@@ -56,6 +56,8 @@ typedef struct alias_st     *alias_t;
 typedef struct acl_s *acl_t;
 struct acl_s {
     int error;
+    char *redirect;
+    int redirect_len;
     char *what;
     char *from;
     char *to;

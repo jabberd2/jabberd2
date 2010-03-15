@@ -451,6 +451,21 @@ static void _router_process_route(component_t comp, nad_t nad) {
             return;
         }
 
+        /* filter it */
+        if(comp->r->filter != NULL) {
+            int ret = filter_packet(comp->r, nad);
+            if(ret == stanza_err_REDIRECT) {
+                ato = nad_find_attr(nad, 0, -1, "to", NULL);
+                if(ato >= 0) to = jid_reset(&sto, NAD_AVAL(nad, ato), NAD_AVAL_L(nad, ato));
+            }
+            else if(ret > 0) {
+                log_debug(ZONE, "packet filtered out: %s (%s)", _stanza_errors[ret - stanza_err_BAD_REQUEST].name, _stanza_errors[ret - stanza_err_BAD_REQUEST].code);
+                nad_set_attr(nad, 0, -1, "error", _stanza_errors[ret - stanza_err_BAD_REQUEST].code, 3);
+                _router_comp_write(comp, nad);
+                return;
+            }
+        }
+
         /* find a target */
         targets = xhash_get(comp->r->routes, to->domain);
         if(targets == NULL) {
@@ -473,17 +488,6 @@ static void _router_process_route(component_t comp, nad_t nad) {
         /* copy to any log sinks */
         if(xhash_count(comp->r->log_sinks) > 0)
             xhash_walk(comp->r->log_sinks, _router_route_log_sink, (void *) nad);
-
-        /* filter it */
-        if(comp->r->filter != NULL) {
-            int ret = filter_packet(comp->r, nad);
-            if(ret > 0) {
-                log_debug(ZONE, "packet filtered out: %s (%s)", _stanza_errors[ret - stanza_err_BAD_REQUEST].name, _stanza_errors[ret - stanza_err_BAD_REQUEST].code);
-                nad_set_attr(nad, 0, -1, "error", _stanza_errors[ret - stanza_err_BAD_REQUEST].code, 3);
-                _router_comp_write(comp, nad);
-                return;
-            }
-        }
 
         /* get route candidate */
         if(targets->ncomp == 1) {

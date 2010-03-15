@@ -5,6 +5,7 @@
                 absent attribute matches absence of attribute
                 "*" matches any value of attribute
      what     - XPath like query
+     redirect - send packet to given JID instead original recipient
      error    - none given means allow, if given means deny
                 this is an XMPP RFC defined error condition
      log      - if set, the matched packets will be logged in router log
@@ -19,6 +20,9 @@
   <rule from="*"/>
   <rule to="*"/>
   -->
+
+  <!-- create simple alias -->
+  <!-- <rule to="god@example.org" redirect="admin@example.org"/> -->
 
   <!-- don't allow msn registrations, but... -->
   <!-- <rule from="dearhart@example.org" to="msn.example.org"/> -->

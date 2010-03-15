@@ -32,6 +32,7 @@ void filter_unload(router_t r) {
         if(acl->from != NULL) free(acl->from);
         if(acl->to != NULL) free(acl->to);
         if(acl->what != NULL) free(acl->what);
+        if(acl->redirect != NULL) free(acl->redirect);
         free(acl);
         acl = tmp;
     }
@@ -44,7 +45,7 @@ int filter_load(router_t r) {
     long size;
     char *buf;
     nad_t nad;
-    int i, nfilters, filter, from, to, what, error, log;
+    int i, nfilters, filter, from, to, what, redirect, error, log;
     acl_t list_tail, acl;
 
     log_debug(ZONE, "loading filter");
@@ -97,6 +98,7 @@ int filter_load(router_t r) {
         from = nad_find_attr(nad, filter, -1, "from", NULL);
         to = nad_find_attr(nad, filter, -1, "to", NULL);
         what = nad_find_attr(nad, filter, -1, "what", NULL);
+        redirect = nad_find_attr(nad, filter, -1, "redirect", NULL);
         error = nad_find_attr(nad, filter, -1, "error", NULL);
         log = nad_find_attr(nad, filter, -1, "log", NULL);
 
@@ -126,6 +128,16 @@ int filter_load(router_t r) {
                 sprintf(acl->what, "%.*s", NAD_AVAL_L(nad, what), NAD_AVAL(nad, what));
             }
         }
+        if(redirect >= 0) {
+            if (NAD_AVAL_L(nad, redirect) == 0)
+                acl->redirect = NULL;
+            else {
+                acl->redirect_len = NAD_AVAL_L(nad, redirect);
+                acl->redirect = (char *) malloc(sizeof(char) * (acl->redirect_len + 1));
+                sprintf(acl->redirect, "%.*s", acl->redirect_len, NAD_AVAL(nad, redirect));
+                acl->error = stanza_err_REDIRECT;
+            }
+        }
         if(error >= 0) {
             acl->error = stanza_err_NOT_ALLOWED;
             for(i=0; _stanza_errors[i].code != NULL; i++) {
@@ -151,7 +163,7 @@ int filter_load(router_t r) {
            list_tail = acl;
         }
         
-        log_debug(ZONE, "added %s rule: from=%s, to=%s, what=%s, error=%d, log=%s", (acl->error?"deny":"allow"), acl->from, acl->to, acl->what, acl->error, (acl->log?"yes":"no"));
+        log_debug(ZONE, "added %s rule: from=%s, to=%s, what=%s, redirect=%s, error=%d, log=%s", (acl->error?"deny":"allow"), acl->from, acl->to, acl->what, acl->redirect, acl->error, (acl->log?"yes":"no"));
 
         nfilters++;
 
@@ -204,7 +216,10 @@ int filter_packet(router_t r, nad_t nad) {
         if( to != NULL && acl->to != NULL && fnmatch(acl->to, to, 0) != 0 ) continue;
         if( acl->what != NULL && nad_find_elem_path(nad, 0, -1, acl->what) < 0 ) continue;        /* match packet type */
         log_debug(ZONE, "matched packet %s->%s vs rule (%s %s->%s)", from, to, acl->what, acl->from, acl->to);
-        if (acl->log) log_write(r->log, LOG_NOTICE, "filter: %s packet from=%s to=%s - rule (from=%s to=%s what=%s)",(acl->error?"deny":"allow"), from, to, acl->from, acl->to, acl->what);
+        if (acl->log)
+            if (acl->redirect) log_write(r->log, LOG_NOTICE, "filter: redirect packet from=%s to=%s - rule (from=%s to=%s what=%s), new to=%s", from, to, acl->from, acl->to, acl->what, acl->redirect);
+            else log_write(r->log, LOG_NOTICE, "filter: %s packet from=%s to=%s - rule (from=%s to=%s what=%s)",(acl->error?"deny":"allow"), from, to, acl->from, acl->to, acl->what);
+        if (acl->redirect) nad_set_attr(nad, 0, -1, "to", acl->redirect, acl->redirect_len);
         error = acl->error;
         break;
     }
