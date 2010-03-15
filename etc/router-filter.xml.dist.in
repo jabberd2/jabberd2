@@ -22,7 +22,7 @@
   -->
 
   <!-- create simple alias -->
-  <!-- <rule to="god@example.org" redirect="admin@example.org"/> -->
+  <!-- <rule from="*" to="god@example.org" redirect="admin@example.org"/> -->
 
   <!-- don't allow msn registrations, but... -->
   <!-- <rule from="dearhart@example.org" to="msn.example.org"/> -->
