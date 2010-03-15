@@ -25,6 +25,7 @@
 
 #include "sx.h"
 
+
 /* code stolen from SSL_CTX_set_verify(3) */
 static int _sx_ssl_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 {
@@ -200,6 +201,109 @@ static void _sx_ssl_features(sx_t s, sx_plugin_t p, nad_t nad) {
         nad_append_elem(nad, ns, "required", 2);
 }
 
+/* Extract id-on-xmppAddr from the certificate */
+static void _sx_ssl_get_external_id(sx_t s, _sx_ssl_conn_t sc) {
+    X509 *cert;
+    X509_NAME *name;
+    X509_NAME_ENTRY *entry;
+    // subjectAltName parsing
+    X509_EXTENSION *extension;
+    STACK_OF(GENERAL_NAME) *altnames;
+    GENERAL_NAME *altname;
+    OTHERNAME *othername;
+    char * buff;
+    // new object identifiers
+    int id_on_xmppAddr_nid;
+    ASN1_OBJECT *id_on_xmppAddr_obj;
+    //  iterators
+    int i, j, count,  id = 0, len;
+
+    /* If there's not peer cert, quit */
+	if ((cert = SSL_get_peer_certificate(sc->ssl) ) == NULL)
+		return;
+	_sx_debug(ZONE, "external_id: Got peer certificate");
+
+	/* Allocate new id-on-xmppAddr object. See rfc3921bis 15.2.1.2 */
+	id_on_xmppAddr_nid = OBJ_create("1.3.6.1.5.5.7.8.5", "id-on-xmppAddr", "XMPP Address Identity");
+	id_on_xmppAddr_obj = OBJ_nid2obj(id_on_xmppAddr_nid);
+	_sx_debug(ZONE, "external_id: Created id-on-xmppAddr SSL object");
+
+	/* Iterate through all subjectAltName x509v3 extensions. Get id-on-xmppAddr and dDnsName */
+	for (i = X509_get_ext_by_NID(cert, NID_subject_alt_name, -1);
+		 i != -1;
+		 i = X509_get_ext_by_NID(cert, NID_subject_alt_name, i)) {
+		// Get this subjectAltName x509v3 extension
+		if ((extension = X509_get_ext(cert, i)) == NULL) {
+			_sx_debug(ZONE, "external_id: Can't get subjectAltName. Possibly malformed cert.");
+			return;
+		}
+		// Get the collection of AltNames
+		if ((altnames = X509V3_EXT_d2i(extension)) == NULL) {
+			_sx_debug(ZONE, "external_id: Can't get all AltNames. Possibly malformed cert.");
+			return;
+		}
+		/* Iterate through all altNames and get id-on-xmppAddr and dNSName */
+		count = sk_GENERAL_NAME_num(altnames);
+		for (j = 0; j < count; j++) {
+			if ((altname = sk_GENERAL_NAME_value(altnames, j)) == NULL) {
+				_sx_debug(ZONE, "external_id: Can't get AltName. Possibly malformed cert.");
+				return;
+			}
+			/* Check if its otherName id-on-xmppAddr */
+			if (altname->type == GEN_OTHERNAME &&
+				OBJ_cmp(altname->d.otherName->type_id, id_on_xmppAddr_obj) == 0) {
+				othername = altname->d.otherName;
+				len = ASN1_STRING_to_UTF8(&buff, othername->value->value.utf8string);
+				if (len <= 0)
+					continue;
+				sc->external_id[id] = (char *) malloc(sizeof(char) *  (len + 1));
+				memcpy(sc->external_id[id], buff, len);
+				sc->external_id[id][len] = '\0'; // just to make sure
+				_sx_debug(ZONE, "external_id: Found(%d) subjectAltName/id-on-xmppAddr: '%s'", id, sc->external_id[id]);
+				id++;
+				OPENSSL_free(buff);
+			} else if (altname->type == GEN_DNS) {
+				len = ASN1_STRING_length(altname->d.dNSName);
+				sc->external_id[id] = (char *) malloc(sizeof(char) *  (len + 1));
+				memcpy(sc->external_id[id], ASN1_STRING_data(altname->d.dNSName), len);
+				sc->external_id[id][len] = '\0'; // just to make sure
+				_sx_debug(ZONE, "external_id: Found(%d) subjectAltName/dNSName: '%s'", id, sc->external_id[id]);
+				id++;
+			}
+			/* Check if we're not out of space */
+			if (id == SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT)
+				goto end;
+		}
+	}
+	/* Get CNs */
+	name = X509_get_subject_name(cert);
+	for (i = X509_NAME_get_index_by_NID(name, NID_commonName, -1);
+		 i != -1;
+		 i = X509_NAME_get_index_by_NID(name, NID_commonName, i)) {
+		// Get the commonName entry
+		if ((entry = X509_NAME_get_entry(name, i)) != NULL) {
+			_sx_debug(ZONE, "external_id: Can't get commonName(%d). Possibly malformed cert. Continuing.", i);
+			continue;
+		}
+		// Get the commonName as UTF8 string
+		len = ASN1_STRING_to_UTF8(&buff, X509_NAME_ENTRY_get_data(entry));
+		if (len <= 0) {
+			continue;
+		}
+		sc->external_id[id] = (char *) malloc(sizeof(char) *  (len + 1));
+		memcpy(sc->external_id[id], buff, len);
+		sc->external_id[id][len] = '\0'; // just to make sure
+		_sx_debug(ZONE, "external_id: Found(%d) commonName: '%s'", id, sc->external_id[id]);
+		OPENSSL_free(buff);
+		/* Check if we're not out of space */
+		if (id == SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT)
+			goto end;
+	}
+
+end:
+    return;
+}
+
 static int _sx_ssl_handshake(sx_t s, _sx_ssl_conn_t sc) {
     int ret, err;
     char *errstring;
@@ -227,6 +331,7 @@ static int _sx_ssl_handshake(sx_t s, _sx_ssl_conn_t sc) {
             s->ssf = SSL_get_cipher_bits(sc->ssl, NULL);
 
             _sx_debug(ZONE, "using cipher %s (%d bits)", SSL_get_cipher_name(sc->ssl), s->ssf);
+            _sx_ssl_get_external_id(s, sc);
 
             return 1;
         }
@@ -501,7 +606,7 @@ static void _sx_ssl_client(sx_t s, sx_plugin_t p) {
     _sx_ssl_conn_t sc;
     SSL_CTX *ctx;
     char *pemfile = NULL;
-    int ret;
+    int ret, i;
 
     /* only bothering if they asked for wrappermode */
     if(!(s->flags & SX_SSL_WRAPPER) || s->ssf > 0)
@@ -533,7 +638,8 @@ static void _sx_ssl_client(sx_t s, sx_plugin_t p) {
     SSL_set_options(sc->ssl, SSL_OP_NO_TICKET);
 
     /* empty external_id */
-    sc->external_id = NULL;
+    for (i = 0; i < SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT; i++)
+    	sc->external_id[i] = NULL;
 
     /* alternate pemfile */
     /* !!! figure out how to error correctly here - just returning will cause
@@ -593,6 +699,7 @@ static void _sx_ssl_client(sx_t s, sx_plugin_t p) {
 static void _sx_ssl_server(sx_t s, sx_plugin_t p) {
     _sx_ssl_conn_t sc;
     SSL_CTX *ctx;
+    int i;
 
     /* only bothering if they asked for wrappermode */
     if(!(s->flags & SX_SSL_WRAPPER) || s->ssf > 0)
@@ -622,7 +729,8 @@ static void _sx_ssl_server(sx_t s, sx_plugin_t p) {
     SSL_set_accept_state(sc->ssl);
 
     /* empty external_id */
-    sc->external_id = NULL;
+    for (i = 0; i < SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT; i++)
+    	sc->external_id[i] = NULL;
 
     /* buffer queue */
     sc->wq = jqueue_new();
@@ -637,6 +745,7 @@ static void _sx_ssl_server(sx_t s, sx_plugin_t p) {
 static void _sx_ssl_free(sx_t s, sx_plugin_t p) {
     _sx_ssl_conn_t sc = (_sx_ssl_conn_t) s->plugin_data[p->index];
     sx_buf_t buf;
+    int i;
 
     if(sc == NULL)
         return;
@@ -648,7 +757,12 @@ static void _sx_ssl_free(sx_t s, sx_plugin_t p) {
         return;
     }
 
-    if(sc->external_id != NULL) free(sc->external_id);
+    for (i = 0; i < SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT; i++)
+    	if(sc->external_id[i] != NULL)
+    		free(sc->external_id[i]);
+    	else
+    		break;
+
     if(sc->pemfile != NULL) free(sc->pemfile);
 
     if(sc->ssl != NULL) SSL_free(sc->ssl);      /* frees wbio and rbio too */
@@ -732,6 +846,8 @@ int sx_ssl_server_addcert(sx_plugin_t p, char *name, char *pemfile, char *cachai
     xht contexts = (xht) p->private;
     SSL_CTX *ctx;
     SSL_CTX *tmp;
+    STACK_OF(X509_NAME) *cert_names;
+    X509_STORE * store;
     int ret;
 
     if(!sx_openssl_initialized) {
@@ -760,8 +876,30 @@ int sx_ssl_server_addcert(sx_plugin_t p, char *name, char *pemfile, char *cachai
         ret = SSL_CTX_load_verify_locations (ctx, cachain, NULL);
         if(ret != 1) {
             _sx_debug(ZONE, "WARNING: couldn't load CA chain: %s; %s", cachain, ERR_error_string(ERR_get_error(), NULL));
+        } else {
+        	_sx_debug(ZONE, "Loaded CA verify location chain: %s", cachain);
         }
+        cert_names = SSL_load_client_CA_file(cachain);
+        if (cert_names != NULL) {
+        	SSL_CTX_set_client_CA_list(ctx, cert_names);
+        	_sx_debug(ZONE, "Loaded client CA chain: %s", cachain);
+        } else {
+        	_sx_debug(ZONE, "WARNING: couldn't load client CA chain: %s", cachain);
+        }
+    } else {
+    	/* Load the default OpenlSSL certs from /etc/ssl/certs
+    	 We must assume that the client certificate's CA is there
+
+    	 Note: We don't send client_CA_list here. Will possibly break some clients.
+    	 */
+    	SSL_CTX_set_default_verify_paths(ctx);
+    	_sx_debug(ZONE, "No CA chain specified. Loading SSL default CA certs: /etc/ssl/certs");
     }
+    /* Add server CRL verificaition */
+    store = SSL_CTX_get_cert_store(ctx);
+    // Not sure if this should be X509_V_FLAG_CRL_CHECK|X509_V_FLAG_CRL_CHECK_ALL
+    // or only X509_V_FLAG_CRL_CHECK
+    X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK);
 
     /* load the certificate */
     ret = SSL_CTX_use_certificate_chain_file(ctx, pemfile);

@@ -98,8 +98,19 @@
          (the latter one being optional).
 
          verify-mode
-         SSL verify mode - see SSL_CTX_set_verify(3), mode parameter
+         SSL verify mode - see SSL_CTX_set_verify(3), mode parameter.
+         Sum of the following options:
+         SSL_VERIFY_NONE                 0x00
+		 SSL_VERIFY_PEER                 0x01
+		 SSL_VERIFY_FAIL_IF_NO_PEER_CERT 0x02
+		 SSL_VERIFY_CLIENT_ONCE          0x04
+		 Use 7 to require all clients to present _valid_ certificates.
 
+     
+         cachain
+         SSL CA chain. Used to verify client certificates. 
+         CA names published to client upon connection.
+          
          require-starttls
          If this attribute is set to any value, clients must do STARTTLS
          before they can authenticate. Until the stream is encrypted,
@@ -127,6 +138,7 @@
     <id realm='company.int'
         pemfile='@sysconfdir@/server.pem'
         verify-mode='7'
+        cachain='@sysconfdir@/client_ca_certs.pem'
         require-starttls='true'
         register-enable='true'
         instructions='Enter a username and password to register with this server.'
@@ -170,6 +182,11 @@
     <!-- SSL verify mode - see SSL_CTX_set_verify(3), mode parameter -->
     <!--
     <verify-mode>7</verify-mode>
+    -->
+    
+    <!-- SSL CA chain. Used to verify client certificates. CA names published to client upon connection -->
+    <!--
+    <cachain>@sysconfdir@/client_ca_certs.pem</cachain>  
     -->
 
     <!-- Forward incoming HTTP clients to a real HTTP server -->
@@ -356,7 +373,6 @@
         <!--
         <anonymous/>
         <gssapi/>
-        <external/>
         -->
       </sasl>
 
@@ -375,6 +391,7 @@
 
       <sasl>
         <plain/>
+        <external/>
       </sasl>
 
     </ssl-mechanisms>

@@ -34,7 +34,7 @@ typedef struct _sx_sasl_st {
     sx_sasl_callback_t          cb;
     void                        *cbarg;
 
-    char                        *ext_id;
+    char                        *ext_id[SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT];
 } *_sx_sasl_t;
 
 /* Per-session library handle. */
@@ -403,7 +403,7 @@ static void _sx_sasl_notify_success(sx_t s, void *arg) {
 /** process handshake packets from the client */
 static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, char *mech, char *in, int inlen) {
     _sx_sasl_t ctx = (_sx_sasl_t) p->private;
-    char *buf = NULL, *out = NULL, *realm = NULL, *ext_id;
+    char *buf = NULL, *out = NULL, *realm = NULL, **ext_id;
     char hostname[256];
     int ret, i;
     size_t buflen, outlen;
@@ -451,10 +451,16 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
         for(i = 0; i < s->env->nplugins; i++)
             if(s->env->plugins[i]->magic == SX_SSL_MAGIC && s->plugin_data[s->env->plugins[i]->index] != NULL)
                 ext_id = ((_sx_ssl_conn_t) s->plugin_data[s->env->plugins[i]->index])->external_id;
-
-        /* if there is, store it for later */
-        if(ext_id != NULL) {
-            ctx->ext_id = strdup(ext_id);
+        if (ext_id != NULL) {
+			//_sx_debug(ZONE, "sasl context ext id '%s'", ext_id);
+			/* if there is, store it for later */
+			for (i = 0; i < SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT; i++)
+				if (ext_id[i] != NULL) {
+					ctx->ext_id[i] = strdup(ext_id[i]);
+				} else {
+					ctx->ext_id[i] = NULL;
+					break;
+				}
         }
 #endif
 
@@ -472,6 +478,12 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
             (ctx->cb)(sx_sasl_cb_GEN_AUTHZID, NULL, (void **)&out, s, ctx->cbarg);
             buf = strdup(out);
             buflen = strlen(buf);
+        } else if (strstr(in, "<") != NULL && strncmp(in, "=", strstr(in, "<") - in ) == 0) {
+        	/* XXX The above check is hackish, but `in` is just weird */
+        	/* This is a special case for SASL External c2s. See XEP-0178 */
+        	_sx_debug(ZONE, "gsasl auth string is empty");
+			buf = strdup("");
+			buflen = strlen(buf);
         } else {
             /* decode and process */
             ret = gsasl_base64_from(in, inlen, &buf, &buflen);
@@ -761,7 +773,8 @@ static void _sx_sasl_free(sx_t s, sx_plugin_t p) {
 static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_property prop) {
     _sx_sasl_t ctx = gsasl_session_hook_get(sd);
     struct sx_sasl_creds_st creds = {NULL, NULL, NULL, NULL};
-    char *value;
+    char *value, *node, *host;
+    int len, i;
 
     _sx_debug(ZONE, "in _sx_sasl_gsasl_callback, property: %d", prop);
     switch(prop) {
@@ -826,10 +839,44 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
 
         case GSASL_VALIDATE_EXTERNAL:
             /* GSASL_AUTHID */
-            if(ctx->ext_id != NULL) {
-                creds.authzid = gsasl_property_fast(sd, GSASL_AUTHZID);
-                if(creds.authzid != NULL && strcmp(ctx->ext_id, creds.authzid) == 0)
-                    return GSASL_OK;
+            creds.authzid = gsasl_property_fast(sd, GSASL_AUTHZID);
+			_sx_debug(ZONE, "sasl external");
+			_sx_debug(ZONE, "sasl creds.authzid is '%s'", creds.authzid);
+
+            for (i = 0; i < SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT; i++) {
+            	if (ctx->ext_id[i] == NULL)
+            		break;
+            	_sx_debug(ZONE, "sasl ext_id(%d) is '%s'", i, ctx->ext_id[i]);
+            	/* XXX hackish.. detect c2s by existance of @ */
+            	value = strstr(ctx->ext_id[i], "@");
+
+            	if(value == NULL && creds.authzid != NULL && strcmp(ctx->ext_id[i], creds.authzid) == 0) {
+            		// s2s connection and it's valid
+            		/* TODO Handle wildcards and other thigs from XEP-0178 */
+            		_sx_debug(ZONE, "sasl ctx->ext_id doesn't have '@' in it. Assuming s2s");
+            		return GSASL_OK;
+            	}
+            	if(value != NULL &&
+            		((creds.authzid != NULL && strcmp(ctx->ext_id[i], creds.authzid) == 0) ||
+            		 (creds.authzid == NULL)) ) {
+					// c2s connection
+            		// creds.authzid == NULL condition is from XEP-0178 '=' auth reply
+
+					// This should be freed by gsasl_finish() but I'm not sure
+					// node  = authnid
+					len = value - ctx->ext_id[i];
+					node = (char *) malloc(sizeof(char) * (len + 1)); // + null termination
+					strncpy(node, ctx->ext_id[i], len);
+					node[len] = '\0'; // null terminate the string
+					// host = realm
+					len = strlen(value) - 1 + 1; // - the @ + null termination
+					host = (char *) malloc(sizeof(char) * (len));
+					strcpy(host, value + 1); // skip the @
+					gsasl_property_set(sd, GSASL_AUTHID, node);
+					gsasl_property_set(sd, GSASL_REALM, host);
+					return GSASL_OK;
+				}
+
             }
             return GSASL_AUTHENTICATION_ERROR;
 
@@ -842,10 +889,16 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
 
 static void _sx_sasl_unload(sx_plugin_t p) {
     _sx_sasl_t ctx = (_sx_sasl_t) p->private;
+    int i;
 
     if (ctx->gsasl_ctx != NULL) gsasl_done (ctx->gsasl_ctx);
     if (ctx->appname != NULL) free(ctx->appname);
-    if (ctx->ext_id != NULL) free(ctx->ext_id);
+    for (i = 0; i < SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT; i++)
+    	if(ctx->ext_id[i] != NULL)
+    		free(ctx->ext_id[i]);
+    	else
+    		break;
+
     if (ctx != NULL) free(ctx);
 }
 
@@ -855,7 +908,7 @@ int sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args) {
     sx_sasl_callback_t cb;
     void *cbarg;
     _sx_sasl_t ctx;
-    int ret;
+    int ret, i;
 
     _sx_debug(ZONE, "initialising sasl plugin");
 
@@ -873,7 +926,8 @@ int sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args) {
     ctx->appname = strdup(appname);
     ctx->cb = cb;
     ctx->cbarg = cbarg;
-    ctx->ext_id = NULL;
+    for (i = 0; i < SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT; i++)
+    	ctx->ext_id[i] = NULL;
 
     ret = gsasl_init(&ctx->gsasl_ctx);
     if(ret != GSASL_OK) {
