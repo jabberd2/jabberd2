@@ -24,6 +24,7 @@
  */
 
 #include "sx.h"
+#include <openssl/x509_vfy.h>
 
 
 /* code stolen from SSL_CTX_set_verify(3) */
@@ -37,6 +38,15 @@ static int _sx_ssl_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
     err_cert = X509_STORE_CTX_get_current_cert(ctx);
     err = X509_STORE_CTX_get_error(ctx);
     depth = X509_STORE_CTX_get_error_depth(ctx);
+
+    /*
+     * Ignore errors when we can't get CRLs in the certificate
+     */
+    if (!preverify_ok && err == X509_V_ERR_UNABLE_TO_GET_CRL) {
+    	_sx_debug(ZONE, "ignoring verify error:num=%d:%s:depth=%d:%s\n", err,
+    	                 X509_verify_cert_error_string(err), depth, buf);
+    	preverify_ok = 1;
+    }
 
     /*
      * Retrieve the pointer to the SSL of the connection currently treated
