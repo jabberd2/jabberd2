@@ -1,3 +1,62 @@
+2010-06-11 Tomasz Sterna <tomek@xiaoka.com>
+	* Special case to ignore the X509_V_ERR_UNABLE_TO_GET_CRL error
+	  when CRL is not present in chain. Merged patch by Michal Witkowski.
+	  Closes Bug 405233.
+	* storage_ldapvcard rebind like auth_ldap for successful connection
+	  to MS Active Directory as LDAP storage. Merged patch by x0r.
+	  Closes Bug 532367
+
+2010-03-15 Tomasz Sterna <tomek@xiaoka.com>
+	* Merged SASL External login for clients patch by Michal Witkowski.
+	  Closes Bug 405233
+	* Merged router-filter redirect option by Ugnich Anton.
+	  Closes Bug 390236
+
+2010-01-21 Tomasz Sterna <tomek@xiaoka.com>
+	* Dropped support for PEP
+
+2010-01-05 Tomasz Sterna <tomek@xiaoka.com>
+	* Fix for crash on empty pkt->to
+
+2009-12-15 Tomasz Sterna <tomek@xiaoka.com>
+	* [cwave:r70] fix memory leak - unfreed pkt
+	* [cwave:r62] fix memory leak when c2s reconnects
+	* [cwave:r60] fix memory leak when s2s reconnects
+	* [cwave:r60] fix memory leak when sm reconnects
+	* [cwave:r56] Fix memory leak of unfreed conn->dkey and outq
+	* [cwave:r51] Fix memory leak by registering a mod->free handler in mod_roster,
+	  rename _roster_free() to _roster_freeuser() to make room for a new _roster_free()
+	* [cwave:r50] Fix white space in amp_rule_free()
+	* [cwave:r49] Fix memory leak by freeing chain disco_extend
+	* [cwave:r48] Fix compiler warnings - type casts
+	* [cwave:r47] Fix compiler warnings - type casts
+	* [cwave:r39:r45:46] fix an infinite loop where the help admin messages sm
+	  (produces a help response to itself)
+	* [cwave:r39] clean up compiler warnings - some of which were probably bugs
+	* [cwave:r30] fix a bug where outbound packets cause an infinite loop during shutdown
+	* clean up acinclude.m4
+
+2009-09-12 Tomasz Sterna <tomek@xiaoka.com>
+	* Option to change DB table for mod_roster_publish
+	* RDBMS support for mod_roster_publish
+	* Hook-in with mod_pep required data
+
+2009-08-19 Tomasz Sterna <tomek@xiaoka.com>
+	* Disabled kqueue MIO by a compilation error
+	* Do not distribute migrate.pl
+
+2009-07-24 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed non C-standard declared variables
+	* Free _user and _full JID portions allocated by jid_expand()
+	* Guard against NULL pointers in free
+
+2009-07-12 Tomasz Sterna <tomek@xiaoka.com>
+	* Removed mod_disco_publish. Added mod_pep skeleton
+	* Fixed PBX session start
+
+2009-07-11 Tomasz Sterna <tomek@xiaoka.com>
+	* Implemented XEP-0237: Roster Versioning
+
 2009-07-01 Tomasz Sterna <tomek@xiaoka.com>
 	* Enable experimental features by default
 
