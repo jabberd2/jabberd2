@@ -137,6 +137,21 @@ static int _st_ldapvcard_get_lderrno(LDAP *ld)
   return ld_errno;
 }
 
+/** entry-point function for following referrals, required in some cases by Active Directory */
+static int rebindProc(LDAP *ld, LDAP_CONST char *url, ber_tag_t request, ber_int_t msgid, void *mdata)
+{
+    drvdata_t data = mdata;
+    data->ld = ld;
+    if(ldap_simple_bind_s(data->ld, data->binddn, data->bindpw)) {
+        log_write(drv->st->sm->log, LOG_ERR, "ldap: bind failed (to %s): %s", url, ldap_err2string(_ldap_get_lderrno(data->ld)));
+        ldap_unbind_s(data->ld);
+        data->ld = NULL;
+        return NULL;
+    }
+
+    return LDAP_SUCCESS;
+}
+
 /** connect to the ldap host */
 static int _st_ldapvcard_connect(st_driver_t drv)
 {
@@ -244,18 +259,17 @@ static st_ret_t _st_ldapvcard_get(st_driver_t drv, const char *type, const char 
 
         snprintf(ldapfilter, 1024, "(&(objectClass=%s)(%s=%s))", data->objectclass, data->uidattr, owner);
         log_debug(ZONE, "search filter: %s", ldapfilter);
-retry_vcard:
+
+        if(ldap_set_rebind_proc(data->ld, &rebindProc, data))
+        {
+            log_write(drv->st->sm->log, LOG_ERR, "ldap: set_rebind_proc failed: %s", ldap_err2string(_st_ldapvcard_get_lderrno(data->ld)));
+            ldap_unbind_s(data->ld);
+            data->ld = NULL;
+            return st_FAILED;
+        }
+
         if(ldap_search_s(data->ld, data->basedn, LDAP_SCOPE_SUBTREE, ldapfilter, attrs_vcard, 0, &result))
         {
-            if( tried++ < LDAPVCARD_SEARCH_MAX_RETRIES ) {
-                log_debug(ZONE, "ldapvcard: search fail, will retry; %s: %s", ldapfilter, ldap_err2string(_st_ldapvcard_get_lderrno(data->ld)));
-                _st_ldapvcard_unbind(drv);
-                if( _st_ldapvcard_connect_bind(drv) == 0 ) {
-                    goto retry_vcard;
-                } else {
-                    return st_FAILED;
-                }
-            }
             log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: search %s failed: %s", ldapfilter, ldap_err2string(_st_ldapvcard_get_lderrno(data->ld)));
             _st_ldapvcard_unbind(drv);
             return st_FAILED;
