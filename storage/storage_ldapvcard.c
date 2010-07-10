@@ -143,7 +143,7 @@ static int rebindProc(LDAP *ld, LDAP_CONST char *url, ber_tag_t request, ber_int
     drvdata_t data = mdata;
     data->ld = ld;
     if(ldap_simple_bind_s(data->ld, data->binddn, data->bindpw)) {
-        log_write(drv->st->sm->log, LOG_ERR, "ldap: bind failed (to %s): %s", url, ldap_err2string(_ldap_get_lderrno(data->ld)));
+        log_debug(ZONE, "ldapvcard: bind failed (to %s): %s", url, ldap_err2string(_ldap_get_lderrno(data->ld)));
         ldap_unbind_s(data->ld);
         data->ld = NULL;
         return NULL;
