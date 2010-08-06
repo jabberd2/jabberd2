@@ -1224,7 +1224,7 @@ static void _nad_parse_element_start(void *arg, const char *name, const char **a
     char buf[1024];
     char *uri, *elem, *prefix;
     const char **attr;
-    int ns;
+    int el, ns;
 
     /* make a copy */
     strncpy(buf, name, 1024);
@@ -1257,7 +1257,7 @@ static void _nad_parse_element_start(void *arg, const char *name, const char **a
     }
 
     /* add it */
-    nad_append_elem(bd->nad, ns, elem, bd->depth);
+    el = nad_append_elem(bd->nad, ns, elem, bd->depth);
 
     /* now the attributes, one at a time */
     attr = atts;
@@ -1278,7 +1278,7 @@ static void _nad_parse_element_start(void *arg, const char *name, const char **a
                 *prefix = '\0';
                 prefix++;
             }
-            ns = nad_add_namespace(bd->nad, uri, prefix);
+            ns = nad_append_namespace(bd->nad, el, uri, prefix);
         } else {
             /* un-namespaced, just take it as-is */
             uri = NULL;
