@@ -97,7 +97,7 @@ void _sx_element_start(void *arg, const char *name, const char **atts) {
                 *prefix = '\0';
                 prefix++;
             }
-            ns = nad_add_namespace(s->nad, uri, prefix);
+            ns = nad_append_namespace(s->nad, el, uri, prefix);
         } else {
             /* un-namespaced, just take it as-is */
             uri = NULL;
