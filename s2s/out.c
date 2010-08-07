@@ -183,6 +183,7 @@ int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int a
     union xhashv xhv;
     dnsres_t res;
     char *ipport;
+    int ipport_len;
     char *c;
 
     /* for all results:
@@ -204,10 +205,10 @@ int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int a
     if (xhash_iter_first(dns->results)) {
         dnsres_t bad = NULL;
         do {
-            xhash_iter_get(dns->results, (const char **) &ipport, NULL, xhv.val);
+            xhash_iter_get(dns->results, (const char **) &ipport, &ipport_len, xhv.val);
 
             if (s2s->dns_bad_timeout > 0)
-                bad = xhash_get(s2s->dns_bad, ipport);
+                bad = xhash_getx(s2s->dns_bad, ipport, ipport_len);
 
             if (now > res->expiry) {
                 /* good host? */
@@ -221,7 +222,7 @@ int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int a
                 l_bad[s_bad++] = res;
 
                 log_debug(ZONE, "host '%s' bad", res->key);
-            } else if (s2s->out_reuse && xhash_get(s2s->out_host, ipport) != NULL) {
+            } else if (s2s->out_reuse && xhash_getx(s2s->out_host, ipport, ipport_len) != NULL) {
                 /* existing connection */
                 log_debug(ZONE, "host '%s' exists", res->key);
                 if (s_reuse == 0 || p_reuse > res->prio) {
@@ -242,7 +243,7 @@ int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int a
                 } else {
                     log_debug(ZONE, "ignored host with prio %d", res->prio);
                 }
-            } else if (strchr(ipport, ':') != NULL) {
+            } else if (memchr(ipport, ':', ipport_len) != NULL) {
                 /* ipv6 */
                 log_debug(ZONE, "host '%s' IPv6", res->key);
                 if (s_aaaa == 0 || p_aaaa > res->prio) {
@@ -1038,25 +1039,32 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
     /* resolve the next host in the list */
     if (xhash_iter_first(query->hosts)) {
         char *ipport, *c;
+        int ipport_len;
         dnsres_t res;
         union xhashv xhv;
 
         xhv.dnsres_val = &res;
 
         /* get the first entry */
-        xhash_iter_get(query->hosts, (const char **) &ipport, NULL, xhv.val);
+        xhash_iter_get(query->hosts, (const char **) &ipport, &ipport_len, xhv.val);
 
         /* remove the host from the list */
         xhash_iter_zap(query->hosts);
 
-        c = strchr(ipport, '/');
-        *c = '\0';
-        c++;
+        c = memchr(ipport, '/', ipport_len);
+        assert(c);
 
         /* resolve hostname */
         free(query->cur_host);
-        query->cur_host = strdup(ipport);
-        query->cur_port = atoi(c);
+        query->cur_host = malloc(c - ipport + 1);
+        memcpy(query->cur_host, ipport, c - ipport);
+        query->cur_host[c - ipport] = 0;
+        char * port_str = (char *) malloc(ipport_len - (c - ipport));
+        c++;
+        memcpy(port_str, c, ipport_len - (c - ipport));
+        port_str[c - ipport] = 0;
+        query->cur_port = atoi(port_str);
+        free(port_str);
         query->cur_prio = res->prio;
         query->cur_weight = res->weight;
         query->cur_expiry = res->expiry;
@@ -1081,9 +1089,6 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
             if (query->query == NULL)
                 _dns_result_a(ctx, NULL, query);
         }
-
-        c--;
-        *c = '/';
 
     /* finished */
     } else {
@@ -1272,17 +1277,19 @@ static int _out_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, v
                 char *rkey;
                 int rkeylen;
                 char *c;
+                int c_len;
 
                 /* remove all the out_dest entries */
                 do {
                     xhash_iter_get(out->routes, (const char **) &rkey, &rkeylen, NULL);
-                    c = strchr(rkey, '/');
+                    c = memchr(rkey, '/', rkeylen);
                     c++;
+                    c_len = rkeylen - (c - rkey);
 
                     log_debug(ZONE, "route '%.*s'", rkeylen, rkey);
-                    if (xhash_get(out->s2s->out_dest, c) != NULL) {
-                        log_debug(ZONE, "removing dest entry for '%s'", c);
-                        xhash_zap(out->s2s->out_dest, c);
+                    if (xhash_getx(out->s2s->out_dest, c, c_len) != NULL) {
+                        log_debug(ZONE, "removing dest entry for '%.*s'", c_len, c);
+                        xhash_zapx(out->s2s->out_dest, c, c_len);
                     }
                 } while(xhash_iter_next(out->routes));
             }
@@ -1293,37 +1300,45 @@ static int _out_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, v
                 jqueue_t q;
                 int npkt;
 
-                /* retry all the routes */
                 do {
+                    char *local_rkey;
+
                     xhash_iter_get(out->routes, (const char **) &rkey, &rkeylen, NULL);
 
-                    q = xhash_get(out->s2s->outq, rkey);
+                /* retry all the routes */
+                    q = xhash_getx(out->s2s->outq, rkey, rkeylen);
                     if (out->s2s->retry_limit > 0 && q != NULL && jqueue_age(q) > out->s2s->retry_limit) {
                         log_debug(ZONE, "retry limit reached for '%.*s' queue", rkeylen, rkey);
                         q = NULL;
                     }
 
+                    local_rkey = (char *) malloc(rkeylen + 1);
+                    memcpy(local_rkey, rkey, rkeylen);
+                    local_rkey[rkeylen] = 0;
                     if (q != NULL && (npkt = jqueue_size(q)) > 0) {
                         conn_t retry;
 
-                        log_debug(ZONE, "retrying connection for '%.*s' queue", rkeylen, rkey);
-                        if (!out_route(out->s2s, rkey, &retry, 0)) {
+                        log_debug(ZONE, "retrying connection for '%s' queue", local_rkey);
+                        if (!out_route(out->s2s, local_rkey, &retry, 0)) {
                             log_debug(ZONE, "retry successful");
 
                             if (retry != NULL) {
                                 /* flush queue */
-                                out_flush_route_queue(out->s2s, rkey);
+                                out_flush_route_queue(out->s2s, local_rkey);
                             }
                         } else {
                             log_debug(ZONE, "retry failed");
 
                             /* bounce queue */
-                            out_bounce_route_queue(out->s2s, rkey, stanza_err_SERVICE_UNAVAILABLE);
+                            out_bounce_route_queue(out->s2s, local_rkey, stanza_err_SERVICE_UNAVAILABLE);
                         }
                     } else {
                         /* bounce queue */
-                        out_bounce_route_queue(out->s2s, rkey, stanza_err_SERVICE_UNAVAILABLE);
+                        out_bounce_route_queue(out->s2s, local_rkey, stanza_err_SERVICE_UNAVAILABLE);
                     }
+                    
+                    free(local_rkey);
+                    
                 } while(xhash_iter_next(out->routes));
             }
 
@@ -1774,7 +1789,7 @@ int out_bounce_domain_queues(s2s_t s2s, const char *domain, int err)
   if (xhash_iter_first(s2s->outq)) {
       do {
           xhash_iter_get(s2s->outq, (const char **) &rkey, NULL, NULL);
-          if(s2s_route_key_match(NULL, domain, rkey))
+          if(s2s_route_key_match(NULL, (char *) domain, rkey))
               pktcount += out_bounce_route_queue(s2s, rkey, err);
       } while(xhash_iter_next(s2s->outq));
   }

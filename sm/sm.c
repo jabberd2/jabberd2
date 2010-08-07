@@ -130,7 +130,7 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 xhash_iter_get(sm->hosts, (void *) &domain, &len, NULL);
 
                 /* skip already requested SM id */
-                if (!strncmp(sm->id, domain, len))
+                if (strlen(sm->id) == len && strncmp(sm->id, domain, len) == 0)
                     continue;
 
                 nad = nad_new();
