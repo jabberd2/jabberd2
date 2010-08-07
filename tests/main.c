@@ -8,7 +8,7 @@
 
 #include "util/util.h"
 
-#define NADTXT_COUNT 2
+#define NADTXT_COUNT 3
 
 void s2s_wrap()
 {
@@ -76,6 +76,9 @@ void s2s_wrap()
      "<point xmlns='http://www.georss.org/georss'>-33.4262838 -70.5665588</point>"
     "</entry>"
     "</message>";
+    nadtxt[2] = "<message xmlns='jabber:server' from='blip@blip.pl/blip' to='test@chrome.pl' xml:lang='en' type='chat'>"
+     "<body>Proponuję zmianę tematu. Porozmawiajmy o dinazaurach.</body>"
+    "</message>";
 
   for(i = 0; i < NADTXT_COUNT; i++) {
     nad_t nad = nad_parse(nadtxt[i], 0);
@@ -91,7 +94,7 @@ void s2s_wrap()
         if(nad->elems[0].ns == ns)
             nad->elems[0].ns = nad->nss[nad->elems[0].ns].next;
         else {
-            for(sns = nad->elems[0].ns; sns >= 0 && nad->nss[sns].next == ns; sns = nad->nss[sns].next);
+            for(sns = nad->elems[0].ns; sns >= 0 && nad->nss[sns].next != ns; sns = nad->nss[sns].next);
             nad->nss[sns].next = nad->nss[nad->nss[sns].next].next;
         }
         nad_print(nad, 0, &buf, &len);
