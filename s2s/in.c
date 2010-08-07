@@ -543,7 +543,7 @@ static void _in_packet(conn_t in, nad_t nad) {
         if(nad->elems[0].ns == ns)
             nad->elems[0].ns = nad->nss[nad->elems[0].ns].next;
         else {
-            for(sns = nad->elems[0].ns; sns >= 0 && nad->nss[sns].next == ns; sns = nad->nss[sns].next);
+            for(sns = nad->elems[0].ns; sns >= 0 && nad->nss[sns].next != ns; sns = nad->nss[sns].next);
             nad->nss[sns].next = nad->nss[nad->nss[sns].next].next;
         }
     }
