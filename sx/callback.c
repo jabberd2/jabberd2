@@ -27,7 +27,6 @@ void _sx_element_start(void *arg, const char *name, const char **atts) {
     char *uri, *elem, *prefix;
     const char **attr;
     int ns;
-    int scope;
     int el;
 
     if(s->fail) return;

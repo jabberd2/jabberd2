@@ -263,7 +263,7 @@ static void _sx_ssl_get_external_id(sx_t s, _sx_ssl_conn_t sc) {
 			if (altname->type == GEN_OTHERNAME &&
 				OBJ_cmp(altname->d.otherName->type_id, id_on_xmppAddr_obj) == 0) {
 				othername = altname->d.otherName;
-				len = ASN1_STRING_to_UTF8(&buff, othername->value->value.utf8string);
+				len = ASN1_STRING_to_UTF8((unsigned char **) &buff, othername->value->value.utf8string);
 				if (len <= 0)
 					continue;
 				sc->external_id[id] = (char *) malloc(sizeof(char) *  (len + 1));
@@ -296,7 +296,7 @@ static void _sx_ssl_get_external_id(sx_t s, _sx_ssl_conn_t sc) {
 			continue;
 		}
 		// Get the commonName as UTF8 string
-		len = ASN1_STRING_to_UTF8(&buff, X509_NAME_ENTRY_get_data(entry));
+		len = ASN1_STRING_to_UTF8((unsigned char **) &buff, X509_NAME_ENTRY_get_data(entry));
 		if (len <= 0) {
 			continue;
 		}

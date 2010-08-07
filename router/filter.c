@@ -216,9 +216,10 @@ int filter_packet(router_t r, nad_t nad) {
         if( to != NULL && acl->to != NULL && fnmatch(acl->to, to, 0) != 0 ) continue;
         if( acl->what != NULL && nad_find_elem_path(nad, 0, -1, acl->what) < 0 ) continue;        /* match packet type */
         log_debug(ZONE, "matched packet %s->%s vs rule (%s %s->%s)", from, to, acl->what, acl->from, acl->to);
-        if (acl->log)
+        if (acl->log) {
             if (acl->redirect) log_write(r->log, LOG_NOTICE, "filter: redirect packet from=%s to=%s - rule (from=%s to=%s what=%s), new to=%s", from, to, acl->from, acl->to, acl->what, acl->redirect);
             else log_write(r->log, LOG_NOTICE, "filter: %s packet from=%s to=%s - rule (from=%s to=%s what=%s)",(acl->error?"deny":"allow"), from, to, acl->from, acl->to, acl->what);
+        }
         if (acl->redirect) nad_set_attr(nad, 0, -1, "to", acl->redirect, acl->redirect_len);
         error = acl->error;
         break;

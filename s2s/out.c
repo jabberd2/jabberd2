@@ -177,8 +177,8 @@ int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int a
     int rw_aaaa[DNS_MAX_RESULTS];
     int rw_a[DNS_MAX_RESULTS];
     int s_reuse = 0, s_aaaa = 0, s_a = 0, s_bad = 0; /* count */
-    int p_reuse, p_aaaa, p_a; /* list prio */
-    int wt_reuse, wt_aaaa, wt_a; /* weight total */
+    int p_reuse = 0, p_aaaa = 0, p_a = 0; /* list prio */
+    int wt_reuse = 0, wt_aaaa = 0, wt_a = 0; /* weight total */
     int c_expired_good = 0;
     union xhashv xhv;
     dnsres_t res;

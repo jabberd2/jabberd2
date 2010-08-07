@@ -171,7 +171,7 @@ static mod_ret_t _announce_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     return mod_PASS;
 }
 
-static void _announce_broadcast_user(const char *key, void *val, void *arg) {
+static void _announce_broadcast_user(const char *key, int keylen, void *val, void *arg) {
     user_t user = (user_t) val;
     moddata_t data = (moddata_t) arg;
     sess_t sess;

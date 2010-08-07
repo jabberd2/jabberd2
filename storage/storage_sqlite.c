@@ -135,7 +135,6 @@ static void _st_sqlite_convert_filter_recursive (st_filter_t f, char **buf,
 static char *_st_sqlite_convert_filter (st_driver_t drv, const char *owner,
 					const char *filter) {
 
-    drvdata_t data = (drvdata_t) drv->private;
     char *buf = NULL;
     unsigned int buflen = 0, nbuf = 0;
     st_filter_t f;
@@ -193,7 +192,6 @@ static void _st_sqlite_bind_filter (st_driver_t drv, const char *owner,
 				    sqlite3_stmt *stmt,
 				    unsigned int bind_off) {
 
-    drvdata_t data = (drvdata_t) drv->private;
     st_filter_t f;
 
 
@@ -404,13 +402,11 @@ static st_ret_t _st_sqlite_get (st_driver_t drv, const char *type,
     unsigned int nbuf = 0;
     unsigned int buflen = 0;
     int i;
-    unsigned long *lengths;
     unsigned int num_rows = 0;
     os_object_t o;
     const char *val;
     os_type_t ot;
     int ival;
-    nad_t nad;
     char tbuf[128];
 
     sqlite3_stmt *stmt;

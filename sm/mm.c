@@ -264,7 +264,7 @@ mm_t mm_new(sm_t sm) {
     return mm;
 }
 
-static void _mm_reaper(const char *module, void *val, void *arg) {
+static void _mm_reaper(const char *module, int modulelen, void *val, void *arg) {
     module_t mod = (module_t) val;
 
     if(mod->free != NULL)

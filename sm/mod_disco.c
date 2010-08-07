@@ -322,8 +322,6 @@ static mod_ret_t _disco_pkt_sm_populate(mod_instance_t mi, pkt_t pkt)
 /** respond to user quering its JID */
 static mod_ret_t _disco_in_sess_result(mod_instance_t mi, sess_t sess, pkt_t pkt)
 {
-    module_t mod = mi->mod;
-
     /* it has to have no to address or self bare jid */
     if(pkt->to != NULL && strcmp(jid_user(sess->jid), jid_full(pkt->to)))
     {

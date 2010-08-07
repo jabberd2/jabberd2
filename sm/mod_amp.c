@@ -103,7 +103,7 @@ void amp_error_pkt(pkt_t pkt, amp_rule_t rule) {
 
 static mod_ret_t _amp_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     /* only handle messages */
-    if (! pkt->type & pkt_MESSAGE)
+    if (!(pkt->type & pkt_MESSAGE))
         return mod_PASS;
 
     /* we're only interested in no to, to our host, or to us */

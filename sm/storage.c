@@ -65,7 +65,7 @@ storage_t storage_new(sm_t sm) {
     return st;
 }
 
-static void _st_driver_reaper(const char *driver, void *val, void *arg) {
+static void _st_driver_reaper(const char *driver, int driverlen, void *val, void *arg) {
     st_driver_t drv = (st_driver_t) val;
 
     (drv->free)(drv);

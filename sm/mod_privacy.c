@@ -590,7 +590,7 @@ static void _privacy_result_builder(xht zhash, const char *name, void *val, void
 }
 
 /** add a list to the return packet */
-static void _privacy_lists_result_builder(const char *name, void *val, void *arg) {
+static void _privacy_lists_result_builder(const char *name, int namelen, void *val, void *arg) {
     zebra_list_t zlist = (zebra_list_t) val;
     pkt_t pkt = (pkt_t) arg;
     int ns, query, list;
