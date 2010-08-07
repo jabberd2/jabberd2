@@ -922,8 +922,14 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             return 0;
 
         case event_CLOSED:
-            mio_close(comp->r->mio, comp->fd);
-            return -1;
+        {
+            /* close comp->fd by putting it in closefd ... unless it is already there */
+            _jqueue_node_t n;
+            for (n = comp->r->closefd->front; n != NULL; n = n->prev)
+                if (n->data == comp->fd) break;
+            if (!n) jqueue_push(comp->r->closefd, (void *) comp->fd, 0 /*priority*/);
+            return 0;
+        }
     }
 
     return 0;

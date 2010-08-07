@@ -150,6 +150,9 @@ struct router_st {
     /** list of sx_t waiting to be cleaned up */
     jqueue_t            dead;
 
+    /** list of mio_fd_t waiting to be closed */
+    jqueue_t            closefd;
+
     /** list of routes_t waiting to be cleaned up */
     jqueue_t            deadroutes;
 };
