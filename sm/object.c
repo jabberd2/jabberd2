@@ -298,7 +298,8 @@ void os_object_iter_get(os_object_t o, char **key, void **val, os_type_t *type) 
     union xhashv xhv;
 
     xhv.osf_val = &osf;
-    xhash_iter_get(o->hash, (const char **) key, xhv.val);
+    int keylen;
+    xhash_iter_get(o->hash, (const char **) key, &keylen, xhv.val);
 
     if(*key == NULL) {
         *val = NULL;

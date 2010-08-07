@@ -134,7 +134,7 @@ void aci_unload(xht acls)
 
     if(xhash_iter_first(acls))
         do {
-            xhash_iter_get(acls, NULL, (void *) &list);
+            xhash_iter_get(acls, NULL, NULL, (void *) &list);
             while (list != NULL) {
                jid = list;
                list = list->next;

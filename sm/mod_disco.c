@@ -76,7 +76,7 @@ union xhashv
 };
 
 /** put val into arg */
-static void _disco_unify_walker(const char *key, void *val, void *arg) {
+static void _disco_unify_walker(const char *key, int keylen, void *val, void *arg) {
     service_t svc = (service_t) val;
     xht dest = (xht) arg;
 
@@ -117,7 +117,7 @@ static pkt_t _disco_items_result(module_t mod, disco_t d) {
     if(xhash_iter_first(d->un))
         do {
             xhv.svc_val = &svc;
-            xhash_iter_get(d->un, NULL, xhv.val);
+            xhash_iter_get(d->un, NULL, NULL, xhv.val);
 
             nad_append_elem(pkt->nad, ns, "item", 3);
             nad_append_attr(pkt->nad, -1, "jid", jid_full(svc->jid));
@@ -132,8 +132,9 @@ static pkt_t _disco_items_result(module_t mod, disco_t d) {
 /** build a disco info result */
 static pkt_t _disco_info_result(module_t mod, disco_t d) {
     pkt_t pkt;
-    int ns;
+    int el, ns;
     const char *key;
+    int keylen;
 
     pkt = pkt_create(mod->mm->sm, "iq", "result", NULL, NULL);
     ns = nad_add_namespace(pkt->nad, uri_DISCO_INFO, NULL);
@@ -148,10 +149,10 @@ static pkt_t _disco_info_result(module_t mod, disco_t d) {
     /* fill in our features */
     if(xhash_iter_first(mod->mm->sm->features))
         do {
-            xhash_iter_get(mod->mm->sm->features, &key, NULL);
+            xhash_iter_get(mod->mm->sm->features, &key, &keylen, NULL);
             
-            nad_append_elem(pkt->nad, ns, "feature", 3);
-            nad_append_attr(pkt->nad, -1, "var", (char *) key);
+            el = nad_append_elem(pkt->nad, ns, "feature", 3);
+            nad_set_attr(pkt->nad, el, -1, "var", (char *) key, keylen);
         } while(xhash_iter_next(mod->mm->sm->features));
 
     /* put it throuhg disco_extend chain to add
@@ -166,6 +167,7 @@ static pkt_t _disco_agents_result(module_t mod, disco_t d) {
     pkt_t pkt;
     int ns;
     const char *key;
+    int keylen;
     service_t svc;
     union xhashv xhv;
 
@@ -177,7 +179,7 @@ static pkt_t _disco_agents_result(module_t mod, disco_t d) {
     if(xhash_iter_first(d->un))
         do {
             xhv.svc_val = &svc;
-            xhash_iter_get(d->un, &key, xhv.val);
+            xhash_iter_get(d->un, &key, &keylen, xhv.val);
 
             nad_append_elem(pkt->nad, ns, "agent", 3);
             nad_append_attr(pkt->nad, -1, "jid", jid_full(svc->jid));
@@ -353,7 +355,7 @@ static void _disco_sessions_result(module_t mod, disco_t d, pkt_t pkt) {
     if(xhash_iter_first(mod->mm->sm->sessions))
         do {
             xhv.sess_val = &sess;
-            xhash_iter_get(mod->mm->sm->sessions, NULL, xhv.val);
+            xhash_iter_get(mod->mm->sm->sessions, NULL, NULL, xhv.val);
 
             nad_append_elem(pkt->nad, ns, "item", 3);
             nad_append_attr(pkt->nad, -1, "jid", jid_full(sess->jid));
@@ -580,7 +582,7 @@ static mod_ret_t _disco_pkt_router(mod_instance_t mi, pkt_t pkt)
     return mod_HANDLED;
 }
 
-static void _disco_free_walker(const char *key, void *val, void *arg) {
+static void _disco_free_walker(const char *key, int keylen, void *val, void *arg) {
     service_t svc = (service_t) val;
 
     jid_free(svc->jid);

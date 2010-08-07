@@ -282,7 +282,7 @@ char *config_get_attr(config_t c, const char *key, int num, const char *attr)
 }
 
 /** cleanup helper */
-static void _config_reaper(const char *key, void *val, void *arg)
+static void _config_reaper(const char *key, int keylen, void *val, void *arg)
 {
     config_elem_t elem = (config_elem_t) val;
 

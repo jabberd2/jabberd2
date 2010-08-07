@@ -323,7 +323,7 @@ static int _ldap_user_exists(authreg_t ar, char *username, char *realm)
 
     if(xhash_iter_first((xht) ar->private))
     do {
-        xhash_iter_get((xht) ar->private, NULL, (void *) &data);
+        xhash_iter_get((xht) ar->private, NULL, NULL, (void *) &data);
         if( ! (data->ld == NULL && _ldap_connect(data)) ) {
             dn = _ldap_search(data, realm, username);
             if (dn != NULL) {
@@ -349,7 +349,7 @@ static int _ldap_check_password(authreg_t ar, char *username, char *realm, char 
 
     if(xhash_iter_first((xht) ar->private))
     do {
-        xhash_iter_get((xht) ar->private, NULL, (void *) &data);
+        xhash_iter_get((xht) ar->private, NULL, NULL, (void *) &data);
 
         if( ! (data->ld == NULL && _ldap_connect(data)) ) {
 
@@ -384,7 +384,7 @@ static void _ldap_free(authreg_t ar)
 
     if(xhash_iter_first((xht) ar->private))
     do {
-        xhash_iter_get((xht) ar->private, NULL, (void *) &data);
+        xhash_iter_get((xht) ar->private, NULL, NULL, (void *) &data);
         if(data->ld != NULL)
             ldap_unbind_s(data->ld);
         xhash_free(data->basedn);

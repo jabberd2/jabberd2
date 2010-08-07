@@ -28,7 +28,7 @@ typedef struct broadcast_st {
 } *broadcast_t;
 
 /** broadcast a packet */
-static void _router_broadcast(const char *key, void *val, void *arg) {
+static void _router_broadcast(const char *key, int keylen, void *val, void *arg) {
     int i;
     broadcast_t bc = (broadcast_t) arg;
     routes_t routes = (routes_t) val;
@@ -66,10 +66,10 @@ static void _router_advertise(router_t r, char *domain, component_t src, int una
 }
 
 /** tell a component about all the others */
-static void _router_advertise_reverse(const char *key, void *val, void *arg) {
+static void _router_advertise_reverse(const char *key, int keylen, void *val, void *arg) {
     component_t dest = (component_t) arg;
     routes_t routes = (routes_t) val;
-    int ns, i;
+    int el, ns, i;
     nad_t nad;
 
     assert((int) (routes->name != NULL));
@@ -81,13 +81,13 @@ static void _router_advertise_reverse(const char *key, void *val, void *arg) {
         if(routes->comp[i] == dest)
             return;
 
-    log_debug(ZONE, "informing component about %s", key);
+    log_debug(ZONE, "informing component about %.*s", keylen, key);
 
     /* create a new packet */
     nad = nad_new();
     ns = nad_add_namespace(nad, uri_COMPONENT, NULL);
-    nad_append_elem(nad, ns, "presence", 0);
-    nad_append_attr(nad, -1, "from", (char *) key);
+    el = nad_append_elem(nad, ns, "presence", 0);
+    nad_set_attr(nad, el, -1, "from", key, keylen);
 
     sx_nad_write(dest->s, nad);
 }
@@ -394,11 +394,11 @@ static void _router_comp_write(component_t comp, nad_t nad) {
     sx_nad_write_elem(comp->s, nad, 1);
 }
 
-static void _router_route_log_sink(const char *key, void *val, void *arg) {
+static void _router_route_log_sink(const char *key, int keylen, void *val, void *arg) {
     component_t comp = (component_t) val;
     nad_t nad = (nad_t) arg;
 
-    log_debug(ZONE, "copying route to '%s' (%s, port %d)", key, comp->ip, comp->port);
+    log_debug(ZONE, "copying route to '%.*s' (%s, port %d)", keylen, key, comp->ip, comp->port);
 
     nad = nad_copy(nad);
     nad_set_attr(nad, 0, -1, "type", "log", 3);
@@ -585,7 +585,7 @@ static void _router_process_route(component_t comp, nad_t nad) {
         if(xhash_iter_first(comp->r->components))
             do {
                 xhv.comp_val = &target;
-                xhash_iter_get(comp->r->components, NULL, xhv.val);
+                xhash_iter_get(comp->r->components, NULL, NULL, xhv.val);
 
                 if(target != comp) {
                     log_debug(ZONE, "writing broadcast to %s, port %d", target->ip, target->port);
@@ -955,24 +955,28 @@ static int _router_accept_check(router_t r, mio_fd_t fd, char *ip) {
     return 0;
 }
 
-static void _router_route_unbind_walker(const char *key, void *val, void *arg) {
+static void _router_route_unbind_walker(const char *key, int keylen, void *val, void *arg) {
     component_t comp = (component_t) arg;
 
-    xhash_zap(comp->r->log_sinks, key);
-    _route_remove(comp->r->routes, key, comp);
-    xhash_zap(comp->routes, key);
+    xhash_zapx(comp->r->log_sinks, key, keylen);
+    char * local_key = (char *) malloc(keylen + 1);
+    memcpy(local_key, key, keylen);
+    local_key[keylen] = 0;
+    _route_remove(comp->r->routes, local_key, comp);
+    xhash_zapx(comp->routes, key, keylen);
 
-    if(comp->r->default_route != NULL && strcmp(key, comp->r->default_route) == 0) {
-        log_write(comp->r->log, LOG_NOTICE, "[%s] default route offline", key);
+    if(comp->r->default_route != NULL && strlen(comp->r->default_route) == keylen && strncmp(key, comp->r->default_route, keylen) == 0) {
+        log_write(comp->r->log, LOG_NOTICE, "[%.*s] default route offline", keylen, key);
         free(comp->r->default_route);
         comp->r->default_route = NULL;
     }
 
-    log_write(comp->r->log, LOG_NOTICE, "[%s] offline", key);
+    log_write(comp->r->log, LOG_NOTICE, "[%.*s] offline", keylen, key);
 
     /* deadvertise name */
-    if(xhash_get(comp->r->routes, key) == NULL)
-        _router_advertise(comp->r, (char *) key, comp, 1);
+    if(xhash_getx(comp->r->routes, key, keylen) == NULL)
+        _router_advertise(comp->r, local_key, comp, 1);
+    free(local_key);
 }
 
 int router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg) {

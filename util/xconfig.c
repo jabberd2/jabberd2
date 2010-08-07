@@ -76,7 +76,7 @@ static void _xconfig_cleanup(void *arg) {
 
     if(xhash_iter_first(c->hash))
     do {
-        xhash_iter_get(c->hash, NULL, (void *) &elem);
+        xhash_iter_get(c->hash, NULL, NULL, (void *) &elem);
         free(elem->values);
         free(elem->attrs);
     } while(xhash_iter_next(c->hash));

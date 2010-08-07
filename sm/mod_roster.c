@@ -39,7 +39,7 @@ typedef struct _roster_walker_st {
 } *roster_walker_t;
 
 /** free a single roster item */
-static void _roster_freeuser_walker(const char *key, void *val, void *arg)
+static void _roster_freeuser_walker(const char *key, int keylen, void *val, void *arg)
 {
     item_t item = (item_t) val;
     int i;
@@ -265,7 +265,7 @@ static mod_ret_t _roster_in_sess_s10n(mod_instance_t mi, sess_t sess, pkt_t pkt)
 }
 
 /** build the iq:roster packet from the hash */
-static void _roster_get_walker(const char *id, void *val, void *arg)
+static void _roster_get_walker(const char *id, int idlen, void *val, void *arg)
 {
     item_t item = (item_t) val;
     roster_walker_t rw = (roster_walker_t) arg;
@@ -277,7 +277,7 @@ static void _roster_get_walker(const char *id, void *val, void *arg)
 }
 
 /** push roster XEP-0237 updates to client */
-static void _roster_update_walker(const char *id, void *val, void *arg)
+static void _roster_update_walker(const char *id, int idlen, void *val, void *arg)
 {
     pkt_t push;
     char *buf;
@@ -348,7 +348,7 @@ static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi
 
             /* kill it */
             xhash_zap(sess->user->roster, jid_full(jid));
-            _roster_freeuser_walker((const char *) jid_full(jid), (void *) item, NULL);
+            _roster_freeuser_walker((const char *) jid_full(jid), strlen(jid_full(jid)), (void *) item, NULL);
 
             snprintf(filter, 4096, "(jid=%zu:%s)", strlen(jid_full(jid)), jid_full(jid));
             storage_delete(sess->user->sm->st, "roster-items", jid_user(sess->jid), filter);
@@ -764,7 +764,7 @@ static int _roster_user_load(mod_instance_t mi, user_t user) {
                         if(olditem) {
                             log_debug(ZONE, "removing old %s roster entry", jid_full(item->jid));
                             xhash_zap(user->roster, jid_full(item->jid));
-                            _roster_freeuser_walker(jid_full(item->jid), (void *) olditem, NULL);
+                            _roster_freeuser_walker(jid_full(item->jid), strlen(jid_full(item->jid)), (void *) olditem, NULL);
                         }
 
                         /* its good */

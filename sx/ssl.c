@@ -795,7 +795,7 @@ static void _sx_ssl_unload(sx_plugin_t p) {
 
     if(xhash_iter_first(contexts))
         do {
-            xhash_iter_get(contexts, NULL, &ctx);
+            xhash_iter_get(contexts, NULL, NULL, &ctx);
             SSL_CTX_free((SSL_CTX *) ctx);
         } while(xhash_iter_next(contexts));
 

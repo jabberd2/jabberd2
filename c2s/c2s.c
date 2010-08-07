@@ -660,7 +660,7 @@ static void _c2s_component_presence(c2s_t c2s, nad_t nad) {
         if(xhash_iter_first(c2s->sessions))
             do {
                 xhv.sess_val = &sess;
-                xhash_iter_get(c2s->sessions, NULL, xhv.val);
+                xhash_iter_get(c2s->sessions, NULL, NULL, xhv.val);
 
                 if(sess->resources != NULL && strcmp(sess->resources->jid->domain, from) == 0) {
                     log_debug(ZONE, "killing session %s", jid_user(sess->resources->jid));

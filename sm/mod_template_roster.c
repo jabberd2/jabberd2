@@ -225,7 +225,7 @@ static int _template_roster_user_create(mod_instance_t mi, jid_t jid) {
     if(xhash_iter_first(tr->items))
         do {
             xhv.item_val = &item;
-            xhash_iter_get(tr->items, NULL, xhv.val);
+            xhash_iter_get(tr->items, NULL, NULL, xhv.val);
 
             _template_roster_save_item(tr->sm, jid, item);
         } while(xhash_iter_next(tr->items));

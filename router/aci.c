@@ -113,12 +113,11 @@ int aci_check(xht aci, const char *type, const char *name) {
 /** unload aci table */
 void aci_unload(xht aci) {
     aci_user_t list, user;
-    char *aclname;
 
     /* free list of users for each acl*/
     if(xhash_iter_first(aci))
         do {
-            xhash_iter_get(aci, (const char **) &aclname, (void *) &list);
+            xhash_iter_get(aci, NULL, NULL, (void *) &list);
             while (list != NULL) {
                user = list;
                list = list->next;

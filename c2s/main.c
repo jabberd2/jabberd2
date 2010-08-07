@@ -524,7 +524,7 @@ static void _c2s_time_checks(c2s_t c2s) {
     if(xhash_iter_first(c2s->sessions))
         do {
             xhv.sess_val = &sess;
-            xhash_iter_get(c2s->sessions, NULL, xhv.val);
+            xhash_iter_get(c2s->sessions, NULL, NULL, xhv.val);
 
             if(c2s->io_check_idle > 0 && sess->s && now > sess->last_activity + c2s->io_check_idle) {
                 log_write(c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] timed out", sess->fd->fd, sess->ip, sess->port);
@@ -829,7 +829,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     if(xhash_iter_first(c2s->sessions))
         do {
             xhv.sess_val = &sess;
-            xhash_iter_get(c2s->sessions, NULL, xhv.val);
+            xhash_iter_get(c2s->sessions, NULL, NULL, xhv.val);
 
             if(sess->active && sess->s)
                 sx_close(sess->s);

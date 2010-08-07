@@ -408,7 +408,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
     /* shut down sessions */
     if(xhash_iter_first(sm->sessions))
         do {
-            xhash_iter_get(sm->sessions, NULL, (void *) &sess);
+            xhash_iter_get(sm->sessions, NULL, NULL, (void *) &sess);
             sm_c2s_action(sess, "ended", NULL);
             sess_end(sess);
         } while(xhash_count(sm->sessions) > 0);

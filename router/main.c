@@ -263,7 +263,7 @@ static void _router_time_checks(router_t r) {
    if(xhash_iter_first(r->components))
        do {
           xhv.comp_val = &target;
-          xhash_iter_get(r->components, NULL, xhv.val);
+          xhash_iter_get(r->components, NULL, NULL, xhv.val);
 
          if(r->check_keepalive > 0 && target->last_activity > 0 && now > target->last_activity + r->check_keepalive && target->s->state >= state_STREAM) {
                log_debug(ZONE, "sending keepalive for %d", target->fd->fd);
@@ -477,7 +477,7 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
     xhv.comp_val = &comp;
     if(xhash_iter_first(r->components))
         do {
-            xhash_iter_get(r->components, NULL, xhv.val);
+            xhash_iter_get(r->components, NULL, NULL, xhv.val);
             sx_close(comp->s);
             mio_run(r->mio, 5);
         } while(xhash_count(r->components) > 0);
@@ -494,7 +494,7 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
     xhv.rt_val = &rt;
     if(xhash_iter_first(r->conn_rates))
         do {
-            xhash_iter_get(r->conn_rates, NULL, xhv.val);
+            xhash_iter_get(r->conn_rates, NULL, NULL, xhv.val);
             rate_free(rt);
         } while(xhash_iter_next(r->conn_rates));
 

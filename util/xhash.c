@@ -87,7 +87,7 @@ static xhn _xhash_node_get(xht h, const char *key, int len, int index)
     xhn n;
     int i = index % h->prime;
     for(n = &h->zen[i]; n != NULL; n = n->next)
-        if(n->key != NULL && (strlen(n->key)==len) && (strncmp(key, n->key, len) == 0))
+        if(n->key != NULL && (n->keylen==len) && (strncmp(key, n->key, len) == 0))
             return n;
     return NULL;
 }
@@ -146,6 +146,7 @@ void xhash_putx(xht h, const char *key, int len, void *val)
 /*        log_debug(ZONE,"replacing %s with new val %X",key,val); */
 
         n->key = key;
+        n->keylen = len;
         n->val = val;
         return;
     }
@@ -155,6 +156,7 @@ void xhash_putx(xht h, const char *key, int len, void *val)
     /* new node */
     n = _xhash_node_new(h, index);
     n->key = key;
+    n->keylen = len;
     n->val = val;
 }
 
@@ -227,7 +229,7 @@ void xhash_zapx(xht h, const char *key, int len)
     
     index = _xhasher(key,len);
     n = _xhash_node_get(h, key, len, index);
-    if( !n ) return;    
+    if( !n ) return;
 
 /*    log_debug(ZONE,"zapping %s",key); */
 
@@ -280,7 +282,7 @@ void xhash_walk(xht h, xhash_walker w, void *arg)
     for(i = 0; i < h->prime; i++)
         for(n = &h->zen[i]; n != NULL; n = n->next)
             if(n->key != NULL && n->val != NULL)
-                (*w)(n->key, n->val, arg);
+                (*w)(n->key, n->keylen, n->val, arg);
 }
 
 /** return the dirty flag (and reset) */
@@ -355,13 +357,13 @@ void xhash_iter_zap(xht h)
 
     if( !h || !h->iter_node ) return;
 
-    index = _xhasher( h->iter_node->key, strlen( h->iter_node->key ) );
+    index = _xhasher( h->iter_node->key, h->iter_node->keylen );
 
     xhash_zap_inner( h ,h->iter_node, index);
 }
 
-int xhash_iter_get(xht h, const char **key, void **val) {
-    if(h == NULL || (key == NULL && val == NULL)) return 0;
+int xhash_iter_get(xht h, const char **key, int *keylen, void **val) {
+    if(h == NULL || (key == NULL && val == NULL) || (key != NULL && keylen == NULL)) return 0;
 
     if(h->iter_node == NULL) {
         if(key != NULL) *key = NULL;
@@ -369,7 +371,10 @@ int xhash_iter_get(xht h, const char **key, void **val) {
         return 0;
     }
 
-    if(key != NULL) *key = h->iter_node->key;
+    if(key != NULL) {
+        *key = h->iter_node->key;
+        *keylen = h->iter_node->keylen;
+    }
     if(val != NULL) *val = h->iter_node->val;
 
     return 1;

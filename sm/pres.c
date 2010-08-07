@@ -85,7 +85,7 @@ void pres_update(sess_t sess, pkt_t pkt) {
             self = 0;
             if(xhash_iter_first(sess->user->roster))
             do {
-                xhash_iter_get(sess->user->roster, NULL, (void *) &item);
+                xhash_iter_get(sess->user->roster, NULL, NULL, (void *) &item);
 
                 /* if we're coming available, and we can see them, we need to probe them */
                 if(!sess->available && item->to) {
@@ -143,7 +143,7 @@ void pres_update(sess_t sess, pkt_t pkt) {
             /* loop the roster, looking for trusted */
             if(xhash_iter_first(sess->user->roster))
             do {
-                xhash_iter_get(sess->user->roster, NULL, (void *) &item);
+                xhash_iter_get(sess->user->roster, NULL, NULL, (void *) &item);
 
                 /* forward if they're trusted and they're not E */
                 if(item->from && !jid_search(sess->E, item->jid)) {
@@ -368,7 +368,7 @@ void pres_probe(user_t user) {
     /* loop the roster, looked for trusted */
     if(xhash_iter_first(user->roster))
     do {
-        xhash_iter_get(user->roster, NULL, (void *) &item);
+        xhash_iter_get(user->roster, NULL, NULL, (void *) &item);
 
         /* don't probe unless they trust us */
         if(item->to) {

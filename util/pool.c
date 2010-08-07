@@ -258,7 +258,7 @@ void pool_cleanup(pool_t p, pool_cleanup_t f, void *arg)
 }
 
 #ifdef POOL_DEBUG
-void _pool_stat(xht h, const char *key, void *val, void *arg)
+void _pool_stat(const char *key, int keylen, void *val, void *arg)
 {
     pool_t p = (pool_t)val;
 

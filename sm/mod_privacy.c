@@ -107,7 +107,7 @@ static void _privacy_free_z(zebra_t z) {
     if(xhash_iter_first(z->lists))
         do {
             xhv.z_val = &zlist;
-            xhash_iter_get(z->lists, NULL, xhv.val);
+            xhash_iter_get(z->lists, NULL, NULL, xhv.val);
             pool_free(zlist->p);
         } while(xhash_iter_next(z->lists));
 
