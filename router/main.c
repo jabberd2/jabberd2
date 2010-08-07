@@ -443,6 +443,10 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
         while(jqueue_size(r->dead) > 0)
             sx_free((sx_t) jqueue_pull(r->dead));
 
+        /* cleanup closed fd */
+        while(jqueue_size(r->closefd) > 0)
+            mio_close(r->mio, (mio_fd_t) jqueue_pull(r->closefd));
+
         /* cleanup dead routes */
         while(jqueue_size(r->deadroutes) > 0)
             routes_free((routes_t) jqueue_pull(r->deadroutes));
