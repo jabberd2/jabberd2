@@ -1,3 +1,19 @@
+2010-08-08 Tomasz Sterna <tomek@xiaoka.com>
+	* Use length with route keys
+	* closefd during main loop
+
+2010-08-07 Tomasz Sterna <tomek@xiaoka.com>
+	* [cwave] ported router connection closing improvement from cwave
+	* [cwave:r77] fix potential segfault in a call to xhash_putx()
+	* [cwave:r72] enforce iq type
+	* Fixed packet jabber:server -> jabber:client namespace mangling
+
+2010-08-06 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed attribute namespace handling in NAD parser
+
+2010-07-10 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed missing reference in log_error
+
 2010-06-11 Tomasz Sterna <tomek@xiaoka.com>
 	* Special case to ignore the X509_V_ERR_UNABLE_TO_GET_CRL error
 	  when CRL is not present in chain. Merged patch by Michal Witkowski.
