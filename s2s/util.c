@@ -18,6 +18,9 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
+#define _GNU_SOURCE
+#include <string.h>
+
 #include "s2s.h"
 
 /** generate a local/remote route key */
@@ -38,11 +41,11 @@ char *s2s_route_key(pool_t p, char *local, char *remote) {
 }
 
 /** match route key - used for searching route hash */
-int s2s_route_key_match(char *local, char *remote, char *rkey) {
+int s2s_route_key_match(char *local, char *remote, char *rkey, int rkeylen) {
     char *klocal, *kremote;
     int ret;
 
-    klocal = strdup(rkey);
+    klocal = strndup(rkey, rkeylen);
     kremote = strchr(klocal, '/');
     if(kremote != NULL) *kremote++ = '\0';
 

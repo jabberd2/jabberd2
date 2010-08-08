@@ -18,6 +18,9 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
+#define _GNU_SOURCE
+#include <string.h>
+
 #include "s2s.h"
 
 #include <idna.h>
@@ -124,35 +127,38 @@ static void _out_packet_queue(s2s_t s2s, pkt_t pkt) {
     jqueue_push(q, (void *) pkt, 0);
 }
 
-static void _out_dialback(conn_t out, char *rkey) {
-    char *c, *dbkey;
+static void _out_dialback(conn_t out, char *rkey, int rkeylen) {
+    char *c, *dbkey, *tmp;
     nad_t nad;
-    int ns;
+    int elem, ns;
+    int from_len, to_len;
     time_t now;
 
     now = time(NULL);
 
-    c = strchr(rkey, '/');
-    *c = '\0';
+    c = memchr(rkey, '/', rkeylen);
+    from_len = c - rkey;
     c++;
+    to_len = rkeylen - (c - rkey);
     
     /* kick off the dialback */
-    dbkey = s2s_db_key(NULL, out->s2s->local_secret, c, out->s->id);
+    tmp = malloc(sizeof(char) * to_len + 1);
+    strncpy(tmp, c, to_len);
+    tmp[to_len] = '\0';
+    dbkey = s2s_db_key(NULL, out->s2s->local_secret, tmp, out->s->id);
+    free(tmp);
 
     nad = nad_new();
 
     /* request auth */
     ns = nad_add_namespace(nad, uri_DIALBACK, "db");
-    nad_append_elem(nad, ns, "result", 0);
-    nad_append_attr(nad, -1, "from", rkey);
-    nad_append_attr(nad, -1, "to", c);
+    elem = nad_append_elem(nad, ns, "result", 0);
+    nad_set_attr(nad, elem, -1, "from", rkey, from_len);
+    nad_set_attr(nad, elem, -1, "to", c, to_len);
     nad_append_cdata(nad, dbkey, strlen(dbkey), 1);
 
-    c--;
-    *c = '/';
-
-    log_debug(ZONE, "sending auth request for %s (key %s)", rkey, dbkey);
-    log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] sending dialback auth request for route '%s'", out->fd->fd, out->ip, out->port, rkey);
+    log_debug(ZONE, "sending auth request for %.*s (key %s)", rkeylen, rkey, dbkey);
+    log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] sending dialback auth request for route '%.*s'", out->fd->fd, out->ip, out->port, rkeylen, rkey);
 
     /* off it goes */
     sx_nad_write(out->s, nad);
@@ -160,10 +166,10 @@ static void _out_dialback(conn_t out, char *rkey) {
     free(dbkey);
             
     /* we're in progress now */
-    xhash_put(out->states, pstrdup(xhash_pool(out->states), rkey), (void *) conn_INPROGRESS);
+    xhash_put(out->states, pstrdupx(xhash_pool(out->states), rkey, rkeylen), (void *) conn_INPROGRESS);
 
     /* record the time that we set conn_INPROGRESS state */
-    xhash_put(out->states_time, pstrdup(xhash_pool(out->states_time), rkey), (void *) now);
+    xhash_put(out->states_time, pstrdupx(xhash_pool(out->states_time), rkey, rkeylen), (void *) now);
 }
 
 int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int allow_bad) {
@@ -185,6 +191,8 @@ int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int a
     char *ipport;
     int ipport_len;
     char *c;
+    int c_len;
+    char *tmp;
 
     /* for all results:
      * - if not expired
@@ -366,30 +374,34 @@ int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int a
     assert(ipport != NULL);
 
     /* copy the ip and port to the packet */
+    ipport_len = strlen(ipport);
     c = strchr(ipport, '/');
-    *c = '\0';
+    strncpy(ip, ipport, c-ipport);
+    ip[c-ipport] = '\0';
     c++;
-
-    strcpy(ip, ipport);
-    *port = atoi(c);
-
-    c--;
-    *c = '/';
+    c_len = ipport_len - (c - ipport);
+    tmp = malloc(sizeof(char) * c_len + 1);
+    strncpy(tmp, c, c_len);
+    tmp[c_len] = '\0';
+    *port = atoi(tmp);
+    free(tmp);
 
     return 0;
 }
 
 /** find/make a connection for a route */
-int out_route(s2s_t s2s, char *route, conn_t *out, int allow_bad) {
+int out_route(s2s_t s2s, char *route, int routelen, conn_t *out, int allow_bad) {
     dnscache_t dns;
     char ipport[INET6_ADDRSTRLEN + 16], *dkey, *c;
     time_t now;
     int reuse = 0;
     char ip[INET6_ADDRSTRLEN];
-    int port;
+    int port, c_len;
 
-    c = strchr(route, '/');
-    dkey = strdup(c+1);
+    c = memchr(route, '/', routelen);
+    c++;
+    c_len = routelen - (c - route);
+    dkey = strndup(c, c_len);
 
     log_debug(ZONE, "trying to find connection for '%s'", dkey);
     *out = (conn_t) xhash_get(s2s->out_dest, dkey);
@@ -499,7 +511,7 @@ int out_route(s2s_t s2s, char *route, conn_t *out, int allow_bad) {
                 xhash_put(s2s->out_host, (*out)->key, (void *) *out);
             xhash_put(s2s->out_dest, s2s->out_reuse ? pstrdup(xhash_pool((*out)->routes), dkey) : dkey, (void *) *out);
 
-            xhash_put((*out)->routes, pstrdup(xhash_pool((*out)->routes), route), (void *) 1);
+            xhash_put((*out)->routes, pstrdupx(xhash_pool((*out)->routes), route, routelen), (void *) 1);
 
             /* connect */
             log_debug(ZONE, "initiating connection to %s", ipport);
@@ -537,7 +549,7 @@ int out_route(s2s_t s2s, char *route, conn_t *out, int allow_bad) {
                 *out = NULL;
 
                 /* try again without allowing bad hosts */
-                return out_route(s2s, route, out, 0);
+                return out_route(s2s, route, routelen, out, 0);
             } else {
                 log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] outgoing connection for '%s'", (*out)->fd->fd, (*out)->ip, (*out)->port, dkey);
 
@@ -546,9 +558,7 @@ int out_route(s2s_t s2s, char *route, conn_t *out, int allow_bad) {
 #ifdef HAVE_SSL
                 /* Send a stream version of 1.0 if we can do STARTTLS */
                 if(s2s->sx_ssl != NULL) {
-                    *c = '\0';
-                    sx_client_init((*out)->s, S2S_DB_HEADER, uri_SERVER, dkey, route, "1.0");
-                    *c = '/';
+                    sx_client_init((*out)->s, S2S_DB_HEADER, uri_SERVER, dkey, pstrdupx(xhash_pool((*out)->routes), route, routelen), "1.0");
                 } else {
                     sx_client_init((*out)->s, S2S_DB_HEADER, uri_SERVER, NULL, NULL, NULL);
                 }
@@ -565,8 +575,8 @@ int out_route(s2s_t s2s, char *route, conn_t *out, int allow_bad) {
 
     /* connection in progress, or re-using connection: add to routes list */
     if (!(*out)->online || reuse) {
-        if (xhash_get((*out)->routes, route) == NULL)
-            xhash_put((*out)->routes, pstrdup(xhash_pool((*out)->routes), route), (void *) 1);
+        if (xhash_getx((*out)->routes, route, routelen) == NULL)
+            xhash_put((*out)->routes, pstrdupx(xhash_pool((*out)->routes), route, routelen), (void *) 1);
     }
 
     free(dkey);
@@ -584,15 +594,17 @@ void out_pkt_free(pkt_t pkt)
 /** send a packet out */
 int out_packet(s2s_t s2s, pkt_t pkt) {
     char *rkey;
+    int rkeylen;
     conn_t out;
     conn_state_t state;
     int ret;
 
     /* new route key */
     rkey = s2s_route_key(NULL, pkt->from->domain, pkt->to->domain);
+    rkeylen = strlen(rkey);
 
     /* get a connection */
-    ret = out_route(s2s, rkey, &out, 1);
+    ret = out_route(s2s, rkey, rkeylen, &out, 1);
 
     if (out == NULL) {
         /* connection not available, queue packet */
@@ -601,7 +613,7 @@ int out_packet(s2s_t s2s, pkt_t pkt) {
         /* check if out_route was successful in attempting a connection */
         if (ret) {
             /* bounce queue */
-            out_bounce_route_queue(s2s, rkey, stanza_err_SERVICE_UNAVAILABLE);
+            out_bounce_route_queue(s2s, rkey, rkeylen, stanza_err_SERVICE_UNAVAILABLE);
 
             free(rkey);
             return -1;
@@ -674,7 +686,7 @@ int out_packet(s2s_t s2s, pkt_t pkt) {
     }
 
     /* this is a new route - send dialback auth request to piggyback on the existing connection */
-    _out_dialback(out, rkey);
+    _out_dialback(out, rkey, rkeylen);
 
     free(rkey);
     return 0;
@@ -976,7 +988,7 @@ static int _etc_hosts_lookup(const char *cszName, char *szIP, const int ciMaxIPL
 
                 if (strcasecmp(pcStart, cszName) == 0) {
                     strncpy(szIP, szLine, ciMaxIPLen - 1);
-                    szIP[ciMaxIPLen - 1] = 0;
+                    szIP[ciMaxIPLen - 1] = '\0';
                     iSuccess = 1;
                     break;
                 }
@@ -1038,8 +1050,8 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
 
     /* resolve the next host in the list */
     if (xhash_iter_first(query->hosts)) {
-        char *ipport, *c;
-        int ipport_len;
+        char *ipport, *c, *tmp;
+        int ipport_len, ip_len, port_len;
         dnsres_t res;
         union xhashv xhv;
 
@@ -1052,43 +1064,46 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
         xhash_iter_zap(query->hosts);
 
         c = memchr(ipport, '/', ipport_len);
-        assert(c);
+		ip_len = c - ipport;
+        c++;
+        port_len = ipport_len - (c - ipport);
 
         /* resolve hostname */
         free(query->cur_host);
-        query->cur_host = malloc(c - ipport + 1);
-        memcpy(query->cur_host, ipport, c - ipport);
-        query->cur_host[c - ipport] = 0;
-        char * port_str = (char *) malloc(ipport_len - (c - ipport));
-        c++;
-        memcpy(port_str, c, ipport_len - (c - ipport));
-        port_str[c - ipport] = 0;
-        query->cur_port = atoi(port_str);
-        free(port_str);
+        query->cur_host = strndup(ipport, ipport_len);
+        tmp = malloc(sizeof(char) * port_len + 1);
+        strncpy(tmp, c, port_len);
+        tmp[port_len] = '\0';
+        query->cur_port = atoi(tmp);
+        free(tmp);
         query->cur_prio = res->prio;
         query->cur_weight = res->weight;
         query->cur_expiry = res->expiry;
         log_debug(ZONE, "dns ttl for %s@%p limited to %d", query->name, query, query->cur_expiry);
 
-        if (query->s2s->resolve_aaaa) {
-            log_debug(ZONE, "dns request for %s@%p: AAAA %s", query->name, query, ipport);
+        tmp = malloc(sizeof(char) * ip_len + 1);
+        strncpy(tmp, ipport, ip_len);
+        tmp[ip_len] = '\0';
 
-            query->query = dns_submit_a6(NULL, ipport,
-                DNS_NOSRCH, _dns_result_aaaa, query);
+        if (query->s2s->resolve_aaaa) {
+            log_debug(ZONE, "dns request for %s@%p: AAAA %s", query->name, query, tmp);
+
+            query->query = dns_submit_a6(NULL, tmp, DNS_NOSRCH, _dns_result_aaaa, query);
 
             /* if submit failed, call ourselves with a NULL result */
             if (query->query == NULL)
                 _dns_result_aaaa(ctx, NULL, query);
         } else {
-            log_debug(ZONE, "dns request for %s@%p: A %s", query->name, query, ipport);
+            log_debug(ZONE, "dns request for %s@%p: A %s", query->name, query, tmp);
 
-            query->query = dns_submit_a4(NULL, ipport,
-                DNS_NOSRCH, _dns_result_a, query);
+            query->query = dns_submit_a4(NULL, tmp, DNS_NOSRCH, _dns_result_a, query);
 
             /* if submit failed, call ourselves with a NULL result */
             if (query->query == NULL)
                 _dns_result_a(ctx, NULL, query);
         }
+        
+        free(tmp);
 
     /* finished */
     } else {
@@ -1300,45 +1315,37 @@ static int _out_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, v
                 jqueue_t q;
                 int npkt;
 
+                /* retry all the routes */
                 do {
-                    char *local_rkey;
-
                     xhash_iter_get(out->routes, (const char **) &rkey, &rkeylen, NULL);
 
-                /* retry all the routes */
                     q = xhash_getx(out->s2s->outq, rkey, rkeylen);
                     if (out->s2s->retry_limit > 0 && q != NULL && jqueue_age(q) > out->s2s->retry_limit) {
                         log_debug(ZONE, "retry limit reached for '%.*s' queue", rkeylen, rkey);
                         q = NULL;
                     }
 
-                    local_rkey = (char *) malloc(rkeylen + 1);
-                    memcpy(local_rkey, rkey, rkeylen);
-                    local_rkey[rkeylen] = 0;
                     if (q != NULL && (npkt = jqueue_size(q)) > 0) {
                         conn_t retry;
 
-                        log_debug(ZONE, "retrying connection for '%s' queue", local_rkey);
-                        if (!out_route(out->s2s, local_rkey, &retry, 0)) {
+                        log_debug(ZONE, "retrying connection for '%.*s' queue", rkeylen, rkey);
+                        if (!out_route(out->s2s, rkey, rkeylen, &retry, 0)) {
                             log_debug(ZONE, "retry successful");
 
                             if (retry != NULL) {
                                 /* flush queue */
-                                out_flush_route_queue(out->s2s, local_rkey);
+                                out_flush_route_queue(out->s2s, rkey, rkeylen);
                             }
                         } else {
                             log_debug(ZONE, "retry failed");
 
                             /* bounce queue */
-                            out_bounce_route_queue(out->s2s, local_rkey, stanza_err_SERVICE_UNAVAILABLE);
+                            out_bounce_route_queue(out->s2s, rkey, rkeylen, stanza_err_SERVICE_UNAVAILABLE);
                         }
                     } else {
                         /* bounce queue */
-                        out_bounce_route_queue(out->s2s, local_rkey, stanza_err_SERVICE_UNAVAILABLE);
+                        out_bounce_route_queue(out->s2s, rkey, rkeylen, stanza_err_SERVICE_UNAVAILABLE);
                     }
-                    
-                    free(local_rkey);
-                    
                 } while(xhash_iter_next(out->routes));
             }
 
@@ -1354,6 +1361,7 @@ static int _out_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, v
 void send_dialbacks(conn_t out)
 {
   char *rkey;
+  int rkeylen;
 
   if (out->s2s->dns_bad_timeout > 0) {
       dnsres_t bad = xhash_get(out->s2s->dns_bad, out->key);
@@ -1369,8 +1377,8 @@ void send_dialbacks(conn_t out)
   if (xhash_iter_first(out->routes)) {
        log_debug(ZONE, "sending dialback packets for %s", out->key);
        do {
-            xhash_iter_get(out->routes, (const char **) &rkey, NULL, NULL);
-            _out_dialback(out, rkey);
+            xhash_iter_get(out->routes, (const char **) &rkey, &rkeylen, NULL);
+            _out_dialback(out, rkey, rkeylen);
           } while(xhash_iter_next(out->routes));
   }
 
@@ -1632,6 +1640,7 @@ static void _out_result(conn_t out, nad_t nad) {
     int attr;
     jid_t from, to;
     char *rkey;
+    int rkeylen;
 
     attr = nad_find_attr(nad, 0, -1, "from", NULL);
     if(attr < 0 || (from = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
@@ -1649,6 +1658,7 @@ static void _out_result(conn_t out, nad_t nad) {
     }
 
     rkey = s2s_route_key(NULL, to->domain, from->domain);
+    rkeylen = strlen(rkey);
 
     /* key is valid */
     if(nad_find_attr(nad, 0, -1, "type", "valid") >= 0) {
@@ -1659,7 +1669,7 @@ static void _out_result(conn_t out, nad_t nad) {
         log_debug(ZONE, "%s valid, flushing queue", rkey);
 
         /* flush the queue */
-        out_flush_route_queue(out->s2s, rkey);
+        out_flush_route_queue(out->s2s, rkey, rkeylen);
 
         free(rkey);
 
@@ -1684,7 +1694,7 @@ static void _out_result(conn_t out, nad_t nad) {
     sx_close(out->s);
 
     /* bounce queue */
-    out_bounce_route_queue(out->s2s, rkey, stanza_err_SERVICE_UNAVAILABLE);
+    out_bounce_route_queue(out->s2s, rkey, rkeylen, stanza_err_SERVICE_UNAVAILABLE);
 
     free(rkey);
 
@@ -1784,13 +1794,14 @@ static void _out_verify(conn_t out, nad_t nad) {
 int out_bounce_domain_queues(s2s_t s2s, const char *domain, int err)
 {
   char *rkey;
+  int rkeylen;
   int pktcount = 0;
 
   if (xhash_iter_first(s2s->outq)) {
       do {
-          xhash_iter_get(s2s->outq, (const char **) &rkey, NULL, NULL);
-          if(s2s_route_key_match(NULL, (char *) domain, rkey))
-              pktcount += out_bounce_route_queue(s2s, rkey, err);
+          xhash_iter_get(s2s->outq, (const char **) &rkey, &rkeylen, NULL);
+          if(s2s_route_key_match(NULL, (char *) domain, rkey, rkeylen))
+              pktcount += out_bounce_route_queue(s2s, rkey, rkeylen, err);
       } while(xhash_iter_next(s2s->outq));
   }
 
@@ -1798,13 +1809,13 @@ int out_bounce_domain_queues(s2s_t s2s, const char *domain, int err)
 }
 
 /* bounce all packets in the queue for route */
-int out_bounce_route_queue(s2s_t s2s, char *rkey, int err)
+int out_bounce_route_queue(s2s_t s2s, char *rkey, int rkeylen, int err)
 {
   jqueue_t q;
   pkt_t pkt;
   int pktcount = 0;
 
-  q = xhash_get(s2s->outq, rkey);
+  q = xhash_getx(s2s->outq, rkey, rkeylen);
   if(q == NULL)
      return 0;
 
@@ -1823,7 +1834,7 @@ int out_bounce_route_queue(s2s_t s2s, char *rkey, int err)
   }
 
   /* delete queue and remove domain from queue hash */
-  log_debug(ZONE, "deleting out packet queue for %s", rkey);
+  log_debug(ZONE, "deleting out packet queue for %.*s", rkeylen, rkey);
   rkey = q->key;
   jqueue_free(q);
   xhash_zap(s2s->outq, rkey);
@@ -1835,13 +1846,14 @@ int out_bounce_route_queue(s2s_t s2s, char *rkey, int err)
 int out_bounce_conn_queues(conn_t out, int err)
 {
   char *rkey;
+  int rkeylen;
   int pktcount = 0;
 
   /* bounce queues for all domains handled by this connection - iterate through routes */
   if (xhash_iter_first(out->routes)) {
       do {
-          xhash_iter_get(out->routes, (const char **) &rkey, NULL, NULL);
-          pktcount += out_bounce_route_queue(out->s2s, rkey, err);
+          xhash_iter_get(out->routes, (const char **) &rkey, &rkeylen, NULL);
+          pktcount += out_bounce_route_queue(out->s2s, rkey, rkeylen, err);
       } while(xhash_iter_next(out->routes));
   }
 
@@ -1850,30 +1862,33 @@ int out_bounce_conn_queues(conn_t out, int err)
 
 void out_flush_domain_queues(s2s_t s2s, const char *domain) {
   char *rkey;
+  int rkeylen;
   char *c;
+  int c_len;
 
   if (xhash_iter_first(s2s->outq)) {
       do {
-          xhash_iter_get(s2s->outq, (const char **) &rkey, NULL, NULL);
-          c = strchr(rkey, '/');
+          xhash_iter_get(s2s->outq, (const char **) &rkey, &rkeylen, NULL);
+          c = memchr(rkey, '/', rkeylen);
           c++;
-          if (!strcmp(domain, c))
-              out_flush_route_queue(s2s, rkey);
+          c_len = rkeylen - (c - rkey);
+          if (strncmp(domain, c, c_len) == 0)
+              out_flush_route_queue(s2s, rkey, rkeylen);
       } while(xhash_iter_next(s2s->outq));
   }
 }
 
-void out_flush_route_queue(s2s_t s2s, char *rkey) {
+void out_flush_route_queue(s2s_t s2s, char *rkey, int rkeylen) {
     jqueue_t q;
     pkt_t pkt;
     int npkt, i, ret;
 
-    q = xhash_get(s2s->outq, rkey);
+    q = xhash_getx(s2s->outq, rkey, rkeylen);
     if(q == NULL)
         return;
 
     npkt = jqueue_size(q);
-    log_debug(ZONE, "flushing %d packets for '%s' to out_packet", npkt, rkey);
+    log_debug(ZONE, "flushing %d packets for '%.*s' to out_packet", npkt, rkeylen, rkey);
 
     for(i = 0; i < npkt; i++) {
         pkt = jqueue_pull(q);
@@ -1890,7 +1905,7 @@ void out_flush_route_queue(s2s_t s2s, char *rkey) {
 
     /* delete queue for route and remove route from queue hash */
     if (jqueue_size(q) == 0) {
-        log_debug(ZONE, "deleting out packet queue for '%s'", rkey);
+        log_debug(ZONE, "deleting out packet queue for '%.*s'", rkeylen, rkey);
         rkey = q->key;
         jqueue_free(q);
         xhash_zap(s2s->outq, rkey);

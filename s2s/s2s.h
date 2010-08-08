@@ -340,21 +340,21 @@ int             s2s_router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, vo
 int             s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg);
 
 char            *s2s_route_key(pool_t p, char *local, char *remote);
-int             s2s_route_key_match(char *local, char *remote, char *rkey);
+int             s2s_route_key_match(char *local, char *remote, char *rkey, int rkeylen);
 char            *s2s_db_key(pool_t p, char *secret, char *remote, char *id);
 char            *dns_make_ipport(char *host, int port);
 
 int             out_packet(s2s_t s2s, pkt_t pkt);
-int             out_route(s2s_t s2s, char *route, conn_t *out, int allow_bad);
+int             out_route(s2s_t s2s, char *route, int routelen, conn_t *out, int allow_bad);
 int             dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int allow_bad);
 void            dns_resolve_domain(s2s_t s2s, dnscache_t dns);
 void            out_resolve(s2s_t s2s, char *domain, xht results, time_t expiry);
 void            out_dialback(s2s_t s2s, pkt_t pkt);
 int             out_bounce_domain_queues(s2s_t s2s, const char *domain, int err);
-int             out_bounce_route_queue(s2s_t s2s, char *rkey, int err);
+int             out_bounce_route_queue(s2s_t s2s, char *rkey, int rkeylen, int err);
 int             out_bounce_conn_queues(conn_t out, int err);
 void            out_flush_domain_queues(s2s_t s2s, const char *domain);
-void            out_flush_route_queue(s2s_t s2s, char *rkey);
+void            out_flush_route_queue(s2s_t s2s, char *rkey, int rkeylen);
 
 int             in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
 

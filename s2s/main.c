@@ -253,6 +253,7 @@ static int _s2s_router_connect(s2s_t s2s) {
 int _s2s_check_conn_routes(s2s_t s2s, conn_t conn, const char *direction)
 {
   char *rkey;
+  int rkeylen;
   conn_state_t state;
   time_t now, dialback_time;
 
@@ -262,17 +263,17 @@ int _s2s_check_conn_routes(s2s_t s2s, conn_t conn, const char *direction)
      do {
            /* retrieve state in a separate operation, as sizeof(int) != sizeof(void *) on 64-bit platforms,
               so passing a pointer to state in xhash_iter_get is unsafe */
-           xhash_iter_get(conn->states, (const char **) &rkey, NULL, NULL);
-           state = (conn_state_t) xhash_get(conn->states, rkey);
+           xhash_iter_get(conn->states, (const char **) &rkey, &rkeylen, NULL);
+           state = (conn_state_t) xhash_getx(conn->states, rkey, rkeylen);
 
            if (state == conn_INPROGRESS) {
-              dialback_time = (time_t) xhash_get(conn->states_time, rkey);
+              dialback_time = (time_t) xhash_getx(conn->states_time, rkey, rkeylen);
 
               if(now > dialback_time + s2s->check_queue) {
-                 log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] dialback for %s route '%s' timed out", conn->fd->fd, conn->ip, conn->port, direction, rkey);
+                 log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] dialback for %s route '%.*s' timed out", conn->fd->fd, conn->ip, conn->port, direction, rkeylen, rkey);
 
-                 xhash_zap(conn->states, rkey);
-                 xhash_zap(conn->states_time, rkey);
+                 xhash_zapx(conn->states, rkey, rkeylen);
+                 xhash_zapx(conn->states_time, rkey, rkeylen);
 
                  /* stream error */
                  sx_error(conn->s, stream_err_CONNECTION_TIMEOUT, "dialback timed out");
@@ -298,6 +299,7 @@ static void _s2s_time_checks(s2s_t s2s) {
     jqueue_t q;
     dnscache_t dns;
     char *c;
+    int c_len;
     union xhashv xhv;
 
     now = time(NULL);
@@ -310,18 +312,19 @@ static void _s2s_time_checks(s2s_t s2s) {
                 xhash_iter_get(s2s->outq, (const char **) &rkey, &keylen, xhv.val);
 
                 log_debug(ZONE, "running time checks for %.*s", keylen, rkey);
-                c = strchr(rkey, '/');
+                c = memchr(rkey, '/', keylen);
                 c++;
+                c_len = keylen - (c - rkey);
 
                 /* dns lookup timeout check first */
-                dns = xhash_get(s2s->dnscache, c);
+                dns = xhash_getx(s2s->dnscache, c, c_len);
                 if(dns != NULL && dns->pending) {
-                    log_debug(ZONE, "dns lookup pending for %s", c);
+                    log_debug(ZONE, "dns lookup pending for %.*s", c_len, c);
                     if(now > dns->init_time + s2s->check_queue) {
-                        log_write(s2s->log, LOG_NOTICE, "dns lookup for %s timed out", c);
+                        log_write(s2s->log, LOG_NOTICE, "dns lookup for %.*s timed out", c_len, c);
 
                         /* bounce queue */
-                        out_bounce_route_queue(s2s, rkey, stanza_err_REMOTE_SERVER_NOT_FOUND);
+                        out_bounce_route_queue(s2s, rkey, keylen, stanza_err_REMOTE_SERVER_NOT_FOUND);
 
                         /* expire pending dns entry */
                         xhash_zap(s2s->dnscache, dns->name);
@@ -341,14 +344,14 @@ static void _s2s_time_checks(s2s_t s2s) {
                 }
 
                 /* get the conn */
-                conn = xhash_get(s2s->out_dest, c);
+                conn = xhash_getx(s2s->out_dest, c, c_len);
                 if(conn == NULL) {
                     if(jqueue_size(q) > 0) {
                        /* no pending conn? perhaps it failed? */
-                       log_debug(ZONE, "no pending connection for %s, bouncing %i packets in queue", c, jqueue_size(q));
+                       log_debug(ZONE, "no pending connection for %.*s, bouncing %i packets in queue", c_len, c, jqueue_size(q));
 
                        /* bounce queue */
-                       out_bounce_route_queue(s2s, rkey, stanza_err_REMOTE_SERVER_TIMEOUT);
+                       out_bounce_route_queue(s2s, rkey, keylen, stanza_err_REMOTE_SERVER_TIMEOUT);
                     }
 
                     continue;
@@ -524,8 +527,8 @@ static void _s2s_time_checks(s2s_t s2s) {
 static void _s2s_dns_expiry(s2s_t s2s) {
     time_t now;
     char *key;
-    dnscache_t dns;
-    dnsres_t res;
+    dnscache_t dns = NULL;
+    dnsres_t res = NULL;
     union xhashv xhv;
 
     now = time(NULL);
@@ -535,7 +538,7 @@ static void _s2s_dns_expiry(s2s_t s2s) {
         do {
             xhv.dns_val = &dns;
             xhash_iter_get(s2s->dnscache, (const char **) &key, NULL, xhv.val);
-            if (!dns->pending && now > dns->expiry) {
+            if (dns && !dns->pending && now > dns->expiry) {
                 log_debug(ZONE, "expiring DNS cache for %s", dns->name);
                 xhash_iter_zap(s2s->dnscache);
 
@@ -550,18 +553,24 @@ static void _s2s_dns_expiry(s2s_t s2s) {
                 }
                 free(dns);
             }
+            else if (dns == NULL) {
+                xhash_iter_zap(s2s->dnscache);
+            }
         } while(xhash_iter_next(s2s->dnscache));
 
     if(xhash_iter_first(s2s->dns_bad))
         do {
             xhv.dnsres_val = &res;
             xhash_iter_get(s2s->dns_bad, (const char **) &key, NULL, xhv.val);
-            if (now > res->expiry) {
+            if (res && now > res->expiry) {
                 log_debug(ZONE, "expiring DNS bad host %s", res->key);
                 xhash_iter_zap(s2s->dns_bad);
 
                 free(res->key);
                 free(res);
+            }
+            else if (res == NULL) {
+                xhash_iter_zap(s2s->dns_bad);
             }
         } while(xhash_iter_next(s2s->dns_bad));
 }
