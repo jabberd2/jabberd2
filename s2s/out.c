@@ -142,9 +142,7 @@ static void _out_dialback(conn_t out, char *rkey, int rkeylen) {
     to_len = rkeylen - (c - rkey);
     
     /* kick off the dialback */
-    tmp = malloc(sizeof(char) * to_len + 1);
-    strncpy(tmp, c, to_len);
-    tmp[to_len] = '\0';
+    tmp = strndup(c, to_len);
     dbkey = s2s_db_key(NULL, out->s2s->local_secret, tmp, out->s->id);
     free(tmp);
 
@@ -380,9 +378,7 @@ int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int a
     ip[c-ipport] = '\0';
     c++;
     c_len = ipport_len - (c - ipport);
-    tmp = malloc(sizeof(char) * c_len + 1);
-    strncpy(tmp, c, c_len);
-    tmp[c_len] = '\0';
+    tmp = strndup(c, c_len);
     *port = atoi(tmp);
     free(tmp);
 
