@@ -396,9 +396,10 @@ int out_route(s2s_t s2s, char *route, int routelen, conn_t *out, int allow_bad) 
     time_t now;
     int reuse = 0;
     char ip[INET6_ADDRSTRLEN];
-    int port, c_len;
+    int port, c_len, from_len;
 
     c = memchr(route, '/', routelen);
+    from_len = c - route;
     c++;
     c_len = routelen - (c - route);
     dkey = strndup(c, c_len);
@@ -558,7 +559,7 @@ int out_route(s2s_t s2s, char *route, int routelen, conn_t *out, int allow_bad) 
 #ifdef HAVE_SSL
                 /* Send a stream version of 1.0 if we can do STARTTLS */
                 if(s2s->sx_ssl != NULL) {
-                    sx_client_init((*out)->s, S2S_DB_HEADER, uri_SERVER, dkey, pstrdupx(xhash_pool((*out)->routes), route, routelen), "1.0");
+                    sx_client_init((*out)->s, S2S_DB_HEADER, uri_SERVER, dkey, pstrdupx(xhash_pool((*out)->routes), route, from_len), "1.0");
                 } else {
                     sx_client_init((*out)->s, S2S_DB_HEADER, uri_SERVER, NULL, NULL, NULL);
                 }
