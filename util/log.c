@@ -145,13 +145,15 @@ void log_write(log_t log, int level, const char *msgfmt, ...)
     va_start(ap, msgfmt);
     vsnprintf(pos, MAX_LOG_LINE - sz, msgfmt, ap);
     va_end(ap);
-#ifdef DEBUG
+#ifndef DEBUG
     if(log->type != log_SYSLOG) {
 #endif
-        fprintf(log->file,"%s", message);
-        fprintf(log->file, "\n");
-        fflush(log->file);
-#ifdef DEBUG
+        if(log->file) {
+            fprintf(log->file,"%s", message);
+            fprintf(log->file, "\n");
+            fflush(log->file);
+	    }
+#ifndef DEBUG
     }
 #endif
 
