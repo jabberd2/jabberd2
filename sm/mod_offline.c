@@ -45,7 +45,7 @@ static mod_ret_t _offline_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     time_t ttl, stamp;
 
     /* if they're becoming available for the first time */
-    if(pkt->type == pkt_PRESENCE && pkt->to == NULL && sess->user->top == NULL) {
+    if(pkt->type == pkt_PRESENCE && sess->pri >= 0 && pkt->to == NULL && sess->user->top == NULL) {
 
         ret = storage_get(pkt->sm->st, "queue", jid_user(sess->jid), NULL, &os);
         if(ret != st_SUCCESS) {
