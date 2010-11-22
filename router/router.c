@@ -886,7 +886,7 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             }
 
             /* top element must be router scoped */
-            if(NAD_NURI_L(nad, NAD_ENS(nad, 0)) != strlen(uri_COMPONENT) || strncmp(uri_COMPONENT, NAD_NURI(nad, NAD_ENS(nad, 0)), strlen(uri_COMPONENT)) != 0) {
+            if(NAD_ENS(nad, 0) < 0 || NAD_NURI_L(nad, NAD_ENS(nad, 0)) != strlen(uri_COMPONENT) || strncmp(uri_COMPONENT, NAD_NURI(nad, NAD_ENS(nad, 0)), strlen(uri_COMPONENT)) != 0) {
                 log_debug(ZONE, "invalid packet namespace, dropping");
                 nad_free(nad);
                 return 0;
