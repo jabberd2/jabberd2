@@ -377,10 +377,10 @@ retry_pubrost:
                 strncpy(jid,vals[0],sizeof(jid)-1); jid[sizeof(jid)-1]='\0';
                 ldap_value_free(vals);
 
-                vals = (char **)ldap_get_values(data->ld,entry,"sn");
+                vals = (char **)ldap_get_values(data->ld,entry,"displayName");
                 if( ldap_count_values(vals) <= 0 ) {
                     ldap_value_free(vals);
-                    vals = (char **)ldap_get_values(data->ld,entry,"displayName");
+                    vals = (char **)ldap_get_values(data->ld,entry,"cn");
                     if( ldap_count_values(vals) <= 0 ) {
                         strncpy(name,jid,sizeof(name)-1); name[sizeof(name)-1]='\0';
                     } else {
@@ -388,12 +388,6 @@ retry_pubrost:
                     }
                 } else {
                     strncpy(name,vals[0],1023); name[1023]='\0';
-                    ldap_value_free(vals);
-                    vals = (char **)ldap_get_values(data->ld,entry,"initials");
-                    if( ldap_count_values(vals) > 0 ) {
-                        strcat(name," ");
-                        strncat(name,vals[0],1023);
-                    }
                 }
                 ldap_value_free(vals);
 
