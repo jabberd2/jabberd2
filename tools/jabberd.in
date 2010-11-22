@@ -150,7 +150,7 @@ unless (!$daemon || $debug)
 #-----------------------------------------------------------------------------
 while (1)
 {
-    my @ready = $select->can_read(0);
+    my @ready = $select->can_read();
     foreach my $fh (@ready)
     {
         my $line = <$fh>;
@@ -164,8 +164,6 @@ while (1)
             &Signal("TERM");
         }
     }
-
-    select(undef,undef,undef,.01);
 }
 
 
