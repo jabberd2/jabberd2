@@ -1,3 +1,95 @@
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
+#include <stddef.h>
+#ifdef HAVE_SSL
+/* use OpenSSL functions when available */
+#include <openssl/sha.h>
+#include <openssl/hmac.h>
+#include <openssl/evp.h>
+#include <openssl/bio.h>
+#include <openssl/buffer.h>
+
+#include "util.h"
+
+static const char gdtable[] =
+{
+     64, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+    128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+    128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,  62, 128, 128, 128,  63,
+     52,  53,  54,  55,  56,  57,  58,  59,  60,  61, 128, 128, 128,   0, 128, 128,
+    128,   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,  10,  11,  12,  13,  14,
+     15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25, 128, 128, 128, 128, 128,
+    128,  26,  27,  28,  29,  30,  31,  32,  33,  34,  35,  36,  37,  38,  39,  40,
+     41,  42,  43,  44,  45,  46,  47,  48,  49,  50,  51, 128, 128, 128, 128, 128,
+    128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+    128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+    128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+    128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+    128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+    128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+    128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+    128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128
+};
+
+int apr_base64_decode_len( const char *bufcoded, int buflen )
+{
+  int count = 0;
+  int i;
+  for ( i = 0; i < buflen; ++i )
+  {
+    if ( gdtable[(int)bufcoded[i]] != 0x80 )
+      ++count;
+  }
+  return (((count + 3) / 4) * 3) + 1;
+}
+
+int apr_base64_decode( char *decoded, const char *input, int length )
+{
+  BIO *b64 = BIO_new(BIO_f_base64());
+  BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+  BIO *bmem = BIO_new_mem_buf((void*)input, length);
+  bmem = BIO_push(b64, bmem);
+
+  int ret = BIO_read(bmem, decoded, length);
+  BIO_free_all(bmem);
+
+  return ret;
+}
+
+int apr_base64_encode_len( int len )
+{
+  return ((len + 2) / 3 * 4) + 1;
+}
+
+int apr_base64_encode( char *encoded, const char *input, int length )
+{
+  if ( ! length )
+  {
+    encoded[0] = 0;
+    return 1; /* length incl '\0' */
+  }
+
+  BIO *b64 = BIO_new(BIO_f_base64());
+  BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+  BIO *bmem = BIO_new(BIO_s_mem());
+  b64 = BIO_push(b64, bmem);
+
+  BIO_write(b64, input, length);
+  BIO_flush(b64);
+
+  BUF_MEM *bptr;
+  BIO_get_mem_ptr(b64, &bptr);
+  memcpy(encoded, bptr->data, bptr->length);
+  encoded[bptr->length] = 0;
+  int ret = bptr->length+1;
+  BIO_free_all(b64);
+
+  return ret; /* length incl '\0' */
+}
+
+#else
+#warning OpenSSL functions for base64 not available
 /* Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -64,7 +156,7 @@ int apr_base64_decode_binary(unsigned char *bufplain, const char *bufcoded, int 
 int apr_base64_decode(char *bufplain, const char *bufcoded, int buflen)
 {
     int len;
-    
+
     len = apr_base64_decode_binary((unsigned char *) bufplain, bufcoded, buflen);
     bufplain[len] = '\0';
     return len;
@@ -162,6 +254,7 @@ int apr_base64_encode_binary(char *encoded,
     *p++ = '\0';
     return (int)(p - encoded);
 }
+#endif /* HAVE_SSL */
 
 /* convenience functions for j2 */
 char *b64_encode(char *buf, int len) {
