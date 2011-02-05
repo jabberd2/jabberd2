@@ -526,7 +526,6 @@ static void _s2s_time_checks(s2s_t s2s) {
 
 static void _s2s_dns_expiry(s2s_t s2s) {
     time_t now;
-    char *key;
     dnscache_t dns = NULL;
     dnsres_t res = NULL;
     union xhashv xhv;
@@ -537,7 +536,7 @@ static void _s2s_dns_expiry(s2s_t s2s) {
     if(xhash_iter_first(s2s->dnscache))
         do {
             xhv.dns_val = &dns;
-            xhash_iter_get(s2s->dnscache, (const char **) &key, NULL, xhv.val);
+            xhash_iter_get(s2s->dnscache, NULL, NULL, xhv.val);
             if (dns && !dns->pending && now > dns->expiry) {
                 log_debug(ZONE, "expiring DNS cache for %s", dns->name);
                 xhash_iter_zap(s2s->dnscache);
@@ -561,7 +560,7 @@ static void _s2s_dns_expiry(s2s_t s2s) {
     if(xhash_iter_first(s2s->dns_bad))
         do {
             xhv.dnsres_val = &res;
-            xhash_iter_get(s2s->dns_bad, (const char **) &key, NULL, xhv.val);
+            xhash_iter_get(s2s->dns_bad, NULL, NULL, xhv.val);
             if (res && now > res->expiry) {
                 log_debug(ZONE, "expiring DNS bad host %s", res->key);
                 xhash_iter_zap(s2s->dns_bad);
