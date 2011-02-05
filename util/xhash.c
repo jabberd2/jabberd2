@@ -190,13 +190,9 @@ void *xhash_get(xht h, const char *key)
 void xhash_zap_inner( xht h, xhn n, int index)
 {
     int i = index % h->prime;
-    
-    /* if we just killed the current iter, move to the next one */
-    if(h->iter_node == n)
-        xhash_iter_next(h);
-    
-    // if element:n is in bucket list.
-    if( &h->zen[i] != n ) 
+
+    // if element:n is in bucket list and it's not the current iter
+    if( &h->zen[i] != n && h->iter_node != n )
     {
         if(n->prev) n->prev->next = n->next;
         if(n->next) n->next->prev = n->prev;
@@ -325,11 +321,24 @@ int xhash_iter_next(xht h) {
     if(h == NULL) return 0;
 
     /* next in this bucket */
+    h->iter_node = h->iter_node ? h->iter_node->next : NULL;
     while(h->iter_node != NULL) {
-        h->iter_node = h->iter_node->next;
+        xhn n = h->iter_node;
 
-        if(h->iter_node != NULL && h->iter_node->key != NULL && h->iter_node->val != NULL)
+        if(n->key != NULL && n->val != NULL)
             return 1;
+
+        h->iter_node = n->next;
+
+        if (n != &h->zen[h->iter_bucket]) {
+            if(n->prev) n->prev->next = n->next;
+            if(n->next) n->next->prev = n->prev;
+
+            // add it to the free_list head.
+            n->prev = NULL;
+            n->next = h->free_list;
+            h->free_list = n;
+        }
     }
 
     /* next bucket */
