@@ -308,7 +308,7 @@ pkt_t pkt_new(sm_t sm, nad_t nad) {
 
     log_debug(ZONE, "invalid component packet");
 
-    free(pkt);
+    pkt_free(pkt);
     return NULL;
 }
 
