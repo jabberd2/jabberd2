@@ -86,6 +86,8 @@ int in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg)
         case action_CLOSE:
             log_debug(ZONE, "close action on fd %d", fd->fd);
 
+            if (fd == s2s->server_fd) break;
+
             /* !!! logging */
             log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] disconnect, packets: %i", fd->fd, in->ip, in->port, in->packet_count);
 

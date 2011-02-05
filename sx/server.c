@@ -98,6 +98,7 @@ static void _sx_server_element_start(void *arg, const char *name, const char **a
     attr = atts;
     while(attr[0] != NULL) {
         if(!tflag && strcmp(attr[0], "to") == 0) {
+            if(s->req_to != NULL) free(s->req_to);
             s->req_to = strdup(attr[1]);
             tflag = 1;
         }

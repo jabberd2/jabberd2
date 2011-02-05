@@ -946,8 +946,11 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
     dns_close(NULL);
 
     /* close mio */
+    mio_close(s2s->mio, s2s->udns_mio_fd);
     if(s2s->fd != NULL)
         mio_close(s2s->mio, s2s->fd);
+    if(s2s->server_fd != NULL)
+        mio_close(s2s->mio, s2s->server_fd);
 
     /* free hashes */
     xhash_free(s2s->outq);
