@@ -1,3 +1,29 @@
+2011-02-05 Tomasz Sterna <tomek@xiaoka.com>
+	* Merged jabberd2-dns leak fix by cmeerw. Fixes Bug 713548.
+	* Merged jabberd2-s2s-leak fix by cmeerw. Fixes Bug 713548.
+	* Merged jabberd2-xhash by cmeerw. Fixes Bug 713546.
+	  Defer deleting nodes while iterating.
+	* Merged fix_sm_crash.patch by Eugene Agafonov. Fixes Bug 712998.
+
+2010-11-22 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed router crash on component protocol error
+	* Fixed logging related crash. Closes Bug #671421 and Bug #637294
+	* Fixed 'XEP-0191 Blocking' unblocking users
+	* Use displayName to populate published-roster name and fallback to cn.
+	  Fixes Bug #611774
+	* Replace malloc+strncpy by strndup.
+	* Merged cmeerw fix for dns resolver. Closes Bug #616472
+	* Do not deliver messages to first connecting resource if it has negative
+	  priority. Fixes Bug 626850
+	* Merged jabberd wrapper patch from rmax. Fixes Bug 627477
+	* Fixed horrible outgoing S2S bug
+
+2010-08-21 Tomasz Sterna <tomek@xiaoka.com>
+	* Removed some disambiguation from <id/> attributes values
+
+2010-08-10 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed incorrect order of arguments in debug call
+
 2010-08-08 Tomasz Sterna <tomek@xiaoka.com>
 	* Use length with route keys
 	* closefd during main loop

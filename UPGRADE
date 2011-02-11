@@ -1,6 +1,13 @@
 This file contains upgrade instructions between different versions of jabberd2.
 
 
+* 2.2.11 to 2.2.12 upgrade:
+
+What changed:
+- published-roster
+  Uses displayName to populate published-roster name and fallbacks to cn.
+
+
 * 2.2.10 to 2.2.11 upgrade:
 
 What changed:
