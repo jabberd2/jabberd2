@@ -472,7 +472,11 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
     log_write(r->log, LOG_NOTICE, "shutting down");
 
     /* stop accepting new connections */
-    if (r->fd) mio_close(r->mio, r->fd);
+    if (r->fd) {
+        // HACK Do not call router_mio_callback(action_CLOSE) for listenning socket, Just close it and forget.
+        mio_app(r->mio, r->fd, NULL, NULL);
+        mio_close(r->mio, r->fd);
+    }
 
     /*
      * !!! issue remote shutdowns to each service, so they can clean up.
