@@ -150,6 +150,8 @@ static void _s2s_config_expand(s2s_t s2s) {
 
     s2s->io_max_fds = j_atoi(config_get_one(s2s->config, "io.max_fds", 0), 1024);
 
+    s2s->compression = (config_get(s2s->config, "io.compression") != NULL);
+
     s2s->stanza_size_limit = j_atoi(config_get_one(s2s->config, "io.limits.stanzasize", 0), 0);
 
     s2s->check_interval = j_atoi(config_get_one(s2s->config, "check.interval", 0), 60);
@@ -719,6 +721,12 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
             s2s->router_pemfile = NULL;
         }
     }
+#endif
+
+#ifdef HAVE_LIBZ
+    /* get compression up and running */
+    if(s2s->compression)
+        sx_env_plugin(s2s->sx_env, sx_compress_init);
 #endif
 
     /* get sasl online */

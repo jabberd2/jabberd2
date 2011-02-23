@@ -64,7 +64,7 @@ int in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg)
     conn_t in = (conn_t) arg;
     s2s_t s2s = (s2s_t) arg;
     struct sockaddr_storage sa;
-    int namelen = sizeof(sa), port, nbytes;
+    int namelen = sizeof(sa), port, nbytes, flags = 0;
     char ipport[INET6_ADDRSTRLEN + 17];
 
     switch(a) {
@@ -140,11 +140,16 @@ int in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg)
             snprintf(ipport, INET6_ADDRSTRLEN + 16, "%s/%d", in->ip, in->port);
             xhash_put(s2s->in_accept, pstrdup(xhash_pool(s2s->in_accept),ipport), (void *) in);
 
+            flags = S2S_DB_HEADER;
 #ifdef HAVE_SSL
-            sx_server_init(in->s, S2S_DB_HEADER | ((s2s->sx_ssl != NULL) ? SX_SSL_STARTTLS_OFFER : 0) );
-#else
-            sx_server_init(in->s, S2S_DB_HEADER);
+            if(s2s->sx_ssl != NULL)
+                flags |= SX_SSL_STARTTLS_OFFER;
 #endif
+#ifdef HAVE_LIBZ
+            if(s2s->compression)
+                flags |= SX_COMPRESS_OFFER;
+#endif
+            sx_server_init(in->s, flags);
             break;
     }
 

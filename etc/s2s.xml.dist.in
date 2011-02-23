@@ -160,6 +160,11 @@
       <stanzasize>65535</stanzasize>
     </limits>
 
+    <!-- Enable XEP-0138: Stream Compression -->
+    <!--
+    <compression/>
+    -->
+
   </io>
 
   <!-- Timed checks -->

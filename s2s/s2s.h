@@ -134,6 +134,9 @@ struct s2s_st {
     /** maximum stanza size */
     int                 stanza_size_limit;
 
+    /** enable Stream Compression */
+    int                 compression;
+
     /** srvs to lookup */
     char                **lookup_srv;
     int                 lookup_nsrv;
