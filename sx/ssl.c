@@ -245,19 +245,19 @@ static void _sx_ssl_get_external_id(sx_t s, _sx_ssl_conn_t sc) {
 		// Get this subjectAltName x509v3 extension
 		if ((extension = X509_get_ext(cert, i)) == NULL) {
 			_sx_debug(ZONE, "external_id: Can't get subjectAltName. Possibly malformed cert.");
-			return;
+			goto end;
 		}
 		// Get the collection of AltNames
 		if ((altnames = X509V3_EXT_d2i(extension)) == NULL) {
 			_sx_debug(ZONE, "external_id: Can't get all AltNames. Possibly malformed cert.");
-			return;
+			goto end;
 		}
 		/* Iterate through all altNames and get id-on-xmppAddr and dNSName */
 		count = sk_GENERAL_NAME_num(altnames);
 		for (j = 0; j < count; j++) {
 			if ((altname = sk_GENERAL_NAME_value(altnames, j)) == NULL) {
 				_sx_debug(ZONE, "external_id: Can't get AltName. Possibly malformed cert.");
-				return;
+				goto end;
 			}
 			/* Check if its otherName id-on-xmppAddr */
 			if (altname->type == GEN_OTHERNAME &&
@@ -281,9 +281,13 @@ static void _sx_ssl_get_external_id(sx_t s, _sx_ssl_conn_t sc) {
 				id++;
 			}
 			/* Check if we're not out of space */
-			if (id == SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT)
+			if (id == SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT) {
+				sk_GENERAL_NAME_pop_free(altnames, GENERAL_NAME_free);
 				goto end;
+			}
 		}
+
+		sk_GENERAL_NAME_pop_free(altnames, GENERAL_NAME_free);
 	}
 	/* Get CNs */
 	name = X509_get_subject_name(cert);
@@ -311,6 +315,7 @@ static void _sx_ssl_get_external_id(sx_t s, _sx_ssl_conn_t sc) {
 	}
 
 end:
+    X509_free(cert);
     return;
 }
 
