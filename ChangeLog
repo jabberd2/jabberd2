@@ -1,3 +1,11 @@
+2011-02-23 Tomasz Sterna <tomek@xiaoka.com>
+	* Implemented XEP-0138: Stream Compression for S2S connections.
+	  Closes Bug 335844
+	* Merged LDAP authentication by bind support by Dan Fandrich.
+	  Closes Bug 388246
+	* Merged SSL related memory leak fix by cmeerw. Fixes Bug 716042
+	* Merged router_crash.patch by Eugene Agafonov. Fixes Bug 721943
+
 2011-02-05 Tomasz Sterna <tomek@xiaoka.com>
 	* Merged jabberd2-dns leak fix by cmeerw. Fixes Bug 713548.
 	* Merged jabberd2-s2s-leak fix by cmeerw. Fixes Bug 713548.
