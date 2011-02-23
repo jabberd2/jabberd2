@@ -505,6 +505,8 @@
       <!-- LDAP attribute that holds the user ID (default: uid) -->
       <uidattr>uid</uidattr>
       <objectclass>posixAccount</objectclass>
+      <!-- LDAP attribute that holds the cleartext or hashed password
+           (not needed when pwscheme is set to 'bind') -->
       <pwattr>userPassword</pwattr>
       <!-- if you use included jabberd.schema use this:
       <uidattr>jid</uidattr>
@@ -523,8 +525,20 @@
            text and digest authentication may be done.
            If passwords are hashed, then you cannot use digest authentication
            and should use plain text authentication.
-           For now, sha, ssha, crypt and plain may be specified -->
-      <!-- <pwscheme>ssha</pwscheme> -->
+           Any of sha, ssha, crypt, bind and clear may be specified.
+           'sha' specifies that the attribute in pwattr holds a base-64
+           encoded SHA-1 hashed password beginning with the string {SHA}.
+           'ssha' specifies that the attribute in pwattr holds a base-64
+           SHA-1 hashed password appended with 32 bits of salt and beginning
+           with the string {SSHA}.
+           'crypt' specifies that the attribute in pwattr holds a UNIX-style
+           crypt(3) hashed password.
+           'bind' specifies that the password is not stored in an attribute
+           but is authenticated directly by the LDAP server by binding
+           using the user's DN. This should be compatible with the
+           widest variety of LDAP servers.
+      -->
+      <!-- <pwscheme>bind</pwscheme> -->
 
       <!-- base DN of the tree. You should specify a DN for each
            authentication realm declared in the <local/> section above,

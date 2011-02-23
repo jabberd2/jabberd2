@@ -115,6 +115,7 @@ int _ldapfull_set_clear(moddata_t data, const char *scheme, const char *prefix, 
 
 int _ldapfull_check_passhash(moddata_t data, const char *hash, const char *passwd);
 int _ldapfull_set_passhash(moddata_t data, char *scheme_name, const char *passwd, char *buf, int buflen);
+static int _ldapfull_check_password_bind(authreg_t ar, char *username, char *realm, char password[LDAPFULL_PASSBUF_MAX]);
 
 ldapfull_pw_scheme _ldapfull_pw_schemas[] = {
 #ifdef HAVE_SSL
@@ -125,6 +126,7 @@ ldapfull_pw_scheme _ldapfull_pw_schemas[] = {
     { "crypt", "crypt", "", 2, _ldapfull_chk_crypt, _ldapfull_set_crypt },
 #endif
     { "clear", "", "", 0, _ldapfull_chk_clear, _ldapfull_set_clear },
+    { "bind", "", "", 0, NULL, NULL },
     { NULL, NULL, NULL, 0, NULL, NULL }
 };
 
@@ -364,7 +366,7 @@ int _ldapfull_set_hashed(moddata_t data, const char *scheme, const char *prefix,
 #endif // HAVE_SSL
 
 #ifdef HAVE_CRYPT
-/* UNIX style crypt hashed password */
+/** Check UNIX style crypt hashed password */
 int _ldapfull_chk_crypt(moddata_t data, const char *scheme, int salted, const char *hash, const char *passwd) {
     const char *encrypted;
     char salt[3];
@@ -405,6 +407,15 @@ int _ldapfull_set_crypt(moddata_t data, const char *scheme, const char *prefix, 
     return 1;
 }
 #endif // HAVE_CRYPT
+
+
+/** Makes a copy of enough LDAP data in order to establish a second connection */
+static void copy_ldap_config(moddata_t from, moddata_t to)
+{
+    memset(to, 0, sizeof(struct moddata_st));
+    to->uri = from->uri;
+    to->ar = from->ar;
+}
 
 int _ldapfull_hash_init() {
 #ifdef HAVE_SSL
@@ -573,22 +584,53 @@ retry:
 }
 
 /** do we have this user? */
-static int _ldapfull_user_exists(authreg_t ar, char *username, char *realm)
+static int _ldapfull_find_user_dn(moddata_t data, char *username, char *realm, char **dn)
 {
-    moddata_t data = (moddata_t) ar->private;
-    char *dn;
-
+    *dn = NULL;
     if(_ldapfull_connect_bind(data))
-        return 0;
+        return 0; // error
 
     log_debug(ZONE, "checking existance of %s", username);
     
-    if( dn = _ldapfull_search(data, realm, username) ) {
-        ldap_memfree(dn);
-        return 1;
-    } else {
-        return 0;
+    *dn = _ldapfull_search(data, realm, username);
+    return *dn != NULL;
+}
+
+/** do we have this user? */
+static int _ldapfull_user_exists(authreg_t ar, char *username, char *realm)
+{
+    char *dn;
+    if (_ldapfull_find_user_dn((moddata_t) ar->private, username, realm, &dn)) {
+	ldap_memfree(dn);
+	return 1;
     }
+    return 0;
+}
+
+/** This method determines the DN of the user and does a new simple bind of the LDAP
+server. If the server allows it, the user has been authenticated.
+*/
+static int _ldapfull_check_password_bind(authreg_t ar, char *username, char *realm, char password[LDAPFULL_PASSBUF_MAX])
+{
+    moddata_t data = (moddata_t) ar->private;
+    struct moddata_st bind_data;
+    int invalid;
+    char *dn;
+
+    if (!_ldapfull_find_user_dn(data, username, realm, &dn)) {
+        log_debug(ZONE, "User %s not found", username);
+	return 0;
+    }
+
+    /* Try logging in to the LDAP server as this user's DN */
+    copy_ldap_config(data, &bind_data);
+    bind_data.binddn = dn;
+    bind_data.bindpw = password;
+    invalid = _ldapfull_connect_bind(&bind_data);
+    if (!invalid)
+        _ldapfull_unbind(&bind_data);
+    ldap_memfree(dn);
+    return invalid;
 }
 
 // get password from jabberPassword attribute
@@ -711,6 +753,11 @@ static int _ldapfull_check_password(authreg_t ar, char *username, char *realm, c
 
     if(password[0] == '\0')
         return 1;
+
+    /* The bind scheme doesn't need the password read first, so short circuit
+       the whole passhash scheme */
+    if (!strcmp(data->pwscheme, "bind"))
+        return _ldapfull_check_password_bind(ar, username, realm, password);
 
     if( _ldapfull_get_password(ar,username,realm,buf) != 0  ) {
         return 1;
