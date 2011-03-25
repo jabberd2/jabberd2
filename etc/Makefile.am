@@ -1,7 +1,10 @@
 LIBTOOL += --quiet
 
 sysconf_DATA = c2s.xml.dist router.xml.dist s2s.xml.dist sm.xml.dist jabberd.cfg.dist router-users.xml.dist router-filter.xml.dist
-EXTRA_DIST = $(sysconf_DATA:%.dist=%.dist.in)
+initdir = $(prefix)/etc/init
+init_DATA = jabberd-c2s.conf jabberd-router.conf jabberd-s2s.conf jabberd-sm.conf
+configs = $(sysconf_DATA) $(init_DATA)
+EXTRA_DIST = $(sysconf_DATA:%.dist=%.dist.in) $(init_DATA:%.conf=%.conf.in)
 
 SUBDIRS = templates
 
@@ -14,7 +17,7 @@ edit = sed \
 	-e 's,@libdir\@,$(libdir),g' \
 	-e 's,@pkglibdir\@,$(pkglibdir),g'
 
-$(sysconf_DATA): $(sysconf_DATA:%.dist=%.dist.in)
+$(configs): $(sysconf_DATA:%.dist=%.dist.in) $(init_DATA:%.conf=%.conf.in)
 	@echo "generating $@ from $@.in"; \
     edit='$(edit)'; \
     list='$(jabberd_bin)'; for p in $$list; do \
@@ -26,7 +29,7 @@ $(sysconf_DATA): $(sysconf_DATA:%.dist=%.dist.in)
 	mv $@.tmp $@ 
     
 install-data-hook:
-	@list='$(sysconf_DATA)'; for p in $$list; do \
+	@list='$(configs)'; for p in $$list; do \
       dest=`echo $$p | sed -e s/.dist//`; \
 	  if test -f $(DESTDIR)$(sysconfdir)/$$dest; then \
         echo "$@ will not overwrite existing $(DESTDIR)$(sysconfdir)/$$dest"; \
@@ -37,4 +40,4 @@ install-data-hook:
 	done
 
 clean-local:
-	rm -f $(sysconf_DATA)
+	rm -f $(configs)

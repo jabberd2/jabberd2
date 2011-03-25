@@ -1,0 +1,8 @@
+description	"jabberd Router component"
+
+start on runlevel [2345]
+stop on runlevel [!2345]
+
+respawn
+
+exec sudo -u jabber @bindir@/@jabberd_router_bin@

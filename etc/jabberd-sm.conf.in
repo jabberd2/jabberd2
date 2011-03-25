@@ -1,0 +1,8 @@
+description	"jabberd Session Manager component"
+
+start on runlevel [2345]
+stop on runlevel [!2345]
+
+respawn
+
+exec sudo -u jabber @bindir@/@jabberd_sm_bin@
