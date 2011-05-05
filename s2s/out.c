@@ -1061,7 +1061,7 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
         xhash_iter_zap(query->hosts);
 
         c = memchr(ipport, '/', ipport_len);
-		ip_len = c - ipport;
+        ip_len = c - ipport;
         c++;
         port_len = ipport_len - (c - ipport);
 
@@ -1139,7 +1139,10 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
         if (idna_to_unicode_8z8z(query->name, &domain, 0) != IDNA_SUCCESS)
         {
             log_write(query->s2s->log, LOG_ERR, "idna dns decode for %s failed", query->name);
-            /* TODO: Is it better to shortcut resolution failure here? */
+            /* fake empty results to shortcut resolution failure */
+            xhash_free(query->results);
+            query->results = xhash_new(71);
+            query->expiry = time(NULL) + 99999999;
             domain = strdup(query->name);
         }
         out_resolve(query->s2s, domain, query->results, query->expiry);
@@ -1153,15 +1156,17 @@ void dns_resolve_domain(s2s_t s2s, dnscache_t dns) {
     dnsquery_t query = (dnsquery_t) calloc(1, sizeof(struct dnsquery_st));
 
     query->s2s = s2s;
+    query->results = xhash_new(71);
     if (idna_to_ascii_8z(dns->name, &query->name, 0) != IDNA_SUCCESS)
     {
         log_write(s2s->log, LOG_ERR, "idna dns encode for %s failed", dns->name);
-        /* TODO: Is it better to shortcut resolution failure here? */
-        query->name = strdup(dns->name);
+        /* shortcut resolution failure */
+        query->expiry = time(NULL) + 99999999;
+        out_resolve(query->s2s, dns->name, query->results, query->expiry);
+        return;
     }
-    query->srv_i = -1;
     query->hosts = xhash_new(71);
-    query->results = xhash_new(71);
+    query->srv_i = -1;
     query->expiry = 0;
     query->cur_host = NULL;
     query->cur_port = 0;
