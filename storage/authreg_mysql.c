@@ -23,19 +23,28 @@
 #define _XOPEN_SOURCE 500
 #include "c2s.h"
 #include <mysql.h>
-#include <unistd.h>
 
-/* Windows does not has the crypt function, let's take DES_crypt from OpenSSL instead */
+/* Windows does not have the crypt() function, let's take DES_crypt from OpenSSL instead */
 #if defined(HAVE_OPENSSL_CRYPTO_H) && defined(_WIN32)
 #include <openssl/des.h>
 #define crypt DES_crypt
+#define HAVE_CRYPT 1
+#else
+#ifdef HAVE_CRYPT
+#include <unistd.h>
+#endif
 #endif
 
 #define MYSQL_LU  1024   /* maximum length of username - should correspond to field length */
 #define MYSQL_LR   256   /* maximum length of realm - should correspond to field length */
 #define MYSQL_LP   256   /* maximum length of password - should correspond to field length */
 
-enum mysql_pws_crypt { MPC_PLAIN, MPC_CRYPT };
+enum mysql_pws_crypt {
+    MPC_PLAIN,
+#ifdef HAVE_CRYPT
+    MPC_CRYPT,
+#endif
+};
 
 static char salter[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ./";
 
@@ -141,7 +150,9 @@ static int _ar_mysql_get_password(authreg_t ar, char *username, char *realm, cha
 static int _ar_mysql_check_password(authreg_t ar, char *username, char *realm, char password[257]) {
     mysqlcontext_t ctx = (mysqlcontext_t) ar->private;
     char db_pw_value[257];
+#ifdef HAVE_CRYPT
     char *crypted_pw;
+#endif
     int ret;
 
     ret = _ar_mysql_get_password(ar, username, realm, db_pw_value);
@@ -154,10 +165,12 @@ static int _ar_mysql_check_password(authreg_t ar, char *username, char *realm, c
                 ret = (strcmp(password, db_pw_value) != 0);
                 break;
 
+#ifdef HAVE_CRYPT
         case MPC_CRYPT:
                 crypted_pw = crypt(password,db_pw_value);
                 ret = (strcmp(crypted_pw, db_pw_value) != 0);
                 break;
+#endif
 
         default:
         /* should never happen */
@@ -183,6 +196,7 @@ static int _ar_mysql_set_password(authreg_t ar, char *username, char *realm, cha
     snprintf(iuser, MYSQL_LU+1, "%s", username);
     snprintf(irealm, MYSQL_LR+1, "%s", realm);
 
+#ifdef HAVE_CRYPT
     if (ctx->password_type == MPC_CRYPT) {
        char salt[12] = "$1$";
        int i;
@@ -193,6 +207,7 @@ static int _ar_mysql_set_password(authreg_t ar, char *username, char *realm, cha
        salt[11] = '\0';
        strcpy(password, crypt(password, salt));
     }
+#endif
     
     password[256]= '\0';
 
@@ -385,8 +400,10 @@ DLLEXPORT int ar_init(authreg_t ar) {
     /* get encryption type used in DB */
     if (config_get_one(ar->c2s->config, "authreg.mysql.password_type.plaintext", 0)) {
         mysqlcontext->password_type = MPC_PLAIN;
+#ifdef HAVE_CRYPT
     } else if (config_get_one(ar->c2s->config, "authreg.mysql.password_type.crypt", 0)) {
         mysqlcontext->password_type = MPC_CRYPT;
+#endif
     } else {
         mysqlcontext->password_type = MPC_PLAIN;
     }

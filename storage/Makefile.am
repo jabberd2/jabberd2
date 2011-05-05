@@ -50,6 +50,9 @@ authreg_mysql_la_SOURCES = authreg_mysql.c
 authreg_mysql_la_CPPFLAGS = $(MYSQL_CFLAGS)
 authreg_mysql_la_LDFLAGS = $(MODULE_LDFLAGS)
 authreg_mysql_la_LIBADD  = $(MODULE_LIBADD) $(MYSQL_LIBS)
+if HAVE_CRYPT
+authreg_mysql_la_LIBADD += -lcrypt
+endif
 storage_mysql_la_SOURCES = storage_mysql.c
 storage_mysql_la_CPPFLAGS = $(MYSQL_CFLAGS)
 storage_mysql_la_LDFLAGS = $(MODULE_LDFLAGS)
