@@ -191,6 +191,13 @@ JABBERD2_API void                        _sx_element_start(void *arg, const char
 JABBERD2_API void                        _sx_element_end(void *arg, const char *name);
 JABBERD2_API void                        _sx_cdata(void *arg, const char *str, int len);
 JABBERD2_API void                        _sx_namespace_start(void *arg, const char *prefix, const char *uri);
+#ifdef HAVE_XML_STOPPARSER
+JABBERD2_API void                        _sx_entity_declaration(void *arg, const char *entityName,
+                                                                int is_parameter_entity, const char *value,
+                                                                int value_length, const char *base,
+                                                                const char *systemId, const char *publicId,
+                                                                const char *notationName);
+#endif
 
 /** processor for incoming wire data */
 JABBERD2_API void                        _sx_process_read(sx_t s, sx_buf_t buf);

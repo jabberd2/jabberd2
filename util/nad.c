@@ -1217,6 +1217,7 @@ nad_t nad_deserialize(const char *buf) {
 struct build_data {
     nad_t               nad;
     int                 depth;
+    XML_Parser          p;
 };
 
 static void _nad_parse_element_start(void *arg, const char *name, const char **atts) {
@@ -1319,6 +1320,20 @@ static void _nad_parse_namespace_start(void *arg, const char *prefix, const char
     bd->nad->scope = ns; 
 }
 
+#ifdef HAVE_XML_STOPPARSER
+/* Stop the parser if an entity declaration is hit. */
+static void _nad_parse_entity_declaration(void *arg, const char *entityName,
+                                          int is_parameter_entity, const char *value,
+                                          int value_length, const char *base,
+                                          const char *systemId, const char *publicId,
+                                          const char *notationName)
+{
+    struct build_data *bd = (struct build_data *) arg;
+
+    XML_StopParser(bd->p, XML_FALSE);
+}
+#endif
+
 nad_t nad_parse(const char *buf, int len) {
     struct build_data bd;
     XML_Parser p;
@@ -1329,8 +1344,19 @@ nad_t nad_parse(const char *buf, int len) {
     p = XML_ParserCreateNS(NULL, '|');
     if(p == NULL)
         return NULL;
+    bd.p = p;
 
     XML_SetReturnNSTriplet(p, 1);
+    /* Prevent the "billion laughs" attack against expat by disabling
+     * internal entity expansion.  With 2.x, forcibly stop the parser
+     * if an entity is declared - this is safer and a more obvious
+     * failure mode.  With older versions, simply prevent expenansion
+     * of such entities. */
+#ifdef HAVE_XML_STOPPARSER
+    XML_SetEntityDeclHandler(p, (void *) _nad_parse_entity_declaration);
+#else
+    XML_SetDefaultHandler(p, NULL);
+#endif
 
     bd.nad = nad_new();
     bd.depth = 0;

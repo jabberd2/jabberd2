@@ -158,3 +158,17 @@ void _sx_namespace_start(void *arg, const char *prefix, const char *uri) {
     s->nad->scope = ns;
 }
 
+#ifdef HAVE_XML_STOPPARSER
+/* Stop the parser if an entity declaration is hit. */
+void _sx_entity_declaration(void *arg, const char *entityName,
+                            int is_parameter_entity, const char *value,
+                            int value_length, const char *base,
+                            const char *systemId, const char *publicId,
+                            const char *notationName)
+{
+    sx_t s = (sx_t) arg;
+
+    XML_StopParser(s->expat, XML_FALSE);
+}
+#endif
+

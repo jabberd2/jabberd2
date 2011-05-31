@@ -36,6 +36,16 @@ sx_t sx_new(sx_env_t env, int tag, sx_callback_t cb, void *arg) {
     s->expat = XML_ParserCreateNS(NULL, '|');
     XML_SetReturnNSTriplet(s->expat, 1);
     XML_SetUserData(s->expat, (void *) s);
+    /* Prevent the "billion laughs" attack against expat by disabling
+     * internal entity expansion.  With 2.x, forcibly stop the parser
+     * if an entity is declared - this is safer and a more obvious
+     * failure mode.  With older versions, simply prevent expenansion
+     * of such entities. */
+#ifdef HAVE_XML_STOPPARSER
+    XML_SetEntityDeclHandler(s->expat, (void *) _sx_entity_declaration);
+#else
+    XML_SetDefaultHandler(s->expat, NULL);
+#endif
 
     s->wbufq = jqueue_new();
     s->rnadq = jqueue_new();
