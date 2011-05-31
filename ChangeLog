@@ -1,3 +1,19 @@
+2011-06-01 Tomasz Sterna <tomek@xiaoka.com>
+	* Prevent the "billion laughs" attack against expat by disabling internal
+	  entity expansion.
+
+2011-05-06 Tomasz Sterna <tomek@xiaoka.com>
+	* Shortcut DNS resolution failure in cases when given domain name is invalid
+
+2011-05-05 Tomasz Sterna <tomek@xiaoka.com>
+	* Explicitly link libcrypt to authreg_mysql
+
+2011-04-30 Tomasz Sterna <tomek@xiaoka.com>
+	* Removed xconfig - it's not used anywhere
+
+2011-03-25 Tomasz Sterna <tomek@xiaoka.com>
+	* Added Upstart service configuration files
+
 2011-02-23 Tomasz Sterna <tomek@xiaoka.com>
 	* Implemented XEP-0138: Stream Compression for S2S connections.
 	  Closes Bug 335844
