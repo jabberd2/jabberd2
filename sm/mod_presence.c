@@ -74,7 +74,7 @@ mod_ret_t _presence_in_router(mod_instance_t mi, pkt_t pkt) {
 
     /* only pass if there's at least one available session */
     for(sess = user->sessions; sess != NULL; sess = sess->next)
-        if(sess->available && sess->pri >= 0)
+        if(sess->available)
             return mod_PASS;
 
     /* no available sessions, drop */
