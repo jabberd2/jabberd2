@@ -43,7 +43,7 @@ static void _config_startElement(void *arg, const char *name, const char **atts)
 {
     struct build_data *bd = (struct build_data *) arg;
     int i = 0;
-    
+
     nad_append_elem(bd->nad, -1, (char *) name, bd->depth);
     while(atts[i] != NULL)
     {
@@ -67,6 +67,8 @@ static void _config_charData(void *arg, const char *str, int len)
 
     nad_append_cdata(bd->nad, (char *) str, len, bd->depth);
 }
+
+static char *_config_expandx(config_t c, const char *value, int l);
 
 /** turn an xml file into a config hash */
 int config_load(config_t c, const char *file)
@@ -181,7 +183,8 @@ int config_load(config_t c, const char *file)
 
         /* and copy it in */
         if(NAD_CDATA_L(bd.nad, i) > 0)
-            elem->values[elem->nvalues] = pstrdupx(xhash_pool(c->hash), NAD_CDATA(bd.nad, i), NAD_CDATA_L(bd.nad, i));
+            // Expand values
+            elem->values[elem->nvalues] = _config_expandx(c, NAD_CDATA(bd.nad, i), NAD_CDATA_L(bd.nad, i));
         else
             elem->values[elem->nvalues] = "1";
 
@@ -206,7 +209,7 @@ int config_load(config_t c, const char *file)
                 elem->attrs[elem->nvalues][j] = pstrdupx(xhash_pool(c->hash), NAD_ANAME(bd.nad, attr), NAD_ANAME_L(bd.nad, attr));
                 elem->attrs[elem->nvalues][j + 1] = pstrdupx(xhash_pool(c->hash), NAD_AVAL(bd.nad, attr), NAD_AVAL_L(bd.nad, attr));
 
-		/* 
+		/*
 		 * pstrdupx(blob, 0) returns NULL - which means that later
 		 * there's no way of telling whether an attribute is defined
 		 * as empty, or just not defined. This fixes that by creating
@@ -288,6 +291,70 @@ static void _config_reaper(const char *key, int keylen, void *val, void *arg)
 
     free(elem->values);
     free(elem->attrs);
+}
+
+char *config_expand(config_t c, const char *value)
+{
+    return _config_expandx(c, value, strlen(value));
+}
+
+static char *_config_expandx(config_t c, const char *value, int l)
+{
+    //fprintf(stderr, "config_expand: Expanding '%s'\n", value);
+    char *s = strndup(value, l);
+
+    char *var_start, *var_end;
+
+    while (var_start = strstr(s, "${")) {
+        //fprintf(stderr, "config_expand: processing '%s'\n", s);
+        var_end = strstr(var_start + 2, "}");
+
+        if (var_end) {
+            char *tail = var_end + 1;
+            char *var = var_start + 2;
+            *var_end = 0;
+
+            //fprintf(stderr, "config_expand: Var '%s', tail is '%s'\n", var, tail);
+
+            const char *var_value = config_get_one(c, var, 0);
+
+            if (var_value) {
+                int len = (var_start - s) + strlen(tail) + strlen(var_value) + 1;
+
+                char *expanded_str = calloc(len, 1);
+
+                char *p = expanded_str;
+                strncpy(expanded_str, s, var_start - s);
+                p += var_start - s;
+
+                strcpy(p, var_value);
+                p += strlen(var_value);
+
+                strcpy(p, tail);
+
+                free(s);
+                s = expanded_str;
+            } else {
+                fprintf(stderr, "config_expand: Have no '%s' defined\n", var);
+                free(s);
+                s = 0;
+                break;
+            }
+        } else {
+            fprintf(stderr, "config_expand: } missmatch\n");
+            free(s);
+            s = 0;
+            break;
+        }
+    }
+
+    if (s) {
+        char *retval = pstrdup(xhash_pool(c->hash), s);
+        free(s);
+        return retval;
+    } else {
+        return 0;
+    }
 }
 
 /** cleanup */

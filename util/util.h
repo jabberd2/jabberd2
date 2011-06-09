@@ -217,6 +217,7 @@ JABBERD2_API config_elem_t    config_get(config_t c, const char *key);
 JABBERD2_API char             *config_get_one(config_t c, const char *key, int num);
 JABBERD2_API int              config_count(config_t c, const char *key);
 JABBERD2_API char             *config_get_attr(config_t c, const char *key, int num, const char *attr);
+JABBERD2_API char             *config_expand(config_t c, const char *value); //! Replaces $(some.value) with config_get_one(c, "some.value", 0)
 JABBERD2_API void             config_free(config_t);
 
 
