@@ -295,7 +295,7 @@ static void _sx_ssl_get_external_id(sx_t s, _sx_ssl_conn_t sc) {
 		 i != -1;
 		 i = X509_NAME_get_index_by_NID(name, NID_commonName, i)) {
 		// Get the commonName entry
-		if ((entry = X509_NAME_get_entry(name, i)) != NULL) {
+		if ((entry = X509_NAME_get_entry(name, i)) == NULL) {
 			_sx_debug(ZONE, "external_id: Can't get commonName(%d). Possibly malformed cert. Continuing.", i);
 			continue;
 		}
