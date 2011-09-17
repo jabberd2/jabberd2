@@ -41,7 +41,7 @@ authreg_ldapfull_la_LDFLAGS = $(MODULE_LDFLAGS)
 authreg_ldapfull_la_LIBADD  = $(MODULE_LIBADD) $(LDAP_LIBS)
 storage_ldapvcard_la_SOURCES = storage_ldapvcard.c
 storage_ldapvcard_la_LDFLAGS = $(MODULE_LDFLAGS)
-storage_ldapvcard_la_LIBADD  = $(MODULE_LIBADD) $(LDAP_LIBS)
+storage_ldapvcard_la_LIBADD  = $(MODULE_LIBADD) $(LDAP_LIBS) ../util/libutil.la
 endif
 
 if STORAGE_MYSQL

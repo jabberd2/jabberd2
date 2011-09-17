@@ -86,6 +86,7 @@ ldapvcard_entry_st ldapvcard_entry[] =
 //    {"","bday",os_type_STRING},
     {"description","desc",os_type_STRING},
     {"givenName","n-given",os_type_STRING},
+    {"jpegPhoto","photo-binval",os_type_STRING},
     {"sn","n-family",os_type_STRING},
     {"st","adr-street",os_type_STRING},
     {"l","adr-locality",os_type_STRING},
@@ -312,21 +313,33 @@ static st_ret_t _st_ldapvcard_get(st_driver_t drv, const char *type, const char 
         i = 0;
         le = ldapvcard_entry[i];
         while( le.ldapentry != NULL ) {
-            vals=(char **)ldap_get_values(data->ld,entry,le.ldapentry);
-            if( ldap_count_values(vals) > 0 ) {
-                switch(le.ot) {
-                    case os_type_BOOLEAN:
-                    case os_type_INTEGER:
-                        ival=atoi(vals[0]);
-                        os_object_put(o, le.vcardentry, &ival, le.ot);
-                        break;
-                    case os_type_STRING:
-                        os_object_put(o, le.vcardentry, vals[0], le.ot);
-                        break;
-
+            if ( (strlen(le.ldapentry) == 9) && (!strncmp("jpegPhoto",le.ldapentry,9)))
+            {
+                struct berval **valphoto=(struct berval **)ldap_get_values_len(data->ld,entry,le.ldapentry);
+                if ( ldap_count_values_len(valphoto) > 0 )
+                {
+                    char *VALJPG = b64_encode(valphoto[0]->bv_val, valphoto[0]->bv_len);
+                    os_object_put(o, "photo-type", "image/jpeg", os_type_STRING);
+                    os_object_put(o, "photo-binval", VALJPG, os_type_STRING);
+                    free(VALJPG);
                 }
+                ldap_value_free_len(valphoto);
+            } else { 
+                vals=(char **)ldap_get_values(data->ld,entry,le.ldapentry);
+                if( ldap_count_values(vals) > 0  ) {
+                    switch(le.ot) {
+                        case os_type_BOOLEAN:
+                        case os_type_INTEGER:
+                            ival=atoi(vals[0]);
+                            os_object_put(o, le.vcardentry, &ival, le.ot);
+                            break;
+                        case os_type_STRING:
+                            os_object_put(o, le.vcardentry, vals[0], le.ot);
+                            break;
+                    }
+                }
+                ldap_value_free(vals);
             }
-            ldap_value_free(vals);
             le = ldapvcard_entry[++i];
         }
         ldap_msgfree(result);
