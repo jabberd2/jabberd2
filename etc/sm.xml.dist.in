@@ -251,6 +251,15 @@
       <groupattr>jabberPublishedGroup</groupattr>
       -->
 
+      <!-- this option is helpful if your schema does not have designated
+	       attribute that holds jabber group name
+		   you can use any attribute in <groupattr> i.e. 'distinguishedName'
+		   and then extract a part of it using Regular Expression;
+           first matching () group will be used -->
+      <!--
+      <groupattr_regex>OU=([^,]*),</groupattr_regex>
+      -->
+
       <!-- boolean attribute that tells, publish or not this user
            jabberPublishedItem by default -->
       <!--

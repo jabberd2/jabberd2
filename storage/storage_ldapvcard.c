@@ -30,6 +30,7 @@
 #define LDAP_DEPRECATED 1
 #include <ldap.h>
 #include <time.h>
+#include <regex.h>
 
 #define LDAPVCARD_SRVTYPE_LDAP 1
 #define LDAPVCARD_SRVTYPE_AD 2
@@ -50,6 +51,7 @@ typedef struct drvdata_st {
     char *validattr; // search attribute for valid
     char *pwattr; // attribute which holds password
     char *groupattr; // attribute with group name for published-roster in jabberuser entry
+    char *groupattr_regex; // regex to create a new group attribute based on groupattr
     char *publishedattr; // can we publish it?
 
     char *groupsdn; // base dn for group names search
@@ -94,6 +96,27 @@ ldapvcard_entry_st ldapvcard_entry[] =
     {"ou","org-orgunit",os_type_STRING},
     {NULL,NULL,0}
 };
+
+int processregex(char *src, char *regex, int patterngroups, int wantedgroup, char *dest, size_t dest_size, st_driver_t drv) {
+  regex_t preg;
+  regmatch_t pmatch[patterngroups];
+  int error;
+  //log_debug(ZONE,"processregex: src='%s' regex='%s'", src, regex);
+  if (error=regcomp(&preg, regex, REG_ICASE|REG_EXTENDED) !=0) {
+        log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: regex compile failed on '%s'", regex);
+	return -1;
+  }
+  if (error=regexec(&preg, src, patterngroups, pmatch, 0) !=0) {
+        log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: regexec failed");
+	return -2;
+  }
+  regfree(&preg); 
+  int len = pmatch[wantedgroup].rm_eo-pmatch[wantedgroup].rm_so>dest_size?dest_size:pmatch[wantedgroup].rm_eo-pmatch[wantedgroup].rm_so;
+  memcpy(dest, src+pmatch[wantedgroup].rm_so, len);
+  dest[len<dest_size?len:dest_size]='\0';
+  //log_debug(ZONE,"processregex: dest='%s'", dest);
+  return 0;
+} 
 
 #ifndef NO_SM_CACHE
 void os_copy(os_t src, os_t dst) {
@@ -365,7 +388,10 @@ retry_pubrost:
                     ldap_value_free(vals);
                     continue;
                 }
-                strncpy(group,vals[0],sizeof(group)-1); group[sizeof(group)-1]='\0';
+                if (data->groupattr_regex != NULL && processregex(vals[0],data->groupattr_regex,2,1,&group,sizeof(group),drv) !=0) {
+                    strncpy(group,vals[0],sizeof(group)-1); 
+                }
+                group[sizeof(group)-1]='\0';
                 ldap_value_free(vals);
 
                 vals = (char **)ldap_get_values(data->ld,entry,data->uidattr);
@@ -536,6 +562,8 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv)
     data->groupattr = config_get_one(drv->st->sm->config, "storage.ldapvcard.groupattr", 0);
     if(data->groupattr == NULL)
         data->groupattr = "jabberPublishedGroup";
+
+    data->groupattr_regex = config_get_one(drv->st->sm->config, "storage.ldapvcard.groupattr_regex", 0);
     
     data->publishedattr = config_get_one(drv->st->sm->config, "storage.ldapvcard.publishedattr", 0);
     if(data->publishedattr == NULL)
