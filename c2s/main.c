@@ -321,8 +321,9 @@ static void _c2s_hosts_expand(c2s_t c2s)
             xhash_put(c2s->hosts, pstrdup(xhash_pool(c2s->hosts), id), host);
         }
 
-        log_write(c2s->log, LOG_NOTICE, "[%s] configured; realm=%s, registration %s",
-                  id, (host->realm != NULL ? host->realm : "no realm set"), (host->ar_register_enable ? "enabled" : "disabled"));
+        log_write(c2s->log, LOG_NOTICE, "[%s] configured; realm=%s, registration %s, using PEM:%s",
+                  id, (host->realm != NULL ? host->realm : "no realm set"), (host->ar_register_enable ? "enabled" : "disabled"),
+                  (host->host_pemfile ? host->host_pemfile : "Default"));
     }
 }
 
