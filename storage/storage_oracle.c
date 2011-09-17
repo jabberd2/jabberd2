@@ -652,7 +652,7 @@ static st_ret_t _st_oracle_get(st_driver_t drv, char *a_szType, char *owner, cha
 
       for (nIndex = 0; nIndex < nNumberOfFields; nIndex++)
       {
-        if(strcmp(arrszFieldName[nIndex], "collection-owner") == 0) == 0)
+        if(strcmp(arrszFieldName[nIndex], "collection-owner") == 0)
         {
           continue;
         }
