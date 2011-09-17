@@ -41,7 +41,7 @@ struct _roster_publish_group_cache_st {
 #endif
 
 typedef struct _roster_publish_st {
-    int publish, forcegroups, fixsubs, overridenames, mappedgroups;
+    int publish, forcegroups, fixsubs, overridenames, mappedgroups, fixexist;
     char *fetchdomain, *fetchuser, *fetchfixed, *dbtable;
     char *groupprefix, *groupsuffix, *removedomain;
     int groupprefixlen, groupsuffixlen;
@@ -361,6 +361,24 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                                     log_write(user->sm->log, LOG_ERR, "roster_publish: unknown published group id '%s' for %s",str,jid_full(item->jid));
                                     free(item);
                                 }
+                                if (roster_publish->fixexist &&
+                                     ( (checksm && !userinsm) ||
+                                       (!checksm && storage_get(user->sm->st, "active", jid_user(jid), NULL, &os_active) == st_SUCCESS && os_iter_first(os_active))
+                                     )
+                                   ) {
+                                    /* Add thise jid to active table*/
+                                    log_debug(ZONE, "adding published user %s to sm", jid_user(jid));
+                                    time_t tfe;
+                                    os_t osfe;
+
+                                    os_object_t ofe;
+                                    tfe = time(NULL);
+                                    osfe = os_new();
+                                    ofe = os_object_new(osfe);
+                                    os_object_put_time(ofe, "time", &tfe);
+                                    storage_put(mi->sm->st, "active", jid_user(jid), osfe);
+                                    os_free(osfe);
+                                }
                             }
                         }
                         else /* if( item == NULL ) else ... : here item != NULL : user has this jid in his roster */
@@ -519,6 +537,7 @@ DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
         roster_publish->fixsubs = j_atoi(config_get_one(mod->mm->sm->config, "user.template.publish.fix-subscriptions", 0), 0);
         roster_publish->overridenames = j_atoi(config_get_one(mod->mm->sm->config, "user.template.publish.override-names", 0), 0);
         roster_publish->mappedgroups = j_atoi(config_get_one(mod->mm->sm->config, "user.template.publish.mapped-groups.map-groups", 0), 0);
+        roster_publish->fixexist = j_atoi(config_get_one(mod->mm->sm->config, "user.template.publish.force-create-contacts", 0), 0);
 #ifndef NO_SM_CACHE
         roster_publish->active_cache_ttl = j_atoi(config_get_one(mod->mm->sm->config, "user.template.publish.active-cache-ttl", 0), 0);
         roster_publish->group_cache_ttl = j_atoi(config_get_one(mod->mm->sm->config, "user.template.publish.mapped-groups.group-cache-ttl", 0), 0);

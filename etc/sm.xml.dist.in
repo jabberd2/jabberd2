@@ -618,11 +618,19 @@
           <fixed>grouping-key</fixed>
         </fetch-key>
         -->
-        <!-- If <check-remove-domain> given, then published contact checked
-               against sm user database and if user is unknown to sm, contact
-               will be deleted from user's roster (if it is in roster). -->
+        <!-- If <check-remove-domain> given, then published contact is checked
+             against sm user database and if user is unknown to sm, contact
+             will be deleted from user's roster (if it is in roster).
+			 If no domain set (tag empty) all contacts are checked. -->
         <!--
         <check-remove-domain>jabber.example.com</check-remove-domain>
+        -->
+        <!-- Alternatively if <force-create-contacts/> is not commented,
+		     published contact is added to sm user database
+			 and user set known to sm, so it won't auto-unsubscribe
+			 on connection extablished -->
+        <!--
+        <force-create-contacts/>
         -->
         <!-- Keep cache of "active" database specified number of seconds.
              This will significantly speed up publishing of roster.
