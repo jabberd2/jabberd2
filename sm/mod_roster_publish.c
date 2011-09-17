@@ -82,11 +82,13 @@ static char *_roster_publish_get_group_name(sm_t sm, roster_publish_t rp, char *
     char *str;
     char *group;
 
+#ifndef NO_SM_CACHE
+    _roster_publish_group_cache_t group_cached;
+#endif
+
     if(!groupid) return groupid;
 
 #ifndef NO_SM_CACHE
-    _roster_publish_group_cache_t group_cached;
-
     /* check for remembered group value in cache */
     if( rp->group_cache_ttl ) {
         if( rp->group_cache ) {
@@ -235,6 +237,10 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                 do {
                     o = os_iter_object(os);
                     if(os_object_get_str(os, o, "jid", &str)) {
+#ifndef NO_SM_CACHE
+                        int userinsm;
+                        _roster_publish_active_cache_t active_cached = 0;
+#endif
                         log_debug(ZONE, "got %s item for inserting in", str);
                         if( strcmp(str,jid_user(user->jid)) == 0 ) {
                             /* not adding self */
@@ -250,10 +256,6 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                                 checksm = 1;
                             }
                         }
-#ifndef NO_SM_CACHE
-                        int userinsm;
-                        _roster_publish_active_cache_t active_cached = 0;
-#endif
                         if( checksm ) {
                             /* is this a hack? but i want to know was the user activated in sm or no? */
 #ifndef NO_SM_CACHE

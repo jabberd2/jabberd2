@@ -964,8 +964,9 @@ static int _router_accept_check(router_t r, mio_fd_t fd, char *ip) {
 static void _router_route_unbind_walker(const char *key, int keylen, void *val, void *arg) {
     component_t comp = (component_t) arg;
 
+    char * local_key;
     xhash_zapx(comp->r->log_sinks, key, keylen);
-    char * local_key = (char *) malloc(keylen + 1);
+    local_key = (char *) malloc(keylen + 1);
     memcpy(local_key, key, keylen);
     local_key[keylen] = 0;
     _route_remove(comp->r->routes, local_key, comp);

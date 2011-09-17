@@ -95,12 +95,12 @@ static mod_ret_t _help_pkt_sm(mod_instance_t mi, pkt_t pkt)
         if (jid_compare_full(pkt->from, jid) == 0) {
             /* make a copy of the nad so it can be dumped to a string */
             nad_t copy = nad_copy(pkt->nad);
+            char * xml;
+            int len;
             if (!copy) {
                 log_write(mod->mm->sm->log, LOG_ERR, "%s:%d help admin %s is messaging sm for help! packet dropped. (unable to print packet - out of memory?)", ZONE, jid_full(jid));
                 continue;
             }
-            char * xml;
-            int len;
             nad_print(copy, 0, &xml, &len);
             log_write(mod->mm->sm->log, LOG_ERR, "%s:%d help admin %s is messaging sm for help! packet dropped: \"%.*s\"\n", ZONE, jid_full(jid), len, xml);
             nad_free(copy);

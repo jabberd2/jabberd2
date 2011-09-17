@@ -87,6 +87,11 @@ static void _pbx_close_pipe(c2s_t c2s) {
 }
 
 static void _pbx_open_pipe(c2s_t c2s, int mode) {
+#ifdef WIN32
+	log_debug(ZONE, "PBX for Windows is not supported yet");
+	log_write(c2s->log, LOG_ERR, "PBX for Windows is not supported yet");
+	exit(EXIT_FAILURE);
+#else
 	log_debug(ZONE, "### open_pipe");
 	c2s->pbx_pipe_fd = open(c2s->pbx_pipe, mode | O_NONBLOCK);
 	if(c2s->pbx_pipe_fd == -1) {
@@ -96,6 +101,7 @@ static void _pbx_open_pipe(c2s_t c2s, int mode) {
 		exit(EXIT_FAILURE);
 	} else
 		c2s->pbx_pipe_mio_fd = mio_register(c2s->mio, c2s->pbx_pipe_fd, _pbx_mio_callback, (void *) c2s);
+#endif
 }
 /* open pipe for reading */
 static void _pbx_read_pipe(c2s_t c2s) {
@@ -111,6 +117,11 @@ static void _pbx_write_pipe(c2s_t c2s) {
 }
 
 void c2s_pbx_init(c2s_t c2s) {
+#ifdef WIN32
+	log_debug(ZONE, "PBX for Windows is not supported yet");
+	log_write(c2s->log, LOG_ERR, "PBX for Windows is not supported yet");
+	exit(EXIT_FAILURE);
+#else
 	struct stat sb;
 
 	/* create the FIFO */
@@ -127,4 +138,5 @@ void c2s_pbx_init(c2s_t c2s) {
 	}
 
 	_pbx_read_pipe(c2s);
+#endif
 }
