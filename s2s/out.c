@@ -1319,7 +1319,7 @@ static int _out_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, v
                         q = NULL;
                     }
 
-                    if (q != NULL && (npkt = jqueue_size(q)) > 0) {
+                    if (q != NULL && (npkt = jqueue_size(q)) > 0 && xhash_get(out->states, rkey) != (void*) conn_INPROGRESS) {
                         conn_t retry;
 
                         log_debug(ZONE, "retrying connection for '%.*s' queue", rkeylen, rkey);
@@ -1338,7 +1338,7 @@ static int _out_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, v
                         }
                     } else {
                         /* bounce queue */
-                        out_bounce_route_queue(out->s2s, rkey, rkeylen, stanza_err_SERVICE_UNAVAILABLE);
+                        out_bounce_route_queue(out->s2s, rkey, rkeylen, stanza_err_REMOTE_SERVER_TIMEOUT);
                     }
                 } while(xhash_iter_next(out->routes));
             }
