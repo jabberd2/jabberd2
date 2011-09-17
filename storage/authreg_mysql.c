@@ -35,6 +35,11 @@
 #endif
 #endif
 
+#ifdef HAVE_SSL
+/* We use OpenSSL's MD5 routines for the a1hash password type */
+#include <openssl/md5.h>
+#endif
+
 #define MYSQL_LU  1024   /* maximum length of username - should correspond to field length */
 #define MYSQL_LR   256   /* maximum length of realm - should correspond to field length */
 #define MYSQL_LP   256   /* maximum length of password - should correspond to field length */
@@ -44,9 +49,14 @@ enum mysql_pws_crypt {
 #ifdef HAVE_CRYPT
     MPC_CRYPT,
 #endif
+#ifdef HAVE_SSL
+    MPC_A1HASH,
+#endif
 };
 
+#ifdef HAVE_CRYPT
 static char salter[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ./";
+#endif
 
 typedef struct mysqlcontext_st {
   MYSQL * conn;
@@ -57,6 +67,24 @@ typedef struct mysqlcontext_st {
   char * field_password;
   enum mysql_pws_crypt password_type;
 } *mysqlcontext_t;
+
+#ifdef HAVE_SSL
+static void calc_a1hash(const char *username, const char *realm, const char *password, char *a1hash)
+{
+#define A1PPASS_LEN MYSQL_LU + 1 + MYSQL_LR + 1 + MYSQL_LP + 1 /* user:realm:password\0 */
+    char buf[A1PPASS_LEN];
+    unsigned char md5digest[MD5_DIGEST_LENGTH];
+    int i;
+
+    snprintf(buf, A1PPASS_LEN, "%.*s:%.*s:%.*s", MYSQL_LU, username, MYSQL_LR, realm, MYSQL_LP, password);
+
+    MD5((unsigned char*)buf, strlen(buf), md5digest);
+
+    for(i=0; i<16; i++) {
+        sprintf(a1hash+i*2, "%02hhx", md5digest[i]);
+    }
+}
+#endif
 
 static MYSQL_RES *_ar_mysql_get_user_tuple(authreg_t ar, char *username, char *realm) {
     mysqlcontext_t ctx = (mysqlcontext_t) ar->private;
@@ -153,6 +181,9 @@ static int _ar_mysql_check_password(authreg_t ar, char *username, char *realm, c
 #ifdef HAVE_CRYPT
     char *crypted_pw;
 #endif
+#ifdef HAVE_SSL
+    char a1hash_pw[33];
+#endif
     int ret;
 
     ret = _ar_mysql_get_password(ar, username, realm, db_pw_value);
@@ -169,6 +200,23 @@ static int _ar_mysql_check_password(authreg_t ar, char *username, char *realm, c
         case MPC_CRYPT:
                 crypted_pw = crypt(password,db_pw_value);
                 ret = (strcmp(crypted_pw, db_pw_value) != 0);
+                break;
+#endif
+
+#ifdef HAVE_SSL
+        case MPC_A1HASH:
+                if (strchr(username, ':')) {
+                    ret = 1;
+                    log_write(ar->c2s->log, LOG_ERR, "Username cannot contain : with a1hash encryption type.");
+                    break;
+                }
+                if (strchr(realm, ':')) {
+                    ret = 1;
+                    log_write(ar->c2s->log, LOG_ERR, "Realm cannot contain : with a1hash encryption type.");
+                    break;
+                }
+                calc_a1hash(username, realm, password, a1hash_pw);
+                ret = (strncmp(a1hash_pw, db_pw_value, 32) != 0);
                 break;
 #endif
 
@@ -206,6 +254,12 @@ static int _ar_mysql_set_password(authreg_t ar, char *username, char *realm, cha
                salt[3+i] = salter[rand()%64];
        salt[11] = '\0';
        strcpy(password, crypt(password, salt));
+    }
+#endif
+
+#ifdef HAVE_SSL
+    if (ctx->password_type == MPC_A1HASH) {
+       calc_a1hash(username, realm, password, password);
     }
 #endif
     
@@ -403,6 +457,10 @@ DLLEXPORT int ar_init(authreg_t ar) {
 #ifdef HAVE_CRYPT
     } else if (config_get_one(ar->c2s->config, "authreg.mysql.password_type.crypt", 0)) {
         mysqlcontext->password_type = MPC_CRYPT;
+#endif
+#ifdef HAVE_SSL
+    } else if (config_get_one(ar->c2s->config, "authreg.mysql.password_type.a1hash", 0)) {
+        mysqlcontext->password_type = MPC_A1HASH;
 #endif
     } else {
         mysqlcontext->password_type = MPC_PLAIN;

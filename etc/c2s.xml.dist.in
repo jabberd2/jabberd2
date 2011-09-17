@@ -434,6 +434,10 @@
         <!-- use crypt(3)ed passwords
         <crypt/>
         -->
+        <!-- use A1HASH passwords
+		     This stores the MD5 digest of user:realm:password in the database
+        <a1hash/>
+        -->
       </password_type>
     </mysql>
 
