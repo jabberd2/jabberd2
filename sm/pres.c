@@ -1,3 +1,4 @@
+/* vim: set et ts=4 sw=4: */
 /*
  * jabberd - Jabber Open Source Server
  * Copyright (c) 2002-2003 Jeremie Miller, Thomas Muldowney,
@@ -259,8 +260,20 @@ void pres_in(user_t user, pkt_t pkt) {
             log_debug(ZONE, "probe from %s for %s", jid_full(pkt->from), jid_full(scan->jid));
 
             /* B3: respond (already checked for T) */
-            log_debug(ZONE, "responding with last presence update");
-            pkt_router(pkt_dup(scan->pres, jid_full(pkt->from), jid_full(scan->jid)));
+            if(pkt->to->resource[0] != '\0') {
+                /* this is a direct probe */
+                if(jid_compare_full(pkt->to, scan->jid) == 0) {
+                    /* respond with simple stanza only */
+                    log_debug(ZONE, "responding with simple presence");
+                    pkt_router(pkt_create(user->sm, "presence", NULL, jid_full(pkt->from), jid_full(pkt->to)));
+                }
+                else
+                    continue;
+            }
+            else {
+                log_debug(ZONE, "responding with last presence update");
+                pkt_router(pkt_dup(scan->pres, jid_full(pkt->from), jid_full(scan->jid)));
+            }
 
             /* remove from E */
             scan->E = jid_zap(scan->E, pkt->from);
