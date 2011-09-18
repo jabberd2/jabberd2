@@ -60,7 +60,7 @@ struct bres_st {
     /** full bound jid */
     jid_t               jid;
     /** session id for this jid for us and them */
-    char                c2s_id[24], sm_id[41];
+    char                c2s_id[44], sm_id[41];
     /** this holds the id of the current pending SM request */
     char                sm_request[41];
 

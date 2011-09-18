@@ -234,6 +234,7 @@ struct user_st {
 
     sess_t              sessions;           /**< list of action sessions */
     sess_t              top;                /**< top priority session */
+    int                 available;          /**< true if this user has any available session */
 
     time_t              active;             /**< time that user first logged in (ever) */
 
@@ -251,7 +252,7 @@ struct sess_st {
     char                c2s[1024];          /**< id of c2s that is handling their connection */
 
     char                sm_id[41];          /**< local id (for session control) */
-    char                c2s_id[10];         /**< remote id (for session control) */
+    char                c2s_id[44];         /**< remote id (for session control) */
 
     pkt_t               pres;               /**< copy of the last presence packet we received */
 

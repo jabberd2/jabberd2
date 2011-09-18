@@ -42,9 +42,13 @@ static void _pres_top(user_t user) {
     sess_t scan;
 
     user->top = NULL;
+    user->available = 0;
 
     /* loop the active sessions */
     for(scan = user->sessions; scan != NULL; scan = scan->next) {
+        if(scan->available)
+            user->available = 1;
+
         /* non available and/or negative presence can't become top session */
         if(!scan->available || scan->pri < 0) continue;
 
@@ -222,7 +226,7 @@ void pres_in(user_t user, pkt_t pkt) {
         }
 
         /* respond with last unavailable presence if no available session */
-        if(user->top == NULL) {
+        if(user->available == NULL) {
             os_t os;
             os_object_t o;
             nad_t nad;

@@ -1,3 +1,4 @@
+/* vim: set et ts=4 sw=4: */
 /*
  * jabberd - Jabber Open Source Server
  * Copyright (c) 2002 Jeremie Miller, Thomas Muldowney,
@@ -932,7 +933,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 nad_free(nad);
                 return 0;
             }
-            snprintf(skey, 44, "%.*s", NAD_AVAL_L(nad, c2sid), NAD_AVAL(nad, c2sid));
+            snprintf(skey, sizeof(skey), "%.*s", NAD_AVAL_L(nad, c2sid), NAD_AVAL(nad, c2sid));
 
             /* find the session, quietly drop if we don't have it */
             sess = xhash_get(c2s->sessions, skey);
@@ -1056,10 +1057,26 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 }
 
                 /* build temporary resource to close session for */
-                jid = jid_new(sess->s->auth_id, -1);
                 tres = (bres_t) calloc(1, sizeof(struct bres_st));
+                if(sess->s) {
+                    jid = jid_new(sess->s->auth_id, -1);
+                    sprintf(tres->c2s_id, "%d", sess->s->tag);
+                }
+                else {
+                    /* does not have SX - extract values from route packet */
+                    int c2sid, target;
+                    c2sid = nad_find_attr(nad, 1, ns, "c2s", NULL);
+                    target = nad_find_attr(nad, 1, -1, "target", NULL);
+                    if(c2sid < 0 || target < 0) {
+                        log_debug(ZONE, "needed ids not found - c2sid:%d target:%d", c2sid, target);
+                        nad_free(nad);
+                        free(tres);
+                        return 0;
+                    }
+                    jid = jid_new(NAD_AVAL(nad, target), NAD_AVAL_L(nad, target));
+                    snprintf(tres->c2s_id, sizeof(tres->c2s_id), "%.*s", NAD_AVAL_L(nad, c2sid), NAD_AVAL(nad, c2sid));
+                }
                 tres->jid = jid;
-                sprintf(tres->c2s_id, "%d", sess->s->tag);
                 snprintf(tres->sm_id, sizeof(tres->sm_id), "%.*s", NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
 
                 if(sess->resources) {

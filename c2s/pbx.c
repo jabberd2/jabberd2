@@ -1,3 +1,4 @@
+/* vim: set noet ts=4 sw=4: */
 /*
  * jabberd - Jabber Open Source Server
  * Copyright (c) 2009 Tomasz Sterna
@@ -88,7 +89,7 @@ static void _pbx_close_pipe(c2s_t c2s) {
 
 static void _pbx_open_pipe(c2s_t c2s, int mode) {
 #ifdef WIN32
-	log_debug(ZONE, "PBX for Windows is not supported yet");
+	log_debug(ZONE, "PBX is not supported under Windows");
 	log_write(c2s->log, LOG_ERR, "PBX for Windows is not supported yet");
 	exit(EXIT_FAILURE);
 #else
@@ -118,7 +119,7 @@ static void _pbx_write_pipe(c2s_t c2s) {
 
 void c2s_pbx_init(c2s_t c2s) {
 #ifdef WIN32
-	log_debug(ZONE, "PBX for Windows is not supported yet");
+	log_debug(ZONE, "PBX is not supported under Windows");
 	log_write(c2s->log, LOG_ERR, "PBX for Windows is not supported yet");
 	exit(EXIT_FAILURE);
 #else

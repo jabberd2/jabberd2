@@ -340,6 +340,10 @@
     <!--
     <pipe>@localstatedir@/jabberd/run/pbx</pipe>
     -->
+    <!-- Available commands:
+         START jid/resource [status] [description]  - opens PBX resource session
+         STOP jid/resource [description]            - closes --"--
+    -->
   </pbx>
 
   <!-- Authentication/registration database configuration -->

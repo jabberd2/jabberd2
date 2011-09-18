@@ -1,3 +1,4 @@
+/* vim: set noet ts=4 sw=4: */
 /*
  * jabberd - Jabber Open Source Server
  * Copyright (c) 2009 Tomasz Sterna
@@ -38,7 +39,7 @@
 static int _pbx_command_part_len(char *cmd)
 {
 	int i;
-	for(i=0; *cmd != ' ' && *cmd != '\t' && *cmd != '\0'; cmd++, i++);
+	for(i=0; *cmd != ' ' && *cmd != '\t' && *cmd != '\n' && *cmd != '\0'; cmd++, i++);
 	return i;
 }
 
@@ -47,7 +48,7 @@ static nad_t _pbx_presence_nad(int available, char *cmd)
 	nad_t nad;
 	int ns;
 	char *show = NULL;
-	
+
 	nad = nad_new();
 	ns = nad_add_namespace(nad, uri_CLIENT, NULL);
 	nad_append_elem(nad, ns, "presence", 0);
@@ -84,16 +85,17 @@ static nad_t _pbx_presence_nad(int available, char *cmd)
 		}
 	}
 
-	if(*cmd != '\0') {
+	if(*cmd != '\0' && *cmd != '\n') {
+		int len = strlen(cmd);
 		nad_append_elem(nad, -1, "status", 1);
-		nad_append_cdata(nad, cmd, strlen(cmd), 2);
+		nad_append_cdata(nad, cmd, len - (cmd[len-1] == '\n' ? 1 : 0), 2);
 	}
 
 	return nad;
 }
 
 /**
- * process commandline 
+ * process commandline
  * @return: 0 to indicate that output needs to be written
  */
 int _pbx_process_command(c2s_t c2s, char *cmd)
@@ -122,7 +124,7 @@ int _pbx_process_command(c2s_t c2s, char *cmd)
 			if(jid) {
 				cmd += len;
 				if(*cmd != '\0') cmd++;
-				
+
 				shahash_r(jid_full(jid), sesshash);
 				sess = xhash_get(c2s->sessions, hashbuf);
 
@@ -136,18 +138,18 @@ int _pbx_process_command(c2s_t c2s, char *cmd)
 							sess->c2s = c2s;
 							sess->last_activity = time(NULL);
 							/* put into sessions hash */
-							sprintf(sess->skey, "PBX%s", sesshash);
+							snprintf(sess->skey, sizeof(sess->skey), "%s", hashbuf);
 							xhash_put(c2s->sessions, sess->skey, (void *) sess);
 							/* generate bound resource */
 							sess->resources = (bres_t) calloc(1, sizeof(struct bres_st));
-							sprintf(sess->resources->c2s_id, "PBX%s", sesshash);
+							snprintf(sess->resources->c2s_id, sizeof(sess->resources->c2s_id), "%s", hashbuf);
 							sess->resources->jid = jid;
 							/* open SM session */
 							log_write(sess->c2s->log, LOG_NOTICE, "[PBX] requesting session: jid=%s", jid_full(jid));
 							sm_start(sess, sess->resources);
-			
+
 							/* generate presence packet to get session online */
-							/* a bit hacky, but... */
+							/* a bit hacky, but we need to emulate _some_ of the client behavior */
 							sess->result = _pbx_presence_nad(1, cmd);
 						}
 						else {
@@ -156,7 +158,7 @@ int _pbx_process_command(c2s_t c2s, char *cmd)
 						}
 
 						break;
-					
+
 					case 2:
 						log_debug(ZONE, "STOPping session for %s/%s with commandline: %s", jid_user(jid), jid->resource, cmd);
 

@@ -39,7 +39,7 @@ static nad_t _sm_build_route(sess_t sess, bres_t res, const char *action, const 
 
     ns = nad_add_namespace(nad, uri_COMPONENT, NULL);
     nad_append_elem(nad, ns, "route", 0);
-    
+
     nad_append_attr(nad, -1, "to", sess->smcomp?sess->smcomp:((char *) res->jid->domain));
     nad_append_attr(nad, -1, "from", sess->c2s->id);
 
