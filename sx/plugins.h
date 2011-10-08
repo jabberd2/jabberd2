@@ -45,6 +45,8 @@
 #define SX_ERR_COMPRESS_FAILURE (0x021)
 
 
+#define SX_CONN_EXTERNAL_ID_MAX_COUNT 8
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -73,12 +75,11 @@ JABBERD2_API int                         sx_ssl_client_starttls(sx_plugin_t p, s
 #define SX_SSL_STATE_WANT_READ  (1)
 #define SX_SSL_STATE_WANT_WRITE (2)
 #define SX_SSL_STATE_ERROR      (3)
-#define SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT 8
 
 /** a single conn */
 typedef struct _sx_ssl_conn_st {
     /* id and ssf for sasl external auth */
-    char        *external_id[SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT];
+    char        *external_id[SX_CONN_EXTERNAL_ID_MAX_COUNT];
 
     SSL         *ssl;
 

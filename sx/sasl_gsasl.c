@@ -34,7 +34,7 @@ typedef struct _sx_sasl_st {
     sx_sasl_callback_t          cb;
     void                        *cbarg;
 
-    char                        *ext_id[SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT];
+    char                        *ext_id[SX_CONN_EXTERNAL_ID_MAX_COUNT];
 } *_sx_sasl_t;
 
 /* Per-session library handle. */
@@ -405,7 +405,10 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
     _sx_sasl_t ctx = (_sx_sasl_t) p->private;
     char *buf = NULL, *out = NULL, *realm = NULL, **ext_id;
     char hostname[256];
-    int ret, i;
+    int ret;
+#ifdef HAVE_SSL
+    int i;
+#endif
     size_t buflen, outlen;
 
     if(mech != NULL) {
@@ -454,7 +457,7 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
         if (ext_id != NULL) {
 			//_sx_debug(ZONE, "sasl context ext id '%s'", ext_id);
 			/* if there is, store it for later */
-			for (i = 0; i < SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT; i++)
+			for (i = 0; i < SX_CONN_EXTERNAL_ID_MAX_COUNT; i++)
 				if (ext_id[i] != NULL) {
 					ctx->ext_id[i] = strdup(ext_id[i]);
 				} else {
@@ -843,7 +846,7 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
 			_sx_debug(ZONE, "sasl external");
 			_sx_debug(ZONE, "sasl creds.authzid is '%s'", creds.authzid);
 
-            for (i = 0; i < SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT; i++) {
+            for (i = 0; i < SX_CONN_EXTERNAL_ID_MAX_COUNT; i++) {
             	if (ctx->ext_id[i] == NULL)
             		break;
             	_sx_debug(ZONE, "sasl ext_id(%d) is '%s'", i, ctx->ext_id[i]);
@@ -893,7 +896,7 @@ static void _sx_sasl_unload(sx_plugin_t p) {
 
     if (ctx->gsasl_ctx != NULL) gsasl_done (ctx->gsasl_ctx);
     if (ctx->appname != NULL) free(ctx->appname);
-    for (i = 0; i < SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT; i++)
+    for (i = 0; i < SX_CONN_EXTERNAL_ID_MAX_COUNT; i++)
     	if(ctx->ext_id[i] != NULL)
     		free(ctx->ext_id[i]);
     	else
@@ -926,7 +929,7 @@ int sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args) {
     ctx->appname = strdup(appname);
     ctx->cb = cb;
     ctx->cbarg = cbarg;
-    for (i = 0; i < SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT; i++)
+    for (i = 0; i < SX_CONN_EXTERNAL_ID_MAX_COUNT; i++)
     	ctx->ext_id[i] = NULL;
 
     ret = gsasl_init(&ctx->gsasl_ctx);

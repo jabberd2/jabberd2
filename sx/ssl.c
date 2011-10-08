@@ -281,7 +281,7 @@ static void _sx_ssl_get_external_id(sx_t s, _sx_ssl_conn_t sc) {
 				id++;
 			}
 			/* Check if we're not out of space */
-			if (id == SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT) {
+			if (id == SX_CONN_EXTERNAL_ID_MAX_COUNT) {
 				sk_GENERAL_NAME_pop_free(altnames, GENERAL_NAME_free);
 				goto end;
 			}
@@ -310,7 +310,7 @@ static void _sx_ssl_get_external_id(sx_t s, _sx_ssl_conn_t sc) {
 		_sx_debug(ZONE, "external_id: Found(%d) commonName: '%s'", id, sc->external_id[id]);
 		OPENSSL_free(buff);
 		/* Check if we're not out of space */
-		if (id == SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT)
+		if (id == SX_CONN_EXTERNAL_ID_MAX_COUNT)
 			goto end;
 	}
 
@@ -653,7 +653,7 @@ static void _sx_ssl_client(sx_t s, sx_plugin_t p) {
     SSL_set_options(sc->ssl, SSL_OP_NO_TICKET);
 
     /* empty external_id */
-    for (i = 0; i < SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT; i++)
+    for (i = 0; i < SX_CONN_EXTERNAL_ID_MAX_COUNT; i++)
     	sc->external_id[i] = NULL;
 
     /* alternate pemfile */
@@ -744,7 +744,7 @@ static void _sx_ssl_server(sx_t s, sx_plugin_t p) {
     SSL_set_accept_state(sc->ssl);
 
     /* empty external_id */
-    for (i = 0; i < SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT; i++)
+    for (i = 0; i < SX_CONN_EXTERNAL_ID_MAX_COUNT; i++)
     	sc->external_id[i] = NULL;
 
     /* buffer queue */
@@ -772,7 +772,7 @@ static void _sx_ssl_free(sx_t s, sx_plugin_t p) {
         return;
     }
 
-    for (i = 0; i < SX_SSL_CONN_EXTERNAL_ID_MAX_COUNT; i++)
+    for (i = 0; i < SX_CONN_EXTERNAL_ID_MAX_COUNT; i++)
     	if(sc->external_id[i] != NULL)
     		free(sc->external_id[i]);
     	else
