@@ -90,8 +90,11 @@ void sess_end(sess_t sess) {
     log_write(sess->user->sm->log, LOG_NOTICE, "session ended: jid=%s", jid_full(sess->jid));
 
     /* if it was the last session, free the user */
-    if(sess->user->sessions == NULL)
+    if(sess->user->sessions == NULL) {
+        mm_user_unload(sess->user->sm->mm, sess->user);
+        log_write(sess->user->sm->log, LOG_NOTICE, "user unloaded jid=%s", jid_user(sess->jid));
         user_free(sess->user);
+    }
 
     /* free the session */
     pool_free(sess->p);

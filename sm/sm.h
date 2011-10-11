@@ -343,6 +343,7 @@ typedef enum {
     chain_USER_LOAD,            /**< user loaded, load per-user data */
     chain_USER_CREATE,          /**< user creation, generate and save per-user data */
     chain_USER_DELETE,          /**< user deletion, delete saved per-user data */
+    chain_USER_UNLOAD,          /**< user is about to be unloaded */
     chain_DISCO_EXTEND          /**< disco request, extend sm disco#info */
 } mod_chain_t;
 
@@ -383,6 +384,8 @@ struct mm_st {
     mod_instance_t      *user_delete;   int nuser_delete;
     /** disco-extend chain */
     mod_instance_t      *disco_extend;  int ndisco_extend;
+    /** user-unload chain */
+    mod_instance_t      *user_unload;     int nuser_unload;
 };
 
 /** data for a single module */
@@ -418,6 +421,7 @@ struct module_st {
     mod_ret_t           (*pkt_router)(mod_instance_t mi, pkt_t pkt);                /**< pkt-router handler */
 
     int                 (*user_load)(mod_instance_t mi, user_t user);               /**< user-load handler */
+    int                 (*user_unload)(mod_instance_t mi, user_t user);               /**< user-load handler */
 
     int                 (*user_create)(mod_instance_t mi, jid_t jid);               /**< user-create handler */
     void                (*user_delete)(mod_instance_t mi, jid_t jid);               /**< user-delete handler */
@@ -470,6 +474,9 @@ SM_API mod_ret_t               mm_pkt_router(mm_t mm, pkt_t pkt);
 
 /** fire user-load chain */
 SM_API int                     mm_user_load(mm_t mm, user_t user);
+
+/** fire user-unload chain */
+SM_API int                     mm_user_unload(mm_t mm, user_t user);
 
 /** fire user-create chain */
 SM_API int                     mm_user_create(mm_t mm, jid_t jid);
