@@ -202,6 +202,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
 #ifdef POOL_DEBUG
     time_t pool_time = 0;
 #endif
+    const char *cli_id = 0;
 
 #ifdef HAVE_UMASK
     umask((mode_t) 0027);
@@ -215,9 +216,9 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
 		WORD wVersionRequested;
 		WSADATA wsaData;
 		int err;
-		
+
 		wVersionRequested = MAKEWORD( 2, 2 );
-		
+
 		err = WSAStartup( wVersionRequested, &wsaData );
 		if ( err != 0 ) {
             /* !!! tell user that we couldn't find a usable winsock dll */
@@ -246,7 +247,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
     config_file = CONFIG_DIR "/sm.xml";
 
     /* cmdline parsing */
-    while((optchar = getopt(argc, argv, "Dc:h?")) >= 0)
+    while((optchar = getopt(argc, argv, "Dc:hi:?")) >= 0)
     {
         switch(optchar)
         {
@@ -260,12 +261,16 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
                 printf("WARN: Debugging not enabled.  Ignoring -D.\n");
 #endif
                 break;
+            case 'i':
+                cli_id = optarg;
+                break;
             case 'h': case '?': default:
                 fputs(
                     "sm - jabberd session manager (" VERSION ")\n"
                     "Usage: sm <options>\n"
                     "Options are:\n"
                     "   -c <config>     config file to use [default: " CONFIG_DIR "/sm.xml]\n"
+                    "   -i id           Override <id> config element\n"
 #ifdef DEBUG
                     "   -D              Show debug output\n"
 #endif
@@ -277,7 +282,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
         }
     }
 
-    if(config_load(sm->config, config_file) != 0)
+    if(config_load_with_id(sm->config, config_file, cli_id) != 0)
     {
         fputs("sm: couldn't load config, aborting\n", stderr);
         config_free(sm->config);

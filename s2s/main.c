@@ -443,7 +443,7 @@ static void _s2s_time_checks(s2s_t s2s) {
                 if (_s2s_check_conn_routes(s2s, conn, "incoming"))
                     /* if the connection is still valid, check that dialbacks have been initiated */
                     if(!xhash_count(conn->states) && now > conn->init_time + s2s->check_queue) {
-                        log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] no dialback started", conn->fd->fd, conn->ip, conn->port); 
+                        log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] no dialback started", conn->fd->fd, conn->ip, conn->port);
                         sx_error(conn->s, stream_err_CONNECTION_TIMEOUT, "no dialback initiated");
                         sx_close(conn->s);
                     }
@@ -612,6 +612,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
     dnsres_t res;
     union xhashv xhv;
     time_t check_time = 0, now = 0;
+    const char *cli_id = 0;
 
 #ifdef HAVE_UMASK
     umask((mode_t) 0027);
@@ -625,9 +626,9 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
         WORD wVersionRequested;
         WSADATA wsaData;
         int err;
-        
+
         wVersionRequested = MAKEWORD( 2, 2 );
-        
+
         err = WSAStartup( wVersionRequested, &wsaData );
         if ( err != 0 ) {
             /* !!! tell user that we couldn't find a usable winsock dll */
@@ -656,7 +657,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
     config_file = CONFIG_DIR "/s2s.xml";
 
     /* cmdline parsing */
-    while((optchar = getopt(argc, argv, "Dc:h?")) >= 0)
+    while((optchar = getopt(argc, argv, "Dc:hi:?")) >= 0)
     {
         switch(optchar)
         {
@@ -670,12 +671,16 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
                 printf("WARN: Debugging not enabled.  Ignoring -D.\n");
 #endif
                 break;
+            case 'i':
+                cli_id = optarg;
+                break;
             case 'h': case '?': default:
                 fputs(
                     "s2s - jabberd server-to-server connector (" VERSION ")\n"
                     "Usage: s2s <options>\n"
                     "Options are:\n"
                     "   -c <config>     config file to use [default: " CONFIG_DIR "/s2s.xml]\n"
+                    "   -i id           Override <id> config element\n"
 #ifdef DEBUG
                     "   -D              Show debug output\n"
 #endif
@@ -687,7 +692,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
         }
     }
 
-    if(config_load(s2s->config, config_file) != 0) {
+    if(config_load_with_id(s2s->config, config_file, cli_id) != 0) {
         fputs("s2s: couldn't load config, aborting\n", stderr);
         config_free(s2s->config);
         free(s2s);
@@ -748,7 +753,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
         log_write(s2s->log, LOG_ERR, "failed to initialise SASL context, aborting");
         exit(1);
     }
-           
+
     /* hosts mapping */
     s2s->hosts = xhash_new(1021);
     _s2s_hosts_expand(s2s);
@@ -805,7 +810,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
 
         /* this has to be read unconditionally - we could receive replies to queries we cancelled */
           mio_read(s2s->mio, s2s->udns_mio_fd);
-            
+
         /* cleanup dead sx_ts */
         while(jqueue_size(s2s->dead) > 0)
             sx_free((sx_t) jqueue_pull(s2s->dead));
@@ -858,7 +863,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
                     s2s_shutdown = 1;
                 }
             }
-    
+
             check_time = now;
         }
     }

@@ -73,6 +73,12 @@ static char *_config_expandx(config_t c, const char *value, int l);
 /** turn an xml file into a config hash */
 int config_load(config_t c, const char *file)
 {
+    return config_load_with_id(c, file, 0);
+}
+
+/** turn an xml file into a config hash */
+int config_load_with_id(config_t c, const char *file, const char *id)
+{
     struct build_data bd;
     FILE *f;
     XML_Parser p;
@@ -80,7 +86,8 @@ int config_load(config_t c, const char *file)
     char buf[1024], *next;
     struct nad_elem_st **path;
     config_elem_t elem;
-
+    int rv = 0;
+    
     /* open the file */
     f = fopen(file, "r");
     if(f == NULL)
@@ -139,11 +146,20 @@ int config_load(config_t c, const char *file)
     XML_ParserFree(p);
     fclose(f);
 
+    // Put id if specified
+    if (id) {
+        elem = pmalloco(xhash_pool(c->hash), sizeof(struct config_elem_st));
+        xhash_put(c->hash, pstrdup(xhash_pool(c->hash), "id"), elem);
+        elem->values = calloc(1, sizeof(char *));
+        elem->values[0] = pstrdup(xhash_pool(c->hash), id);
+        elem->nvalues = 1;
+    }
+
     /* now, turn the nad into a config hash */
     path = NULL;
     len = 0, end = 0;
     /* start at 1, so we skip the root element */
-    for(i = 1; i < bd.nad->ecur; i++)
+    for(i = 1; i < bd.nad->ecur && rv == 0; i++)
     {
         /* make sure we have enough room to add this element to our path */
         if(end <= bd.nad->elems[i].depth)
@@ -182,11 +198,20 @@ int config_load(config_t c, const char *file)
         elem->values = realloc((void *) elem->values, sizeof(char *) * (elem->nvalues + 1));
 
         /* and copy it in */
-        if(NAD_CDATA_L(bd.nad, i) > 0)
+        if(NAD_CDATA_L(bd.nad, i) > 0) {
             // Expand values
-            elem->values[elem->nvalues] = _config_expandx(c, NAD_CDATA(bd.nad, i), NAD_CDATA_L(bd.nad, i));
-        else
+
+            const char *val = _config_expandx(c, NAD_CDATA(bd.nad, i), NAD_CDATA_L(bd.nad, i));
+
+            if (!val) {
+                rv = 1;
+                break;
+            }
+            // Make a copy
+            elem->values[elem->nvalues] = val;
+        } else {
             elem->values[elem->nvalues] = "1";
+        }
 
         /* make room for the attribute lists */
         elem->attrs = realloc((void *) elem->attrs, sizeof(char **) * (elem->nvalues + 1));
@@ -239,7 +264,7 @@ int config_load(config_t c, const char *file)
         nad_free(c->nad);
     c->nad = bd.nad;
 
-    return 0;
+    return rv;
 }
 
 /** get the config element for this key */
@@ -249,7 +274,7 @@ config_elem_t config_get(config_t c, const char *key)
 }
 
 /** get config value n for this key */
-char *config_get_one(config_t c, const char *key, int num)
+const char *config_get_one(config_t c, const char* key, int num)
 {
     config_elem_t elem = xhash_get(c->hash, key);
 
@@ -261,6 +286,18 @@ char *config_get_one(config_t c, const char *key, int num)
 
     return elem->values[num];
 }
+
+/** get config value n for this key, returns default_value if not found */
+const char *config_get_one_default(config_t c, const char *key, int num, const char *default_value)
+{
+    const char *rv = config_get_one(c, key, num);
+
+    if (!rv)
+        rv = default_value;
+
+    return rv;
+};
+
 
 /** how many values for this key? */
 int config_count(config_t c, const char *key)
@@ -300,29 +337,40 @@ char *config_expand(config_t c, const char *value)
 
 static char *_config_expandx(config_t c, const char *value, int l)
 {
-    //fprintf(stderr, "config_expand: Expanding '%s'\n", value);
+#ifdef CONFIGEXPAND_GUARDED
+    static char guard[] = "deadbeaf";
+#endif
+
+//     fprintf(stderr, "config_expand: Expanding '%s'\n", value);
     char *s = strndup(value, l);
 
     char *var_start, *var_end;
 
     while (var_start = strstr(s, "${")) {
-        //fprintf(stderr, "config_expand: processing '%s'\n", s);
+//         fprintf(stderr, "config_expand: processing '%s'\n", s);
         var_end = strstr(var_start + 2, "}");
 
         if (var_end) {
             char *tail = var_end + 1;
             char *var = var_start + 2;
-            const char *var_value;
             *var_end = 0;
 
-            //fprintf(stderr, "config_expand: Var '%s', tail is '%s'\n", var, tail);
+//             fprintf(stderr, "config_expand: Var '%s', tail is '%s'\n", var, tail);
 
-            var_value = config_get_one(c, var, 0);
+            const char *var_value = config_get_one(c, var, 0);
 
             if (var_value) {
                 int len = (var_start - s) + strlen(tail) + strlen(var_value) + 1;
 
+#ifdef CONFIGEXPAND_GUARDED
+                len += sizeof(guard);
+#endif
                 char *expanded_str = calloc(len, 1);
+
+#ifdef CONFIGEXPAND_GUARDED
+                char *p_guard = expanded_str + len - sizeof(guard);
+                strncpy(p_guard, guard, sizeof(guard));
+#endif
 
                 char *p = expanded_str;
                 strncpy(expanded_str, s, var_start - s);
