@@ -304,7 +304,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
     sm_signature(sm, PACKAGE " sm " VERSION);
 
     /* start storage */
-    sm->st = storage_new(sm);
+    sm->st = storage_new(sm->config, sm->log);
     if (sm->st == NULL) {
         log_write(sm->log, LOG_ERR, "failed to initialise one or more storage drivers, aborting");
         exit(1);

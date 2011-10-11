@@ -34,19 +34,18 @@ sm_SOURCES = aci.c \
              feature.c \
              main.c \
              mm.c \
-             object.c \
              pkt.c \
              pres.c \
              sess.c \
              sm.c \
-             user.c \
-             storage.c 
+             user.c
 
 sm_CPPFLAGS = -DCONFIG_DIR=\"$(sysconfdir)\" -DLIBRARY_DIR=\"$(pkglibdir)\"
 sm_LDFLAGS = -export-dynamic
 sm_LDADD = $(top_builddir)/sx/libsx.la \
            $(top_builddir)/mio/libmio.la \
-           $(top_builddir)/util/libutil.la
+           $(top_builddir)/util/libutil.la \
+           $(top_builddir)/storage/libstorage.la
 if USE_LIBSUBST
 sm_LDADD += $(top_builddir)/subst/libsubst.la
 endif

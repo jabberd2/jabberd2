@@ -23,7 +23,7 @@
  * on basis of authreg_ldap.c and storage_fs.c
  */
 
-#include "sm.h"
+#include "storage.h"
 
 #ifdef STORAGE_LDAP
 
@@ -104,11 +104,11 @@ int processregex(char *src, char *regex, int patterngroups, int wantedgroup, cha
   int error;
   //log_debug(ZONE,"processregex: src='%s' regex='%s'", src, regex);
   if (error=regcomp(&preg, regex, REG_ICASE|REG_EXTENDED) !=0) {
-        log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: regex compile failed on '%s'", regex);
+        log_write(drv->st->log, LOG_ERR, "ldapvcard: regex compile failed on '%s'", regex);
 	return -1;
   }
   if (error=regexec(&preg, src, patterngroups, pmatch, 0) !=0) {
-        log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: regexec failed");
+        log_write(drv->st->log, LOG_ERR, "ldapvcard: regexec failed");
 	return -2;
   }
   regfree(&preg); 
@@ -189,18 +189,18 @@ static int _st_ldapvcard_connect(st_driver_t drv)
   rc = ldap_initialize( &(data->ld), data->uri);
   if( rc != LDAP_SUCCESS )
   {
-    log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: ldap_initialize failed (uri=%s): %s", data->uri, ldap_err2string(rc));
+    log_write(drv->st->log, LOG_ERR, "ldapvcard: ldap_initialize failed (uri=%s): %s", data->uri, ldap_err2string(rc));
     return 1;
   }
 
   if (ldap_set_option(data->ld, LDAP_OPT_PROTOCOL_VERSION, &ldapversion) != LDAP_SUCCESS)
   {
-    log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: couldn't set v3 protocol");
+    log_write(drv->st->log, LOG_ERR, "ldapvcard: couldn't set v3 protocol");
     return 1;
   }
   if (ldap_set_option(data->ld, LDAP_OPT_REFERRALS, LDAP_OPT_ON) != LDAP_SUCCESS)
   {
-    log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: couldn't set LDAP_OPT_REFERRALS");
+    log_write(drv->st->log, LOG_ERR, "ldapvcard: couldn't set LDAP_OPT_REFERRALS");
   }
 
   return 0;
@@ -227,7 +227,7 @@ static int _st_ldapvcard_connect_bind(st_driver_t drv) {
   }
   if(ldap_simple_bind_s(data->ld, data->binddn, data->bindpw))
   {
-    log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: bind as %s failed: %s", data->binddn, ldap_err2string(_st_ldapvcard_get_lderrno(data->ld)));
+    log_write(drv->st->log, LOG_ERR, "ldapvcard: bind as %s failed: %s", data->binddn, ldap_err2string(_st_ldapvcard_get_lderrno(data->ld)));
     _st_ldapvcard_unbind(drv);
     return 1;
   }
@@ -241,12 +241,12 @@ static st_ret_t _st_ldapvcard_add_type(st_driver_t drv, const char *type) {
         strncmp(type,"published-roster",17) &&
         strncmp(type,"published-roster-groups",24)
         ) {
-        log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: only vcard,published-roster,published-roster-groups types supperted for now");
+        log_write(drv->st->log, LOG_ERR, "ldapvcard: only vcard,published-roster,published-roster-groups types supperted for now");
         return st_FAILED;
     } else {
         if( !strncmp(type,"published-roster-groups",24) ) {
             if( !data->mappedgroups ) {
-                log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: published-roster-groups is not enabled by map-groups config option in ldapvcard section");
+                log_write(drv->st->log, LOG_ERR, "ldapvcard: published-roster-groups is not enabled by map-groups config option in ldapvcard section");
                 return st_FAILED;
             }
         }
@@ -286,7 +286,7 @@ static st_ret_t _st_ldapvcard_get(st_driver_t drv, const char *type, const char 
 
         if(ldap_set_rebind_proc(data->ld, &rebindProc, data))
         {
-            log_write(drv->st->sm->log, LOG_ERR, "ldap: set_rebind_proc failed: %s", ldap_err2string(_st_ldapvcard_get_lderrno(data->ld)));
+            log_write(drv->st->log, LOG_ERR, "ldap: set_rebind_proc failed: %s", ldap_err2string(_st_ldapvcard_get_lderrno(data->ld)));
             ldap_unbind_s(data->ld);
             data->ld = NULL;
             return st_FAILED;
@@ -294,7 +294,7 @@ static st_ret_t _st_ldapvcard_get(st_driver_t drv, const char *type, const char 
 
         if(ldap_search_s(data->ld, data->basedn, LDAP_SCOPE_SUBTREE, ldapfilter, attrs_vcard, 0, &result))
         {
-            log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: search %s failed: %s", ldapfilter, ldap_err2string(_st_ldapvcard_get_lderrno(data->ld)));
+            log_write(drv->st->log, LOG_ERR, "ldapvcard: search %s failed: %s", ldapfilter, ldap_err2string(_st_ldapvcard_get_lderrno(data->ld)));
             _st_ldapvcard_unbind(drv);
             return st_FAILED;
         }
@@ -381,7 +381,7 @@ retry_pubrost:
                         return st_FAILED;
                     }
                 }
-                log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: search %s failed: %s", ldapfilter, ldap_err2string(_st_ldapvcard_get_lderrno(data->ld)));
+                log_write(drv->st->log, LOG_ERR, "ldapvcard: search %s failed: %s", ldapfilter, ldap_err2string(_st_ldapvcard_get_lderrno(data->ld)));
                 _st_ldapvcard_unbind(drv);
                 return st_FAILED;
             }
@@ -469,7 +469,7 @@ retry_pubrostgr:
                     return st_FAILED;
                 }
             }
-            log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: search %s failed: %s", ldapfilter, ldap_err2string(_st_ldapvcard_get_lderrno(data->ld)));
+            log_write(drv->st->log, LOG_ERR, "ldapvcard: search %s failed: %s", ldapfilter, ldap_err2string(_st_ldapvcard_get_lderrno(data->ld)));
             _st_ldapvcard_unbind(drv);
             return st_FAILED;
         }
@@ -497,7 +497,7 @@ retry_pubrostgr:
         o = os_object_new(*os);
         os_object_put(o,"groupname",group,os_type_STRING);
     } else {
-        log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: unknown storage type: '%s'", type);
+        log_write(drv->st->log, LOG_ERR, "ldapvcard: unknown storage type: '%s'", type);
         return st_FAILED;
     }
 
@@ -528,21 +528,21 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv)
     char *uri, *basedn, *srvtype_s;
     int srvtype_i;
 
-    log_write(drv->st->sm->log, LOG_NOTICE, "ldapvcard: initializing");
+    log_write(drv->st->log, LOG_NOTICE, "ldapvcard: initializing");
 
-    uri = config_get_one(drv->st->sm->config, "storage.ldapvcard.uri", 0);
+    uri = config_get_one(drv->st->config, "storage.ldapvcard.uri", 0);
     if(uri == NULL) {
-        log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: no uri specified in config file");
+        log_write(drv->st->log, LOG_ERR, "ldapvcard: no uri specified in config file");
         return st_FAILED;
     }
 
-    basedn = config_get_one(drv->st->sm->config, "storage.ldapvcard.basedn", 0);
+    basedn = config_get_one(drv->st->config, "storage.ldapvcard.basedn", 0);
     if(basedn == NULL) {
-        log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: no basedn specified in config file");
+        log_write(drv->st->log, LOG_ERR, "ldapvcard: no basedn specified in config file");
         return st_FAILED;
     }
 
-    srvtype_s = config_get_one(drv->st->sm->config, "storage.ldapvcard.type", 0);
+    srvtype_s = config_get_one(drv->st->config, "storage.ldapvcard.type", 0);
     if( srvtype_s == NULL ) {
         srvtype_i = LDAPVCARD_SRVTYPE_LDAP;
     } else if( !strcmp(srvtype_s, "ldap") ) {
@@ -550,7 +550,7 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv)
     } else if( !strcmp(srvtype_s, "ad") ) {
         srvtype_i = LDAPVCARD_SRVTYPE_AD;
     } else {
-        log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: unknown server type: %s", srvtype_s);
+        log_write(drv->st->log, LOG_ERR, "ldapvcard: unknown server type: %s", srvtype_s);
         return 1;
     }
 
@@ -562,53 +562,53 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv)
     data->basedn = basedn;
     data->srvtype = srvtype_i;
 
-    data->binddn = config_get_one(drv->st->sm->config, "storage.ldapvcard.binddn", 0);
+    data->binddn = config_get_one(drv->st->config, "storage.ldapvcard.binddn", 0);
     if(data->binddn != NULL)
-        data->bindpw = config_get_one(drv->st->sm->config, "storage.ldapvcard.bindpw", 0);
+        data->bindpw = config_get_one(drv->st->config, "storage.ldapvcard.bindpw", 0);
 
-    data->uidattr = config_get_one(drv->st->sm->config, "storage.ldapvcard.uidattr", 0);
+    data->uidattr = config_get_one(drv->st->config, "storage.ldapvcard.uidattr", 0);
     if(data->uidattr == NULL)
         data->uidattr = "uid";
 
-    data->validattr = config_get_one(drv->st->sm->config, "storage.ldapvcard.validattr", 0);
+    data->validattr = config_get_one(drv->st->config, "storage.ldapvcard.validattr", 0);
 
-    data->groupattr = config_get_one(drv->st->sm->config, "storage.ldapvcard.groupattr", 0);
+    data->groupattr = config_get_one(drv->st->config, "storage.ldapvcard.groupattr", 0);
     if(data->groupattr == NULL)
         data->groupattr = "jabberPublishedGroup";
 
-    data->groupattr_regex = config_get_one(drv->st->sm->config, "storage.ldapvcard.groupattr_regex", 0);
+    data->groupattr_regex = config_get_one(drv->st->config, "storage.ldapvcard.groupattr_regex", 0);
     
-    data->publishedattr = config_get_one(drv->st->sm->config, "storage.ldapvcard.publishedattr", 0);
+    data->publishedattr = config_get_one(drv->st->config, "storage.ldapvcard.publishedattr", 0);
     if(data->publishedattr == NULL)
         data->publishedattr = "jabberPublishedItem";
     
 #ifndef NO_SM_CACHE
-    data->cache_ttl = j_atoi(config_get_one(drv->st->sm->config, "storage.ldapvcard.publishedcachettl", 0), 0);
+    data->cache_ttl = j_atoi(config_get_one(drv->st->config, "storage.ldapvcard.publishedcachettl", 0), 0);
     data->cache = NULL;
     data->cache_time = 0;
 #endif
 
-    data->objectclass = config_get_one(drv->st->sm->config, "storage.ldapvcard.objectclass", 0);
+    data->objectclass = config_get_one(drv->st->config, "storage.ldapvcard.objectclass", 0);
     if(data->objectclass == NULL)
         data->objectclass = "jabberUser";
 
-    data->mappedgroups = j_atoi(config_get_one(drv->st->sm->config, "storage.ldapvcard.mapped-groups.map-groups", 0), 0);
+    data->mappedgroups = j_atoi(config_get_one(drv->st->config, "storage.ldapvcard.mapped-groups.map-groups", 0), 0);
     if( data->mappedgroups ) {
-        data->groupsdn = config_get_one(drv->st->sm->config, "storage.ldapvcard.mapped-groups.basedn", 0);
+        data->groupsdn = config_get_one(drv->st->config, "storage.ldapvcard.mapped-groups.basedn", 0);
         if(data->groupsdn == NULL) {
-            log_write(drv->st->sm->log, LOG_ERR, "ldapvcard: no basedn for mapped-groups specified in config file");
+            log_write(drv->st->log, LOG_ERR, "ldapvcard: no basedn for mapped-groups specified in config file");
             return st_FAILED;
         }
 
-        data->groupsoc = config_get_one(drv->st->sm->config, "storage.ldapvcard.mapped-groups.objectclass", 0);
+        data->groupsoc = config_get_one(drv->st->config, "storage.ldapvcard.mapped-groups.objectclass", 0);
         if(data->groupsoc == NULL)
             data->groupsoc = "jabberGroup";
 
-        data->groupsidattr = config_get_one(drv->st->sm->config, "storage.ldapvcard.mapped-groups.idattr", 0);
+        data->groupsidattr = config_get_one(drv->st->config, "storage.ldapvcard.mapped-groups.idattr", 0);
         if(data->groupsidattr == NULL)
             data->groupsidattr = "cn";
 
-        data->groupnameattr = config_get_one(drv->st->sm->config, "storage.ldapvcard.mapped-groups.nameattr", 0);
+        data->groupnameattr = config_get_one(drv->st->config, "storage.ldapvcard.mapped-groups.nameattr", 0);
         if(data->groupnameattr == NULL)
             data->groupnameattr = "description";
     }

@@ -35,7 +35,7 @@
  *     (I have a copy) that will be in 4.2 (due in June).
  */
 
-#include "sm.h"
+#include "storage.h"
 #include <db.h>
 
 /** internal structure, holds our data */
@@ -73,20 +73,20 @@ static st_ret_t _st_db_add_type(st_driver_t drv, const char *type) {
     dbd->data = data;
 
     if((err = db_create(&(dbd->db), data->env, 0)) != 0) {
-        log_write(drv->st->sm->log, LOG_ERR, "db: couldn't create db handle: %s", db_strerror(err));
+        log_write(drv->st->log, LOG_ERR, "db: couldn't create db handle: %s", db_strerror(err));
         free(dbd);
         return st_FAILED;
     }
 
     if((err = dbd->db->set_flags(dbd->db, DB_DUP)) != 0) {
-        log_write(drv->st->sm->log, LOG_ERR, "db: couldn't set database for duplicate storage: %s", db_strerror(err));
+        log_write(drv->st->log, LOG_ERR, "db: couldn't set database for duplicate storage: %s", db_strerror(err));
         dbd->db->close(dbd->db, 0);
         free(dbd);
         return st_FAILED;
     }
 
     if((err = dbd->db->open(dbd->db, NULL, "sm.db", type, DB_HASH, DB_AUTO_COMMIT | DB_CREATE, 0)) != 0) {
-        log_write(drv->st->sm->log, LOG_ERR, "db: couldn't open storage db: %s", db_strerror(err));
+        log_write(drv->st->log, LOG_ERR, "db: couldn't open storage db: %s", db_strerror(err));
         dbd->db->close(dbd->db, 0);
         free(dbd);
         return st_FAILED;
@@ -103,7 +103,7 @@ static st_ret_t _st_db_cursor_new(st_driver_t drv, dbdata_t dbd, DBC **cursor, D
 
     if(txnid != NULL)
         if((err = dbd->data->env->txn_begin(dbd->data->env, NULL, txnid, DB_TXN_SYNC)) != 0) {
-            log_write(drv->st->sm->log, LOG_ERR, "db: couldn't begin new transaction: %s", db_strerror(err));
+            log_write(drv->st->log, LOG_ERR, "db: couldn't begin new transaction: %s", db_strerror(err));
             return st_FAILED;
         }
 
@@ -113,7 +113,7 @@ static st_ret_t _st_db_cursor_new(st_driver_t drv, dbdata_t dbd, DBC **cursor, D
         err = dbd->db->cursor(dbd->db, *txnid, cursor, 0);
 
     if(err != 0) {
-        log_write(drv->st->sm->log, LOG_ERR, "db: couldn't create cursor: %s", db_strerror(err));
+        log_write(drv->st->log, LOG_ERR, "db: couldn't create cursor: %s", db_strerror(err));
         if(txnid != NULL)
             (*txnid)->abort(*txnid);
         return st_FAILED;
@@ -127,7 +127,7 @@ static st_ret_t _st_db_cursor_free(st_driver_t drv, dbdata_t dbd, DBC *cursor, D
     int err;
 
     if((err = cursor->c_close(cursor)) != 0) {
-        log_write(drv->st->sm->log, LOG_ERR, "db: couldn't close cursor: %s", db_strerror(err));
+        log_write(drv->st->log, LOG_ERR, "db: couldn't close cursor: %s", db_strerror(err));
         if(txnid != NULL)
             txnid->abort(txnid);
         return st_FAILED;
@@ -135,7 +135,7 @@ static st_ret_t _st_db_cursor_free(st_driver_t drv, dbdata_t dbd, DBC *cursor, D
 
     if(txnid != NULL)
         if((err = txnid->commit(txnid, DB_TXN_SYNC)) != 0) {
-            log_write(drv->st->sm->log, LOG_ERR, "db: couldn't commit transaction: %s", db_strerror(err));
+            log_write(drv->st->log, LOG_ERR, "db: couldn't commit transaction: %s", db_strerror(err));
             return st_FAILED;
         }
 
@@ -235,7 +235,7 @@ static os_object_t _st_db_object_deserialise(st_driver_t drv, os_t os, const cha
                 nad = nad_parse(sval, strlen(sval));
                 free(sval);
                 if(nad == NULL) {
-                    log_write(drv->st->sm->log, LOG_ERR, "db: unable to parse stored XML - database corruption?");
+                    log_write(drv->st->log, LOG_ERR, "db: unable to parse stored XML - database corruption?");
                     return NULL;
                 }
                 os_object_put(o, key, nad, os_type_NAD);
@@ -273,7 +273,7 @@ static st_ret_t _st_db_put_guts(st_driver_t drv, const char *type, const char *o
             val.size = len;
         
             if((err = c->c_put(c, &key, &val, DB_KEYLAST)) != 0) {
-                log_write(drv->st->sm->log, LOG_ERR, "db: couldn't store value for type %s owner %s in storage db: %s", type, owner, db_strerror(err));
+                log_write(drv->st->log, LOG_ERR, "db: couldn't store value for type %s owner %s in storage db: %s", type, owner, db_strerror(err));
                 free(buf);
                 return st_FAILED;
             }
@@ -355,21 +355,24 @@ static st_ret_t _st_db_get(st_driver_t drv, const char *type, const char *owner,
     }
 
     if(err != 0 && err != DB_NOTFOUND) {
-        log_write(drv->st->sm->log, LOG_ERR, "db: couldn't move cursor for type %s owner %s in storage db: %s", type, owner, db_strerror(err));
+        log_write(drv->st->log, LOG_ERR, "db: couldn't move cursor for type %s owner %s in storage db: %s", type, owner, db_strerror(err));
         t->abort(t);
         _st_db_cursor_free(drv, dbd, c, NULL);
         os_free(*os);
+        *os = NULL;
         return st_FAILED;
     }
 
     ret = _st_db_cursor_free(drv, dbd, c, t);
     if(ret != st_SUCCESS) {
         os_free(*os);
+        *os = NULL;
         return ret;
     }
 
     if(os_count(*os) == 0) {
         os_free(*os);
+        *os = NULL;
         return st_NOTFOUND;
     }
 
@@ -418,7 +421,7 @@ static st_ret_t _st_db_delete_guts(st_driver_t drv, const char *type, const char
     os_free(os);
 
     if(err != 0 && err != DB_NOTFOUND) {
-        log_write(drv->st->sm->log, LOG_ERR, "db: couldn't move cursor for type %s owner %s in storage db: %s", type, owner, db_strerror(err));
+        log_write(drv->st->log, LOG_ERR, "db: couldn't move cursor for type %s owner %s in storage db: %s", type, owner, db_strerror(err));
         return st_FAILED;
     }
 
@@ -524,27 +527,27 @@ st_ret_t st_init(st_driver_t drv) {
     DB_ENV *env;
     drvdata_t data;
 
-    path = config_get_one(drv->st->sm->config, "storage.db.path", 0);
+    path = config_get_one(drv->st->config, "storage.db.path", 0);
     if(path == NULL) {
-        log_write(drv->st->sm->log, LOG_ERR, "db: no path specified in config file");
+        log_write(drv->st->log, LOG_ERR, "db: no path specified in config file");
         return st_FAILED;
     }
 
     if((err = db_env_create(&env, 0)) != 0) {
-        log_write(drv->st->sm->log, LOG_ERR, "db: couldn't create environment: %s", db_strerror(err));
+        log_write(drv->st->log, LOG_ERR, "db: couldn't create environment: %s", db_strerror(err));
         return st_FAILED;
     }
 
     if((err = env->set_paniccall(env, _st_db_panic)) != 0) {
-        log_write(drv->st->sm->log, LOG_ERR, "db: couldn't set panic call: %s", db_strerror(err));
+        log_write(drv->st->log, LOG_ERR, "db: couldn't set panic call: %s", db_strerror(err));
         return st_FAILED;
     }
 
     /* store the log context in case we panic */
-    env->app_private = drv->st->sm->log;
+    env->app_private = drv->st->log;
 
     if((err = env->open(env, path, DB_INIT_LOCK | DB_INIT_MPOOL | DB_INIT_LOG | DB_INIT_TXN | DB_CREATE, 0)) != 0) {
-        log_write(drv->st->sm->log, LOG_ERR, "db: couldn't open environment: %s", db_strerror(err));
+        log_write(drv->st->log, LOG_ERR, "db: couldn't open environment: %s", db_strerror(err));
         env->close(env, 0);
         return st_FAILED;
     }
@@ -554,7 +557,7 @@ st_ret_t st_init(st_driver_t drv) {
     data->env = env;
     data->path = path;
 
-    if(config_get_one(drv->st->sm->config, "storage.db.sync", 0) != NULL)
+    if(config_get_one(drv->st->config, "storage.db.sync", 0) != NULL)
         data->sync = 1;
 
     data->dbs = xhash_new(101);

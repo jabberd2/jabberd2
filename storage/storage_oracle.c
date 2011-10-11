@@ -18,7 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
-#include "sm.h"
+#include "storage.h"
 #include <string.h>
 #include <oci.h>
 
@@ -65,23 +65,23 @@ int checkOCIError(st_driver_t drv, char *szDoing, OCIError *m_ociError, sword nS
     case OCI_SUCCESS:
       break;
     case OCI_SUCCESS_WITH_INFO:
-      log_write(drv->st->sm->log, LOG_ERR, "(%s) Error - OCI_SUCCESS_WITH_INFO\n", szDoing);
+      log_write(drv->st->log, LOG_ERR, "(%s) Error - OCI_SUCCESS_WITH_INFO\n", szDoing);
       break;
     case OCI_NEED_DATA:
-      log_write(drv->st->sm->log, LOG_ERR, "(%s) Error - OCI_NEED_DATA\n", szDoing);
+      log_write(drv->st->log, LOG_ERR, "(%s) Error - OCI_NEED_DATA\n", szDoing);
       break;
     case OCI_NO_DATA:
-      log_write(drv->st->sm->log, LOG_ERR, "(%s) Error - OCI_NODATA\n", szDoing);
+      log_write(drv->st->log, LOG_ERR, "(%s) Error - OCI_NODATA\n", szDoing);
       break;
     case OCI_ERROR:
       OCIErrorGet(m_ociError, (ub4) 1, (text *) NULL, &nErrorCode, txtErrorBuffer, (ub4) sizeof(txtErrorBuffer), OCI_HTYPE_ERROR);
-      log_write(drv->st->sm->log, LOG_ERR, "(%s) Error - %s\n", szDoing, txtErrorBuffer);
+      log_write(drv->st->log, LOG_ERR, "(%s) Error - %s\n", szDoing, txtErrorBuffer);
       break;
     case OCI_INVALID_HANDLE:
-      log_write(drv->st->sm->log, LOG_ERR, "(%s) Error - OCI_INVALID_HANDLE\n", szDoing);
+      log_write(drv->st->log, LOG_ERR, "(%s) Error - OCI_INVALID_HANDLE\n", szDoing);
       break;
     case OCI_STILL_EXECUTING:
-      log_write(drv->st->sm->log, LOG_ERR, "(%s) Error - OCI_STILL_EXECUTE\n", szDoing);
+      log_write(drv->st->log, LOG_ERR, "(%s) Error - OCI_STILL_EXECUTE\n", szDoing);
       break;
     default:
       break;
@@ -202,14 +202,14 @@ static int oracle_ping(st_driver_t drv)
     int _len = 0;
 
     OCIErrorGet((dvoid *)odpOracleDriver->ociError, (ub4) 1, (text *) NULL, &nResultCode, szErrorBuffer, (ub4) sizeof(szErrorBuffer), OCI_HTYPE_ERROR);
-    log_write(drv->st->sm->log, LOG_ERR, "storage_oracle.c (oracle_ping): %s", szErrorBuffer);
+    log_write(drv->st->log, LOG_ERR, "storage_oracle.c (oracle_ping): %s", szErrorBuffer);
 
     // Obtain user configuration
-    svHost = config_get_one(drv->st->sm->config, "storage.oracle.host", 0);
-    svUser = config_get_one(drv->st->sm->config, "storage.oracle.user", 0);
-    svPass = config_get_one(drv->st->sm->config, "storage.oracle.pass", 0);
-    svPort = config_get_one(drv->st->sm->config, "storage.oracle.port", 0);
-    svSid  = config_get_one(drv->st->sm->config, "storage.oracle.dbname", 0);
+    svHost = config_get_one(drv->st->config, "storage.oracle.host", 0);
+    svUser = config_get_one(drv->st->config, "storage.oracle.user", 0);
+    svPass = config_get_one(drv->st->config, "storage.oracle.pass", 0);
+    svPort = config_get_one(drv->st->config, "storage.oracle.port", 0);
+    svSid  = config_get_one(drv->st->config, "storage.oracle.dbname", 0);
 
     ORACLE_SAFE( oracle_server_host, strlen(svHost) + strlen(svPort) + strlen(svSid) + strlen(oracle_server_parameters), _len );
     sprintf( oracle_server_host, oracle_server_parameters, svHost, svPort, svSid );
@@ -221,7 +221,7 @@ static int oracle_ping(st_driver_t drv)
     if (nResultCode != 0)
     {
       OCIErrorGet((dvoid *)odpOracleDriver->ociError, (ub4) 1, (text *) NULL, &nResultCode, szErrorBuffer, (ub4) sizeof(szErrorBuffer), OCI_HTYPE_ERROR);
-      log_write(drv->st->sm->log, LOG_ERR, "storage_oracle.c (oracle_ping): %s", szErrorBuffer);
+      log_write(drv->st->log, LOG_ERR, "storage_oracle.c (oracle_ping): %s", szErrorBuffer);
     }
 
     free(oracle_server_host);
@@ -481,7 +481,7 @@ static st_ret_t _st_oracle_put(st_driver_t drv, char *type, char *owner, os_t os
 
   if(oracle_ping(drv) != 0)
   {
-    log_write(drv->st->sm->log, LOG_ERR, "oracle: connection to database lost");
+    log_write(drv->st->log, LOG_ERR, "oracle: connection to database lost");
     return st_FAILED;
   }
 
@@ -513,7 +513,7 @@ static st_ret_t _st_oracle_get(st_driver_t drv, char *a_szType, char *owner, cha
   
   if(oracle_ping(drv) != 0)
   {
-    log_write(drv->st->sm->log, LOG_ERR, "_st_oracle_get: Connection to database lost!");
+    log_write(drv->st->log, LOG_ERR, "_st_oracle_get: Connection to database lost!");
     return st_FAILED;
   }
 
@@ -770,7 +770,7 @@ static int _st_oracle_count( st_driver_t drv, char *a_szType, char *owner, char 
 
     if(oracle_ping(drv) != 0)
     {
-        log_write(drv->st->sm->log, LOG_ERR, "_st_oracle_count: Connection to database lost!");
+        log_write(drv->st->log, LOG_ERR, "_st_oracle_count: Connection to database lost!");
         return st_FAILED;
     }
 
@@ -834,7 +834,7 @@ static st_ret_t _st_oracle_delete(st_driver_t drv, char *type, char *owner, char
 
   if(oracle_ping(drv) != 0) 
   {
-    log_write(drv->st->sm->log, LOG_ERR, "oracle: Connection to database lost");
+    log_write(drv->st->log, LOG_ERR, "oracle: Connection to database lost");
     return st_FAILED;
   }
 
@@ -883,7 +883,7 @@ static st_ret_t _st_oracle_replace(st_driver_t drv, char *type, char *owner, cha
 {
   if(oracle_ping(drv) != 0)
   {
-    log_write(drv->st->sm->log, LOG_ERR, "oracle: connection to database lost");
+    log_write(drv->st->log, LOG_ERR, "oracle: connection to database lost");
     return st_FAILED;
   }
 
@@ -929,15 +929,15 @@ st_ret_t st_init(st_driver_t drv) {
 
     OracleDriverPointer data;
 
-    svHost = config_get_one(drv->st->sm->config, "storage.oracle.host", 0);
-    svUser = config_get_one(drv->st->sm->config, "storage.oracle.user", 0);
-    svPass = config_get_one(drv->st->sm->config, "storage.oracle.pass", 0);
-    svPort = config_get_one(drv->st->sm->config, "storage.oracle.port", 0);
-    svSid  = config_get_one(drv->st->sm->config, "storage.oracle.dbname", 0);
+    svHost = config_get_one(drv->st->config, "storage.oracle.host", 0);
+    svUser = config_get_one(drv->st->config, "storage.oracle.user", 0);
+    svPass = config_get_one(drv->st->config, "storage.oracle.pass", 0);
+    svPort = config_get_one(drv->st->config, "storage.oracle.port", 0);
+    svSid  = config_get_one(drv->st->config, "storage.oracle.dbname", 0);
 
     if(svHost == NULL || svUser == NULL || svPass == NULL || svPort == NULL || svSid == NULL)
     {
-      log_write(drv->st->sm->log, LOG_ERR, "(st_oracle_init: ) Invalid driver config from XML file.");
+      log_write(drv->st->log, LOG_ERR, "(st_oracle_init: ) Invalid driver config from XML file.");
       return st_FAILED;
     }
 
@@ -948,7 +948,7 @@ st_ret_t st_init(st_driver_t drv) {
 
     if (nResultCode != 0)
     {
-      log_write(drv->st->sm->log, LOG_ERR, "(st_oracle_init: ) Could not Initialize OCI Environment (%d)", nResultCode);
+      log_write(drv->st->log, LOG_ERR, "(st_oracle_init: ) Could not Initialize OCI Environment (%d)", nResultCode);
       return st_FAILED;
     }
 
@@ -957,7 +957,7 @@ st_ret_t st_init(st_driver_t drv) {
 
     if (nResultCode != 0)
     {
-      log_write(drv->st->sm->log, LOG_ERR, "(st_oracle_init: ) Could not create OCI Error object (%d)" , nResultCode);
+      log_write(drv->st->log, LOG_ERR, "(st_oracle_init: ) Could not create OCI Error object (%d)" , nResultCode);
       nResultCode = OCIHandleFree((dvoid *) ociEnvironment, OCI_HTYPE_ENV);
       return st_FAILED;
     }
@@ -1012,7 +1012,7 @@ st_ret_t st_init(st_driver_t drv) {
 
     data->filters = xhash_new(17);
 
-    data->prefix = config_get_one(drv->st->sm->config, "storage.oracle.prefix", 0);
+    data->prefix = config_get_one(drv->st->config, "storage.oracle.prefix", 0);
 
     drv->private = (void *) data;
 
