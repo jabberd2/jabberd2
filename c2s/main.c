@@ -37,6 +37,16 @@ static void _c2s_signal_hup(int signum)
     c2s_logrotate = 1;
 }
 
+static void _c2s_signal_usr1(int signum)
+{
+    set_debug_flag(0);
+}
+
+static void _c2s_signal_usr2(int signum)
+{
+    set_debug_flag(1);
+}
+
 /** store the process id */
 static void _c2s_pidfile(c2s_t c2s) {
     char *pidfile;
@@ -594,6 +604,9 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
 #ifdef SIGPIPE
     jabber_signal(SIGPIPE, SIG_IGN);
 #endif
+    jabber_signal(SIGUSR1, _c2s_signal_usr1);
+    jabber_signal(SIGUSR2, _c2s_signal_usr2);
+
 
     c2s = (c2s_t) calloc(1, sizeof(struct c2s_st));
 

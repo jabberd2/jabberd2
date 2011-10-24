@@ -61,6 +61,16 @@ static void _sm_signal_hup(int signum)
     sm->mm = mm_new(sm);
 }
 
+static void _sm_signal_usr1(int signum)
+{
+    set_debug_flag(0);
+}
+
+static void _sm_signal_usr2(int signum)
+{
+    set_debug_flag(1);
+}
+
 /** store the process id */
 static void _sm_pidfile(sm_t sm) {
     char *pidfile;
@@ -224,6 +234,9 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
 #ifdef SIGPIPE
     jabber_signal(SIGPIPE, SIG_IGN);
 #endif
+    jabber_signal(SIGUSR1, _sm_signal_usr1);
+    jabber_signal(SIGUSR2, _sm_signal_usr2);
+
 
     sm = (sm_t) calloc(1, sizeof(struct sm_st));
 

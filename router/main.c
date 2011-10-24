@@ -33,6 +33,16 @@ static void router_signal_hup(int signum)
     router_logrotate = 1;
 }
 
+static void router_signal_usr1(int signum)
+{
+    set_debug_flag(0);
+}
+
+static void router_signal_usr2(int signum)
+{
+    set_debug_flag(1);
+}
+
 /** store the process id */
 static void _router_pidfile(router_t r) {
     char *pidfile;
@@ -318,6 +328,8 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
 #ifdef SIGPIPE
     jabber_signal(SIGPIPE, SIG_IGN);
 #endif
+    jabber_signal(SIGUSR1, router_signal_usr1);
+    jabber_signal(SIGUSR2, router_signal_usr2);
 
     r = (router_t) calloc(1, sizeof(struct router_st));
 
