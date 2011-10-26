@@ -11,6 +11,7 @@ AM_INIT_AUTOMAKE
 AC_PROG_CC
 AM_PROG_CC_C_O
 AC_PROG_CPP
+AC_PROG_CXX
 AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_MAKE_SET
@@ -929,6 +930,10 @@ if test "x-$want_experimental" = "x-yes" ; then
 fi
 AM_CONDITIONAL(ENABLE_EXPERIMENTAL, [test "x-$want_experimental" = "x-yes"])
 
+PKG_CHECK_MODULES([CPPUNIT], [cppunit])
+AC_SUBST(CPPUNIT_CFLAGS)
+AC_SUBST(CPPUNIT_LDFLAGS)
+
 # Generate Makefiles
 AC_CONFIG_FILES([Doxyfile
                  Makefile
@@ -945,5 +950,6 @@ AC_CONFIG_FILES([Doxyfile
                  s2s/Makefile
                  sm/Makefile
                  tools/Makefile
-                 tests/Makefile])
+                 tests/Makefile
+                 tests/config/Makefile])
 AC_OUTPUT

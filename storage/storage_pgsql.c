@@ -25,7 +25,7 @@
   * $Revision: 1.25 $
   */
 
-#include "sm.h"
+#include "storage.h"
 #include <libpq-fe.h>
 
 /** internal structure, holds our data */
@@ -244,13 +244,13 @@ static st_ret_t _st_pgsql_put_guts(st_driver_t drv, const char *type, const char
             res = PQexec(data->conn, left);
 
             if(PQresultStatus(res) != PGRES_COMMAND_OK && PQstatus(data->conn) != CONNECTION_OK) {
-                log_write(drv->st->sm->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
+                log_write(drv->st->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
                 PQclear(res);
                 PQreset(data->conn);
                 res = PQexec(data->conn, left);
             }
             if(PQresultStatus(res) != PGRES_COMMAND_OK) {
-                log_write(drv->st->sm->log, LOG_ERR, "pgsql: sql insert failed: %s", PQresultErrorMessage(res));
+                log_write(drv->st->log, LOG_ERR, "pgsql: sql insert failed: %s", PQresultErrorMessage(res));
                 free(left);
                 free(right);
                 PQclear(res);
@@ -277,13 +277,13 @@ static st_ret_t _st_pgsql_put(st_driver_t drv, const char *type, const char *own
     if(data->txn) {
         res = PQexec(data->conn, "BEGIN;");
         if(PQresultStatus(res) != PGRES_COMMAND_OK && PQstatus(data->conn) != CONNECTION_OK) {
-            log_write(drv->st->sm->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
+            log_write(drv->st->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
             PQclear(res);
             PQreset(data->conn);
             res = PQexec(data->conn, "BEGIN;");
         }
         if(PQresultStatus(res) != PGRES_COMMAND_OK) {
-            log_write(drv->st->sm->log, LOG_ERR, "pgsql: sql transaction begin failed: %s", PQresultErrorMessage(res));
+            log_write(drv->st->log, LOG_ERR, "pgsql: sql transaction begin failed: %s", PQresultErrorMessage(res));
             PQclear(res);
             return st_FAILED;
         }
@@ -291,13 +291,13 @@ static st_ret_t _st_pgsql_put(st_driver_t drv, const char *type, const char *own
 
         res = PQexec(data->conn, "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;");
         if(PQresultStatus(res) != PGRES_COMMAND_OK && PQstatus(data->conn) != CONNECTION_OK) {
-            log_write(drv->st->sm->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
+            log_write(drv->st->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
             PQclear(res);
             PQreset(data->conn);
             res = PQexec(data->conn, "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;");
         }
         if(PQresultStatus(res) != PGRES_COMMAND_OK) {
-            log_write(drv->st->sm->log, LOG_ERR, "pgsql: sql transaction setup failed: %s", PQresultErrorMessage(res));
+            log_write(drv->st->log, LOG_ERR, "pgsql: sql transaction setup failed: %s", PQresultErrorMessage(res));
             PQclear(res);
             PQclear(PQexec(data->conn, "ROLLBACK;"));
             return st_FAILED;
@@ -314,13 +314,13 @@ static st_ret_t _st_pgsql_put(st_driver_t drv, const char *type, const char *own
     if(data->txn) {
         res = PQexec(data->conn, "COMMIT;");
         if(PQresultStatus(res) != PGRES_COMMAND_OK && PQstatus(data->conn) != CONNECTION_OK) {
-            log_write(drv->st->sm->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
+            log_write(drv->st->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
             PQclear(res);
             PQreset(data->conn);
             res = PQexec(data->conn, "COMMIT;");
         }
         if(PQresultStatus(res) != PGRES_COMMAND_OK) {
-            log_write(drv->st->sm->log, LOG_ERR, "pgsql: sql transaction commit failed: %s", PQresultErrorMessage(res));
+            log_write(drv->st->log, LOG_ERR, "pgsql: sql transaction commit failed: %s", PQresultErrorMessage(res));
             PQclear(res);
             PQclear(PQexec(data->conn, "ROLLBACK;"));
             return st_FAILED;
@@ -360,7 +360,7 @@ static st_ret_t _st_pgsql_get(st_driver_t drv, const char *type, const char *own
     res = PQexec(data->conn, buf);
 
     if(PQresultStatus(res) != PGRES_TUPLES_OK && PQstatus(data->conn) != CONNECTION_OK) {
-        log_write(drv->st->sm->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
+        log_write(drv->st->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
         PQclear(res);
         PQreset(data->conn);
         res = PQexec(data->conn, buf);
@@ -369,7 +369,7 @@ static st_ret_t _st_pgsql_get(st_driver_t drv, const char *type, const char *own
     free(buf);
 
     if(PQresultStatus(res) != PGRES_TUPLES_OK) {
-        log_write(drv->st->sm->log, LOG_ERR, "pgsql: sql select failed: %s", PQresultErrorMessage(res));
+        log_write(drv->st->log, LOG_ERR, "pgsql: sql select failed: %s", PQresultErrorMessage(res));
         PQclear(res);
         return st_FAILED;
     }
@@ -475,7 +475,7 @@ static st_ret_t _st_pgsql_count(st_driver_t drv, const char *type, const char *o
     res = PQexec(data->conn, buf);
 
     if(PQresultStatus(res) != PGRES_TUPLES_OK && PQstatus(data->conn) != CONNECTION_OK) {
-        log_write(drv->st->sm->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
+        log_write(drv->st->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
         PQclear(res);
         PQreset(data->conn);
         res = PQexec(data->conn, buf);
@@ -484,7 +484,7 @@ static st_ret_t _st_pgsql_count(st_driver_t drv, const char *type, const char *o
     free(buf);
 
     if(PQresultStatus(res) != PGRES_TUPLES_OK) {
-        log_write(drv->st->sm->log, LOG_ERR, "pgsql: sql select failed: %s", PQresultErrorMessage(res));
+        log_write(drv->st->log, LOG_ERR, "pgsql: sql select failed: %s", PQresultErrorMessage(res));
         PQclear(res);
         return st_FAILED;
     }
@@ -540,7 +540,7 @@ static st_ret_t _st_pgsql_delete(st_driver_t drv, const char *type, const char *
     res = PQexec(data->conn, buf);
 
     if(PQresultStatus(res) != PGRES_COMMAND_OK && PQstatus(data->conn) != CONNECTION_OK) {
-        log_write(drv->st->sm->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
+        log_write(drv->st->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
         PQclear(res);
         PQreset(data->conn);
         res = PQexec(data->conn, buf);
@@ -549,7 +549,7 @@ static st_ret_t _st_pgsql_delete(st_driver_t drv, const char *type, const char *
     free(buf);
 
     if(PQresultStatus(res) != PGRES_COMMAND_OK) {
-        log_write(drv->st->sm->log, LOG_ERR, "pgsql: sql delete failed: %s", PQresultErrorMessage(res));
+        log_write(drv->st->log, LOG_ERR, "pgsql: sql delete failed: %s", PQresultErrorMessage(res));
         PQclear(res);
         return st_FAILED;
     }
@@ -566,13 +566,13 @@ static st_ret_t _st_pgsql_replace(st_driver_t drv, const char *type, const char 
     if(data->txn) {
         res = PQexec(data->conn, "BEGIN;");
         if(PQresultStatus(res) != PGRES_COMMAND_OK && PQstatus(data->conn) != CONNECTION_OK) {
-            log_write(drv->st->sm->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
+            log_write(drv->st->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
             PQclear(res);
             PQreset(data->conn);
             res = PQexec(data->conn, "BEGIN;");
         }
         if(PQresultStatus(res) != PGRES_COMMAND_OK) {
-            log_write(drv->st->sm->log, LOG_ERR, "pgsql: sql transaction begin failed: %s", PQresultErrorMessage(res));
+            log_write(drv->st->log, LOG_ERR, "pgsql: sql transaction begin failed: %s", PQresultErrorMessage(res));
             PQclear(res);
             return st_FAILED;
         }
@@ -580,13 +580,13 @@ static st_ret_t _st_pgsql_replace(st_driver_t drv, const char *type, const char 
 
         res = PQexec(data->conn, "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;");
         if(PQresultStatus(res) != PGRES_COMMAND_OK && PQstatus(data->conn) != CONNECTION_OK) {
-            log_write(drv->st->sm->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
+            log_write(drv->st->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
             PQclear(res);
             PQreset(data->conn);
             res = PQexec(data->conn, "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;");
         }
         if(PQresultStatus(res) != PGRES_COMMAND_OK) {
-            log_write(drv->st->sm->log, LOG_ERR, "pgsql: sql transaction setup failed: %s", PQresultErrorMessage(res));
+            log_write(drv->st->log, LOG_ERR, "pgsql: sql transaction setup failed: %s", PQresultErrorMessage(res));
             PQclear(res);
             PQclear(PQexec(data->conn, "ROLLBACK;"));
             return st_FAILED;
@@ -609,13 +609,13 @@ static st_ret_t _st_pgsql_replace(st_driver_t drv, const char *type, const char 
     if(data->txn) {
         res = PQexec(data->conn, "COMMIT;");
         if(PQresultStatus(res) != PGRES_COMMAND_OK && PQstatus(data->conn) != CONNECTION_OK) {
-            log_write(drv->st->sm->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
+            log_write(drv->st->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
             PQclear(res);
             PQreset(data->conn);
             res = PQexec(data->conn, "COMMIT;");
         }
         if(PQresultStatus(res) != PGRES_COMMAND_OK) {
-            log_write(drv->st->sm->log, LOG_ERR, "pgsql: sql transaction commit failed: %s", PQresultErrorMessage(res));
+            log_write(drv->st->log, LOG_ERR, "pgsql: sql transaction commit failed: %s", PQresultErrorMessage(res));
             PQclear(res);
             PQclear(PQexec(data->conn, "ROLLBACK;"));
             return st_FAILED;
@@ -639,12 +639,12 @@ st_ret_t st_init(st_driver_t drv) {
     PGconn *conn;
     drvdata_t data;
 
-    host = config_get_one(drv->st->sm->config, "storage.pgsql.host", 0);
-    port = config_get_one(drv->st->sm->config, "storage.pgsql.port", 0);
-    dbname = config_get_one(drv->st->sm->config, "storage.pgsql.dbname", 0);
-    user = config_get_one(drv->st->sm->config, "storage.pgsql.user", 0);
-    pass = config_get_one(drv->st->sm->config, "storage.pgsql.pass", 0);
-    conninfo = config_get_one(drv->st->sm->config, "storage.pgsql.conninfo",0);
+    host = config_get_one(drv->st->config, "storage.pgsql.host", 0);
+    port = config_get_one(drv->st->config, "storage.pgsql.port", 0);
+    dbname = config_get_one(drv->st->config, "storage.pgsql.dbname", 0);
+    user = config_get_one(drv->st->config, "storage.pgsql.user", 0);
+    pass = config_get_one(drv->st->config, "storage.pgsql.pass", 0);
+    conninfo = config_get_one(drv->st->config, "storage.pgsql.conninfo",0);
 
     if(conninfo) {
         conn = PQconnectdb(conninfo);
@@ -653,23 +653,23 @@ st_ret_t st_init(st_driver_t drv) {
     }
 
     if(conn == NULL) {
-        log_write(drv->st->sm->log, LOG_ERR, "pgsql: unable to allocate database connection state");
+        log_write(drv->st->log, LOG_ERR, "pgsql: unable to allocate database connection state");
         return st_FAILED;
     }
 
     if(PQstatus(conn) != CONNECTION_OK)
-        log_write(drv->st->sm->log, LOG_ERR, "pgsql: connection to database failed: %s", PQerrorMessage(conn));
+        log_write(drv->st->log, LOG_ERR, "pgsql: connection to database failed: %s", PQerrorMessage(conn));
 
     data = (drvdata_t) calloc(1, sizeof(struct drvdata_st));
 
     data->conn = conn;
 
-    if(config_get_one(drv->st->sm->config, "storage.pgsql.transactions", 0) != NULL)
+    if(config_get_one(drv->st->config, "storage.pgsql.transactions", 0) != NULL)
         data->txn = 1;
     else
-        log_write(drv->st->sm->log, LOG_WARNING, "pgsql: transactions disabled");
+        log_write(drv->st->log, LOG_WARNING, "pgsql: transactions disabled");
 
-    data->prefix = config_get_one(drv->st->sm->config, "storage.pgsql.prefix", 0);
+    data->prefix = config_get_one(drv->st->config, "storage.pgsql.prefix", 0);
 
     drv->private = (void *) data;
 

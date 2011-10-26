@@ -106,7 +106,7 @@ void log_write(log_t log, int level, const char *msgfmt, ...)
     int sz, len;
     time_t t;
 
-    if(log->type == log_SYSLOG) {
+    if(log && log->type == log_SYSLOG) {
         va_start(ap, msgfmt);
 #ifdef HAVE_VSYSLOG
         vsyslog(level, msgfmt, ap);
@@ -146,9 +146,9 @@ void log_write(log_t log, int level, const char *msgfmt, ...)
     vsnprintf(pos, MAX_LOG_LINE - sz, msgfmt, ap);
     va_end(ap);
 #ifndef DEBUG
-    if(log->type != log_SYSLOG) {
+    if(log && log->type != log_SYSLOG) {
 #endif
-        if(log->file) {
+        if(log && log->file) {
             fprintf(log->file,"%s", message);
             fprintf(log->file, "\n");
             fflush(log->file);
@@ -159,7 +159,7 @@ void log_write(log_t log, int level, const char *msgfmt, ...)
 
 #ifdef DEBUG
     /* If we are in debug mode we want everything copied to the stdout */
-    if (get_debug_flag() && log->type != log_STDOUT) {
+    if ((log == 0) || (get_debug_flag() && log->type != log_STDOUT)) {
         fprintf(stdout, "%s\n", message);
         fflush(stdout);
     }
@@ -216,5 +216,8 @@ void set_debug_flag(int v)
 }
 #else /* DEBUG */
 void debug_log(const char *file, int line, const char *msgfmt, ...)
+{ }
+
+void set_debug_flag(int v)
 { }
 #endif

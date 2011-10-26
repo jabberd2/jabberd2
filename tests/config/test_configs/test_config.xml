@@ -1,0 +1,4 @@
+<test_cfg>
+	<include>includeme2.xml</include>
+	<include>subdir/includeme.xml</include>
+</test_cfg>

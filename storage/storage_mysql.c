@@ -25,7 +25,7 @@
   * $Revision: 1.22 $
   */
 
-#include "sm.h"
+#include "storage.h"
 #include <mysql.h>
 
 /** internal structure, holds our data */
@@ -242,7 +242,7 @@ static st_ret_t _st_mysql_put_guts(st_driver_t drv, const char *type, const char
             log_debug(ZONE, "prepared sql: %s", left);
     
             if(mysql_query(data->conn, left) != 0) {
-                log_write(drv->st->sm->log, LOG_ERR, "mysql: sql insert failed: %s", mysql_error(data->conn));
+                log_write(drv->st->log, LOG_ERR, "mysql: sql insert failed: %s", mysql_error(data->conn));
                 free(left);
                 free(right);
                 return st_FAILED;
@@ -263,18 +263,18 @@ static st_ret_t _st_mysql_put(st_driver_t drv, const char *type, const char *own
         return st_SUCCESS;
 
     if(mysql_ping(data->conn) != 0) {
-        log_write(drv->st->sm->log, LOG_ERR, "mysql: connection to database lost");
+        log_write(drv->st->log, LOG_ERR, "mysql: connection to database lost");
         return st_FAILED;
     }
 
     if(data->txn) {
         if(mysql_query(data->conn, "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE") != 0) {
-            log_write(drv->st->sm->log, LOG_ERR, "mysql: sql transaction setup failed: %s", mysql_error(data->conn));
+            log_write(drv->st->log, LOG_ERR, "mysql: sql transaction setup failed: %s", mysql_error(data->conn));
             return st_FAILED;
         }
 
         if(mysql_query(data->conn, "BEGIN") != 0) {
-            log_write(drv->st->sm->log, LOG_ERR, "mysql: sql transaction begin failed: %s", mysql_error(data->conn));
+            log_write(drv->st->log, LOG_ERR, "mysql: sql transaction begin failed: %s", mysql_error(data->conn));
             return st_FAILED;
         }
     }
@@ -287,7 +287,7 @@ static st_ret_t _st_mysql_put(st_driver_t drv, const char *type, const char *own
 
     if(data->txn)
         if(mysql_query(data->conn, "COMMIT") != 0) {
-            log_write(drv->st->sm->log, LOG_ERR, "mysql: sql transaction commit failed: %s", mysql_error(data->conn));
+            log_write(drv->st->log, LOG_ERR, "mysql: sql transaction commit failed: %s", mysql_error(data->conn));
             mysql_query(data->conn, "ROLLBACK");
             return st_FAILED;
         }
@@ -311,7 +311,7 @@ static st_ret_t _st_mysql_get(st_driver_t drv, const char *type, const char *own
     char tbuf[128];
 
     if(mysql_ping(data->conn) != 0) {
-        log_write(drv->st->sm->log, LOG_ERR, "mysql: connection to database lost");
+        log_write(drv->st->log, LOG_ERR, "mysql: connection to database lost");
         return st_FAILED;
     }
 
@@ -330,7 +330,7 @@ static st_ret_t _st_mysql_get(st_driver_t drv, const char *type, const char *own
     log_debug(ZONE, "prepared sql: %s", buf);
 
     if(mysql_query(data->conn, buf) != 0) {
-        log_write(drv->st->sm->log, LOG_ERR, "mysql: sql select failed: %s", mysql_error(data->conn));
+        log_write(drv->st->log, LOG_ERR, "mysql: sql select failed: %s", mysql_error(data->conn));
         free(buf);
         return st_FAILED;
     }
@@ -338,7 +338,7 @@ static st_ret_t _st_mysql_get(st_driver_t drv, const char *type, const char *own
 
     res = mysql_store_result(data->conn);
     if(res == NULL) {
-        log_write(drv->st->sm->log, LOG_ERR, "mysql: sql result retrieval failed: %s", mysql_error(data->conn));
+        log_write(drv->st->log, LOG_ERR, "mysql: sql result retrieval failed: %s", mysql_error(data->conn));
         return st_FAILED;
     }
 
@@ -435,7 +435,7 @@ static st_ret_t _st_mysql_count(st_driver_t drv, const char *type, const char *o
     char tbuf[128];
 
     if(mysql_ping(data->conn) != 0) {
-        log_write(drv->st->sm->log, LOG_ERR, "mysql: connection to database lost");
+        log_write(drv->st->log, LOG_ERR, "mysql: connection to database lost");
         return st_FAILED;
     }
 
@@ -454,7 +454,7 @@ static st_ret_t _st_mysql_count(st_driver_t drv, const char *type, const char *o
     log_debug(ZONE, "prepared sql: %s", buf);
 
     if(mysql_query(data->conn, buf) != 0) {
-        log_write(drv->st->sm->log, LOG_ERR, "mysql: sql select failed: %s", mysql_error(data->conn));
+        log_write(drv->st->log, LOG_ERR, "mysql: sql select failed: %s", mysql_error(data->conn));
         free(buf);
         return st_FAILED;
     }
@@ -462,7 +462,7 @@ static st_ret_t _st_mysql_count(st_driver_t drv, const char *type, const char *o
 
     res = mysql_store_result(data->conn);
     if(res == NULL) {
-        log_write(drv->st->sm->log, LOG_ERR, "mysql: sql result retrieval failed: %s", mysql_error(data->conn));
+        log_write(drv->st->log, LOG_ERR, "mysql: sql result retrieval failed: %s", mysql_error(data->conn));
         return st_FAILED;
     }
 
@@ -500,7 +500,7 @@ static st_ret_t _st_mysql_delete(st_driver_t drv, const char *type, const char *
     char tbuf[128];
 
     if(mysql_ping(data->conn) != 0) {
-        log_write(drv->st->sm->log, LOG_ERR, "mysql: connection to database lost");
+        log_write(drv->st->log, LOG_ERR, "mysql: connection to database lost");
         return st_FAILED;
     }
 
@@ -519,7 +519,7 @@ static st_ret_t _st_mysql_delete(st_driver_t drv, const char *type, const char *
     log_debug(ZONE, "prepared sql: %s", buf);
 
     if(mysql_query(data->conn, buf) != 0) {
-        log_write(drv->st->sm->log, LOG_ERR, "mysql: sql delete failed: %s", mysql_error(data->conn));
+        log_write(drv->st->log, LOG_ERR, "mysql: sql delete failed: %s", mysql_error(data->conn));
         free(buf);
         return st_FAILED;
     }
@@ -532,18 +532,18 @@ static st_ret_t _st_mysql_replace(st_driver_t drv, const char *type, const char 
     drvdata_t data = (drvdata_t) drv->private;
 
     if(mysql_ping(data->conn) != 0) {
-        log_write(drv->st->sm->log, LOG_ERR, "mysql: connection to database lost");
+        log_write(drv->st->log, LOG_ERR, "mysql: connection to database lost");
         return st_FAILED;
     }
 
     if(data->txn) {
         if(mysql_query(data->conn, "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE") != 0) {
-            log_write(drv->st->sm->log, LOG_ERR, "mysql: sql transaction setup failed: %s", mysql_error(data->conn));
+            log_write(drv->st->log, LOG_ERR, "mysql: sql transaction setup failed: %s", mysql_error(data->conn));
             return st_FAILED;
         }
 
         if(mysql_query(data->conn, "BEGIN") != 0) {
-            log_write(drv->st->sm->log, LOG_ERR, "mysql: sql transaction begin failed: %s", mysql_error(data->conn));
+            log_write(drv->st->log, LOG_ERR, "mysql: sql transaction begin failed: %s", mysql_error(data->conn));
             return st_FAILED;
         }
     }
@@ -562,7 +562,7 @@ static st_ret_t _st_mysql_replace(st_driver_t drv, const char *type, const char 
 
     if(data->txn)
         if(mysql_query(data->conn, "COMMIT") != 0) {
-            log_write(drv->st->sm->log, LOG_ERR, "mysql: sql transaction commit failed: %s", mysql_error(data->conn));
+            log_write(drv->st->log, LOG_ERR, "mysql: sql transaction commit failed: %s", mysql_error(data->conn));
             mysql_query(data->conn, "ROLLBACK");
             return st_FAILED;
         }
@@ -583,20 +583,20 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv) {
     MYSQL *conn;
     drvdata_t data;
 
-    host = config_get_one(drv->st->sm->config, "storage.mysql.host", 0);
-    port = config_get_one(drv->st->sm->config, "storage.mysql.port", 0);
-    dbname = config_get_one(drv->st->sm->config, "storage.mysql.dbname", 0);
-    user = config_get_one(drv->st->sm->config, "storage.mysql.user", 0);
-    pass = config_get_one(drv->st->sm->config, "storage.mysql.pass", 0);
+    host = config_get_one(drv->st->config, "storage.mysql.host", 0);
+    port = config_get_one(drv->st->config, "storage.mysql.port", 0);
+    dbname = config_get_one(drv->st->config, "storage.mysql.dbname", 0);
+    user = config_get_one(drv->st->config, "storage.mysql.user", 0);
+    pass = config_get_one(drv->st->config, "storage.mysql.pass", 0);
 
     if(host == NULL || port == NULL || dbname == NULL || user == NULL || pass == NULL) {
-        log_write(drv->st->sm->log, LOG_ERR, "mysql: invalid driver config");
+        log_write(drv->st->log, LOG_ERR, "mysql: invalid driver config");
         return st_FAILED;
     }
 
     conn = mysql_init(NULL);
     if(conn == NULL) {
-        log_write(drv->st->sm->log, LOG_ERR, "mysql: unable to allocate database connection state");
+        log_write(drv->st->log, LOG_ERR, "mysql: unable to allocate database connection state");
         return st_FAILED;
     }
 
@@ -605,7 +605,7 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv) {
 
     /* connect with CLIENT_INTERACTIVE to get a (possibly) higher timeout value than default */
     if(mysql_real_connect(conn, host, user, pass, dbname, atoi(port), NULL, CLIENT_INTERACTIVE) == NULL) {
-        log_write(drv->st->sm->log, LOG_ERR, "mysql: connection to database failed: %s", mysql_error(conn));
+        log_write(drv->st->log, LOG_ERR, "mysql: connection to database failed: %s", mysql_error(conn));
         mysql_close(conn);
         return st_FAILED;
     }
@@ -617,12 +617,12 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv) {
 
     data->conn = conn;
 
-    if(config_get_one(drv->st->sm->config, "storage.mysql.transactions", 0) != NULL)
+    if(config_get_one(drv->st->config, "storage.mysql.transactions", 0) != NULL)
         data->txn = 1;
     else
-        log_write(drv->st->sm->log, LOG_WARNING, "mysql: transactions disabled");
+        log_write(drv->st->log, LOG_WARNING, "mysql: transactions disabled");
 
-    data->prefix = config_get_one(drv->st->sm->config, "storage.mysql.prefix", 0);
+    data->prefix = config_get_one(drv->st->config, "storage.mysql.prefix", 0);
 
     drv->private = (void *) data;
 

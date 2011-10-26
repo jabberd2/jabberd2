@@ -1,0 +1,4 @@
+<config_test>
+    <use_defined_later>asdfgh${later}zxcvbn</use_defined_later> -->
+    <later>qwerty</later>
+</config_test>

@@ -465,6 +465,11 @@
       <module>vacation</module>         <!-- load vacation settings -->
     </chain>
 
+    <!-- user-unload. The modules in this chain are called right
+         after last per-user session is destroyed. -->
+    <chain id='user-unload'>
+    </chain>
+
     <!-- user-create. The modules in this chain are called when a user
          creation request is received (usually from c2s as part of a
          registration request). This initialises any per-user data. -->

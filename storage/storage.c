@@ -18,14 +18,14 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
-/** @file sm/storage.c
+/** @file storage/storage.c
   * @brief storage manager
   * @author Robert Norris
   * $Date: 2005/06/02 06:31:10 $
   * $Revision: 1.21 $
   */
 
-#include "sm.h"
+#include "storage.h"
 #include <ctype.h>
 #ifdef _WIN32
   #include <windows.h>
@@ -35,7 +35,7 @@
 #endif /* _WIN32 */
 
 
-storage_t storage_new(sm_t sm) {
+storage_t storage_new(config_t config, log_t log) {
     storage_t st;
     int i;
     config_elem_t elem;
@@ -44,12 +44,13 @@ storage_t storage_new(sm_t sm) {
 
     st = (storage_t) calloc(1, sizeof(struct storage_st));
 
-    st->sm = sm;
+    st->config = config;
+    st->log = log;
     st->drivers = xhash_new(101);
     st->types = xhash_new(101);
 
     /* register types declared in the config file */
-    elem = config_get(sm->config, "storage.driver");
+    elem = config_get(st->config, "storage.driver");
     if(elem != NULL) {
         for(i = 0; i < elem->nvalues; i++) {
             type = j_attr((const char **) elem->attrs[i], "type"); 
@@ -85,7 +86,8 @@ void storage_free(storage_t st) {
 st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
     st_driver_t drv;
     st_driver_init_fn init_fn = NULL;
-    char mod_fullpath[PATH_MAX], *modules_path;
+    char mod_fullpath[PATH_MAX];
+    const char *modules_path;
     st_ret_t ret;
     void *handle;
 
@@ -109,14 +111,14 @@ st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
     }
 
     /* set modules path */
-    modules_path = config_get_one(st->sm->config, "storage.path", 0);
+    modules_path = config_get_one(st->config, "storage.path", 0);
 
     /* get the driver */
     drv = xhash_get(st->drivers, driver);
     if(drv == NULL) {
         log_debug(ZONE, "driver not loaded, trying to init");
 
-        log_write(st->sm->log, LOG_INFO, "loading '%s' storage module", driver);
+        log_write(st->log, LOG_INFO, "loading '%s' storage module", driver);
 #ifndef _WIN32
         if (modules_path != NULL)
             snprintf(mod_fullpath, PATH_MAX, "%s/storage_%s.so", modules_path, driver);
@@ -139,11 +141,11 @@ st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
             log_debug(ZONE, "preloaded module '%s' (not initialized yet)", driver);
         } else {
 #ifndef _WIN32
-            log_write(st->sm->log, LOG_ERR, "failed loading storage module '%s' (%s)", driver, dlerror());
+            log_write(st->log, LOG_ERR, "failed loading storage module '%s' (%s)", driver, dlerror());
             if (handle != NULL)
                 dlclose(handle);
 #else
-            log_write(st->sm->log, LOG_ERR, "failed loading storage module '%s' (errcode: %x)", driver, GetLastError());
+            log_write(st->log, LOG_ERR, "failed loading storage module '%s' (errcode: %x)", driver, GetLastError());
             if (handle != NULL)
                 FreeLibrary((HMODULE) handle);
 #endif
@@ -159,7 +161,7 @@ st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
 
         /* init */
         if((init_fn)(drv) == st_FAILED) {
-            log_write(st->sm->log, LOG_NOTICE, "initialisation of storage driver '%s' failed", driver);
+            log_write(st->log, LOG_NOTICE, "initialisation of storage driver '%s' failed", driver);
             free(drv);
             return st_FAILED;
         }
@@ -168,7 +170,7 @@ st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
         drv->name = pstrdup(xhash_pool(st->drivers), driver);
         xhash_put(st->drivers, drv->name, (void *) drv);
 
-        log_write(st->sm->log, LOG_NOTICE, "initialised storage driver '%s'", driver);
+        log_write(st->log, LOG_NOTICE, "initialised storage driver '%s'", driver);
     }
 
     /* if its a default, set it up as such */
@@ -239,6 +241,42 @@ st_ret_t storage_get(storage_t st, const char *type, const char *owner, const ch
     }
 
     return (drv->get)(drv, type, owner, filter, os);
+}
+
+st_ret_t storage_get_custom_sql(storage_t st, const char* request, os_t* os, const char *type /*= 0*/)
+{
+    st_driver_t drv;
+    st_ret_t ret;
+
+    log_debug(ZONE, "storage_get_custom_sql: query='%s'", request);
+
+    if (type) {
+        /* find the handler for this type */
+        drv = xhash_get(st->types, type);
+    } else {
+        /* find the handler for this type */
+        drv = xhash_get(st->types, "custom_sql_query");
+    }
+    if(drv == NULL) {
+        /* never seen it before, so it goes to the default driver */
+        drv = st->default_drv;
+        if(drv == NULL) {
+            log_debug(ZONE, "no driver associated with type, and no default driver");
+
+            return st_NOTIMPL;
+        }
+
+        /* register the type */
+        ret = storage_add_type(st, drv->name, "custom_sql_query");
+        if(ret != st_SUCCESS)
+            return ret;
+    }
+
+    if (drv->get_custom_sql) {
+        return (drv->get_custom_sql)(drv, request, os);
+    } else {
+        return st_NOTIMPL;
+    }
 }
 
 st_ret_t storage_count(storage_t st, const char *type, const char *owner, const char *filter, int *count) {
@@ -379,7 +417,7 @@ static st_filter_t _storage_filter(pool_t p, const char *f, int len) {
     }
 
     /* operator */
-    if(f[1] != '&' && f[1] != '|' && f[2] != '!')
+    if(f[1] != '&' && f[1] != '|' && f[1] != '!')
         return NULL;
 
     res = pmalloco(p, sizeof(struct st_filter_st));

@@ -33,6 +33,7 @@ typedef struct pgsqlcontext_st {
   char * sql_select;
   char * sql_setpassword;
   char * sql_delete;
+  char * sql_check_password;
   char * field_password;
   } *pgsqlcontext_t;
 
@@ -59,6 +60,11 @@ static PGresult *_ar_pgsql_get_user_tuple(authreg_t ar, char *username, char *re
         log_write(ar->c2s->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
         PQclear(res);
         PQreset(conn);
+        if(PQstatus(conn) != CONNECTION_OK) {
+            log_write(ar->c2s->log, LOG_ERR, "pgsql: connection to database failed, will retry later: %s", PQerrorMessage(conn));
+            return NULL;
+        }
+
         res = PQexec(conn, sql);
     }
     if(PQresultStatus(res) != PGRES_TUPLES_OK) {
@@ -76,14 +82,18 @@ static PGresult *_ar_pgsql_get_user_tuple(authreg_t ar, char *username, char *re
 }
 
 static int _ar_pgsql_user_exists(authreg_t ar, char *username, char *realm) {
-    PGresult *res = _ar_pgsql_get_user_tuple(ar, username, realm);
+    if (ar->get_password) {
+        PGresult *res = _ar_pgsql_get_user_tuple(ar, username, realm);
 
-    if(res != NULL) {
-        PQclear(res);
-        return 1;
+        if(res != NULL) {
+            PQclear(res);
+            return 1;
+        }
+
+        return 0;
+    } else {
+        return 1; // Try to check password later.
     }
-
-    return 0;
 }
 
 static int _ar_pgsql_get_password(authreg_t ar, char *username, char *realm, char password[257]) {
@@ -113,6 +123,74 @@ static int _ar_pgsql_get_password(authreg_t ar, char *username, char *realm, cha
     return 0;
 }
 
+int _ar_pgsql_check_password(authreg_t ar, char *username, char *realm, char password[257])
+{
+    pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
+    PGconn *conn = ctx->conn;
+
+    char iuser[PGSQL_LU+1], irealm[PGSQL_LR+1], ipassword[PGSQL_LR+1];
+    char euser[PGSQL_LU*2+1], erealm[PGSQL_LR*2+1], epassword[PGSQL_LR*2+1], sql[1024+PGSQL_LU*2+PGSQL_LR*2+1+PGSQL_LR*2+1];  /* query(1024) + euser + erealm + \0(1) */
+    PGresult *res;
+
+    snprintf(iuser, PGSQL_LU+1, "%s", username);
+    snprintf(irealm, PGSQL_LR+1, "%s", realm);
+    snprintf(ipassword, PGSQL_LR+1, "%s", password);
+
+    PQescapeString(euser, iuser, strlen(iuser));
+    PQescapeString(erealm, irealm, strlen(irealm));
+    PQescapeString(epassword, ipassword, strlen(ipassword));
+
+    sprintf(sql, ctx->sql_check_password, euser, epassword, erealm);
+
+    log_debug(ZONE, "prepared sql: %s", sql);
+
+    res = PQexec(conn, sql);
+    if(PQresultStatus(res) != PGRES_TUPLES_OK && PQstatus(conn) != CONNECTION_OK) {
+        log_write(ar->c2s->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
+        PQclear(res);
+        PQreset(conn);
+        if(PQstatus(conn) != CONNECTION_OK) {
+            log_write(ar->c2s->log, LOG_ERR, "pgsql: connection to database failed, will retry later: %s", PQerrorMessage(conn));
+            return 1;
+        }
+
+        res = PQexec(conn, sql);
+    }
+    if(PQresultStatus(res) != PGRES_TUPLES_OK) {
+        log_write(ar->c2s->log, LOG_ERR, "pgsql: sql select failed: %s", PQresultErrorMessage(res));
+        PQclear(res);
+        return 1;
+    }
+
+    if(PQntuples(res) != 1) {
+        log_write(ar->c2s->log, LOG_ERR, "pgsql: Empty result");
+        PQclear(res);
+        return 1;
+    }
+
+    int retval = 1;
+
+    if(PQgetisnull(res, 0, 0)) {
+        log_debug(ZONE, "pgsql: check_password returns NULL");
+        PQclear(res);
+        return 1;
+    }
+
+    const char *result = PQgetvalue(res, 0, 0);
+    log_debug(ZONE, "pgsql:  check_password result: '%s'", result);
+
+    if (strcmp("0", result) != 0) {
+        // something except 0 -> authenticated
+        retval = 0;
+    } else {
+        retval = 1;
+    }
+
+    PQclear(res);
+
+    return retval;
+};
+
 static int _ar_pgsql_set_password(authreg_t ar, char *username, char *realm, char password[257]) {
     pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
     PGconn *conn = ctx->conn;
@@ -136,6 +214,11 @@ static int _ar_pgsql_set_password(authreg_t ar, char *username, char *realm, cha
         log_write(ar->c2s->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
         PQclear(res);
         PQreset(conn);
+
+        if(PQstatus(conn) != CONNECTION_OK) {
+            log_write(ar->c2s->log, LOG_ERR, "pgsql: connection to database failed, will retry later: %s", PQerrorMessage(conn));
+            return 1;
+        }
         res = PQexec(conn, sql);
     }
     if(PQresultStatus(res) != PGRES_COMMAND_OK) {
@@ -179,6 +262,12 @@ static int _ar_pgsql_create_user(authreg_t ar, char *username, char *realm) {
         log_write(ar->c2s->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
         PQclear(res);
         PQreset(conn);
+
+        if(PQstatus(conn) != CONNECTION_OK) {
+            log_write(ar->c2s->log, LOG_ERR, "pgsql: connection to database failed, will retry later: %s", PQerrorMessage(conn));
+            return 1;
+        }
+
         res = PQexec(conn, sql);
     }
     if(PQresultStatus(res) != PGRES_COMMAND_OK) {
@@ -214,6 +303,12 @@ static int _ar_pgsql_delete_user(authreg_t ar, char *username, char *realm) {
         log_write(ar->c2s->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
         PQclear(res);
         PQreset(conn);
+
+        if(PQstatus(conn) != CONNECTION_OK) {
+            log_write(ar->c2s->log, LOG_ERR, "pgsql: connection to database failed, will retry later: %s", PQerrorMessage(conn));
+            return 1;
+        }
+
         res = PQexec(conn, sql);
     }
     if(PQresultStatus(res) != PGRES_COMMAND_OK) {
@@ -238,6 +333,9 @@ static void _ar_pgsql_free(authreg_t ar) {
     free(ctx->sql_select);
     free(ctx->sql_setpassword);
     free(ctx->sql_delete);
+    if (ctx->sql_check_password) {
+        free(ctx->sql_check_password);
+    }
     free(ctx);
 }
 
@@ -261,13 +359,13 @@ char * _ar_pgsql_check_template( char * template, char * types ) {
     char c;
 
     /* check that it's 1K or less */
-    if( strlen( template ) > 1024 ) return "longer than 1024 characters";  
+    if( strlen( template ) > 1024 ) return "longer than 1024 characters";
 
     /* count the parameter placeholders */
     while( pScan < strlen( template ) )
     {
       if( template[ pScan++ ] != '%' ) continue;
-      
+
       c = template[ pScan++ ];
       if( c == '%' ) continue; /* ignore escaped precentages */
       if( c == types[ pType ] )
@@ -284,7 +382,7 @@ char * _ar_pgsql_check_template( char * template, char * types ) {
     if( pType < strlen( types ) )
       return "contained too few placeholders";
     else
-      return 0;  
+      return 0;
 }
 
 /* Ensure the SQL template is less than 1K long and contains the */
@@ -324,16 +422,16 @@ int ar_init(authreg_t ar) {
     /* determine our field names and table name */
     username = _ar_pgsql_param( ar->c2s->config
 	       , "authreg.pgsql.field.username"
-	       , "username" ); 
+	       , "username" );
     realm = _ar_pgsql_param( ar->c2s->config
 	       , "authreg.pgsql.field.realm"
-	       , "realm" ); 
+	       , "realm" );
     pgsqlcontext->field_password = _ar_pgsql_param( ar->c2s->config
 	       , "authreg.pgsql.field.password"
-	       , "password" ); 
+	       , "password" );
     table = _ar_pgsql_param( ar->c2s->config
 	       , "authreg.pgsql.table"
-	       , "authreg" ); 
+	       , "authreg" );
 
     /* craft the default SQL statements */
     /* we leave unused statements allocated to simplify code - a small price to pay */
@@ -343,23 +441,23 @@ int ar_init(authreg_t ar) {
     strlentur = strlen( table ) + strlen( username) + strlen( realm );  /* avoid repetition */
 
     template = "INSERT INTO \"%s\" ( \"%s\", \"%s\" ) VALUES ( '%%s', '%%s' )";
-    create = malloc( strlen( template ) + strlentur ); 
+    create = malloc( strlen( template ) + strlentur );
     sprintf( create, template, table, username, realm );
 
     template = "SELECT \"%s\" FROM \"%s\" WHERE \"%s\" = '%%s' AND \"%s\" = '%%s'";
     select = malloc( strlen( template )
 		     + strlen( pgsqlcontext->field_password )
-		     + strlentur ); 
+		     + strlentur );
     sprintf( select, template
 	     , pgsqlcontext->field_password
 	     , table, username, realm );
 
     template = "UPDATE \"%s\" SET \"%s\" = '%%s' WHERE \"%s\" = '%%s' AND \"%s\" = '%%s'";
-    setpassword = malloc( strlen( template ) + strlentur + strlen( pgsqlcontext->field_password ) ); 
+    setpassword = malloc( strlen( template ) + strlentur + strlen( pgsqlcontext->field_password ) );
     sprintf( setpassword, template, table, pgsqlcontext->field_password, username, realm );
 
     template = "DELETE FROM \"%s\" WHERE \"%s\" = '%%s' AND \"%s\" = '%%s'";
-    delete = malloc( strlen( template ) + strlentur ); 
+    delete = malloc( strlen( template ) + strlentur );
     sprintf( delete, template, table, username, realm );
 
     /* allow the default SQL statements to be overridden; also verify the statements format and length */
@@ -383,11 +481,20 @@ int ar_init(authreg_t ar) {
            , delete ));
     if( _ar_pgsql_check_sql( ar, pgsqlcontext->sql_delete, "ss" ) != 0 ) return 1;
 
+    // Check password is optional
+    const char *sql_check_password = _ar_pgsql_param( ar->c2s->config, "authreg.pgsql.sql.checkpassword", 0);
+
+    if (sql_check_password) {
+        pgsqlcontext->sql_check_password = strdup(sql_check_password);
+        if( _ar_pgsql_check_sql( ar, pgsqlcontext->sql_check_password, "sss" ) != 0 ) return 1;
+    }
+
     /* echo our configuration to debug */
     log_debug( ZONE, "SQL to create account: %s", pgsqlcontext->sql_create );
     log_debug( ZONE, "SQL to query user information: %s", pgsqlcontext->sql_select );
     log_debug( ZONE, "SQL to set password: %s", pgsqlcontext->sql_setpassword );
     log_debug( ZONE, "SQL to delete account: %s", pgsqlcontext->sql_delete );
+    log_debug( ZONE, "SQL to check password: %s", pgsqlcontext->sql_check_password );
 
     free(create);
     free(select);
@@ -427,7 +534,12 @@ int ar_init(authreg_t ar) {
     pgsqlcontext->conn = conn;
 
     ar->user_exists = _ar_pgsql_user_exists;
-    ar->get_password = _ar_pgsql_get_password;
+
+    if (pgsqlcontext->sql_check_password) {
+        ar->check_password = _ar_pgsql_check_password;
+    } else {
+        ar->get_password = _ar_pgsql_get_password;
+    }
     ar->set_password = _ar_pgsql_set_password;
     ar->create_user = _ar_pgsql_create_user;
     ar->delete_user = _ar_pgsql_delete_user;

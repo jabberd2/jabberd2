@@ -27,7 +27,7 @@
  * http://cmeerw.org
  */
 
-#include "sm.h"
+#include "storage.h"
 #include <sqlite3.h>
 
 /** internal structure, holds our data */
@@ -280,7 +280,7 @@ static st_ret_t _st_sqlite_put_guts (st_driver_t drv, const char *type,
 	    left = NULL;
 	    lleft = 0;
 	    if (res != SQLITE_OK) {
-		log_write (drv->st->sm->log, LOG_ERR,
+		log_write (drv->st->log, LOG_ERR,
 			   "sqlite: sql insert failed: %s",
 			   sqlite3_errmsg (data->db));
 		return st_FAILED;
@@ -323,7 +323,7 @@ static st_ret_t _st_sqlite_put_guts (st_driver_t drv, const char *type,
 
 		     case os_type_UNKNOWN:
 		     default:
-		      log_write (drv->st->sm->log, LOG_ERR, "sqlite: unknown value in query");
+		      log_write (drv->st->log, LOG_ERR, "sqlite: unknown value in query");
 
 		    }
 
@@ -332,7 +332,7 @@ static st_ret_t _st_sqlite_put_guts (st_driver_t drv, const char *type,
 
 	    res = sqlite3_step (stmt);
 	    if (res != SQLITE_DONE) {
-		log_write (drv->st->sm->log, LOG_ERR,
+		log_write (drv->st->log, LOG_ERR,
 			   "sqlite: sql insert failed: %s",
 			   sqlite3_errmsg (data->db));
 		sqlite3_finalize (stmt);
@@ -363,7 +363,7 @@ static st_ret_t _st_sqlite_put (st_driver_t drv, const char *type,
 			    "BEGIN", NULL, NULL,
 			    &err_msg);
 	if (res != SQLITE_OK) {
-	    log_write (drv->st->sm->log, LOG_ERR,
+	    log_write (drv->st->log, LOG_ERR,
 		       "sqlite: sql transaction begin failed: %s",
 		       err_msg);
 	    sqlite3_free (err_msg);
@@ -383,7 +383,7 @@ static st_ret_t _st_sqlite_put (st_driver_t drv, const char *type,
 
 	res = sqlite3_exec (data->db, "COMMIT", NULL, NULL, &err_msg);
 	if (res != SQLITE_OK) {
-	    log_write (drv->st->sm->log, LOG_ERR,
+	    log_write (drv->st->log, LOG_ERR,
 		       "sqlite: sql transaction commit failed: %s",
 		       err_msg);
 	    sqlite3_exec (data->db, "ROLLBACK", NULL, NULL, NULL);
@@ -485,7 +485,7 @@ static st_ret_t _st_sqlite_get (st_driver_t drv, const char *type,
 		os_object_put (o, colname, val, ot);
 
 	    } else {
-		log_write (drv->st->sm->log,
+		log_write (drv->st->log,
 			   LOG_NOTICE,
 			   "sqlite: unknown field: %s:%d",
 			   colname, coltype);
@@ -500,7 +500,8 @@ static st_ret_t _st_sqlite_get (st_driver_t drv, const char *type,
 
     if (num_rows == 0) {
         os_free(*os);
-	return st_NOTFOUND;
+        *os = NULL;
+        return st_NOTFOUND;
     }
 
     return st_SUCCESS;
@@ -542,7 +543,7 @@ static st_ret_t _st_sqlite_count (st_driver_t drv, const char *type,
 
     res = sqlite3_step (stmt);
     if (res != SQLITE_ROW) {
-	log_write (drv->st->sm->log, LOG_ERR,
+	log_write (drv->st->log, LOG_ERR,
 		   "sqlite: sql select failed: %s",
 		   sqlite3_errmsg (data->db));
 	sqlite3_finalize (stmt);
@@ -552,7 +553,7 @@ static st_ret_t _st_sqlite_count (st_driver_t drv, const char *type,
     coltype = sqlite3_column_type (stmt, 0);
 
     if (coltype != SQLITE_INTEGER) {
-	log_write (drv->st->sm->log, LOG_ERR,
+	log_write (drv->st->log, LOG_ERR,
 		   "sqlite: weird, count() returned non integer value: %s",
 		   sqlite3_errmsg (data->db));
 	sqlite3_finalize (stmt);
@@ -602,7 +603,7 @@ static st_ret_t _st_sqlite_delete (st_driver_t drv, const char *type,
 
     res = sqlite3_step (stmt);
     if (res != SQLITE_DONE) {
-	log_write (drv->st->sm->log, LOG_ERR,
+	log_write (drv->st->log, LOG_ERR,
 		   "sqlite: sql delete failed: %s",
 		   sqlite3_errmsg (data->db));
 	sqlite3_finalize (stmt);
@@ -626,7 +627,7 @@ static st_ret_t _st_sqlite_replace (st_driver_t drv, const char *type,
 
 	res = sqlite3_exec (data->db, "BEGIN", NULL, NULL, &err_msg);
 	if (res != SQLITE_OK) {
-	    log_write (drv->st->sm->log, LOG_ERR,
+	    log_write (drv->st->log, LOG_ERR,
 		       "sqlite: sql transaction begin failed: %s",
 		       err_msg);
 	    sqlite3_free (err_msg);
@@ -653,7 +654,7 @@ static st_ret_t _st_sqlite_replace (st_driver_t drv, const char *type,
 	res = sqlite3_exec (data->db, "COMMIT", NULL, NULL, &err_msg);
 
 	if (res != SQLITE_OK) {
-	    log_write (drv->st->sm->log, LOG_ERR,
+	    log_write (drv->st->log, LOG_ERR,
 		       "sqlite: sql transaction commit failed: %s",
 		       err_msg);
 	    sqlite3_exec (data->db, "ROLLBACK", NULL, NULL, NULL);
@@ -682,18 +683,18 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv) {
     int ret;
     char *busy_timeout;
 
-    dbname = config_get_one (drv->st->sm->config,
+    dbname = config_get_one (drv->st->config,
 			     "storage.sqlite.dbname", 0);
     if (dbname == NULL) {
-	log_write (drv->st->sm->log, LOG_ERR,
+	log_write (drv->st->log, LOG_ERR,
 		   "sqlite: invalid driver config");
 	return st_FAILED;
     }
 
     ret = sqlite3_open (dbname, &db);
     if (ret != SQLITE_OK) {
-	log_write (drv->st->sm->log, LOG_ERR,
-		   "sqlite: can't open database");
+	log_write (drv->st->log, LOG_ERR,
+		   "sqlite: can't open database '%s'", dbname);
 	return st_FAILED;
     }
 
@@ -701,21 +702,21 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv) {
 
     data->db = db;
 
-    if (config_get_one (drv->st->sm->config,
+    if (config_get_one (drv->st->config,
 			"storage.sqlite.transactions", 0) != NULL) {
 	data->txn = 1;
     } else {
-	log_write (drv->st->sm->log, LOG_WARNING,
+	log_write (drv->st->log, LOG_WARNING,
 		   "sqlite: transactions disabled");
     }
 
-    busy_timeout = config_get_one (drv->st->sm->config,
+    busy_timeout = config_get_one (drv->st->config,
 				   "storage.sqlite.busy-timeout", 0);
     if (busy_timeout != NULL) {
 	sqlite3_busy_timeout (db, atoi (busy_timeout));
     }
 
-    data->prefix = config_get_one (drv->st->sm->config,
+    data->prefix = config_get_one (drv->st->config,
 				   "storage.sqlite.prefix", 0);
 
     drv->private = (void *) data;

@@ -33,6 +33,16 @@ static void router_signal_hup(int signum)
     router_logrotate = 1;
 }
 
+static void router_signal_usr1(int signum)
+{
+    set_debug_flag(0);
+}
+
+static void router_signal_usr2(int signum)
+{
+    set_debug_flag(1);
+}
+
 /** store the process id */
 static void _router_pidfile(router_t r) {
     char *pidfile;
@@ -185,7 +195,7 @@ static void _router_config_expand(router_t r)
             alias->next = r->aliases;
             r->aliases = alias;
         }
-    
+
     r->check_interval = j_atoi(config_get_one(r->config, "check.interval", 0), 60);
     r->check_keepalive = j_atoi(config_get_one(r->config, "check.keepalive", 0), 0);
 }
@@ -204,7 +214,7 @@ static int _router_sx_sasl_callback(int cb, void *arg, void ** res, sx_t s, void
             break;
 
         case sx_sasl_cb_GET_PASS:
-            creds = (sx_sasl_creds_t) arg;    
+            creds = (sx_sasl_creds_t) arg;
 
             log_debug(ZONE, "sx sasl callback: get pass (authnid=%s, realm=%s)", creds->authnid, creds->realm);
 
@@ -282,6 +292,7 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
     rate_t rt;
     component_t comp;
     union xhashv xhv;
+    const char *cli_id = 0;
 
 #ifdef POOL_DEBUG
     time_t pool_time = 0;
@@ -299,9 +310,9 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
         WORD wVersionRequested;
         WSADATA wsaData;
         int err;
-        
+
         wVersionRequested = MAKEWORD( 2, 2 );
-        
+
         err = WSAStartup( wVersionRequested, &wsaData );
         if ( err != 0 ) {
             /* !!! tell user that we couldn't find a usable winsock dll */
@@ -318,6 +329,8 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
 #ifdef SIGPIPE
     jabber_signal(SIGPIPE, SIG_IGN);
 #endif
+    jabber_signal(SIGUSR1, router_signal_usr1);
+    jabber_signal(SIGUSR2, router_signal_usr2);
 
     r = (router_t) calloc(1, sizeof(struct router_st));
 
@@ -327,7 +340,7 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
     config_file = CONFIG_DIR "/router.xml";
 
     /* cmdline parsing */
-    while((optchar = getopt(argc, argv, "Dc:h?")) >= 0)
+    while((optchar = getopt(argc, argv, "Dc:hi:?")) >= 0)
     {
         switch(optchar)
         {
@@ -341,12 +354,16 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
                 printf("WARN: Debugging not enabled.  Ignoring -D.\n");
 #endif
                 break;
+            case 'i':
+                cli_id = optarg;
+                break;
             case 'h': case '?': default:
                 fputs(
                     "router - jabberd router (" VERSION ")\n"
                     "Usage: router <options>\n"
                     "Options are:\n"
                     "   -c <config>     config file to use [default: " CONFIG_DIR "/router.xml]\n"
+                    "   -i id           Override <id> config element\n"
 #ifdef DEBUG
                     "   -D              Show debug output\n"
 #endif
@@ -358,7 +375,7 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
         }
     }
 
-    if(config_load(r->config, config_file) != 0)
+    if(config_load_with_id(r->config, config_file, cli_id) != 0)
     {
         fputs("router: couldn't load config, aborting\n", stderr);
         config_free(r->config);

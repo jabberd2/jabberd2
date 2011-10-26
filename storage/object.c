@@ -18,9 +18,9 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
-#include "sm.h"
+#include "storage.h"
 
-/** @file sm/object.c
+/** @file storage/object.c
   * @brief object sets
   * @author Robert Norris
   * $Date: 2005/06/02 04:48:24 $

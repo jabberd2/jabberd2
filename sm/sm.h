@@ -33,6 +33,7 @@
 #include "sx/sx.h"
 #include "mio/mio.h"
 #include "util/util.h"
+#include "storage/storage.h"
 
 #ifdef HAVE_SIGNAL_H
   #include <signal.h>
@@ -59,7 +60,6 @@ typedef struct sm_st        *sm_t;
 typedef struct user_st      *user_t;
 typedef struct sess_st      *sess_t;
 typedef struct aci_st       *aci_t;
-typedef struct storage_st   *storage_t;
 typedef struct mm_st        *mm_t;
 
 /* namespace uri strings */
@@ -343,6 +343,7 @@ typedef enum {
     chain_USER_LOAD,            /**< user loaded, load per-user data */
     chain_USER_CREATE,          /**< user creation, generate and save per-user data */
     chain_USER_DELETE,          /**< user deletion, delete saved per-user data */
+    chain_USER_UNLOAD,          /**< user is about to be unloaded */
     chain_DISCO_EXTEND          /**< disco request, extend sm disco#info */
 } mod_chain_t;
 
@@ -383,6 +384,8 @@ struct mm_st {
     mod_instance_t      *user_delete;   int nuser_delete;
     /** disco-extend chain */
     mod_instance_t      *disco_extend;  int ndisco_extend;
+    /** user-unload chain */
+    mod_instance_t      *user_unload;     int nuser_unload;
 };
 
 /** data for a single module */
@@ -418,6 +421,7 @@ struct module_st {
     mod_ret_t           (*pkt_router)(mod_instance_t mi, pkt_t pkt);                /**< pkt-router handler */
 
     int                 (*user_load)(mod_instance_t mi, user_t user);               /**< user-load handler */
+    int                 (*user_unload)(mod_instance_t mi, user_t user);               /**< user-load handler */
 
     int                 (*user_create)(mod_instance_t mi, jid_t jid);               /**< user-create handler */
     void                (*user_delete)(mod_instance_t mi, jid_t jid);               /**< user-delete handler */
@@ -471,6 +475,9 @@ SM_API mod_ret_t               mm_pkt_router(mm_t mm, pkt_t pkt);
 /** fire user-load chain */
 SM_API int                     mm_user_load(mm_t mm, user_t user);
 
+/** fire user-unload chain */
+SM_API int                     mm_user_unload(mm_t mm, user_t user);
+
 /** fire user-create chain */
 SM_API int                     mm_user_create(mm_t mm, jid_t jid);
 /** fire user-delete chain */
@@ -478,196 +485,3 @@ SM_API void                    mm_user_delete(mm_t mm, jid_t jid);
 
 /** fire disco-extend chain */
 SM_API void                    mm_disco_extend(mm_t mm, pkt_t pkt);
-
-
-/* object sets */
-
-/** object types */
-typedef enum {
-    os_type_BOOLEAN,            /**< boolean (0 or 1) */
-    os_type_INTEGER,            /**< integer */
-    os_type_STRING,             /**< string */
-    os_type_NAD,                /**< XML */
-    os_type_UNKNOWN             /**< unknown */
-} os_type_t;
-
-/** a single tuple (value) within an object */ 
-typedef struct os_field_st {
-    char        *key;           /**< field name */
-    void        *val;           /**< field value */
-    os_type_t   type;           /**< field type */
-} *os_field_t;
-
-typedef struct os_st        *os_t;
-typedef struct os_object_st *os_object_t;
-
-/** object set (ie group of several objects) */
-struct os_st {
-    pool_t      p;              /**< pool the objects are allocated from */
-
-    os_object_t head;           /**< first object in the list */
-    os_object_t tail;           /**< last object in the list */
-
-    int         count;          /**< number of objects in this set */
-
-    os_object_t iter;           /**< pointer for iteration */
-};
-
-/** an object */
-struct os_object_st {
-    /** object set this object is part of */
-    os_t        os;
-
-    /** fields (key is field name) */
-    xht         hash;
-
-    os_object_t next;           /**< next object in the list */
-    os_object_t prev;           /**< previous object in the list */
-};
-
-/** create a new object set */
-SM_API os_t        os_new(void);
-/** free an object set */
-SM_API void        os_free(os_t os);
-
-/** number of objects in a set */
-SM_API int         os_count(os_t os);
-
-/** set iterator to first object (1 = exists, 0 = doesn't exist) */
-SM_API int         os_iter_first(os_t os);
-
-/** set iterator to next object (1 = exists, 0 = doesn't exist) */
-SM_API int         os_iter_next(os_t os);
-
-/** get the object currently under the iterator */
-SM_API os_object_t os_iter_object(os_t os);
-
-/** create a new object in this set */
-SM_API os_object_t os_object_new(os_t os);
-/** free an object (remove it from its set) */
-SM_API void        os_object_free(os_object_t o);
-
-/** add a field to the object */
-SM_API void        os_object_put(os_object_t o, const char *key, const void *val, os_type_t type);
-
-/** get a field from the object of type type (result in val), ret 0 == not found */
-SM_API int         os_object_get(os_t os, os_object_t o, const char *key, void **val, os_type_t type, os_type_t *ot);
-
-/** wrappers for os_object_get to avoid breaking strict-aliasing rules in gcc3 */
-SM_API int         os_object_get_nad(os_t os, os_object_t o, const char *key, nad_t *val);
-SM_API int         os_object_get_str(os_t os, os_object_t o, const char *key, char **val);
-SM_API int         os_object_get_int(os_t os, os_object_t o, const char *key, int *val);
-SM_API int         os_object_get_bool(os_t os, os_object_t o, const char *key, int *val);
-SM_API int         os_object_get_time(os_t os, os_object_t o, const char *key, time_t *val);
-
-/** wrappers for os_object_put to avoid breaking strict-aliasing rules in gcc3 */
-SM_API void        os_object_put_time(os_object_t o, const char *key, const time_t *val);
-
-/** set field iterator to first field (1 = exists, 0 = doesn't exist) */
-SM_API int         os_object_iter_first(os_object_t o);
-/** set field iterator to next field (1 = exists, 0 = doesn't exist) */
-SM_API int         os_object_iter_next(os_object_t o);
-/** extract field values from field currently under the iterator */
-SM_API void        os_object_iter_get(os_object_t o, char **key, void **val, os_type_t *type);
-
-
-/* storage manager */
-
-/** storage driver return values */
-typedef enum {
-    st_SUCCESS,                 /**< call completed successful */
-    st_FAILED,                  /**< call failed (driver internal error) */
-    st_NOTFOUND,                /**< no matching objects were found */
-    st_NOTIMPL                  /**< call not implemented */
-} st_ret_t;
-
-typedef struct st_driver_st *st_driver_t;
-
-/** storage manager data */
-struct storage_st {
-    sm_t        sm;             /**< sm context */
-
-    xht         drivers;        /**< pointers to drivers (key is driver name) */
-    xht         types;          /**< pointers to drivers (key is type name) */
-
-    st_driver_t default_drv;    /**< default driver (used when there is no module
-                                     explicitly registered for a type) */
-};
-
-/** data for a single storage driver */
-struct st_driver_st {
-    storage_t   st;             /**< storage manager context */ 
-
-    char        *name;          /**< name of driver */
-
-    void        *private;       /**< driver private data */
-
-    /** called to find out if this driver can handle a particular type */
-    st_ret_t    (*add_type)(st_driver_t drv, const char *type);
-
-    /** put handler */
-    st_ret_t    (*put)(st_driver_t drv, const char *type, const char *owner, os_t os);
-    /** get handler */
-    st_ret_t    (*get)(st_driver_t drv, const char *type, const char *owner, const char *filter, os_t *os);
-    /** count handler */
-    st_ret_t    (*count)(st_driver_t drv, const char *type, const char *owner, const char *filter, int *count);
-    /** delete handler */
-    st_ret_t    (*delete)(st_driver_t drv, const char *type, const char *owner, const char *filter);
-    /** replace handler */
-    st_ret_t    (*replace)(st_driver_t drv, const char *type, const char *owner, const char *filter, os_t os);
-
-    /** called when driver is freed */
-    void        (*free)(st_driver_t drv);
-};
-
-/** allocate a storage manager instance */
-SM_API storage_t       storage_new(sm_t sm);
-/** free a storage manager instance */
-SM_API void            storage_free(storage_t st);
-
-/** associate this data type with this driver */
-SM_API st_ret_t        storage_add_type(storage_t st, const char *driver, const char *type);
-
-/** store objects in this set */
-SM_API st_ret_t        storage_put(storage_t st, const char *type, const char *owner, os_t os);
-/** get objects matching this filter */
-SM_API st_ret_t        storage_get(storage_t st, const char *type, const char *owner, const char *filter, os_t *os);
-/** count objects matching this filter */
-SM_API st_ret_t        storage_count(storage_t st, const char *type, const char *owner, const char *filter, int *count);
-/** delete objects matching this filter */
-SM_API st_ret_t        storage_delete(storage_t st, const char *type, const char *owner, const char *filter);
-/** replace objects matching this filter with objects in this set (atomic delete + get) */
-SM_API st_ret_t        storage_replace(storage_t st, const char *type, const char *owner, const char *filter, os_t os);
-
-/** type for the driver init function */
-typedef st_ret_t (*st_driver_init_fn)(st_driver_t);
-
-
-/** storage filter types */
-typedef enum {
-    st_filter_type_PAIR,        /**< key=value pair */
-    st_filter_type_AND,         /**< and operator */
-    st_filter_type_OR,          /**< or operator */
-    st_filter_type_NOT          /**< not operator */
-} st_filter_type_t;
-
-typedef struct st_filter_st *st_filter_t;
-/** filter abstraction */
-struct st_filter_st {
-    pool_t              p;      /**< pool that filter is allocated from */
-
-    st_filter_type_t    type;   /**< type of this filter */
-
-    char                *key;   /**< key for PAIR filters */
-    char                *val;   /**< value for PAIR filters */
-
-    st_filter_t         sub;    /**< sub-filter for operator filters */
-
-    st_filter_t         next;   /**< next filter in a group */
-};
-
-/** create a filter abstraction from a LDAP-like filter string */
-SM_API st_filter_t     storage_filter(const char *filter);
-
-/** see if the object matches the filter */
-SM_API int             storage_match(st_filter_t filter, os_object_t o, os_t os);

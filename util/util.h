@@ -213,8 +213,10 @@ struct config_elem_st
 
 JABBERD2_API config_t         config_new(void);
 JABBERD2_API int              config_load(config_t c, const char *file);
+JABBERD2_API int              config_load_with_id(config_t c, const char *file, const char *id);
 JABBERD2_API config_elem_t    config_get(config_t c, const char *key);
-JABBERD2_API char             *config_get_one(config_t c, const char *key, int num);
+JABBERD2_API const char      *config_get_one(config_t c, const char *key, int num);
+JABBERD2_API const char      *config_get_one_default(config_t c, const char *key, int num, const char *default_value);
 JABBERD2_API int              config_count(config_t c, const char *key);
 JABBERD2_API char             *config_get_attr(config_t c, const char *key, int num, const char *attr);
 JABBERD2_API char             *config_expand(config_t c, const char *value); //! Replaces $(some.value) with config_get_one(c, "some.value", 0)

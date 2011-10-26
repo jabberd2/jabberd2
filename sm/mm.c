@@ -129,6 +129,11 @@ mm_t mm_new(sm_t sm) {
             list = &mm->user_load;
             nlist = &mm->nuser_load;
         }
+        else if(strcmp(id, "user-unload") == 0) {
+            chain = chain_USER_UNLOAD;
+            list = &mm->user_unload;
+            nlist = &mm->nuser_unload;
+        }
         else if(strcmp(id, "user-create") == 0) {
             chain = chain_USER_CREATE;
             list = &mm->user_create;
@@ -676,6 +681,37 @@ int mm_user_load(mm_t mm, user_t user) {
     }
 
     log_debug(ZONE, "user-load chain returning %d", ret);
+
+    return ret;
+}
+
+/** user data is about to be unloaded */
+int mm_user_unload(mm_t mm, user_t user) {
+    int n;
+    mod_instance_t mi;
+    int ret = 0;
+
+    log_debug(ZONE, "dispatching user-unload chain");
+
+    for(n = 0; n < mm->nuser_unload; n++) {
+        mi = mm->user_unload[n];
+        if(mi == NULL) {
+            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            continue;
+        }
+        if(mi->mod->user_unload == NULL) {
+            log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
+            continue;
+        }
+
+        log_debug(ZONE, "calling module %s", mi->mod->name);
+
+        ret = (mi->mod->user_unload)(mi, user);
+        if(ret != 0)
+            break;
+    }
+
+    log_debug(ZONE, "user-unload chain returning %d", ret);
 
     return ret;
 }

@@ -33,7 +33,7 @@
  * !!! fix everything that makes this a problem
  */
 
-#include "sm.h"
+#include "storage.h"
 #include <ctype.h>
 
 #ifdef HAVE_DIRENT_H
@@ -51,6 +51,9 @@
 # ifdef HAVE_NDIR_H
 #  include <ndir.h>
 # endif
+#endif
+#ifdef HAVE_SYS_STAT_H
+#  include <sys/stat.h>
 #endif
 
 #define STORAGE_FS_READ_BLOCKSIZE 8192
@@ -70,7 +73,7 @@ static st_ret_t _st_fs_add_type(st_driver_t drv, const char *type) {
     ret = stat(path, &sbuf);
     if(ret < 0) {
         if(errno != ENOENT) {
-            log_write(drv->st->sm->log, LOG_ERR, "fs: couldn't stat '%s': %s", path, strerror(errno));
+            log_write(drv->st->log, LOG_ERR, "fs: couldn't stat '%s': %s", path, strerror(errno));
             return st_FAILED;
         }
 
@@ -78,7 +81,7 @@ static st_ret_t _st_fs_add_type(st_driver_t drv, const char *type) {
 
         ret = mkdir(path, 0755);
         if(ret < 0) {
-            log_write(drv->st->sm->log, LOG_ERR, "fs: couldn't create directory '%s': %s", path, strerror(errno));
+            log_write(drv->st->log, LOG_ERR, "fs: couldn't create directory '%s': %s", path, strerror(errno));
             return st_FAILED;
         }
     }
@@ -106,7 +109,7 @@ static st_ret_t _st_fs_put(st_driver_t drv, const char *type, const char *owner,
     snprintf(path, 1024, "%s/%s", data->path, type);
     ret = stat(path, &sbuf);
     if(ret < 0) {
-        log_write(drv->st->sm->log, LOG_ERR, "fs: couldn't stat '%s': %s", path, strerror(errno));
+        log_write(drv->st->log, LOG_ERR, "fs: couldn't stat '%s': %s", path, strerror(errno));
         return st_FAILED;
     }
 
@@ -114,7 +117,7 @@ static st_ret_t _st_fs_put(st_driver_t drv, const char *type, const char *owner,
     ret = stat(path, &sbuf);
     if(ret < 0) {
         if(errno != ENOENT) {
-            log_write(drv->st->sm->log, LOG_ERR, "fs: couldn't stat '%s': %s", path, strerror(errno));
+            log_write(drv->st->log, LOG_ERR, "fs: couldn't stat '%s': %s", path, strerror(errno));
             return st_FAILED;
         }
 
@@ -122,7 +125,7 @@ static st_ret_t _st_fs_put(st_driver_t drv, const char *type, const char *owner,
 
         ret = mkdir(path, 0755);
         if(ret < 0) {
-            log_write(drv->st->sm->log, LOG_ERR, "fs: couldn't create directory '%s': %s", path, strerror(errno));
+            log_write(drv->st->log, LOG_ERR, "fs: couldn't create directory '%s': %s", path, strerror(errno));
             return st_FAILED;
         }
     }
@@ -139,7 +142,7 @@ static st_ret_t _st_fs_put(st_driver_t drv, const char *type, const char *owner,
                     break;
 
                 if(ret < 0) {
-                    log_write(drv->st->sm->log, LOG_ERR, "fs: couldn't stat '%s': %s", path, strerror(errno));
+                    log_write(drv->st->log, LOG_ERR, "fs: couldn't stat '%s': %s", path, strerror(errno));
                     return st_FAILED;
                 }
             }
@@ -148,7 +151,7 @@ static st_ret_t _st_fs_put(st_driver_t drv, const char *type, const char *owner,
 
             f = fopen(path, "w");
             if(f == NULL) {
-                log_write(drv->st->sm->log, LOG_ERR, "fs: couldn't open '%s' for writing: %s", path, strerror(errno));
+                log_write(drv->st->log, LOG_ERR, "fs: couldn't open '%s' for writing: %s", path, strerror(errno));
                 return st_FAILED;
             }
 
@@ -211,13 +214,13 @@ static st_ret_t _st_fs_get(st_driver_t drv, const char *type, const char *owner,
     if(ret < 0) {
         if(errno == ENOENT)
             return st_NOTFOUND;
-        log_write(drv->st->sm->log, LOG_ERR, "fs: couldn't stat '%s': %s", path, strerror(errno));
+        log_write(drv->st->log, LOG_ERR, "fs: couldn't stat '%s': %s", path, strerror(errno));
         return st_FAILED;
     }
 
     dir = opendir(path);
     if(dir == NULL) {
-        log_write(drv->st->sm->log, LOG_ERR, "fs: couldn't open directory '%s': %s", path, strerror(errno));
+        log_write(drv->st->log, LOG_ERR, "fs: couldn't open directory '%s': %s", path, strerror(errno));
         return st_FAILED;
     }
 
@@ -231,8 +234,10 @@ static st_ret_t _st_fs_get(st_driver_t drv, const char *type, const char *owner,
         snprintf(file, 1024, "%s/%s", path, dirent->d_name);
         f = fopen(file, "r");
         if(f == NULL) {
-            log_write(drv->st->sm->log, LOG_ERR, "fs: couldn't open '%s' for reading: %s", path, strerror(errno));
+            log_write(drv->st->log, LOG_ERR, "fs: couldn't open '%s' for reading: %s", path, strerror(errno));
             os_free(*os);
+            *os = NULL;
+            *os = NULL;
             closedir(dir);
             return st_FAILED;
         }
@@ -275,8 +280,9 @@ static st_ret_t _st_fs_get(st_driver_t drv, const char *type, const char *owner,
                         }
                     }
                     if(nad == NULL) {
-                        log_write(drv->st->sm->log, LOG_ERR, "fs: unable to parse stored XML; type=%s, owner=%s", type, owner);
+                        log_write(drv->st->log, LOG_ERR, "fs: unable to parse stored XML; type=%s, owner=%s", type, owner);
                         os_free(*os);
+                        *os = NULL;
                         fclose(f);
                         closedir(dir);
                         return st_FAILED;
@@ -292,8 +298,9 @@ static st_ret_t _st_fs_get(st_driver_t drv, const char *type, const char *owner,
         }
 
         if(!feof(f)) {
-            log_write(drv->st->sm->log, LOG_ERR, "fs: couldn't read from '%s': %s", path, strerror(errno));
+            log_write(drv->st->log, LOG_ERR, "fs: couldn't read from '%s': %s", path, strerror(errno));
             os_free(*os);
+            *os = NULL;
             fclose(f);
             closedir(dir);
             return st_FAILED;
@@ -305,9 +312,10 @@ static st_ret_t _st_fs_get(st_driver_t drv, const char *type, const char *owner,
     }
 
     if(errno != 0) {
-        log_write(drv->st->sm->log, LOG_ERR, "fs: couldn't read from directory '%s': %s", path, strerror(errno));
+        log_write(drv->st->log, LOG_ERR, "fs: couldn't read from directory '%s': %s", path, strerror(errno));
         closedir(dir);
         os_free(*os);
+        *os = NULL;
         return st_FAILED;
     }
 
@@ -348,13 +356,13 @@ static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *own
     if(ret < 0) {
         if(errno == ENOENT)
             return st_NOTFOUND;
-        log_write(drv->st->sm->log, LOG_ERR, "fs: couldn't stat '%s': %s", path, strerror(errno));
+        log_write(drv->st->log, LOG_ERR, "fs: couldn't stat '%s': %s", path, strerror(errno));
         return st_FAILED;
     }
 
     dir = opendir(path);
     if(dir == NULL) {
-        log_write(drv->st->sm->log, LOG_ERR, "fs: couldn't open directory '%s': %s", path, strerror(errno));
+        log_write(drv->st->log, LOG_ERR, "fs: couldn't open directory '%s': %s", path, strerror(errno));
         return st_FAILED;
     }
 
@@ -370,7 +378,7 @@ static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *own
         snprintf(file, 1024, "%s/%s", path, dirent->d_name);
         f = fopen(file, "r");
         if(f == NULL) {
-            log_write(drv->st->sm->log, LOG_ERR, "fs: couldn't open '%s' for reading: %s", path, strerror(errno));
+            log_write(drv->st->log, LOG_ERR, "fs: couldn't open '%s' for reading: %s", path, strerror(errno));
             os_free(os);
             closedir(dir);
             return st_FAILED;
@@ -414,7 +422,7 @@ static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *own
                         }
                     }
                     if(nad == NULL)
-                        log_write(drv->st->sm->log, LOG_ERR, "fs: unable to parse stored XML; type=%s, owner=%s", type, owner);
+                        log_write(drv->st->log, LOG_ERR, "fs: unable to parse stored XML; type=%s, owner=%s", type, owner);
                     else {
                         os_object_put(o, buf, nad, ot);
                         nad_free(nad);
@@ -428,7 +436,7 @@ static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *own
         }
 
         if(!feof(f)) {
-            log_write(drv->st->sm->log, LOG_ERR, "fs: couldn't read from '%s': %s", path, strerror(errno));
+            log_write(drv->st->log, LOG_ERR, "fs: couldn't read from '%s': %s", path, strerror(errno));
             os_free(os);
             fclose(f);
             closedir(dir);
@@ -440,7 +448,7 @@ static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *own
         if(storage_match(sf, o, os)) {
             ret = unlink(file);
             if(ret < 0) {
-                log_write(drv->st->sm->log, LOG_ERR, "fs: couldn't unlink '%s': %s", path, strerror(errno));
+                log_write(drv->st->log, LOG_ERR, "fs: couldn't unlink '%s': %s", path, strerror(errno));
                 if(sf != NULL) pool_free(sf->p);
                 os_free(os);
                 closedir(dir);
@@ -452,7 +460,7 @@ static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *own
     }
 
     if(errno != 0) {
-        log_write(drv->st->sm->log, LOG_ERR, "fs: couldn't read from directory '%s': %s", path, strerror(errno));
+        log_write(drv->st->log, LOG_ERR, "fs: couldn't read from directory '%s': %s", path, strerror(errno));
         closedir(dir);
         os_free(os);
         return st_FAILED;
@@ -489,15 +497,15 @@ st_ret_t st_init(st_driver_t drv) {
     int ret;
     drvdata_t data;
 
-    path = config_get_one(drv->st->sm->config, "storage.fs.path", 0);
+    path = config_get_one(drv->st->config, "storage.fs.path", 0);
     if(path == NULL) {
-        log_write(drv->st->sm->log, LOG_ERR, "fs: no path specified in config file");
+        log_write(drv->st->log, LOG_ERR, "fs: no path specified in config file");
         return st_FAILED;
     }
 
     ret = stat(path, &sbuf);
     if(ret < 0) {
-        log_write(drv->st->sm->log, LOG_ERR, "fs: couldn't stat path '%s': %s", path, strerror(errno));
+        log_write(drv->st->log, LOG_ERR, "fs: couldn't stat path '%s': %s", path, strerror(errno));
         return st_FAILED;
     }
 
@@ -514,7 +522,7 @@ st_ret_t st_init(st_driver_t drv) {
     drv->replace = _st_fs_replace;
     drv->free = _st_fs_free;
 
-    log_write(drv->st->sm->log, LOG_WARNING, "fs: the filesystem storage driver should only be used for testing!");
+    log_write(drv->st->log, LOG_WARNING, "fs: the filesystem storage driver should only be used for testing!");
 
     return st_SUCCESS;
 }

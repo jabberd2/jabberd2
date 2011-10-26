@@ -1,0 +1,30 @@
+<config_test>
+    <id>id_from_config</id>
+    <value_with_id>value if id is ${id}</value_with_id>
+    <test>
+        <value>1234567</value>
+    </test>
+    <another>
+        <test>
+            <value>111${test.value}222</value>
+        </test>
+    </another>
+    <test_key>qwerty</test_key>
+    <test_key_expanded>asdfgh${test_key}zxcvbn</test_key_expanded>
+<!--     <test_key_expanded_no_var>asdfgh${invalid}zxcvbn</test_key_expanded_no_var> -->
+<!--     <use_defined_later>asdfgh${later}zxcvbn</use_defined_later> -->
+    <later>qwerty</later>
+    <use_defined_above>asdfgh${later}zxcvbn</use_defined_above>
+    <simple_value/>
+	<multiple>
+		<val>1</val>
+		<val>2</val>
+		<val>3</val>
+		<simple/>
+		<simple/>
+		<simple/>
+		<simple/>
+	</multiple>
+	<simple_value_with_attr attr1='val1' attr2='val2' />
+	<simple_value_with_attr/>
+</config_test>

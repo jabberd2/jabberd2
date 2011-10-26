@@ -61,6 +61,16 @@ static void _sm_signal_hup(int signum)
     sm->mm = mm_new(sm);
 }
 
+static void _sm_signal_usr1(int signum)
+{
+    set_debug_flag(0);
+}
+
+static void _sm_signal_usr2(int signum)
+{
+    set_debug_flag(1);
+}
+
 /** store the process id */
 static void _sm_pidfile(sm_t sm) {
     char *pidfile;
@@ -192,6 +202,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
 #ifdef POOL_DEBUG
     time_t pool_time = 0;
 #endif
+    const char *cli_id = 0;
 
 #ifdef HAVE_UMASK
     umask((mode_t) 0027);
@@ -205,9 +216,9 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
 		WORD wVersionRequested;
 		WSADATA wsaData;
 		int err;
-		
+
 		wVersionRequested = MAKEWORD( 2, 2 );
-		
+
 		err = WSAStartup( wVersionRequested, &wsaData );
 		if ( err != 0 ) {
             /* !!! tell user that we couldn't find a usable winsock dll */
@@ -224,6 +235,9 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
 #ifdef SIGPIPE
     jabber_signal(SIGPIPE, SIG_IGN);
 #endif
+    jabber_signal(SIGUSR1, _sm_signal_usr1);
+    jabber_signal(SIGUSR2, _sm_signal_usr2);
+
 
     sm = (sm_t) calloc(1, sizeof(struct sm_st));
 
@@ -233,7 +247,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
     config_file = CONFIG_DIR "/sm.xml";
 
     /* cmdline parsing */
-    while((optchar = getopt(argc, argv, "Dc:h?")) >= 0)
+    while((optchar = getopt(argc, argv, "Dc:hi:?")) >= 0)
     {
         switch(optchar)
         {
@@ -247,12 +261,16 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
                 printf("WARN: Debugging not enabled.  Ignoring -D.\n");
 #endif
                 break;
+            case 'i':
+                cli_id = optarg;
+                break;
             case 'h': case '?': default:
                 fputs(
                     "sm - jabberd session manager (" VERSION ")\n"
                     "Usage: sm <options>\n"
                     "Options are:\n"
                     "   -c <config>     config file to use [default: " CONFIG_DIR "/sm.xml]\n"
+                    "   -i id           Override <id> config element\n"
 #ifdef DEBUG
                     "   -D              Show debug output\n"
 #endif
@@ -264,7 +282,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
         }
     }
 
-    if(config_load(sm->config, config_file) != 0)
+    if(config_load_with_id(sm->config, config_file, cli_id) != 0)
     {
         fputs("sm: couldn't load config, aborting\n", stderr);
         config_free(sm->config);
@@ -291,7 +309,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
     sm_signature(sm, PACKAGE " sm " VERSION);
 
     /* start storage */
-    sm->st = storage_new(sm);
+    sm->st = storage_new(sm->config, sm->log);
     if (sm->st == NULL) {
         log_write(sm->log, LOG_ERR, "failed to initialise one or more storage drivers, aborting");
         exit(1);

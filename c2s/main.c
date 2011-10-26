@@ -37,6 +37,16 @@ static void _c2s_signal_hup(int signum)
     c2s_logrotate = 1;
 }
 
+static void _c2s_signal_usr1(int signum)
+{
+    set_debug_flag(0);
+}
+
+static void _c2s_signal_usr2(int signum)
+{
+    set_debug_flag(1);
+}
+
 /** store the process id */
 static void _c2s_pidfile(c2s_t c2s) {
     char *pidfile;
@@ -490,7 +500,7 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
 
             /* Using SSF is potentially dangerous, as SASL can also set the
              * SSF of the connection. However, SASL shouldn't do so until after
-             * we've finished mechanism establishment 
+             * we've finished mechanism establishment
              */
             if (s->ssf>0) {
                 r = snprintf(buf, sizeof(buf), "authreg.ssl-mechanisms.sasl.%s",mechbuf);
@@ -562,6 +572,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     bres_t res;
     union xhashv xhv;
     time_t check_time = 0;
+    const char *cli_id = 0;
 
 #ifdef HAVE_UMASK
     umask((mode_t) 0027);
@@ -594,6 +605,9 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
 #ifdef SIGPIPE
     jabber_signal(SIGPIPE, SIG_IGN);
 #endif
+    jabber_signal(SIGUSR1, _c2s_signal_usr1);
+    jabber_signal(SIGUSR2, _c2s_signal_usr2);
+
 
     c2s = (c2s_t) calloc(1, sizeof(struct c2s_st));
 
@@ -603,7 +617,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     config_file = CONFIG_DIR "/c2s.xml";
 
     /* cmdline parsing */
-    while((optchar = getopt(argc, argv, "Dc:h?")) >= 0)
+    while((optchar = getopt(argc, argv, "Dc:hi:?")) >= 0)
     {
         switch(optchar)
         {
@@ -617,12 +631,16 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
                 printf("WARN: Debugging not enabled.  Ignoring -D.\n");
 #endif
                 break;
+            case 'i':
+                cli_id = optarg;
+                break;
             case 'h': case '?': default:
                 fputs(
                     "c2s - jabberd client-to-server connector (" VERSION ")\n"
                     "Usage: c2s <options>\n"
                     "Options are:\n"
                     "   -c <config>     config file to use [default: " CONFIG_DIR "/c2s.xml]\n"
+                    "   -i id           Override <id> config element\n"
 #ifdef DEBUG
                     "   -D              Show debug output\n"
 #endif
@@ -634,7 +652,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
         }
     }
 
-    if(config_load(c2s->config, config_file) != 0)
+    if(config_load_with_id(c2s->config, config_file, cli_id) != 0)
     {
         fputs("c2s: couldn't load config, aborting\n", stderr);
         config_free(c2s->config);
