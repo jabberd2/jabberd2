@@ -1117,17 +1117,25 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     if(sess->bound < 1){
                         sess->active = 0;
 
-                        /* return the unbind result to the client */
-                        if(sess->result != NULL) {
-                            sx_nad_write(sess->s, sess->result);
-                            sess->result = NULL;
+                        if(sess->s) {
+                            /* return the unbind result to the client */
+                            if(sess->result != NULL) {
+                                sx_nad_write(sess->s, sess->result);
+                                sess->result = NULL;
+                            }
+
+                            if(replaced)
+                                sx_error(sess->s, stream_err_CONFLICT, NULL);
+
+                            sx_close(sess->s);
+
+                        } else {
+                            // handle fake PBX sessions
+                            if(sess->result != NULL) {
+                                nad_free(sess->result);
+                                sess->result = NULL;
+                            }
                         }
-
-                        if(replaced)
-                            sx_error(sess->s, stream_err_CONFLICT, NULL);
-
-                        /* close the stream if there is one */
-                        if(sess->s) sx_close(sess->s);
 
                         nad_free(nad);
                         return 0;
@@ -1267,6 +1275,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             if(NAD_NURI_L(nad, NAD_ENS(nad, 1)) == strlen(uri_CLIENT) && strncmp(uri_CLIENT, NAD_NURI(nad, NAD_ENS(nad, 1)), strlen(uri_CLIENT)) == 0) {
                 if(!sess->active || !sess->s) {
                     /* its a strange world .. */
+                    log_debug(ZONE, "Got packet for %s - dropping", !sess->s ? "session without stream (PBX pipe session?)" : "inactive session");
                     nad_free(nad);
                     return 0;
                 }
