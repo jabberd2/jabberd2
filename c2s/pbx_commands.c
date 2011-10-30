@@ -60,23 +60,23 @@ static nad_t _pbx_presence_nad(int available, char *cmd)
 		nad_append_elem(nad, -1, "priority", 1);
 		nad_append_cdata(nad, "-1", 2, 2);
 
-		if(!strncmp("CHAT ", cmd, 5)) {
-			cmd += 5;
+		if(!strncmp("CHAT", cmd, 4)) {
+			cmd += 4;
 			show = "chat";
 		}
-		if(!strncmp("ONLINE ", cmd, 7)) {
-			cmd += 7;
+		if(!strncmp("ONLINE", cmd, 6)) {
+			cmd += 6;
 		}
-		if(!strncmp("DND ", cmd, 4)) {
-			cmd += 4;
+		if(!strncmp("DND", cmd, 3)) {
+			cmd += 3;
 			show = "dnd";
 		}
-		if(!strncmp("AWAY ", cmd, 5)) {
-			cmd += 5;
+		if(!strncmp("AWAY", cmd, 4)) {
+			cmd += 4;
 			show = "away";
 		}
-		if(!strncmp("XA ", cmd, 3)) {
-			cmd += 3;
+		if(!strncmp("XA", cmd, 2)) {
+			cmd += 2;
 			show = "xa";
 		}
 		if(show) {
@@ -84,6 +84,8 @@ static nad_t _pbx_presence_nad(int available, char *cmd)
 			nad_append_cdata(nad, show, strlen(show), 2);
 		}
 	}
+
+	while(*cmd == ' ') { cmd++; }
 
 	if(*cmd != '\0' && *cmd != '\n') {
 		int len = strlen(cmd);
