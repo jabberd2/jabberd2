@@ -138,7 +138,7 @@ struct _Gsasl_digest_md5_server_state
 typedef struct _Gsasl_digest_md5_server_state _Gsasl_digest_md5_server_state;
 
 /** utility: generate a success nad */
-static nad_t _sx_sasl_success(sx_t s) {
+static nad_t _sx_sasl_success(sx_t s, char *data, int dlen) {
     nad_t nad;
     int ns;
 
@@ -146,6 +146,8 @@ static nad_t _sx_sasl_success(sx_t s) {
     ns = nad_add_namespace(nad, uri_SASL, NULL);
 
     nad_append_elem(nad, ns, "success", 0);
+    if(data != NULL)
+        nad_append_cdata(nad, data, dlen, 1);
 
     return nad;
 }
@@ -533,14 +535,24 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
     if(ret == GSASL_OK) {
         _sx_debug(ZONE, "sasl handshake completed");
 
+        /* encode the leftover response */
+        ret = gsasl_base64_to(out, outlen, &buf, &buflen);
+        if (ret == GSASL_OK) {
+            /* send success */
+            _sx_nad_write(s, _sx_sasl_success(s, buf, buflen), 0);
+            free(buf);
+
+            /* set a notify on the success nad buffer */
+            ((sx_buf_t) s->wbufq->front->data)->notify = _sx_sasl_notify_success;
+            ((sx_buf_t) s->wbufq->front->data)->notify_arg = (void *) p;
+        }
+        else {
+            _sx_debug(ZONE, "gsasl_base64_to failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
+            _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_INCORRECT_ENCODING), 0);
+            if(buf != NULL) free(buf);
+        }
+
         if(out != NULL) free(out);
-
-        /* send success */
-        _sx_nad_write(s, _sx_sasl_success(s), 0);
-
-        /* set a notify on the success nad buffer */
-        ((sx_buf_t) s->wbufq->front->data)->notify = _sx_sasl_notify_success;
-        ((sx_buf_t) s->wbufq->front->data)->notify_arg = (void *) p;
 
         return;
     }
@@ -554,6 +566,11 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
         if (ret == GSASL_OK) {
             _sx_nad_write(s, _sx_sasl_challenge(s, buf, buflen), 0);
             free(buf);
+        }
+        else {
+            _sx_debug(ZONE, "gsasl_base64_to failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
+            _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_INCORRECT_ENCODING), 0);
+            if(buf != NULL) free(buf);
         }
 
         if(out != NULL) free(out);
