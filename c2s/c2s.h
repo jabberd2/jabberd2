@@ -204,7 +204,7 @@ struct c2s_st {
     char                *local_pemfile;
 
     /** encrypted port cachain file */
-    char				*local_cachain;
+    char                *local_cachain;
 
     /** verify-mode  */
     int                 local_verify_mode;

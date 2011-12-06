@@ -946,9 +946,9 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                  * trying to tell SM to close in response to errors */
                 action = nad_find_attr(nad, 1, -1, "action", NULL);
                 if(action >= 0 && NAD_AVAL_L(nad, action) == 7 && strncmp("started", NAD_AVAL(nad, action), 7) == 0) {
-					int target;
-					bres_t tres;
-					sess_t tsess;
+                    int target;
+                    bres_t tres;
+                    sess_t tsess;
 
                     log_write(c2s->log, LOG_NOTICE, "session %s does not exist; telling sm to close", skey);
 
