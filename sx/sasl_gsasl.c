@@ -457,15 +457,15 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
             if(s->env->plugins[i]->magic == SX_SSL_MAGIC && s->plugin_data[s->env->plugins[i]->index] != NULL)
                 ext_id = ((_sx_ssl_conn_t) s->plugin_data[s->env->plugins[i]->index])->external_id;
         if (ext_id != NULL) {
-			//_sx_debug(ZONE, "sasl context ext id '%s'", ext_id);
-			/* if there is, store it for later */
-			for (i = 0; i < SX_CONN_EXTERNAL_ID_MAX_COUNT; i++)
-				if (ext_id[i] != NULL) {
-					ctx->ext_id[i] = strdup(ext_id[i]);
-				} else {
-					ctx->ext_id[i] = NULL;
-					break;
-				}
+            //_sx_debug(ZONE, "sasl context ext id '%s'", ext_id);
+            /* if there is, store it for later */
+            for (i = 0; i < SX_CONN_EXTERNAL_ID_MAX_COUNT; i++)
+                if (ext_id[i] != NULL) {
+                    ctx->ext_id[i] = strdup(ext_id[i]);
+                } else {
+                    ctx->ext_id[i] = NULL;
+                    break;
+                }
         }
 #endif
 
@@ -484,11 +484,11 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
             buf = strdup(out);
             buflen = strlen(buf);
         } else if (strstr(in, "<") != NULL && strncmp(in, "=", strstr(in, "<") - in ) == 0) {
-        	/* XXX The above check is hackish, but `in` is just weird */
-        	/* This is a special case for SASL External c2s. See XEP-0178 */
-        	_sx_debug(ZONE, "gsasl auth string is empty");
-			buf = strdup("");
-			buflen = strlen(buf);
+            /* XXX The above check is hackish, but `in` is just weird */
+            /* This is a special case for SASL External c2s. See XEP-0178 */
+            _sx_debug(ZONE, "gsasl auth string is empty");
+            buf = strdup("");
+            buflen = strlen(buf);
         } else {
             /* decode and process */
             ret = gsasl_base64_from(in, inlen, &buf, &buflen);
@@ -860,42 +860,42 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
         case GSASL_VALIDATE_EXTERNAL:
             /* GSASL_AUTHID */
             creds.authzid = gsasl_property_fast(sd, GSASL_AUTHZID);
-			_sx_debug(ZONE, "sasl external");
-			_sx_debug(ZONE, "sasl creds.authzid is '%s'", creds.authzid);
+            _sx_debug(ZONE, "sasl external");
+            _sx_debug(ZONE, "sasl creds.authzid is '%s'", creds.authzid);
 
             for (i = 0; i < SX_CONN_EXTERNAL_ID_MAX_COUNT; i++) {
-            	if (ctx->ext_id[i] == NULL)
-            		break;
-            	_sx_debug(ZONE, "sasl ext_id(%d) is '%s'", i, ctx->ext_id[i]);
-            	/* XXX hackish.. detect c2s by existance of @ */
-            	value = strstr(ctx->ext_id[i], "@");
+                if (ctx->ext_id[i] == NULL)
+                    break;
+                _sx_debug(ZONE, "sasl ext_id(%d) is '%s'", i, ctx->ext_id[i]);
+                /* XXX hackish.. detect c2s by existance of @ */
+                value = strstr(ctx->ext_id[i], "@");
 
-            	if(value == NULL && creds.authzid != NULL && strcmp(ctx->ext_id[i], creds.authzid) == 0) {
-            		// s2s connection and it's valid
-            		/* TODO Handle wildcards and other thigs from XEP-0178 */
-            		_sx_debug(ZONE, "sasl ctx->ext_id doesn't have '@' in it. Assuming s2s");
-            		return GSASL_OK;
-            	}
-            	if(value != NULL &&
-            		((creds.authzid != NULL && strcmp(ctx->ext_id[i], creds.authzid) == 0) ||
-            		 (creds.authzid == NULL)) ) {
-					// c2s connection
-            		// creds.authzid == NULL condition is from XEP-0178 '=' auth reply
+                if(value == NULL && creds.authzid != NULL && strcmp(ctx->ext_id[i], creds.authzid) == 0) {
+                    // s2s connection and it's valid
+                    /* TODO Handle wildcards and other thigs from XEP-0178 */
+                    _sx_debug(ZONE, "sasl ctx->ext_id doesn't have '@' in it. Assuming s2s");
+                    return GSASL_OK;
+                }
+                if(value != NULL &&
+                    ((creds.authzid != NULL && strcmp(ctx->ext_id[i], creds.authzid) == 0) ||
+                     (creds.authzid == NULL)) ) {
+                    // c2s connection
+                    // creds.authzid == NULL condition is from XEP-0178 '=' auth reply
 
-					// This should be freed by gsasl_finish() but I'm not sure
-					// node  = authnid
-					len = value - ctx->ext_id[i];
-					node = (char *) malloc(sizeof(char) * (len + 1)); // + null termination
-					strncpy(node, ctx->ext_id[i], len);
-					node[len] = '\0'; // null terminate the string
-					// host = realm
-					len = strlen(value) - 1 + 1; // - the @ + null termination
-					host = (char *) malloc(sizeof(char) * (len));
-					strcpy(host, value + 1); // skip the @
-					gsasl_property_set(sd, GSASL_AUTHID, node);
-					gsasl_property_set(sd, GSASL_REALM, host);
-					return GSASL_OK;
-				}
+                    // This should be freed by gsasl_finish() but I'm not sure
+                    // node  = authnid
+                    len = value - ctx->ext_id[i];
+                    node = (char *) malloc(sizeof(char) * (len + 1)); // + null termination
+                    strncpy(node, ctx->ext_id[i], len);
+                    node[len] = '\0'; // null terminate the string
+                    // host = realm
+                    len = strlen(value) - 1 + 1; // - the @ + null termination
+                    host = (char *) malloc(sizeof(char) * (len));
+                    strcpy(host, value + 1); // skip the @
+                    gsasl_property_set(sd, GSASL_AUTHID, node);
+                    gsasl_property_set(sd, GSASL_REALM, host);
+                    return GSASL_OK;
+                }
 
             }
             return GSASL_AUTHENTICATION_ERROR;
@@ -914,10 +914,10 @@ static void _sx_sasl_unload(sx_plugin_t p) {
     if (ctx->gsasl_ctx != NULL) gsasl_done (ctx->gsasl_ctx);
     if (ctx->appname != NULL) free(ctx->appname);
     for (i = 0; i < SX_CONN_EXTERNAL_ID_MAX_COUNT; i++)
-    	if(ctx->ext_id[i] != NULL)
-    		free(ctx->ext_id[i]);
-    	else
-    		break;
+        if(ctx->ext_id[i] != NULL)
+            free(ctx->ext_id[i]);
+        else
+            break;
 
     if (ctx != NULL) free(ctx);
 }
@@ -947,7 +947,7 @@ int sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args) {
     ctx->cb = cb;
     ctx->cbarg = cbarg;
     for (i = 0; i < SX_CONN_EXTERNAL_ID_MAX_COUNT; i++)
-    	ctx->ext_id[i] = NULL;
+        ctx->ext_id[i] = NULL;
 
     ret = gsasl_init(&ctx->gsasl_ctx);
     if(ret != GSASL_OK) {
