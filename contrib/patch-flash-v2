@@ -1,9 +1,20 @@
-diff -u /usr/local/src/jabberd-2.0s6/c2s/c2s.c c2s/c2s.c
---- /usr/local/src/jabberd-2.0s6/c2s/c2s.c	Thu Dec 23 19:42:29 2004
-+++ c2s/c2s.c	Thu Dec 23 19:41:20 2004
-@@ -20,6 +20,65 @@
- 
+From 8e79a912cf41d41da558aeae44e0389a6f8a2e21 Mon Sep 17 00:00:00 2001
+From: Tomasz Sterna <tomek@xiaoka.com>
+Date: Tue, 6 Dec 2011 23:31:10 +0100
+Subject: [PATCH] Updated flash patch
+
+---
+ c2s/c2s.c |  130 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ c2s/c2s.h |    4 ++
+ 2 files changed, 134 insertions(+), 0 deletions(-)
+
+diff --git a/c2s/c2s.c b/c2s/c2s.c
+index 5d58407..1fcda9d 100644
+--- a/c2s/c2s.c
++++ b/c2s/c2s.c
+@@ -22,6 +22,65 @@
  #include "c2s.h"
+ #include <stringprep.h>
  
 +/*
 + * M.Bootsma, LogicaCMG Hoofddorp, Netherlands
@@ -67,25 +78,21 @@ diff -u /usr/local/src/jabberd-2.0s6/c2s/c2s.c c2s/c2s.c
  static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
      sess_t sess = (sess_t) arg;
      sx_buf_t buf = (sx_buf_t) data;
-@@ -28,6 +93,12 @@
-     nad_t nad;
+@@ -31,6 +90,12 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg)
      char root[9];
+     bres_t bres, ires;
  
 +#ifdef CP2005_FLASH_PATCH
 +    char *p, *pEnd;
-+    char caHost[FLASH_BUFFER_SIZE];
++    char caHost[FLASH_BUFFER_SIZE] = "";
 +    char caID[FLASH_BUFFER_SIZE];
 +#endif
 +
      switch(e) {
          case event_WANT_READ:
              log_debug(ZONE, "want read");
-@@ -94,14 +165,74 @@
-                 return -1;
-             }
+@@ -137,11 +202,76 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg)
  
--            log_debug(ZONE, "read %d bytes", len);
--
              buf->len = len;
  
 +#ifdef CP2005_FLASH_PATCH
@@ -108,9 +115,10 @@ diff -u /usr/local/src/jabberd-2.0s6/c2s/c2s.c c2s/c2s.c
 +                    ExtractValue(buf->data, "to=", caHost);
 +
 +                    /* create normal stream:stream header, resize data buffer first */
-+                    _sx_buffer_alloc_margin(buf, 0, sizeof(caStreamHeader) + strlen(caHost) + 8);
-+                    sprintf(buf->data, caStreamHeader, caHost);
++                    _sx_buffer_alloc_margin(buf, 0, sizeof(caStreamHeader) + strlen(caHost) + 8 + 10 /*sw paranoid*/);
++                    snprintf(buf->data, buf->len, caStreamHeader, caHost);
 +                    buf->len = strlen(buf->data);
++                    pEnd = &buf->data[buf->len];
 +
 +                    log_debug(ZONE, "++++ Converted to\n%.*s", buf->len, buf->data);
 +                }
@@ -123,13 +131,12 @@ diff -u /usr/local/src/jabberd-2.0s6/c2s/c2s.c c2s/c2s.c
 +                    if (*p == '\0')
 +                        *p = ' ';
 +#endif
-+            log_debug(ZONE, "read %d bytes", len);
 +
              return len;
  
          case event_WRITE:
              log_debug(ZONE, "writing to %d", sess->fd->fd);
-+
+ 
 +#ifdef CP2005_FLASH_PATCH
 +            if (sess->flash_client) {
 +                /* look for the header <? xml ...*/
@@ -147,6 +154,9 @@ diff -u /usr/local/src/jabberd-2.0s6/c2s/c2s.c c2s/c2s.c
 +                    buf->len = strlen(buf->data);
 +
 +                    log_debug(ZONE, "++++ Converted to %s", buf->data);
++                } else {
++                    // Add some space for the junk we are going to add at the end
++                    _sx_buffer_alloc_margin(buf, 0, 8);
 +                }
 +
 +                /* add a 0 to flash packets */
@@ -154,20 +164,25 @@ diff -u /usr/local/src/jabberd-2.0s6/c2s/c2s.c c2s/c2s.c
 +                buf->len++;
 +            }
 +#endif
- 
++
              len = send(sess->fd->fd, buf->data, buf->len, 0);
              if(len >= 0) {
-diff -u /usr/local/src/jabberd-2.0s6/c2s/c2s.h c2s/c2s.h
---- /usr/local/src/jabberd-2.0s6/c2s/c2s.h	Tue Dec  7 18:38:05 2004
-+++ c2s/c2s.h	Thu Dec 23 19:23:47 2004
-@@ -62,6 +62,10 @@
-     int                 bound;
+                 log_debug(ZONE, "%d bytes written", len);
+diff --git a/c2s/c2s.h b/c2s/c2s.h
+index 48c57d9..7b71dab 100644
+--- a/c2s/c2s.h
++++ b/c2s/c2s.h
+@@ -104,6 +104,10 @@ struct sess_st {
+ 
      int                 active;
  
 +#ifdef CP2005_FLASH_PATCH
 +    int                 flash_client;
 +#endif
 +
+     /* session related packet waiting for sm response */
      nad_t               result;
  
-     int                 sasl_authd;     /* 1 = they did a sasl auth */
+-- 
+1.7.7.3
+
