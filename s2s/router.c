@@ -281,6 +281,7 @@ int s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
         case event_CLOSED:
             mio_close(s2s->mio, s2s->fd);
+            s2s->fd = NULL;
             return -1;
     }
 

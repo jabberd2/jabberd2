@@ -344,7 +344,10 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             return 0;
 
         case event_CLOSED:
+            if (in->fd != NULL) {
             mio_close(in->s2s->mio, in->fd);
+                in->fd = NULL;
+            }
             return -1;
     }
 

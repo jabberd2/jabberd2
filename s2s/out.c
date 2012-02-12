@@ -1613,7 +1613,10 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             return 0;
 
         case event_CLOSED:
+            if (out->fd != NULL) {
             mio_close(out->s2s->mio, out->fd);
+                out->fd = NULL;
+            }
             return -1;
     }
 
