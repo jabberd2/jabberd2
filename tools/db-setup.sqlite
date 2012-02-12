@@ -149,6 +149,8 @@ CREATE TABLE "vcard" (
     
     "rev" TEXT );
 
+CREATE INDEX i_vcard_owner ON "vcard"("collection-owner");
+
 --
 -- Offline message queue
 -- Used by: mod_offline
