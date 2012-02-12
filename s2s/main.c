@@ -163,6 +163,7 @@ static void _s2s_config_expand(s2s_t s2s) {
     s2s->compression = (config_get(s2s->config, "io.compression") != NULL);
 
     s2s->stanza_size_limit = j_atoi(config_get_one(s2s->config, "io.limits.stanzasize", 0), 0);
+    s2s->require_tls = j_atoi(config_get_one(s2s->config, "security.require_tls", 0), 0);
     s2s->enable_whitelist = j_atoi(config_get_one(s2s->config, "security.enable_whitelist", 0), 0);
     if((elem = config_get(s2s->config, "security.whitelist_domain")) != NULL) {
         _s2s_populate_whitelist_domains(s2s, elem->values, elem->nvalues);

@@ -275,7 +275,8 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             in->last_packet = time(NULL);
 
             /* dialback packets */
-            if(NAD_NURI_L(nad, NAD_ENS(nad, 0)) == strlen(uri_DIALBACK) && strncmp(uri_DIALBACK, NAD_NURI(nad, NAD_ENS(nad, 0)), strlen(uri_DIALBACK)) == 0) {
+            if(NAD_NURI_L(nad, NAD_ENS(nad, 0)) == strlen(uri_DIALBACK) && strncmp(uri_DIALBACK, NAD_NURI(nad, NAD_ENS(nad, 0)), strlen(uri_DIALBACK)) == 0 &&
+                    (in->s2s->require_tls == 0 || s->ssf > 0)) {
                 /* only result and verify mean anything */
                 if(NAD_ENAME_L(nad, 0) == 6) {
                     if(strncmp("result", NAD_ENAME(nad, 0), 6) == 0) {

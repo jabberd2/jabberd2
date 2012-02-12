@@ -167,6 +167,7 @@ struct s2s_st {
     time_t              next_expiry;
 
     /** Apple security options */
+	int					require_tls;
 	int					enable_whitelist;
 	char                **whitelist_domains;
 	int					n_whitelist_domains;

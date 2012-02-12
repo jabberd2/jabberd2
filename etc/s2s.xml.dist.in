@@ -289,6 +289,11 @@
   <out-reuse-conn/>
 
   <security>
+    <!-- Require TLS secured S2S connections -->
+    <!--
+      <require_tls/>
+    -->
+
     <!-- Domain whitelisting
          When defined, only whitelisted domains are allowed to connect -->
     <!--

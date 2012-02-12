@@ -710,8 +710,9 @@ int out_packet(s2s_t s2s, pkt_t pkt) {
     }
 
     /* this is a new route - send dialback auth request to piggyback on the existing connection */
+	if (out->s2s->require_tls == 0 || out->s->ssf > 0) {
     _out_dialback(out, rkey, rkeylen);
-
+    }
     free(rkey);
     return 0;
 }
@@ -1525,7 +1526,7 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
                 /* if no stream version from either side, kick off dialback for each route, */
                 /* otherwise wait for stream features */
-                if ((out->s->res_version==NULL) || (out->s2s->sx_ssl == NULL)) {
+                if (((out->s->res_version==NULL) || (out->s2s->sx_ssl == NULL)) && out->s2s->require_tls == 0) {
                      log_debug(ZONE, "no stream version, sending dialbacks for %s immediately", out->key);
                      out->online = 1;
                      send_dialbacks(out);
@@ -1569,13 +1570,19 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
                 /* If we're not establishing a starttls connection, send dialbacks */
                 if (!starttls) {
+				    if (out->s2s->require_tls == 0 || s->ssf > 0) {
                      log_debug(ZONE, "No STARTTLS, sending dialbacks for %s", out->key);
                      out->online = 1;
                      send_dialbacks(out);
+					} else {
+						log_debug(ZONE, "No STARTTLS, dialbacks disabled for non-TLS connections, cannot complete negotiation");
+					}
                 }
 #else
+				if (out->s2s->require_tls == 0) {
                 out->online = 1;
                 send_dialbacks(out);
+            	}
 #endif
             }
 
