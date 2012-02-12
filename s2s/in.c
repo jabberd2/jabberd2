@@ -163,6 +163,8 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
     sx_error_t *sxe;
     nad_t nad;
     char ipport[INET6_ADDRSTRLEN + 17];
+    jid_t from;
+    int attr;
 
     switch(e) {
         case event_WANT_READ:
@@ -319,6 +321,23 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 nad_free(nad);
                 return 0;
             }
+
+            /* perform check against whitelist */
+            attr = nad_find_attr(nad, 0, -1, "from", NULL);
+            if(attr < 0 || (from = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
+                log_debug(ZONE, "missing or invalid from on incoming packet, attr is %d", attr);
+                nad_free(nad);
+                return 0;
+            }
+
+            if (in->s2s->enable_whitelist > 0 && (s2s_domain_in_whitelist(in->s2s, from->domain) == 0)) {
+                log_write(in->s2s->log, LOG_NOTICE, "received a packet not from a whitelisted domain %s, dropping it", from->domain);
+                jid_free(from);
+                nad_free(nad);
+                return 0;
+            }
+
+            jid_free(from);
 
             _in_packet(in, nad);
             return 0;

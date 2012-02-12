@@ -166,6 +166,11 @@ struct s2s_st {
     time_t              next_check;
     time_t              next_expiry;
 
+    /** Apple security options */
+	int					enable_whitelist;
+	char                **whitelist_domains;
+	int					n_whitelist_domains;
+
     /** list of sx_t on the way out */
     jqueue_t            dead;
 
@@ -341,6 +346,7 @@ extern sig_atomic_t s2s_lost_router;
 
 int             s2s_router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
 int             s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg);
+int             s2s_domain_in_whitelist(s2s_t s2s, char *in_domain);
 
 char            *s2s_route_key(pool_t p, char *local, char *remote);
 int             s2s_route_key_match(char *local, char *remote, char *rkey, int rkeylen);
@@ -363,6 +369,9 @@ int             in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data
 
 /* sx flag for outgoing dialback streams */
 #define S2S_DB_HEADER   (1<<10)
+
+/* max length of FQDN for whitelist matching */
+#define MAX_DOMAIN_LEN	1023
 
 int             s2s_db_init(sx_env_t env, sx_plugin_t p, va_list args);
 

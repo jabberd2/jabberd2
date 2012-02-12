@@ -287,6 +287,16 @@
        existing outgoing connections. This is a potential security risk
        as the SSL connection from the first domain will be re-used too. -->
   <out-reuse-conn/>
+
+  <security>
+    <!-- Domain whitelisting
+         When defined, only whitelisted domains are allowed to connect -->
+    <!--
+    <whitelist_domain>domain1.tld</whitelist_domain>
+    <whitelist_domain>domain2.tld</whitelist_domain>
+    <whitelist_domain>other.tld</whitelist_domain>
+    -->
+  </security>
 </s2s>
 <!--
   vim: syntax=xml
