@@ -231,6 +231,7 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
         case event_CLOSED:
             mio_close(sm->mio, sm->fd);
+            sm->fd = NULL;
             return -1;
     }
 

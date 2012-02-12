@@ -443,7 +443,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
             xhash_iter_get(sm->sessions, NULL, NULL, (void *) &sess);
             sm_c2s_action(sess, "ended", NULL);
             sess_end(sess);
-        } while(xhash_count(sm->sessions) > 0);
+        } while (xhash_iter_next(sm->sessions));
 
     xhash_free(sm->sessions);
 

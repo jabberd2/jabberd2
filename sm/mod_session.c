@@ -329,12 +329,11 @@ static mod_ret_t _session_pkt_router(mod_instance_t mi, pkt_t pkt) {
 
     xhv.sess_val = &sess;
     if(xhash_iter_first(mi->mod->mm->sm->sessions))
-        while (xhash_iter_get(mi->mod->mm->sm->sessions, NULL, NULL, xhv.val)) {
+        do {
+            xhash_iter_get(mi->mod->mm->sm->sessions, NULL, NULL, xhv.val);
             if(sess && strcmp(sess->c2s, pkt->from->domain) == 0)
                 sess_end(sess);
-            else
-                xhash_iter_next(mi->mod->mm->sm->sessions);
-        }
+        } while (xhash_iter_next(mi->mod->mm->sm->sessions));
 
     return mod_PASS;
 }

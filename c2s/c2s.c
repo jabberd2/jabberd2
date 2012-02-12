@@ -500,6 +500,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 
         case event_CLOSED:
             mio_close(sess->c2s->mio, sess->fd);
+            sess->fd = NULL;
             return -1;
     }
 
@@ -1345,6 +1346,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
         case event_CLOSED:
             mio_close(c2s->mio, c2s->fd);
+            c2s->fd = NULL;
             return -1;
     }
 
