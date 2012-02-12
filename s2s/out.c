@@ -413,7 +413,7 @@ int out_route(s2s_t s2s, char *route, int routelen, conn_t *out, int allow_bad) 
     char ipport[INET6_ADDRSTRLEN + 16], *dkey, *c;
     time_t now;
     int reuse = 0;
-    char ip[INET6_ADDRSTRLEN];
+    char ip[INET6_ADDRSTRLEN] = {0};
     int port, c_len, from_len;
 
     c = memchr(route, '/', routelen);
@@ -535,7 +535,19 @@ int out_route(s2s_t s2s, char *route, int routelen, conn_t *out, int allow_bad) 
             /* connect */
             log_debug(ZONE, "initiating connection to %s", ipport);
 
-            (*out)->fd = mio_connect(s2s->mio, port, ip, s2s->origin_ip, _out_mio_callback, (void *) *out);
+            /* APPLE: multiple origin_ips may be specified; use IPv6 if possible or otherwise IPv4 */
+            int ip_is_v6 = 0;
+            if (strchr(ip, ':') != NULL)
+                ip_is_v6 = 1;
+            int i;
+            for (i = 0; i < s2s->origin_nips; i++) {
+                // only bother with mio_connect if the src and dst IPs are of the same type
+                if ((ip_is_v6 && (strchr(s2s->origin_ips[i], ':') != NULL)) ||          // both are IPv6
+                            (! ip_is_v6 && (strchr(s2s->origin_ips[i], ':') == NULL)))  // both are IPv4
+                    (*out)->fd = mio_connect(s2s->mio, port, ip, s2s->origin_ips[i], _out_mio_callback, (void *) *out);
+
+                if ((*out)->fd != NULL) break;
+            }
 
             if ((*out)->fd == NULL) {
                 log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] mio_connect error: %s (%d)", -1, (*out)->ip, (*out)->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);

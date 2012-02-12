@@ -110,8 +110,9 @@ struct s2s_st {
     char                *local_ip;
     int                 local_port;
 
-    /** ip to originate connections from */
-    char                *origin_ip;
+    /** ip(s) to originate connections from */
+    char                **origin_ips;
+    int                 origin_nips;
 
     /** dialback secret */
     char                *local_secret;

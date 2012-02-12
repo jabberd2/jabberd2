@@ -125,17 +125,24 @@ static void _s2s_config_expand(s2s_t s2s) {
 
     s2s->packet_stats = config_get_one(s2s->config, "stats.packet", 0);
 
+    if(s2s->local_ip == NULL)
+        s2s->local_ip = "0.0.0.0";
+
     /*
      * If no origin IP is specified, use local IP as the originating one:
      * it makes most sense, at least for SSL'ized connections.
+     * APPLE: make origin an array of addresses so that both IPv4 and IPv6 can be specified.
      */
     s2s->local_ip = config_get_one(s2s->config, "local.ip", 0);
-    s2s->origin_ip = config_get_one(s2s->config, "local.origin", 0);
-    if(s2s->origin_ip == NULL && s2s->local_ip != NULL)
-        s2s->origin_ip = s2s->local_ip;
-
-    if(s2s->local_ip == NULL)
-        s2s->local_ip = "0.0.0.0";
+    if((elem = config_get(s2s->config, "local.origins.ip")) != NULL) {
+        s2s->origin_ips = elem->values;
+        s2s->origin_nips = elem->nvalues;
+    }
+    if (s2s->origin_nips == 0) {
+        s2s->origin_ips = (char **)malloc(sizeof(s2s->origin_ips));
+        s2s->origin_ips[0] = strdup(s2s->local_ip);
+        s2s->origin_nips = 1;
+    }
 
     s2s->local_port = j_atoi(config_get_one(s2s->config, "local.port", 0), 0);
 

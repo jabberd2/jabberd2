@@ -85,7 +85,10 @@
          need to specify outgoing S2S connections interface/address.
          If not set, the <ip> section address above is used. -->
     <!--
-    <origin>1.2.3.4</origin>
+    <origins>
+      <ip>1.2.3.4</ip>
+      <ip>fe80::202:b3ff:fe1e:8329</ip>
+    </origins>
     -->
 
     <!-- Secret used to generate dialback keys. If you have more than
