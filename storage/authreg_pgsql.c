@@ -123,7 +123,7 @@ static int _ar_pgsql_get_password(authreg_t ar, char *username, char *realm, cha
     return 0;
 }
 
-int _ar_pgsql_check_password(authreg_t ar, char *username, char *realm, char password[257])
+static int _ar_pgsql_check_password(authreg_t ar, char *username, char *realm, char password[257])
 {
     pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
     PGconn *conn = ctx->conn;
@@ -340,7 +340,7 @@ static void _ar_pgsql_free(authreg_t ar) {
 }
 
 /** Provide a configuration parameter or default value. */
-char * _ar_pgsql_param( config_t c, char * key, char * def ) {
+static char * _ar_pgsql_param( config_t c, char * key, char * def ) {
     char * value = config_get_one( c, key, 0 );
     if( value == NULL )
       return def;
@@ -353,7 +353,7 @@ char * _ar_pgsql_param( config_t c, char * key, char * def ) {
 /* one each, in order, of the one character sprintf types that are */
 /* expected to follow the escape characters '%' in the template. */
 /* Returns 0 on success, or an error message on failures. */
-char * _ar_pgsql_check_template( char * template, char * types ) {
+static char * _ar_pgsql_check_template( char * template, char * types ) {
     int pScan = 0;
     int pType = 0;
     char c;
