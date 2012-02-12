@@ -243,7 +243,7 @@ static void _mio_run(mio_t m, int timeout)
         if(FD(m,fd)->type == type_LISTEN && MIO_CAN_READ(m,iter))
         {
             _mio_accept(m, fd);
-            continue;
+            goto deferred;
         }
 
         /* check for connecting sockets */
@@ -251,7 +251,7 @@ static void _mio_run(mio_t m, int timeout)
            (MIO_CAN_READ(m,iter) || MIO_CAN_WRITE(m,iter)))
         {
             _mio__connect(m, fd);
-            continue;
+            goto deferred;
         }
 
         /* read from ready sockets */
@@ -270,6 +270,7 @@ static void _mio_run(mio_t m, int timeout)
                 MIO_UNSET_WRITE(m, FD(m,fd));
         }
 
+    deferred:
         /* deferred closing fd
          * one of previous actions might change the state of fd */ 
         if(FD(m,fd)->type == type_CLOSED)
