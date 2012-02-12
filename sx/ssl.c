@@ -886,6 +886,13 @@ int sx_ssl_server_addcert(sx_plugin_t p, char *name, char *pemfile, char *cachai
         return 1;
     }
 
+    // Set allowed ciphers
+	if (SSL_CTX_set_cipher_list(ctx, "ALL:!LOW:!SSLv2:!EXP:!aNULL") != 1) {
+        _sx_debug(ZONE, "Can't set cipher list for SSL context: %s", ERR_error_string(ERR_get_error(), NULL));
+        SSL_CTX_free(ctx);
+        return 1;
+    }
+
     /* Load the CA chain, if configured */
     if (cachain != NULL) {
         ret = SSL_CTX_load_verify_locations (ctx, cachain, NULL);
