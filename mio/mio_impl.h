@@ -348,8 +348,8 @@ static mio_fd_t _mio_listen(mio_t m, int port, char *sourceip, mio_handler_t app
         return NULL;
     }
 
-    /* start listening with a max accept queue of 10 */
-    if(listen(fd, 10) < 0)
+    /* start listening with a max accept queue specified by kern.ipc.somaxconn sysctl */
+    if(listen(fd, -1) < 0)
     {
         close(fd);
         return NULL;
