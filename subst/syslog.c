@@ -68,6 +68,7 @@ static struct dsn_c_pvt_sfnt {
         { LOG_LOCAL5,           "local5"},
         { LOG_LOCAL6,           "local6"},
         { LOG_LOCAL7,           "local7"},
+        { LOG_USER,             "log_user"},
         { 0,                    NULL }
 };
 

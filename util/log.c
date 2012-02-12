@@ -47,6 +47,7 @@ static log_facility_t _log_facilities[] = {
     { "local5", LOG_LOCAL5 },
     { "local6", LOG_LOCAL6 },
     { "local7", LOG_LOCAL7 },
+    { "log_user", LOG_USER },
     { NULL, -1 }
 };
 
