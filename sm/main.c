@@ -103,6 +103,7 @@ static void _sm_pidfile(sm_t sm) {
 static void _sm_config_expand(sm_t sm)
 {
     char *str;
+    config_elem_t elem;
 
     sm->id = config_get_one(sm->config, "id", 0);
     if(sm->id == NULL)
@@ -145,6 +146,17 @@ static void _sm_config_expand(sm_t sm)
             sm->log_ident = "jabberd/sm";
     } else if(sm->log_type == log_FILE)
         sm->log_ident = config_get_one(sm->config, "log.file", 0);
+        
+    elem = config_get(sm->config, "storage.limits.queries");
+    if(elem != NULL)
+    {
+        sm->query_rate_total = j_atoi(elem->values[0], 0);
+        if(sm->query_rate_total != 0)
+        {
+            sm->query_rate_seconds = j_atoi(j_attr((const char **) elem->attrs[0], "seconds"), 5);
+            sm->query_rate_wait = j_atoi(j_attr((const char **) elem->attrs[0], "throttle"), 60);
+        }
+    }
 }
 
 static void _sm_hosts_expand(sm_t sm)
@@ -350,6 +362,8 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
 
     sm->users = xhash_new(401);
 
+    sm->query_rates = xhash_new(101);
+
     sm->sx_env = sx_env_new();
 
 #ifdef HAVE_SSL
@@ -446,6 +460,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
     xhash_free(sm->xmlns_refcount);
     xhash_free(sm->users);
     xhash_free(sm->hosts);
+    xhash_free(sm->query_rates);
 
     sx_free(sm->router);
 

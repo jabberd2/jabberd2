@@ -349,3 +349,45 @@ int sm_get_ns(sm_t sm, char *uri) {
     return (int) (long) xhash_get(sm->xmlns, uri);
 }
 
+// Rate limit check:  Prevent denial-of-service due to excessive database queries
+// Make sure owner is responsible for the query!
+int sm_storage_rate_limit(sm_t sm, const char *owner) {
+    rate_t rt;
+    user_t user;
+    sess_t sess;
+    item_t item;
+
+    if (sm->query_rate_total == 0 || owner == NULL)
+    return FALSE;
+
+    user = xhash_get(sm->users, owner);
+    if (user != NULL) {
+        rt = (rate_t) xhash_get(sm->query_rates, owner);
+        if (rt == NULL) {
+            rt = rate_new(sm->query_rate_total, sm->query_rate_seconds, sm->query_rate_wait);
+            xhash_put(sm->query_rates, pstrdup(xhash_pool(sm->query_rates), owner), (void *) rt);
+            pool_cleanup(xhash_pool(sm->query_rates), (void (*)(void *)) rate_free, rt);
+        }
+
+        if(rate_check(rt) == 0) {
+            log_write(sm->log, LOG_WARNING, "[%s] is being disconnected, too many database queries within %d seconds", owner, sm->query_rate_seconds);
+            user = xhash_get(sm->users, owner);
+            for (sess = user->sessions; sess != NULL; sess = sess->next) {
+                sm_c2s_action(sess, "ended", NULL);
+            }
+            if(xhash_iter_first(user->roster))
+                do {
+                    xhash_iter_get(user->roster, NULL, NULL, (void *) &item);
+                    if(item->to) {
+                        pkt_router(pkt_create(user->sm, "presence", "unavailable", jid_full(item->jid), jid_full(user->jid)));
+                    }
+                } while(xhash_iter_next(user->roster));
+            return TRUE;
+            } else {
+                rate_add(rt, 1);
+            }
+        } else {
+            log_debug(ZONE, "Error: could not get user data for %s", owner);
+    }
+    return FALSE;
+}

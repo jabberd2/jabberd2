@@ -220,6 +220,11 @@ struct sm_st {
 
     xht                 hosts;              /**< vHosts map */
 
+    /** Database query rate limits */
+    int                 query_rate_total;
+    int                 query_rate_seconds;
+    int                 query_rate_wait;
+    xht                 query_rates;
 };
 
 /** data for a single user */
@@ -283,6 +288,8 @@ SM_API void            sm_signature(sm_t sm, char *str);
 SM_API int             sm_register_ns(sm_t sm, char *uri);
 SM_API void            sm_unregister_ns(sm_t sm, char *uri);
 SM_API int             sm_get_ns(sm_t sm, char *uri);
+
+SM_API int             sm_storage_rate_limit(sm_t sm, const char *owner);
 
 SM_API void            dispatch(sm_t sm, pkt_t pkt);
 

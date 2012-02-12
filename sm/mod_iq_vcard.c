@@ -208,6 +208,9 @@ static mod_ret_t _iq_vcard_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 
     /* get */
     if(pkt->type == pkt_IQ) {
+        if (sm_storage_rate_limit(sess->user->sm, jid_user(sess->jid)))
+            return -stanza_err_RESOURCE_CONSTRAINT;
+
         ret = storage_get(sess->user->sm->st, "vcard", jid_user(sess->jid), NULL, &os);
         switch(ret) {
             case st_FAILED:
@@ -245,6 +248,10 @@ static mod_ret_t _iq_vcard_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     }
 
     os = _iq_vcard_to_object(mi, pkt);
+    
+    if (sm_storage_rate_limit(sess->user->sm, jid_user(sess->jid)))
+        return -stanza_err_RESOURCE_CONSTRAINT;
+
     ret = storage_replace(sess->user->sm->st, "vcard", jid_user(sess->jid), NULL, os);
     os_free(os);
 
@@ -337,6 +344,9 @@ static mod_ret_t _iq_vcard_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     /* error them if they're trying to do a set */
     if(pkt->type == pkt_IQ_SET)
         return -stanza_err_FORBIDDEN;
+
+    if (sm_storage_rate_limit(user->sm, pkt->from))
+        return -stanza_err_RESOURCE_CONSTRAINT;
 
     ret = storage_get(user->sm->st, "vcard", jid_user(user->jid), NULL, &os);
     switch(ret) {

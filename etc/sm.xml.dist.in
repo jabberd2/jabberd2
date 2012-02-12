@@ -111,6 +111,20 @@
     <driver type='published-roster-groups'>ldapvcard</driver>
     -->
 
+    <!-- Rate limiting -->
+    <limits>
+      <!-- Maximum bytes per second - if more than X bytes are sent in Y
+           seconds, connection is throttled for Z seconds. The format
+           is:
+
+             <bytes seconds='Y' throttle='Z'>X</bytes>
+
+           Default Y is 5, default Z is 60. set X to 0 to disable. -->
+      <!--
+      <queries>3</queries>
+      -->
+    </limits>
+
     <!-- SQLite driver configuration -->
     <sqlite>
       <!-- Database name -->
