@@ -296,6 +296,7 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
     rate_t rt;
     component_t comp;
     union xhashv xhv;
+    int close_wait_max;
     const char *cli_id = 0;
 
 #ifdef POOL_DEBUG
@@ -506,6 +507,8 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
      *     their destinations
      */
 
+    close_wait_max = 30; /* time limit for component shutdown */
+
     /* close connections to components */
     xhv.comp_val = &comp;
     if(xhash_iter_first(r->components))
@@ -514,9 +517,11 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
             log_debug(ZONE, "close component %p", comp);
             if (comp) sx_close(comp->s);
             mio_run(r->mio, 5000);
+            if (1 > close_wait_max--) break;
+            sleep(1);
             while(jqueue_size(r->closefd) > 0)
                 mio_close(r->mio, (mio_fd_t) jqueue_pull(r->closefd));
-        } while(xhash_count(r->components) > 0);
+        } while (xhash_iter_next(r->components));
 
     xhash_free(r->components);
 
