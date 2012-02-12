@@ -9,7 +9,8 @@ EXTRA_DIST = db-setup.mysql db-update.mysql db-setup.pgsql db-setup.oracle db-se
 edit = sed \
 	-e 's,@sysconfdir\@,$(sysconfdir),g' \
 	-e 's,@VERSION\@,$(VERSION),g' \
-	-e 's,@bindir\@,$(bindir),g'
+	-e 's,@bindir\@,$(bindir),g' \
+	-e 's,@libexecdir\@,$(libexecdir),g'
 
 $(bin_SCRIPTS): $(EXTRA_DIST)
 	@echo "generating $@ from $@.in"; \

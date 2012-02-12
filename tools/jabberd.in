@@ -25,12 +25,14 @@ use POSIX qw(setsid);
 # Define some initial variables and default them as needed.
 #-----------------------------------------------------------------------------
 my $Bin = "@bindir@";
+my $LibExec = "@libexecdir@";
 my $VERSION = "@VERSION@";
 my $config_dir = "@sysconfdir@";
 my $config = $config_dir."/jabberd.cfg";
 $config = "internal" unless (-e $config);
 my $debug = 0;
 my $daemon = 0;
+my $g_kill_signal = "";
 my $select = IO::Select->new();
 my ($exe) = ($0 =~ /([^\/]+)$/);
 my %jobs;
@@ -103,7 +105,12 @@ else
         next if /^\#/;
         next if /^\s*$/;
         my ($job,$config) = /^\s*(\S+)\s*(\S*)\s*$/;
-        push(@programs,[$job,$config]);
+        # Assume that all the commands are in the same directory
+        # as the jabberd script. The current configuration file
+        # format does not allow specification of pathnames for commands.
+        #my $cmd = "$Bin/$job";
+        my $cmd = $jobs{$job}->{cmd};
+        push(@programs,[$job,$config,$cmd]);
     }
     close(CFG);
 }
@@ -127,7 +134,7 @@ if ($#programs == -1)
 
 foreach my $job (@programs)
 {
-    &LaunchJob($job->[0],$job->[1]);
+    &LaunchJob($job->[0],$job->[1],$job->[2]);
 }
 
 unless (!$daemon || $debug)
@@ -151,6 +158,15 @@ unless (!$daemon || $debug)
 while (1)
 {
     my @ready = $select->can_read();
+    if ($g_kill_signal ne "") {
+        if (($g_kill_signal eq "INT") || ($g_kill_signal eq "TERM"))
+        {
+            &Shutdown($g_kill_signal);
+        } else {
+            &PassSignal($g_kill_signal);
+        }
+        $g_kill_signal = "";
+    }
     foreach my $fh (@ready)
     {
         my $line = <$fh>;
@@ -161,7 +177,7 @@ while (1)
         else
         {
             print "ERROR: $fhs{$fh}->{job} died.  Shutting down server.\n";
-            &Signal("TERM");
+            &Shutdown;
         }
     }
 }
@@ -177,18 +193,32 @@ sub LaunchJob
 {
     my $job = shift;
     my $config = shift;
+    my $cmd = shift;
 
-    my $cmd = $jobs{$job}->{cmd};
+    if (!defined($cmd) || $cmd eq "")
+    {
+        $cmd = $jobs{$job}->{cmd};
+        if ($cmd eq "") {
+            print "cmd is empty, cannot launch\n";
+            return;
+        }
+    }
 
     if (defined($config))
     {
         $cmd .= " -c ".$config;
     }
-    else
+    elsif (defined($jobs{$job}->{config}))
     {
         $cmd .= " -c ".$jobs{$job}->{config};
     }
-    $cmd .= " -D" if $debug;
+
+    if ($debug && $jobs{$job}->{prefix} ne "MUC") {
+        $cmd .= " -D";
+    }
+    if (defined($jobs{$job}->{args}) && ($jobs{$job}->{args} ne "")) {
+        $cmd .= " ".$jobs{$job}->{args};
+    }
     
     &debug("jabberd","stdout","LaunchJob: $job -> $cmd\n");
 
@@ -248,23 +278,41 @@ sub CloseJob
 ##############################################################################
 sub Signal
 {
-    my $sig = shift;
+    $g_kill_signal = shift;
+}
 
-    &debug("jabberd","stdout","Got a signal... pass it on.\n");
+sub PassSignal
+{
+    my $sig = shift;
+    if ((! defined($sig)) || ($sig eq "")) {
+        return;
+    }
         
     foreach my $job (keys(%jobs))
     {
         next unless exists($jobs{$job}->{launched});
+        &debug("jabberd","stdout","sending $sig to $jobs{$job}->{pid} : $job\n");
         kill $sig => $jobs{$job}->{pid};
-    }
-
-    if (($sig eq "INT") || ($sig eq "TERM"))
-    {
-        &debug("jabberd","stdout","It was a $sig.  Shut it all down!\n");
-        exit(0);
     }
 }
 
+sub Shutdown
+    {
+    my $sig = shift;
+    if (! defined($sig)) {
+        $sig = "TERM";
+    }
+
+    PassSignal($sig);
+
+    &debug("Shutting down.\n");
+    my $ret;
+    foreach my $job(keys(%jobs)) {
+        $ret = waitpid($jobs{$job}->{pid}, 0) if defined($jobs{$job}->{pid});
+}
+
+    exit(0);
+}
 
 ##############################################################################
 #
