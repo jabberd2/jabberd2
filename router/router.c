@@ -20,6 +20,11 @@
 
 #include "router.h"
 
+#define MAX_JID 3072    // node(1023) + '@'(1) + domain(1023) + '/'(1) + resource(1023) + '\0'(1)
+#define MAX_MESSAGE 65535
+#define SECS_PER_DAY 86400
+#define BYTES_PER_MEG 1048576
+
 /** info for broadcasts */
 typedef struct broadcast_st {
     router_t      r;
@@ -557,6 +562,40 @@ static void _router_process_route(component_t comp, nad_t nad) {
         /* push it out */
         log_debug(ZONE, "writing route for '%s'*%u to %s, port %d", to->domain, dest+1, target->ip, target->port);
 
+        /* if logging enabled, log messages that match our criteria */
+        if (comp->r->message_logging_enabled) {
+            int attr_msg_to;
+            int attr_msg_from;
+            int attr_route_to;
+            int attr_route_from;
+            jid_t jid_msg_from = NULL;
+            jid_t jid_msg_to = NULL;
+            jid_t jid_route_from = NULL;
+            jid_t jid_route_to = NULL;
+
+            if ((NAD_ENAME_L(nad, 1) == 7 && strncmp("message", NAD_ENAME(nad, 1), 7) == 0) &&		// has a "message" element 
+                ((attr_route_from = nad_find_attr(nad, 0, -1, "from", NULL)) >= 0) &&
+                ((attr_route_to = nad_find_attr(nad, 0, -1, "to", NULL)) >= 0) &&
+                ((strncmp(NAD_AVAL(nad, attr_route_to), "c2s", 3)) != 0) &&							// ignore messages to "c2s" or we'd have dups
+                ((jid_route_from = jid_new(NAD_AVAL(nad, attr_route_from), NAD_AVAL_L(nad, attr_route_from))) != NULL) &&	// has valid JID source in route
+                ((jid_route_to = jid_new(NAD_AVAL(nad, attr_route_to), NAD_AVAL_L(nad, attr_route_to))) != NULL) &&		// has valid JID destination in route
+                ((attr_msg_from = nad_find_attr(nad, 1, -1, "from", NULL)) >= 0) &&
+                ((attr_msg_to = nad_find_attr(nad, 1, -1, "to", NULL)) >= 0) &&
+                ((jid_msg_from = jid_new(NAD_AVAL(nad, attr_msg_from), NAD_AVAL_L(nad, attr_msg_from))) != NULL) &&	// has valid JID source in message 
+                ((jid_msg_to = jid_new(NAD_AVAL(nad, attr_msg_to), NAD_AVAL_L(nad, attr_msg_to))) != NULL))			// has valid JID dest in message
+            {
+                message_log(nad, comp->r, jid_full(jid_msg_from), jid_full(jid_msg_to));
+            }
+            if (jid_msg_from != NULL)
+                jid_free(jid_msg_from);
+            if (jid_msg_to != NULL)
+                jid_free(jid_msg_to);
+            if (jid_route_from != NULL)
+                jid_free(jid_route_from);
+            if (jid_route_to != NULL)
+                jid_free(jid_route_to);
+        }
+
         _router_comp_write(target, nad);
 
         return;
@@ -1084,6 +1123,99 @@ int router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *
 
             break;
     }
+
+    return 0;
+}
+
+
+int message_log(nad_t nad, router_t r, const unsigned char *msg_from, const unsigned char *msg_to)
+{
+    time_t t;
+    char *time_pos;
+    int time_sz;
+    struct stat filestat;
+    FILE *message_file;
+    short int new_msg_file = 0;
+    int i;
+    int nad_body_len = 0;
+    long int nad_body_start = 0;
+    int body_count;
+    char *nad_body = NULL;
+    char body[MAX_MESSAGE*2];
+
+    assert((int) (nad != NULL));
+
+    /* timestamp */
+    t = time(NULL);
+    time_pos = ctime(&t);
+    time_sz = strlen(time_pos);
+    /* chop off the \n */
+    time_pos[time_sz-1]=' ';
+
+    // Find the message body
+    for (i = 0; NAD_ENAME_L(nad, i) > 0; i++)
+    {
+        if((NAD_ENAME_L(nad, i) == 4) && (strncmp("body", NAD_ENAME(nad, i), 4) == 0))
+        {
+            nad_body_len = NAD_CDATA_L(nad, i);
+            if (nad_body_len > 0) {
+                nad_body = NAD_CDATA(nad, i);
+            } else {
+                log_write(r->log, LOG_NOTICE, "message_log received a message with empty body");
+                return 0;
+            }
+            break;
+        }
+    }
+
+        // Don't log anything if we found no NAD body
+        if (nad_body == NULL) {
+            return 0;
+        }
+
+        // Store original pointer address so that we know when to stop iterating through nad_body
+        nad_body_start = nad_body;
+
+    // replace line endings with "\n"
+    for (body_count = 0; (nad_body < nad_body_start + nad_body_len) && (body_count < (MAX_MESSAGE*2)-3); nad_body++) {
+        if (*nad_body == '\n') {
+            body[body_count++] = '\\';
+            body[body_count++] = 'n';
+        } else {
+            body[body_count++] = *nad_body;
+        }
+    }
+    body[body_count] = '\0';
+
+    // Log our message
+    umask((mode_t) 0077);
+    if (stat(r->message_logging_file, &filestat)) {
+        new_msg_file = 1;
+    }
+
+    if ((message_file = fopen(r->message_logging_file, "a")) == NULL)
+    {
+        log_write(r->log, LOG_ERR, "Unable to open message log for writing: %s", strerror(errno));
+        return 1;
+    }
+
+    if (new_msg_file) {
+        if (! fprintf(message_file, "# This message log is created by the jabberd router.\n"))
+        {
+            log_write(r->log, LOG_ERR, "Unable to write to message log: %s", strerror(errno));
+            return 1;
+        }
+        fprintf(message_file, "# See router.xml for logging options.\n");
+        fprintf(message_file, "# Format: (Date)<tab>(From JID)<tab>(To JID)<tab>(Message Body)<line end>\n");
+    }
+
+    if (! fprintf(message_file, "%s\t%s\t%s\t%s\n", time_pos, msg_from, msg_to, body))
+    {
+        log_write(r->log, LOG_ERR, "Unable to write to message log: %s", strerror(errno));
+        return 1;
+    }
+
+    fclose(message_file);
 
     return 0;
 }

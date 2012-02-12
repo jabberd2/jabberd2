@@ -155,6 +155,10 @@ struct router_st {
 
     /** list of routes_t waiting to be cleaned up */
     jqueue_t            deadroutes;
+
+    /** simple message logging */
+	int message_logging_enabled;
+	char *message_logging_file;
 };
 
 /** a single component */
@@ -226,6 +230,8 @@ void    user_table_unload(router_t r);
 int     filter_load(router_t r);
 void    filter_unload(router_t r);
 int     filter_packet(router_t r, nad_t nad);
+
+int     message_log(nad_t nad, router_t r, const unsigned char *msg_from, const unsigned char *msg_to);
 
 void routes_free(routes_t routes);
 

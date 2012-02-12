@@ -76,7 +76,7 @@ static void _router_config_expand(router_t r)
 {
     char *str, *ip, *mask, *name, *target;
     config_elem_t elem;
-    int i;
+    int i, len;
     alias_t alias;
 
     r->id = config_get_one(r->config, "id", 0);
@@ -195,6 +195,10 @@ static void _router_config_expand(router_t r)
             alias->next = r->aliases;
             r->aliases = alias;
         }
+
+    /* message logging to flat file */
+    r->message_logging_enabled = j_atoi(config_get_one(r->config, "message_logging.enabled", 0), 1);
+    r->message_logging_file = config_get_one(r->config, "message_logging.file", 0);
 
     r->check_interval = j_atoi(config_get_one(r->config, "check.interval", 0), 60);
     r->check_keepalive = j_atoi(config_get_one(r->config, "check.keepalive", 0), 0);
@@ -473,7 +477,7 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
             log_debug(ZONE, "running time checks");
 
             _router_time_checks(r);
-            
+
             r->next_check = time(NULL) + r->check_interval;
             log_debug(ZONE, "next time check at %d", r->next_check);
         }

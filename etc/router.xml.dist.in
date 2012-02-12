@@ -195,6 +195,15 @@
 
   </aci>
 
+  <!-- Simple message logging to flat file
+       Remove <enabled/> tag to disable logging
+  <!--
+  <message_logging>
+    <enabled/>
+    <file>filename</file>
+  </message_logging>
+  -->
+
 </router>
 <!--
   vim: syntax=xml
