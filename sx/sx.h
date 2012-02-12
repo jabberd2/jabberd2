@@ -180,6 +180,7 @@ JABBERD2_API sx_plugin_t                 sx_env_plugin(sx_env_t env, sx_plugin_i
 
 /* send errors and close stuff */
 JABBERD2_API void                        sx_error(sx_t s, int err, const char *text);
+JABBERD2_API void                        sx_error_extended(sx_t s, int err, const char *content);
 JABBERD2_API void                        sx_close(sx_t s);
 JABBERD2_API void                        sx_kill(sx_t s);
 
@@ -234,6 +235,7 @@ JABBERD2_API void                        _sx_reset(sx_t s);
 
 /* send errors and close stuff */
 JABBERD2_API void                        _sx_error(sx_t s, int err, const char *text);
+JABBERD2_API void                        _sx_error_extended(sx_t s, int err, const char *content);
 JABBERD2_API void                        _sx_close(sx_t s);
 
 /** read/write plugin chain */

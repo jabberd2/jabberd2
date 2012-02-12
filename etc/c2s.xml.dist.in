@@ -346,6 +346,17 @@
     -->
   </pbx>
 
+  <!-- see-other-host error stream redirection support
+       This will redirect connections to specified domains to other host:port
+       Usefull when migrating service and DNS change did not propagate yet.
+       Note that to_address should be RFC 3986 compliant. -->
+  <stream_redirect>
+    <!--
+    <redirect requested_domain="some.domain" to_address="other.hostname" to_port="5269" />
+    <redirect requested_domain="other.domain" to_address="other.host" to_port="1234" />
+    -->
+  </stream_redirect>
+
   <!-- Authentication/registration database configuration -->
   <authreg>
     <!-- Dynamic authreg modules path -->

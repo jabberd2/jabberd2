@@ -25,6 +25,7 @@
 static sig_atomic_t c2s_shutdown = 0;
 sig_atomic_t c2s_lost_router = 0;
 static sig_atomic_t c2s_logrotate = 0;
+static sig_atomic_t c2s_sighup = 0;
 
 static void _c2s_signal(int signum)
 {
@@ -35,6 +36,7 @@ static void _c2s_signal(int signum)
 static void _c2s_signal_hup(int signum)
 {
     c2s_logrotate = 1;
+    c2s_sighup = 1;
 }
 
 static void _c2s_signal_usr1(int signum)
@@ -78,8 +80,10 @@ static void _c2s_pidfile(c2s_t c2s) {
 static void _c2s_config_expand(c2s_t c2s)
 {
     char *str, *ip, *mask;
+    char *req_domain, *to_address, *to_port;
     config_elem_t elem;
     int i;
+    stream_redirect_t sr;
 
     c2s->id = config_get_one(c2s->config, "id", 0);
     if(c2s->id == NULL)
@@ -150,6 +154,33 @@ static void _c2s_config_expand(c2s_t c2s)
     c2s->io_check_keepalive = j_atoi(config_get_one(c2s->config, "io.check.keepalive", 0), 0);
 
     c2s->pbx_pipe = config_get_one(c2s->config, "pbx.pipe", 0);
+
+    elem = config_get(c2s->config, "stream_redirect.redirect");
+    if(elem != NULL)
+    {
+        for(i = 0; i < elem->nvalues; i++)
+        {
+            sr = (stream_redirect_t) pmalloco(xhash_pool(c2s->stream_redirects), sizeof(struct stream_redirect_st));
+            if(!sr) {
+                log_write(c2s->log, LOG_ERR, "cannot allocate memory for new stream redirection record, aborting");
+                exit(1);
+            }
+            req_domain = j_attr((const char **) elem->attrs[i], "requested_domain");
+            to_address = j_attr((const char **) elem->attrs[i], "to_address");
+            to_port = j_attr((const char **) elem->attrs[i], "to_port");
+
+            if(req_domain == NULL || to_address == NULL || to_port == NULL) {
+                log_write(c2s->log, LOG_ERR, "Error reading a stream_redirect.redirect element from file, skipping");
+                continue;
+            }
+
+            // Note that to_address should be RFC 3986 compliant
+            sr->to_address = to_address;
+            sr->to_port = to_port;
+            
+            xhash_put(c2s->stream_redirects, pstrdup(xhash_pool(c2s->stream_redirects), req_domain), sr);
+        }
+    }
 
     c2s->ar_module_name = config_get_one(c2s->config, "authreg.module", 0);
 
@@ -660,6 +691,8 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
         return 2;
     }
 
+    c2s->stream_redirects = xhash_new(523);
+
     _c2s_config_expand(c2s);
 
     c2s->log = log_new(c2s->log_type, c2s->log_ident, c2s->log_facility);
@@ -759,6 +792,53 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
             log_write(c2s->log, LOG_NOTICE, "log started");
 
             c2s_logrotate = 0;
+        }
+
+        if(c2s_sighup) {
+            log_write(c2s->log, LOG_NOTICE, "reloading some configuration items ...");
+            config_t conf;
+            conf = config_new();
+            if (conf && config_load(conf, config_file) == 0) {
+                xhash_free(c2s->stream_redirects);
+                c2s->stream_redirects = xhash_new(523);
+
+                char *req_domain, *to_address, *to_port;
+                config_elem_t elem;
+                int i;
+                stream_redirect_t sr;
+
+                elem = config_get(conf, "stream_redirect.redirect");
+                if(elem != NULL)
+                {
+                    for(i = 0; i < elem->nvalues; i++)
+                    {
+                        sr = (stream_redirect_t) pmalloco(xhash_pool(c2s->stream_redirects), sizeof(struct stream_redirect_st));
+                        if(!sr) {
+                            log_write(c2s->log, LOG_ERR, "cannot allocate memory for new stream redirection record, aborting");
+                            exit(1);
+                        }
+                        req_domain = j_attr((const char **) elem->attrs[i], "requested_domain");
+                        to_address = j_attr((const char **) elem->attrs[i], "to_address");
+                        to_port = j_attr((const char **) elem->attrs[i], "to_port");
+
+                        if(req_domain == NULL || to_address == NULL || to_port == NULL) {
+                            log_write(c2s->log, LOG_ERR, "Error reading a stream_redirect.redirect element from file, skipping");
+                            continue;
+                        }
+
+                        // Note that to_address should be RFC 3986 compliant
+                        sr->to_address = to_address;
+                        sr->to_port = to_port;
+                        
+                        xhash_put(c2s->stream_redirects, pstrdup(xhash_pool(c2s->stream_redirects), req_domain), sr);
+                    }
+                }
+                config_free(conf);
+            } else {
+                log_write(c2s->log, LOG_WARNING, "couldn't reload config (%s)", config_file);
+                if (conf) config_free(conf);
+            }
+            c2s_sighup = 0;
         }
 
         if(c2s_lost_router) {
@@ -888,6 +968,8 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     authreg_free(c2s->ar);
 
     xhash_free(c2s->conn_rates);
+
+    xhash_free(c2s->stream_redirects);
 
     xhash_free(c2s->sm_avail);
 

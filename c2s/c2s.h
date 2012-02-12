@@ -217,6 +217,9 @@ struct c2s_st {
     int                 pbx_pipe_fd;
     mio_fd_t            pbx_pipe_mio_fd;
 
+    /** stream redirection (see-other-host) on session connect */
+    xht                 stream_redirects;
+
     /** max file descriptors */
     int                 io_max_fds;
 
@@ -356,3 +359,11 @@ union xhashv
   char **char_val;
   sess_t *sess_val;
 };
+
+// Data for stream redirect errors
+typedef struct stream_redirect_st
+{
+    char *to_address;
+    char *to_port;
+} *stream_redirect_t;
+
