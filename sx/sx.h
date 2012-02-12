@@ -257,6 +257,10 @@ struct _sx_st {
 	/* pointing to sess.ip and owned by sess structure */
 	char                    *ip;
 
+	/* TCP port of the connection */
+	/* pointing to sess.port and owned by sess structure */
+    int                     port;
+
     /* callback */
     sx_callback_t            cb;
     void                    *cb_arg;

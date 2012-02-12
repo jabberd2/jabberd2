@@ -119,6 +119,16 @@ void authreg_free(authreg_t ar) {
     }
 }
 
+/** auth logger */
+inline static void _authreg_auth_log(c2s_t c2s, sess_t sess, char *method, char *username, char *resource, int success) {
+    log_write(c2s->log, LOG_NOTICE, "[%d] %s authentication %s: %s@%s/%s %s:%d%s%s",
+        sess->s->tag, method, success ? "succeeded" : "failed",
+        username, sess->host->realm, resource,
+        sess->s->ip, sess->s->port,
+        sess->s->ssf ? " TLS" : "", sess->s->compressed ? " ZLIB" : ""
+    );
+}
+
 /** auth get handler */
 static void _authreg_auth_get(c2s_t c2s, sess_t sess, nad_t nad) {
     int ns, elem, attr;
@@ -286,6 +296,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
                 {
                     log_debug(ZONE, "digest auth succeeded");
                     authd = 1;
+                    _authreg_auth_log(c2s, sess, "traditional.digest", username, resource, TRUE);
                 }
             }
         }
@@ -301,6 +312,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
             {
                 log_debug(ZONE, "plaintext auth (compare) succeeded");
                 authd = 1;
+                _authreg_auth_log(c2s, sess, "traditional.plain(compare)", username, resource, TRUE);
             }
         }
     }
@@ -316,6 +328,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
             {
                 log_debug(ZONE, "plaintext auth (check) succeded");
                 authd = 1;
+                _authreg_auth_log(c2s, sess, "traditional.plain", username, resource, TRUE);
             }
         }
     }
@@ -323,8 +336,6 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
     /* now, are they authenticated? */
     if(authd)
     {
-        log_write(c2s->log, LOG_NOTICE, "[%d] legacy authentication succeeded: host=%s, username=%s, resource=%s%s%s", sess->s->tag, sess->host->realm, username, resource, sess->s->ssf ? ", TLS negotiated" : "", sess->s->compressed ? ", ZLIB compression enabled" : "");
-
         /* create new bound jid holder */
         if(sess->resources == NULL) {
             sess->resources = (bres_t) calloc(1, sizeof(struct bres_st));
@@ -360,7 +371,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
         return;
     }
 
-    log_write(c2s->log, LOG_NOTICE, "[%d] auth failed: username=%s, resource=%s", sess->s->tag, username, resource);
+    _authreg_auth_log(c2s, sess, "traditional", username, resource, FALSE);
 
     /* auth failed, so error */
     sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_OLD_UNAUTH), 0));

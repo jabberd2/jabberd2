@@ -473,7 +473,11 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 
             /* they sasl auth'd, so we only want the new-style session start */
             else {
-                log_write(sess->c2s->log, LOG_NOTICE, "[%d] SASL authentication succeeded: mechanism=%s; authzid=%s%s%s", sess->s->tag, &sess->s->auth_method[5], sess->s->auth_id, sess->s->ssf ? ", TLS negotiated" : "", sess->s->compressed ? ", ZLIB compression enabled" : "");
+                log_write(sess->c2s->log, LOG_NOTICE, "[%d] %s authentication succeeded: %s %s:%d%s%s",
+                    sess->s->tag, &sess->s->auth_method[5],
+                    sess->s->auth_id, sess->s->ip, sess->s->port,
+                    sess->s->ssf ? " TLS" : "", sess->s->compressed ? " ZLIB" : ""
+                );
                 sess->sasl_authd = 1;
             }
 
@@ -596,6 +600,7 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
 
             /* give IP to SX */
             sess->s->ip = sess->ip;
+            sess->s->port = sess->port;
 
             /* find out which port this is */
             getsockname(fd->fd, (struct sockaddr *) &sa, &namelen);

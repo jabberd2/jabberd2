@@ -165,6 +165,7 @@ void _sx_reset(sx_t s) {
     temp.cb_arg = s->cb_arg;
 
     temp.ip = s->ip;
+    temp.port = s->port;
     temp.flags = s->flags;
     temp.reentry = s->reentry;
     temp.ssf = s->ssf;
@@ -193,6 +194,7 @@ void _sx_reset(sx_t s) {
 
     s->env = temp.env;
     s->ip = temp.ip;
+    s->port = temp.port;
     s->flags = temp.flags;
     s->reentry = temp.reentry;
     s->ssf = temp.ssf;
