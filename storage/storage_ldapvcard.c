@@ -82,13 +82,16 @@ ldapvcard_entry_st ldapvcard_entry[] =
     {"telephoneNumber","tel",os_type_STRING},
     {"mail","email",os_type_STRING},
     {"title","title",os_type_STRING},
-//    {"","role",os_type_STRING},
-//    {"","bday",os_type_STRING},
+    {"role","role",os_type_STRING},
+    {"dateOfBirth","bday",os_type_UNKNOWN}, /* fake type. TODO: os_type_DATE? */
+//    {"birthDate","bday",os_type_UNKNOWN}, /* http://tools.ietf.org/html/draft-gryphon-ldap-schema-vcard4-00 */
     {"description","desc",os_type_STRING},
     {"givenName","n-given",os_type_STRING},
     {"jpegPhoto","photo-binval",os_type_STRING},
     {"sn","n-family",os_type_STRING},
+    {"initials","n-middle",os_type_STRING},
     {"st","adr-street",os_type_STRING},
+    {"zip","adr-extadd",os_type_STRING},
     {"l","adr-locality",os_type_STRING},
 //    {"","adr-region",os_type_STRING},
     {"postalCode","adr-pcode",os_type_STRING},
@@ -319,8 +322,17 @@ static st_ret_t _st_ldapvcard_get(st_driver_t drv, const char *type, const char 
                 if ( ldap_count_values_len(valphoto) > 0 )
                 {
                     char *VALJPG = b64_encode(valphoto[0]->bv_val, valphoto[0]->bv_len);
-                    os_object_put(o, "photo-type", "image/jpeg", os_type_STRING);
                     os_object_put(o, "photo-binval", VALJPG, os_type_STRING);
+                    if( !strncmp(VALJPG, "/9j/4", 5) ) {
+                        os_object_put(o, "photo-type", "image/jpeg", os_type_STRING);
+                    } else if( !strncmp(VALJPG, "iVBOR", 5) ) {
+                        os_object_put(o, "photo-type", "image/png", os_type_STRING);
+                    } else if( !strncmp(VALJPG, "R0lGO", 5) ) {
+                        os_object_put(o, "photo-type", "image/gif", os_type_STRING);
+                    } else {
+                        log_write(drv->st->sm->log, LOG_ERR, "ldap: unknown photo fprmat photo %s", VALJPG);
+                        os_object_put(o, "photo-type", "image/jpeg", os_type_STRING);
+                    }
                     free(VALJPG);
                 }
                 ldap_value_free_len(valphoto);
@@ -335,6 +347,19 @@ static st_ret_t _st_ldapvcard_get(st_driver_t drv, const char *type, const char 
                             break;
                         case os_type_STRING:
                             os_object_put(o, le.vcardentry, vals[0], le.ot);
+                            break;
+                        case os_type_UNKNOWN: /* TODO: os_type_DATE? */
+                            if( strlen(vals[0])==15 && vals[0][14]=='Z' ) { /* YYYYMMDDHHmmssZ */
+                                /* convert generalizedTime to ISO-8601 date */
+                                vals[0][10]='\0';
+                                vals[0][9]=vals[0][7];
+                                vals[0][8]=vals[0][6];
+                                vals[0][7]='-';
+                                vals[0][6]=vals[0][5];
+                                vals[0][5]=vals[0][4];
+                                vals[0][4]='-';
+                                os_object_put(o, le.vcardentry, vals[0], os_type_STRING);
+                            }
                             break;
                     }
                 }
