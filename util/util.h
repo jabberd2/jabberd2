@@ -448,6 +448,14 @@ JABBERD2_API int jabber_wrap_service(int argc, char** argv, jmainhandler_t *wrap
 #define HAVE_XML_STOPPARSER
 #endif
 
+/* define TRUE and FALSE if not yet defined */
+#ifndef TRUE
+#define TRUE 1
+#endif
+#ifndef FALSE
+#define FALSE 0
+#endif
+
 #endif    /* INCL_UTIL_H */
 
 
