@@ -601,8 +601,8 @@ static int _ldapfull_user_exists(authreg_t ar, char *username, char *realm)
 {
     char *dn;
     if (_ldapfull_find_user_dn((moddata_t) ar->private, username, realm, &dn)) {
-	ldap_memfree(dn);
-	return 1;
+        ldap_memfree(dn);
+        return 1;
     }
     return 0;
 }
@@ -619,7 +619,7 @@ static int _ldapfull_check_password_bind(authreg_t ar, char *username, char *rea
 
     if (!_ldapfull_find_user_dn(data, username, realm, &dn)) {
         log_debug(ZONE, "User %s not found", username);
-	return 0;
+        return 1;
     }
 
     /* Try logging in to the LDAP server as this user's DN */
