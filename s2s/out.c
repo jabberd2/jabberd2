@@ -1355,7 +1355,7 @@ static int _out_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, v
 
                     q = xhash_getx(out->s2s->outq, rkey, rkeylen);
                     if (out->s2s->retry_limit > 0 && q != NULL && jqueue_age(q) > out->s2s->retry_limit) {
-                        log_debug(ZONE, "retry limit reached for '%.*s' queue", rkeylen, rkey);
+                        log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] retry limit reached for '%.*s' queue", fd->fd, out->ip, out->port, rkeylen, rkey);
                         q = NULL;
                     }
 
