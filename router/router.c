@@ -563,7 +563,7 @@ static void _router_process_route(component_t comp, nad_t nad) {
         log_debug(ZONE, "writing route for '%s'*%u to %s, port %d", to->domain, dest+1, target->ip, target->port);
 
         /* if logging enabled, log messages that match our criteria */
-        if (comp->r->message_logging_enabled) {
+        if (comp->r->message_logging_enabled && comp->r->message_logging_file != NULL) {
             int attr_msg_to;
             int attr_msg_from;
             int attr_route_to;
@@ -1168,13 +1168,13 @@ int message_log(nad_t nad, router_t r, const unsigned char *msg_from, const unsi
         }
     }
 
-        // Don't log anything if we found no NAD body
-        if (nad_body == NULL) {
-            return 0;
-        }
+    // Don't log anything if we found no NAD body
+    if (nad_body == NULL) {
+        return 0;
+    }
 
-        // Store original pointer address so that we know when to stop iterating through nad_body
-        nad_body_start = nad_body;
+    // Store original pointer address so that we know when to stop iterating through nad_body
+    nad_body_start = nad_body;
 
     // replace line endings with "\n"
     for (body_count = 0; (nad_body < nad_body_start + nad_body_len) && (body_count < (MAX_MESSAGE*2)-3); nad_body++) {

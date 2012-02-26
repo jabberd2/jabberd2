@@ -197,7 +197,7 @@ static void _router_config_expand(router_t r)
         }
 
     /* message logging to flat file */
-    r->message_logging_enabled = j_atoi(config_get_one(r->config, "message_logging.enabled", 0), 1);
+    r->message_logging_enabled = j_atoi(config_get_one(r->config, "message_logging.enabled", 0), 0);
     r->message_logging_file = config_get_one(r->config, "message_logging.file", 0);
 
     r->check_interval = j_atoi(config_get_one(r->config, "check.interval", 0), 60);
