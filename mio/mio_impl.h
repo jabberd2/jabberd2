@@ -99,6 +99,8 @@ static mio_fd_t _mio_setup_fd(mio_t m, int fd, mio_handler_t app, void *arg)
     mio_debug(ZONE, "adding fd #%d", fd);
 
     mio_fd = MIO_ALLOC_FD(m, fd);
+    if (mio_fd == NULL) return NULL;
+
     /* ok to process this one, welcome to the family */
     FD(m,mio_fd)->type = type_NORMAL;
     FD(m,mio_fd)->app = app;
@@ -168,6 +170,11 @@ static void _mio_accept(mio_t m, mio_fd_t fd)
 
     /* set up the entry for this new socket */
     mio_fd = _mio_setup_fd(m, newfd, FD(m,fd)->app, FD(m,fd)->arg);
+
+    if(!mio_fd) {
+        close(newfd);
+        return;
+    }
 
     /* tell the app about the new socket, if they reject it clean up */
     if (ACT(m, mio_fd, action_ACCEPT, ip))
