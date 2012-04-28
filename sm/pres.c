@@ -49,8 +49,8 @@ static void _pres_top(user_t user) {
         if(scan->available)
             user->available = 1;
 
-        /* non available and/or negative presence can't become top session */
-        if(!scan->available || scan->pri < 0) continue;
+        /* non available and/or negative presence and/or fake can't become top session */
+        if(!scan->available || scan->pri < 0 || scan->fake) continue;
 
         /* if we don't have one, then this is it */
         if(user->top == NULL)
@@ -95,7 +95,7 @@ void pres_update(sess_t sess, pkt_t pkt) {
                 /* if we're coming available, and we can see them, we need to probe them */
                 if(!sess->available && item->to) {
                     log_debug(ZONE, "probing %s", jid_full(item->jid));
-                    pkt_router(pkt_create(sess->user->sm, "presence", "probe", jid_full(item->jid), jid_user(sess->jid))); 
+                    pkt_router(pkt_create(sess->user->sm, "presence", "probe", jid_full(item->jid), jid_user(sess->jid)));
 
                     /* flag if we probed ourselves */
                     if(strcmp(jid_user(sess->jid), jid_full(item->jid)) == 0)
@@ -117,7 +117,7 @@ void pres_update(sess_t sess, pkt_t pkt) {
 
             /* forward to our active sessions */
             for(sscan = sess->user->sessions; sscan != NULL; sscan = sscan->next) {
-                if(sscan != sess && sscan->available) {
+                if(sscan != sess && sscan->available && !sscan->fake) {
                     log_debug(ZONE, "forwarding available to our session %s", jid_full(sscan->jid));
                     pkt_router(pkt_dup(pkt, jid_full(sscan->jid), jid_full(sess->jid)));
                 }
@@ -167,7 +167,7 @@ void pres_update(sess_t sess, pkt_t pkt) {
 
             /* forward to our active sessions */
             for(sscan = sess->user->sessions; sscan != NULL; sscan = sscan->next) {
-                if(sscan != sess && sscan->available) {
+                if(sscan != sess && sscan->available && !sscan->fake) {
                     log_debug(ZONE, "forwarding available to our session %s", jid_full(sscan->jid));
                     pkt_router(pkt_dup(pkt, jid_full(sscan->jid), jid_full(sess->jid)));
                 }
@@ -226,7 +226,7 @@ void pres_in(user_t user, pkt_t pkt) {
         }
 
         /* respond with last unavailable presence if no available session */
-        if(user->available == NULL) {
+        if(!user->available) {
             os_t os;
             os_object_t o;
             nad_t nad;
@@ -252,7 +252,7 @@ void pres_in(user_t user, pkt_t pkt) {
     /* loop over each session */
     for(scan = user->sessions; scan != NULL; scan = scan->next) {
         /* don't deliver to unavailable sessions: B4(a) */
-        if(!scan->available)
+        if(!scan->available || scan->fake)
             continue;
 
         /* don't deliver to ourselves, lest we presence-bomb ourselves ;) */
@@ -360,7 +360,7 @@ void pres_roster(sess_t sess, item_t item) {
     /* if we're not available, then forget it */
     if(!sess->available)
         return;
-    
+
     /* if they were trusted previously, but aren't anymore, and we haven't
      * explicitly sent them presence, then make them forget */
     if(!item->from && !jid_search(sess->A, item->jid) && !jid_search(sess->E, item->jid)) {

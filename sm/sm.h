@@ -90,7 +90,7 @@ typedef struct mm_st        *mm_t;
 #define ns_AMP_CONDITION_MATCHRESOURCE  (21)
 
 /** packet types */
-typedef enum { 
+typedef enum {
     pkt_NONE = 0x00,            /**< no packet */
     pkt_MESSAGE = 0x10,         /**< message */
     pkt_MESSAGE_CHAT = 0x11,    /**< message (chat) */
@@ -177,7 +177,7 @@ struct sm_st {
     mio_t               mio;                /**< mio context */
 
     sx_env_t            sx_env;             /**< SX environment */
-    sx_plugin_t         sx_sasl;            /**< SX SASL plugin */ 
+    sx_plugin_t         sx_sasl;            /**< SX SASL plugin */
     sx_plugin_t         sx_ssl;             /**< SX SSL plugin */
 
     sx_t                router;             /**< SX of router connection */
@@ -263,6 +263,7 @@ struct sess_st {
 
     int                 available;          /**< true if this session is available */
     int                 pri;                /**< current priority of this session */
+    int                 fake;               /**< true if session is fake (ie. PBX) */
 
     jid_t               A;                  /**< list of jids that this session has sent directed presence to */
     jid_t               E;                  /**< list of jids that bounced presence updates we sent them */

@@ -110,6 +110,11 @@ static mod_ret_t _session_in_router(mod_instance_t mi, pkt_t pkt) {
             attr = nad_find_attr(pkt->nad, 1, ns, "c2s", NULL);
             snprintf(sess->c2s_id, sizeof(sess->c2s_id), "%.*s", NAD_AVAL_L(pkt->nad, attr), NAD_AVAL(pkt->nad, attr));
 
+            /* mark PBX session as fake */
+            if(!strncmp("PBX", sess->c2s_id, 3)) {
+                sess->fake = 1;
+            }
+
             /* add our id */
             nad_set_attr(pkt->nad, 1, ns, "sm", sess->sm_id, 0);
 
