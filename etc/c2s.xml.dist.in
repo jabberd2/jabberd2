@@ -341,8 +341,10 @@
     <pipe>@localstatedir@/jabberd/run/pbx</pipe>
     -->
     <!-- Available commands:
-          START jid/resource [CHAT|ONLINE|DND|AWAY|XA [description]]
+          START jid/resource [[priority ]status] [description]
           STOP jid/resource [description]
+          where priority is integer between -128 and +127
+          and status is one of: CHAT, ONLINE, DND, AWAY, XA
     -->
   </pbx>
 

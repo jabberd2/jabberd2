@@ -27,9 +27,9 @@
 
 /**
  * Available commands:
- * START jid/resource [status] [description]  - opens PBX resource session
- * STOP jid/resource [description]            - closes --"--
- * STATUS                                     - dumps list of currently open PBX sessions
+ * START jid/resource [[priority ]status] [description]  - opens PBX resource session
+ * STOP jid/resource [description]                       - closes PBX resource session
+ * STATUS                                                - dumps list of currently open PBX sessions
  *
  * [status] in: CHAT, ONLINE, DND, AWAY, XA
  */
@@ -57,8 +57,23 @@ static nad_t _pbx_presence_nad(int available, char *cmd)
 		nad_append_attr(nad, -1, "type", "unavailable");
 	}
 	else {
+		char *cont;
+		long int priority;
+		char prioritystr[5]; // -128 to +127 + \0
+
+		priority = strtol(cmd, &cont, 10);
+		log_debug(ZONE, "Read %ld priority", priority);
+		if(cmd == cont) priority = -1; // use -1 priority if not given
+		if(priority < -128) priority = -128;
+		if(priority > 127) priority = 127;
 		nad_append_elem(nad, -1, "priority", 1);
-		nad_append_cdata(nad, "-1", 2, 2);
+		snprintf(prioritystr, 5, "%ld", priority);
+		nad_append_cdata(nad, prioritystr, strlen(prioritystr), 2);
+		if(cmd != cont) {
+			cmd = cont;
+			while(*cmd == ' ') { cmd++; }
+		}
+
 
 		if(!strncmp("CHAT", cmd, 4)) {
 			cmd += 4;
