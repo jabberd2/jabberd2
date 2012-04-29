@@ -1,3 +1,91 @@
+2012-04-29 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed libstorage_la_SOURCES
+
+2012-04-28 Tomasz Sterna <tomek@xiaoka.com>
+	* Implemented support for fake (PBX) sessions in SM
+	* PBX integration priority setting support
+
+2012-03-08 Tomasz Sterna <tomek@xiaoka.com>
+	* Fix a crash that occurs when c2s connecting clients passed the defined connection limit
+
+2012-02-27 Tomasz Sterna <tomek@xiaoka.com>
+	* Log S2S retry timeout to main log
+	* Do not log messages when not enabled or empty logfile configured
+
+2012-02-19 Tomasz Sterna <tomek@xiaoka.com>
+	* Define TRUE and FALSE in util.h
+	* Merged ldapvcard improvements from Gentoo
+	* Fail on not existing ldapfull user. Fixes Bug 931622
+
+2012-02-12 Tomasz Sterna <tomek@xiaoka.com>
+	* Added missing static keywords
+	* [Apple ChatServer] Disable weak SSL ciphers
+	* [Apple ChatServer] SQLite index on vCard owner
+	* [Apple ChatServer] jabberd wrapper improvements
+	* [Apple ChatServer] log_user category
+	* [Apple ChatServer] Socket closing and component shutdown fixes
+	* [Apple ChatServer] Support for DB query rate limitting
+	* [Apple ChatServer] Support for multihomed IPv4 + IPv6 machines
+	* [Apple ChatServer] Fixes crash possible when two s2s instances are connected
+	* [Apple ChatServer] Support enforcing TLS secured S2S connections only
+	* [Apple ChatServer] Domain whitelisting support
+	* [Apple ChatServer] Delay router shutdown to allow proper component disconnection
+	* [Apple ChatServer] Simple message logging to a directory support
+	* [Apple ChatServer] MIO kqueue implementation
+	* [Apple ChatServer] Use max accept queue specified by kern.ipc.somaxconn sysctl
+	* [Apple ChatServer] Fixed deferred closing of FD
+	* [Apple ChatServer] Support for see-other-host stream redirects.
+	* [Apple ChatServer] Store connection port in SX structure.
+
+2011-12-06 Tomasz Sterna <tomek@xiaoka.com>
+	* Updated Flash patch
+	* Send any remaining SASL data with <success/> authentication response
+
+2011-10-30 Tomasz Sterna <tomek@xiaoka.com>
+	* PBX sessions do not have active stream - do not try sending them errors
+	* Small improvement in PBX pipe commandline parsing
+
+2011-10-26 Tomasz Sterna <tomek@xiaoka.com>
+	* Merge pull request #1 from eagafonov/pub_patches
+
+2011-10-12 Eugene Agafonov <e.a.agafonov@gmail.com>
+	* Fix possible crash in logger
+	* Add initial tests/config
+	* Implement '-i ID' command line option
+
+2011-10-11 Eugene Agafonov <e.a.agafonov@gmail.com>
+	* authreg_pgsql: implement 'check password' functionality
+	* libstorage: move storage-related SM stuff into separate library.
+	* [SM] Implement 'user-unload' chain
+
+2011-10-24 Eugene Agafonov <e.a.agafonov@gmail.com>
+	* Enable/disable debug output with signals USR1/USR2
+
+2011-10-08 Tomasz Sterna <tomek@xiaoka.com>
+	* Added README.config about node value substitution
+	* Move SX_CONN_EXTERNAL_ID_MAX_COUNT out of SX SSL context
+
+2011-09-18 Tomasz Sterna <tomek@xiaoka.com>
+	* Cleared PBX pipe documentation
+	* Fixed/finished PBX pipe implementation
+	* RFC6121 4.3.2. says that responses to directed probe SHOULD communicate only the fact that the resource is available
+
+2011-09-17 Tomasz Sterna <tomek@xiaoka.com>
+	* Refactored marking DNS as bad to function and used when bouncing backets due to timeout
+	* Bounce queued packets with <remote-server-timeout/> error if remote server breaks connection during dialback
+	* Log used PEM file for domain
+	* Merged storage-oracle typo fix by Jan Pazdziora. Closes Bug 824395
+	* Merged A1HASH passwords support for MySQL by Steven Ayre. Closes Bug 821737
+	* Merged get photo from storage_ldapvcard patch by Volkov Aleksey. Closes Bug 819356
+	* Merged force-create published users patch by Volkov Aleksey. Closes Bug 817727
+	* Fix for getting client cert CommonName, by nmset. Closes Bug 814823
+	* Merged Win32 compilation fixes by Sob
+	* Merged group extraction by RegExp from LDAP support by Master5597. Closes Bug 808984
+
+2011-06-09 Tomasz Sterna <tomek@xiaoka.com>
+	* Merged config variables expansion by Eugene Agafonov
+	* Deliver presence broadcast to all resources, not only to non-negative ones. Fixes Bug 795108
+
 2011-06-01 Tomasz Sterna <tomek@xiaoka.com>
 	* Prevent the "billion laughs" attack against expat by disabling internal
 	  entity expansion.
@@ -621,7 +709,7 @@
 	* Seems easier to use AC_SEARCH_LIBS for inet_ntop etc.
 	* Move the broken __ss_family check so that it appears after the check for struct sockaddr_storage.
 	* Check for socklen_t
-	* Fix --enable-pgsql 
+	* Fix --enable-pgsql
 
 2008-02-05 Adam Strzelecki <ono@java.pl>
 	* Fixed compatibility with VC++ and ANSI, variables must be declared at the beginning of the block.
@@ -1322,7 +1410,7 @@
 	* fixed mem leak in s2s bug#59
 
 2005-04-14 Justin Kirby <justin-j2@openaether.org>
-	* added oracle support. 
+	* added oracle support.
 	* add keepalives to router bug#54
 	* fixed info in PROTOCOL file
 	* Fixed handling of (un)subscribe packets for XMPP-IM compliance
@@ -1370,22 +1458,22 @@
 	* Include sys/types.h if available in util.h inter alia for FreeBSD, Stephen Marquard
 	* Minor code cleanups for compilation on HP-UX, Christof Meerwald
 	* Fix configure.in for correct handling of resolv.h, Magnus Henoch
-	* Include resquery checks from MAIN cvs branch in 2.0, Christof Meerwald 	
+	* Include resquery checks from MAIN cvs branch in 2.0, Christof Meerwald
 	* Allows jabberd to start new components and place itself in the background,  Richard Bullington-McGuire (original ver),  Additional components defined in jabberd.cfg get started as long as they are in the same directory as the jabberd script (useful for mu-conference installed through jcr) The script can daemonize itself with the "-b" switch after starting the various programs it watches over, unless the debug option is set.
 	* Paranoia, ensure than srv->name is nul terminated., Jedi/Sector One
-	
+
 2004-11-25 Justin Kirby <justin-j2@openaether.org>
 	* Remove incorrect semicolumn from os_object_free() in sm/object.c Typographical error in code - could lead to memory not being freed correctly - jedi
 	* Fixes to mysql storage for boundary conditions	Apply if using mysql storage. -jedi
 	* Fix length-related issues in base64 decoding routines. Could affect authentication in c2s. - Christof Meerwald
-	* Fixes to storage_db.c to avoid roster corruption: "sm/storage_db inserts items in the filter hash table with keys which are located on the stack. This creates confusion when the code later tries to compare with these keys.". - Martin Forssen 
+	* Fixes to storage_db.c to avoid roster corruption: "sm/storage_db inserts items in the filter hash table with keys which are located on the stack. This creates confusion when the code later tries to compare with these keys.". - Martin Forssen
 	* Fixes bug in _nad_escape() where escaping ]]> can cause a segfault when handling large messages where nad_realloc is called.  - Stephen Marquard
 	* Fixes to pgsql storage for boundary conditions and incorrect buffer length calculation - jedi
 	* Fix minor memory leaks in digest-md5 authentication and nad_free() - Martin Forssen
 	* Fixes omission of namespace declaration where a namespace has already been used in the XML stanza - Stephen Marquard
 	* Fixes omission of prefix on attributes processed by nad_parse (e.g. in queue storage) - Stephen Marquard
 	* Corrects check for deleting previously published disco items from "delete" to "remove" (as per JEP-0030). - Stephen Marquard
-	* Alters filter handling and adds mysql/pgsql escaping on filter strings to allow brackets and apostrophes in resource names that form part of JIDs stored as roster entries - Stephen Marquard 	 
+	* Alters filter handling and adds mysql/pgsql escaping on filter strings to allow brackets and apostrophes in resource names that form part of JIDs stored as roster entries - Stephen Marquard
 	* Fixes buffer overflow that can lead to segfault in c2s mysql and pgsql auth modules - see report by icbm (www.venustech.com.cn) - Stephen Marquard
 	* Avoid crash in some versions of FreeBSD / DragonFlyBSD When a TCP socket is accepted and the immediately closed, the client address is not filled, but accept() does return a descriptor. It can be triggered with nmap -sT. The type of the length of a socket is also socklen_t, not size_t. - jedi
 	* Resolves problems with strings starting "NAD" being interpreted as xml in mysql/postgresql storage 	Does not require any db changes to implement. -  Stephen Marquard
@@ -1394,11 +1482,11 @@
 	* Correctly free storage instance before c2s exit in cases where storage driver fails to initialise - Cameron Moore
 	* Adds SSL support to s2s (server-server) connections. Add a <pemfile> entry in the <local> section of s2s.xml to enable. - Stephen Marquard
 	* tons of autoconf magic fixes by jedi
-	
+
 2004-10-23 Justin Kirby <justin-j2@openaether.org>
 	* Fixed race condition allowing c2s to be killed, Stephen Marquard
 	* Fixed off-by-one bug in s2s/main.c leading to segfault on startup in some environmentsp
-	* Fixed memory leak in sm, Michal Kára
+	* Fixed memory leak in sm, Michal K\E1ra
 	* Fixed problem relating to SSL connections not being closed correctly, Nathan Christiansen
 	* Fixed 3 problems in mod_announce: (a) NAD freed before use, (b) struct tm not initialised correctly on some platforms, and (c) time not initialised for broadcast motd messages delivered to online users, Stephen Marquard
 	* Fixed insertion of extra namespace in element in some types of messages retrieved from offline queue, which causes a parse error in the router, Matthew Buckett
@@ -1412,7 +1500,7 @@
 	* Checked that storage drivers are initialised correctly; if not, abort, Stephen Marquard
 	* Fixed file descriptor leak in storage_fs
 	* Allowed c2s to supply a certificate chain to clients, Iain MacDonnell
-	
+
 2004-08-19  Robert Norris  <rob@cataclysm.cx>
 
     * sm/mod_privacy.c: fixed a tiny little edge case crasher
@@ -1463,7 +1551,7 @@
     * configure.in: do global search/replace on include paths
 
     * c2s/authreg_mysql.c: fix potential buffer overruns
-    
+
     * subst/snprintf.c: handle %.*s without calling strlen
 
 2004-05-06  Robert Norris  <rob@cataclysm.cx>
@@ -1663,7 +1751,7 @@
 
     * c2s/authreg*.c: updated for new defines
     * sm/storage*.c: same
-    
+
     * c2s/c2s.h: only include required headers
     * mio/mio.h: same
     * resolver/dns.h: same
@@ -1832,7 +1920,7 @@
 
     * sx/io.c: new function sx_kill(), to close a stream abruptly
     * sx/sx.h: same
-    
+
     * c2s/c2s.c: use sx_kill() to close streams after io errors
     * resolver/resolver.c: same
     * router/router.c: same
@@ -2039,7 +2127,7 @@
 
     * c2s/main.c: provide regular pool stats when running in pool debug mode
     * resolver/resolver.c: same
-    * router/main.c: same 
+    * router/main.c: same
     * s2s/main.c: same
     * sm/main.c: same
 
@@ -2081,7 +2169,7 @@
 
     * sx/error.c: updated to latest xmpp; open stream before reporting pre-stream errors
     * sx/sx.h: same
-    
+
     * sx/sasl.c: updated errors to latest xmpp
     * util/stanza.c: same
     * util/util.h: same
@@ -2098,7 +2186,7 @@
     * sm/storage_pgsql.c: same
 
     * etc/sm.xml.dist.in: removed browse compat namespaces
-    
+
     * Doxyfile.in: updated doxygen config
 
     * 2.0b3 released
@@ -2122,7 +2210,7 @@
 
     * sx/error.c: update stream errors to recent xmpp revisions
     * sx/sx.h: same
-    
+
     * util/stanza.c: update stanza errors to recent xmpp revisions
 
     * c2s/c2s.c: send diagnostic text on stream errors
@@ -2198,7 +2286,7 @@
 
     * s2s/main.c: make queue bounces work correctly
     * s2s/router.c: same
-    
+
     * s2s/s2s.c: bounce queue on failed resolution
 
     * util/xhash.c: xhash_putx returns void, so don't try to take a return value
@@ -2863,7 +2951,7 @@
     * sm/sess.c: same
     * c2s/c2s.c: same
     * c2s/c2s.h: same
-    
+
     * util/datetime.c: now generates correct timestamps
 
     * util/hex.c: hex conversion utilities
@@ -2995,7 +3083,7 @@
 
     * s2s/main.c: fixed compile errors
     * s2s/out.c: same
-    
+
     * router/main.c: changed default port ot 5347
     * etc/router.xml.dist.in: same
 
@@ -3052,7 +3140,7 @@
     * mio/mio.h: same
     * sx/sx.h: same
     * util/util.h: same
-    
+
     * sm/mod_roster.c: make string large enough for full jids
     * util/stanza.c: same
 
@@ -3084,7 +3172,7 @@
     * c2s/authreg.c: same
     * c2s/c2s.c: same
     * c2s/c2s.h: same
-    * c2s/main.c: same 
+    * c2s/main.c: same
     * router/main.c: same
     * router/router.c: same
     * router/router.h: same
@@ -3318,7 +3406,7 @@
     * etc/sm.xml.dist.in: same
     * tools/db-setup.pgsql: initial setups for postgresql storage
     * sm/mod_announce.c: split storage into two seperate types to make the schema sane
-    
+
 2003-05-21  Robert Norris  <rob@cataclysm.cx>
 
     * c2s/authreg_pipe.c: base64 pipe-auth passwords <willu@cse.unsw.edu.au>
@@ -3506,7 +3594,7 @@
 
 2003-03-27  Robert Norris  <rob@cataclysm.cx>
 
-    * router/router.c: make sure components get reverse notifications about legacy components 
+    * router/router.c: make sure components get reverse notifications about legacy components
     * sm/mod_disco.c: refactored and heavily optimised
 
     * util/base64.c: base64 encode/decode functions
@@ -3525,7 +3613,7 @@
     * util/util.h: same
 
 2003-03-24  Robert Norris  <rob@cataclysm.cx>
-    
+
     * configure.in: check for openssl >= 0.9.6d (admin should check for security holes)
     * ac-helpers/openssl.m4: same
     * c2s/main.c: avoid segfault on unknown realm
@@ -3766,7 +3854,7 @@
     * README: The URL to download Berkeley DB changed
 
 2003-01-16  Robert Norris  <rob@cataclysm.cx>
-    
+
     * sm/mod_roster.c: fixed a little bug that could break group management
     * router/main.c: service aliases
     * router/router.h: same
@@ -3981,7 +4069,7 @@
     * sx/nad.c: same
     * sx/sasl.c: same
     * configure.in: install config under $(sysconfdir)/jabber
-    
+
 2002-11-14  Ryan Eatmon  <reatmon@jabber.org>
 
     * Makefile.am: include tools
@@ -4009,7 +4097,7 @@
     * sm/mm.c: actually update mm->nindex (I have no idea how this worked before)
     * sm/sm.h: per-user module data
     * sm/user.c: same
-    * sm/sess.c: send through unavailable presence before we call mm_sess_end(); 
+    * sm/sess.c: send through unavailable presence before we call mm_sess_end();
     * sm/sess.c: free module data on session end
     * sm/mod_privacy.c: jabber:iq:privacy (JEP-0016) support
     * sm/sm.h: same
