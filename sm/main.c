@@ -105,6 +105,8 @@ static void _sm_config_expand(sm_t sm)
     char *str;
     config_elem_t elem;
 
+    set_debug_log_from_config(sm->config);
+
     sm->id = config_get_one(sm->config, "id", 0);
     if(sm->id == NULL)
         sm->id = "sm";
@@ -396,6 +398,8 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
         mio_run(sm->mio, 5);
 
         if(sm_logrotate) {
+            set_debug_log_from_config(sm->config);
+
             log_write(sm->log, LOG_NOTICE, "reopening log ...");
             log_free(sm->log);
             sm->log = log_new(sm->log_type, sm->log_ident, sm->log_facility);

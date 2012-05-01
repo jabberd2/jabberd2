@@ -79,6 +79,8 @@ static void _s2s_config_expand(s2s_t s2s) {
     config_elem_t elem;
     int i, r;
 
+    set_debug_log_from_config(s2s->config);
+
     s2s->id = config_get_one(s2s->config, "id", 0);
     if(s2s->id == NULL)
         s2s->id = "s2s";
@@ -979,6 +981,8 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
         now = time(NULL);
 
         if(s2s_logrotate) {
+            set_debug_log_from_config(s2s->config);
+
             log_write(s2s->log, LOG_NOTICE, "reopening log ...");
             log_free(s2s->log);
             s2s->log = log_new(s2s->log_type, s2s->log_ident, s2s->log_facility);

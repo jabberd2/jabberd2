@@ -83,6 +83,8 @@ static void _router_config_expand(router_t r)
     if(r->id == NULL)
         r->id = "router";
 
+    set_debug_log_from_config(r->config);
+
     r->log_type = log_STDOUT;
     if(config_get(r->config, "log") != NULL) {
         if((str = config_get_attr(r->config, "log", 0, "type")) != NULL) {
@@ -445,6 +447,8 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
 
         if(router_logrotate)
         {
+            set_debug_log_from_config(r->config);
+
             log_write(r->log, LOG_NOTICE, "reopening log ...");
             log_free(r->log);
             r->log = log_new(r->log_type, r->log_ident, r->log_facility);

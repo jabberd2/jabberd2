@@ -85,6 +85,8 @@ static void _c2s_config_expand(c2s_t c2s)
     int i;
     stream_redirect_t sr;
 
+    set_debug_log_from_config(c2s->config);
+
     c2s->id = config_get_one(c2s->config, "id", 0);
     if(c2s->id == NULL)
         c2s->id = "c2s";
@@ -786,6 +788,8 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
         mio_run(c2s->mio, mio_timeout);
 
         if(c2s_logrotate) {
+            set_debug_log_from_config(c2s->config);
+
             log_write(c2s->log, LOG_NOTICE, "reopening log ...");
             log_free(c2s->log);
             c2s->log = log_new(c2s->log_type, c2s->log_ident, c2s->log_facility);
