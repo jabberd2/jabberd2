@@ -196,7 +196,7 @@
   </aci>
 
   <!-- Simple message logging to flat file
-       Remove <enabled/> tag to disable logging
+       Remove <enabled/> tag to disable logging -->
   <!--
   <message_logging>
     <enabled/>

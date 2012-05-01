@@ -25,6 +25,7 @@ class ConfigTest: public CppUnit::TestFixture
     CPPUNIT_TEST(test010);
     CPPUNIT_TEST(test012);
     CPPUNIT_TEST(test013);
+    CPPUNIT_TEST(test_load_all_configs);
     CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -171,6 +172,27 @@ public:
         config_free(c);
     }
 
+    void test_load_all_configs() {
+        const char *generated_configs[] =	{
+            "../../etc/s2s.xml.dist",
+            "../../etc/sm.xml.dist",
+            "../../etc/router.xml.dist",
+            "../../etc/router-filter.xml.dist",
+            "../../etc/templates/roster.xml.dist",
+            "../../etc/c2s.xml.dist",
+            "../../etc/router-users.xml.dist"
+            };
+
+        for (int i = 0; i < sizeof(generated_configs) / sizeof(generated_configs[0]); i++) 
+        {
+            std::stringstream msg;
+            msg << "Faled to load config " << generated_configs[i];
+            config_t c = config_new();
+            CPPUNIT_ASSERT_MESSAGE(msg.str().c_str(), c != 0);
+            CPPUNIT_ASSERT_EQUAL_MESSAGE(msg.str().c_str(), 0, config_load(c, generated_configs[i]));
+            config_free(c);
+        }
+    }
 };
 
 
