@@ -414,6 +414,10 @@ JABBERD2_API int hex_to_raw(char *in, int inlen, char *out);
 JABBERD2_API int get_debug_flag(void);
 JABBERD2_API void set_debug_flag(int v);
 JABBERD2_API void debug_log(const char *file, int line, const char *msgfmt, ...);
+JABBERD2_API int set_debug_file(const char *filename);
+
+JABBERD2_API int set_debug_log_from_config(config_t c);
+
 #define ZONE __FILE__,__LINE__
 #define MAX_DEBUG 8192
 

@@ -72,6 +72,11 @@
     <!--
     <file>@localstatedir@/jabberd/log/s2s.log</file>
     -->
+
+    <!-- Filename of the debug logfile -->
+    <!--
+    <debug>@localstatedir@/@package@/log/debug-${id}.log</debug>
+    -->
   </log>
 
   <!-- Local network configuration -->
