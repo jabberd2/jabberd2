@@ -1,0 +1,66 @@
+body {
+  text-align: center;
+  font: 300 14px/1.7 'Open Sans', sans-serif; 
+  color: #4a4a4a;
+  }
+  
+#container {
+  margin: 0 auto;
+  width: 900px;
+  text-align: left;
+  }
+
+#maincolumn {
+	margin-top: 90px;
+    float:left;
+    width:550px;
+       }
+	
+#rightcolumn {
+	margin-top: 90px;
+    float:right;
+    width:250px;
+      }
+	  
+#rightcolumn li { 
+	list-style-type: none;
+	font-size: 18px;
+	line-height: 85px;
+	white-space: nowrap;
+	
+	      }
+	  
+#rightcolumn img { 
+	padding-right: 15px;
+	vertical-align: middle;
+	border: 0;
+
+      }
+
+#logo { position: relative; top: 40px; z-index: 100; }
+#logo a { display: block; text-indent: -9999px; width: 222px; height: 50px; background: url(jabberd_logo.png) no-repeat; }
+.site-description { position: relative; right: 0px; top: 10px; text-align: right; background: bottom right url(line.png) no-repeat;}
+
+h1, h2, h3 { font-weight: 700; padding: 20px 0 5px 0; margin: 0; }
+h1 { font-size: 24px; }
+h2 { font-size: 16px; }
+h3 { font-size: 14px; }
+a { color: #cc3333; }
+a:hover { color: black; }
+p { padding: 0; margin: 0; }
+
+table, tr
+{
+border: 0;
+padding: 0;
+margin: 0;
+}
+
+td
+{
+border: 0;
+padding: 0 10px 0 0;
+margin: 0;
+}
+
+.commline { font-family:"Courier New", Courier, monospace; color: white; background-color: black; padding-left: 10px; }
