@@ -5,7 +5,7 @@
 
   <!-- The process ID file. Comment this out if you don't need to know
        the process ID from outside the process (eg for control scripts) -->
-  <pidfile>@localstatedir@/jabberd/pid/s2s.pid</pidfile>
+  <pidfile>@localstatedir@/@package@/pid/s2s.pid</pidfile>
 
   <!-- Router connection configuration -->
   <router>
@@ -70,7 +70,7 @@
 
     <!-- if logging to file, this is the filename of the logfile -->
     <!--
-    <file>@localstatedir@/jabberd/log/s2s.log</file>
+    <file>@localstatedir@/@package@/log/s2s.log</file>
     -->
 
     <!-- Filename of the debug logfile -->
@@ -240,7 +240,7 @@
   <stats>
     <!-- file containing count of packets that went through -->
     <!--
-    <packet>@localstatedir@/jabberd/stats/s2s.packets</packet>
+    <packet>@localstatedir@/@package@/stats/s2s.packets</packet>
     -->
   </stats>
 

@@ -5,7 +5,7 @@
 
   <!-- The process ID file. Comment this out if you don't need to know
        the process ID from outside the process (eg for control scripts) -->
-  <pidfile>@localstatedir@/jabberd/pid/c2s.pid</pidfile>
+  <pidfile>@localstatedir@/@package@/pid/c2s.pid</pidfile>
 
   <!-- Router connection configuration -->
   <router>
@@ -60,7 +60,7 @@
 
     <!-- If logging to file, this is the filename of the logfile -->
     <!--
-    <file>@localstatedir@/jabberd/log/c2s.log</file>
+    <file>@localstatedir@/@package@/log/c2s.log</file>
     -->
 
     <!-- Filename of the debug logfile -->
@@ -334,7 +334,7 @@
   <stats>
     <!-- file containing count of packets that went through -->
     <!--
-    <packet>@localstatedir@/jabberd/stats/c2s.packets</packet>
+    <packet>@localstatedir@/@package@/stats/c2s.packets</packet>
     -->
   </stats>
 
@@ -343,7 +343,7 @@
     <!-- Commands named pipe path. Allows creating "fake" sessions
          with given resource and status -->
     <!--
-    <pipe>@localstatedir@/jabberd/run/pbx</pipe>
+    <pipe>@localstatedir@/@package@/run/pbx</pipe>
     -->
     <!-- Available commands:
           START jid/resource [[priority ]status] [description]
@@ -421,7 +421,7 @@
     <!-- SQLite driver configuration -->
     <sqlite>
       <!-- Database name -->
-      <dbname>@localstatedir@/jabberd/db/sqlite.db</dbname>
+      <dbname>@localstatedir@/@package@/db/sqlite.db</dbname>
 
       <!-- Transacation support. If this is commented out, transactions
            will be disabled. This might make database accesses faster,
@@ -502,7 +502,7 @@
     <!-- Berkeley DB module configuration -->
     <db>
       <!-- Directory to store database files under -->
-      <path>@localstatedir@/jabberd/db</path>
+      <path>@localstatedir@/@package@/db</path>
 
       <!-- Synchronize the database to disk after each write. If you
            disable this, database accesses may be faster, but data may

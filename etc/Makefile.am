@@ -11,6 +11,7 @@ SUBDIRS = templates
 jabberd_bin = router sm s2s c2s
 
 edit = sed \
+	-e 's,@package\@,$(PACKAGE),g' \
 	-e 's,@sysconfdir\@,$(sysconfdir),g' \
 	-e 's,@localstatedir\@,$(localstatedir),g' \
 	-e 's,@bindir\@,$(bindir),g' \
