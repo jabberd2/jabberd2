@@ -1,4 +1,4 @@
-EXTRA_DIST = Doxyfile.in README.win32 README.protocol README.config contrib UPGRADE tests/Makefile.in
+EXTRA_DIST = Doxyfile.in README.win32 README.protocol README.config contrib UPGRADE docs win32
 
 LIBTOOL += --quiet
 

@@ -1,3 +1,5 @@
+EXTRA_DIST = authreg_ntlogon.c authreg_sspi.c
+
 INCLUDES = -I$(top_srcdir)/c2s
 
 LIBTOOL += --quiet
@@ -29,7 +31,7 @@ storage_db_la_LIBADD  = $(MODULE_LIBADD) $(DB_LIBS) ../util/libutil.la
 endif
 
 if STORAGE_FS
-pkglib_LTLIBRARIES += storage_fs.la 
+pkglib_LTLIBRARIES += storage_fs.la
 storage_fs_la_SOURCES = storage_fs.c
 storage_fs_la_LDFLAGS = $(MODULE_LDFLAGS)
 storage_fs_la_LIBADD  = $(MODULE_LIBADD)
@@ -110,4 +112,3 @@ storage_sqlite_la_SOURCES = storage_sqlite.c
 storage_sqlite_la_LDFLAGS = $(MODULE_LDFLAGS)
 storage_sqlite_la_LIBADD  = $(MODULE_LIBADD) $(SQLITE_LIBS)
 endif
-

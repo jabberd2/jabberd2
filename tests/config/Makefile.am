@@ -1,3 +1,5 @@
+EXTRA_DIST = *.xml test_configs
+
 LIBTOOL += --quiet
 
 noinst_PROGRAMS = configtest

@@ -1,9 +1,9 @@
 jabber2/
 
     docs/       - Documentation
+        code/   - Doxygen generated
         dev/    - Hacker docs
 
-    idn/        - GNU Libidn (stringprep)
     mio/        - Managed Input/Ouput (FD event processor)
     sx/         - Streams for XML (Jabber connection / stream library)
     util/       - Utilities (config, logging, NADs, hashtables, etc)

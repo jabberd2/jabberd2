@@ -1,5 +1,0 @@
-Known BUGS:
-
-- assigning TLS certificates per c2s/s2s vHost does not work yet
-- SASL EXTERNAL authentication probably does not work (untested)
-
