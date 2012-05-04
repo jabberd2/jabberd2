@@ -1,0 +1,11 @@
+ChangeLog log format:
+git log --pretty=format:'%ai %aN <%aE>%n\t* %s\n'
+
+New release:
+git co -b 2.2.16
+vim configure.ac
+git commit configure.ac -m "2.2.16 release"
+git tag jabberd-2.2.16
+make dist
+git push github tag jabberd-2.2.16
+
