@@ -16,7 +16,9 @@ What changed:
 - Simple message logging to a directory
 - MIO kqueue implementation
 - Support for see-other-host stream redirects
+- Unit tests
 
+You will need cppunit(-devel) installed to get the tests built.
 See example configuration files on how to enable new features.
 
 
