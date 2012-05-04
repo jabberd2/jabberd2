@@ -1,6 +1,16 @@
 This file contains upgrade instructions between different versions of jabberd2.
 
 
+* 2.2.15 to 2.2.16 upgrade:
+
+What changed:
+- Debug logging into file implemented
+  See etc/*.xml.dist for instructions
+- Unit tests are not mandatory
+  See --enable-tests/--disable-tests option for ./configure
+- Fix for invalid default router.xml (Unterminated XML comment tag)
+
+
 * 2.2.14 to 2.2.15 upgrade:
 
 What changed:
@@ -31,8 +41,8 @@ What changed:
 
 What changed:
 - New authentication option 'bind' for authreg_ldapfull
-  See etc/c2s.xml.dist for instructions.
-- Stream Compression for S2S connections.
+  See etc/c2s.xml.dist for instructions
+- Stream Compression for S2S connections
   See etc/c2s.xml.dist for instructions
 
 

@@ -1,3 +1,14 @@
+2012-05-04 Tomasz Sterna <tomek@xiaoka.com>
+	* Implemented --enable-tests configure option
+	* Fixed 'make dist' packaging
+	* Fixed domain name in punycode resolution
+	* Expand @package@ in etc/*.xml.dist.in
+	* storage_ldapvcard compilation fixes
+
+2012-05-01 Eugene Agafonov <e.a.agafonov@gmail.com>
+	* Implement debug logging into file
+	* Fix invalid default router.xml (Unterminated XML comment tag)
+
 2012-04-29 Tomasz Sterna <tomek@xiaoka.com>
 	* Fixed libstorage_la_SOURCES
 
