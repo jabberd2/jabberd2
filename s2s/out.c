@@ -140,7 +140,7 @@ static void _out_dialback(conn_t out, char *rkey, int rkeylen) {
     from_len = c - rkey;
     c++;
     to_len = rkeylen - (c - rkey);
-    
+
     /* kick off the dialback */
     tmp = strndup(c, to_len);
     dbkey = s2s_db_key(NULL, out->s2s->local_secret, tmp, out->s->id);
@@ -162,7 +162,7 @@ static void _out_dialback(conn_t out, char *rkey, int rkeylen) {
     sx_nad_write(out->s, nad);
 
     free(dbkey);
-            
+
     /* we're in progress now */
     xhash_put(out->states, pstrdupx(xhash_pool(out->states), rkey, rkeylen), (void *) conn_INPROGRESS);
 
@@ -620,9 +620,9 @@ int out_packet(s2s_t s2s, pkt_t pkt) {
     int ret;
 
     /* perform check against whitelist */
-    if (s2s->enable_whitelist > 0 && 
-    		(pkt->to->domain != NULL) && 
-    		(s2s_domain_in_whitelist(s2s, pkt->to->domain) == 0)) {
+    if (s2s->enable_whitelist > 0 &&
+            (pkt->to->domain != NULL) &&
+            (s2s_domain_in_whitelist(s2s, pkt->to->domain) == 0)) {
         log_write(s2s->log, LOG_NOTICE, "sending a packet to domain not in the whitelist, dropping it");
         if (pkt->to != NULL)
             jid_free(pkt->to);
@@ -689,7 +689,7 @@ int out_packet(s2s_t s2s, pkt_t pkt) {
         } else {
             /* if the outgoing stanza has a jabber:client namespace, remove it so that the stream jabber:server namespaces will apply (XMPP 11.2.2) */
             int ns = nad_find_namespace(pkt->nad, 1, uri_CLIENT, NULL);
-            if(ns >= 0) { 
+            if(ns >= 0) {
                /* clear the namespaces of elem 0 (internal route element) and elem 1 (message|iq|presence) */
                pkt->nad->elems[0].ns = -1;
                pkt->nad->elems[0].my_ns = -1;
@@ -722,7 +722,7 @@ int out_packet(s2s_t s2s, pkt_t pkt) {
     }
 
     /* this is a new route - send dialback auth request to piggyback on the existing connection */
-	if (out->s2s->require_tls == 0 || out->s->ssf > 0) {
+    if (out->s2s->require_tls == 0 || out->s->ssf > 0) {
     _out_dialback(out, rkey, rkeylen);
     }
     free(rkey);
@@ -869,7 +869,7 @@ static void _dns_result_srv(struct dns_ctx *ctx, struct dns_rr_srv *result, void
                     result->dnssrv_srv[i].weight, result->dnssrv_ttl);
             }
         }
-        
+
         free(result);
     }
 
@@ -1176,8 +1176,7 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
 
         xhash_free(query->hosts);
         query->hosts = NULL;
-        if (idna_to_unicode_8z8z(query->name, &domain, 0) != IDNA_SUCCESS)
-        {
+        if (idna_to_unicode_8z8z(query->name, &domain, 0) != IDNA_SUCCESS) {
             log_write(query->s2s->log, LOG_ERR, "idna dns decode for %s failed", query->name);
             /* fake empty results to shortcut resolution failure */
             xhash_free(query->results);
@@ -1197,8 +1196,7 @@ void dns_resolve_domain(s2s_t s2s, dnscache_t dns) {
 
     query->s2s = s2s;
     query->results = xhash_new(71);
-    if (idna_to_ascii_8z(dns->name, &query->name, 0) != IDNA_SUCCESS)
-    {
+    if (idna_to_ascii_8z(dns->name, &query->name, 0) != IDNA_SUCCESS) {
         log_write(s2s->log, LOG_ERR, "idna dns encode for %s failed", dns->name);
         /* shortcut resolution failure */
         query->expiry = time(NULL) + 99999999;
@@ -1254,13 +1252,21 @@ void out_resolve(s2s_t s2s, char *domain, xht results, time_t expiry) {
 
     /* get the cache entry */
     dns = xhash_get(s2s->dnscache, domain);
-    if(dns == NULL) {
-        log_debug(ZONE, "weird, we never requested this");
 
-        xhash_free(results);
+    if(dns == NULL) {
+        /* retry using punycode */
+        char *punydomain;
+        if (idna_to_ascii_8z(domain, &punydomain, 0) == IDNA_SUCCESS) {
+            dns = xhash_get(s2s->dnscache, punydomain);
+            free(punydomain);
+        }
+    }
+
+    if(dns == NULL) {
+        log_write(s2s->log, LOG_ERR, "weird, never requested %s resolution", domain);
         return;
     }
-    
+
     /* fill it out */
     xhash_free(dns->results);
     dns->query = NULL;
@@ -1458,7 +1464,7 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 }
 
                 sx_kill(s);
-                
+
                 return -1;
             }
 
@@ -1515,8 +1521,7 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                          strstr(sxe->specific, "undefined-condition") ||       /* something bad happend */
                          strstr(sxe->specific, "internal-server-error") ||     /* that server is broken */
                          strstr(sxe->specific, "unsupported-version")          /* they do not support our stream version */
-                        )))
-            {
+                        ))) {
                 _out_dns_mark_bad(out, NULL);
             }
 
@@ -1556,8 +1561,8 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             nad = (nad_t) data;
 
             /* watch for the features packet - STARTTLS and/or SASL*/
-            if ((out->s->res_version!=NULL) 
-                 && NAD_NURI_L(nad, NAD_ENS(nad, 0)) == strlen(uri_STREAMS)   
+            if ((out->s->res_version!=NULL)
+                 && NAD_NURI_L(nad, NAD_ENS(nad, 0)) == strlen(uri_STREAMS)
                  && strncmp(uri_STREAMS, NAD_NURI(nad, NAD_ENS(nad, 0)), strlen(uri_STREAMS)) == 0
                  && NAD_ENAME_L(nad, 0) == 8 && strncmp("features", NAD_ENAME(nad, 0), 8) == 0) {
                 log_debug(ZONE, "got the stream features packet");
@@ -1582,19 +1587,19 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
                 /* If we're not establishing a starttls connection, send dialbacks */
                 if (!starttls) {
-				    if (out->s2s->require_tls == 0 || s->ssf > 0) {
+                    if (out->s2s->require_tls == 0 || s->ssf > 0) {
                      log_debug(ZONE, "No STARTTLS, sending dialbacks for %s", out->key);
                      out->online = 1;
                      send_dialbacks(out);
-					} else {
-						log_debug(ZONE, "No STARTTLS, dialbacks disabled for non-TLS connections, cannot complete negotiation");
-					}
+                    } else {
+                        log_debug(ZONE, "No STARTTLS, dialbacks disabled for non-TLS connections, cannot complete negotiation");
+                    }
                 }
 #else
-				if (out->s2s->require_tls == 0) {
+                if (out->s2s->require_tls == 0) {
                 out->online = 1;
                 send_dialbacks(out);
-            	}
+                }
 #endif
             }
 
@@ -1618,7 +1623,7 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     return 0;
                 }
             }
-                
+
             log_debug(ZONE, "unknown dialback packet, dropping it");
 
             nad_free(nad);
@@ -1711,7 +1716,7 @@ static void _out_verify(conn_t out, nad_t nad) {
     conn_t in;
     char *rkey;
     int valid;
-    
+
     attr = nad_find_attr(nad, 0, -1, "from", NULL);
     if(attr < 0 || (from = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
         log_debug(ZONE, "missing or invalid from on db verify packet");
