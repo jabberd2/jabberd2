@@ -109,7 +109,7 @@ AC_CHECK_HEADERS([arpa/inet.h \
                   windows.h \
                   winsock2.h \
 ])
- 
+
 # Now check for those headers that do, including all the required
 # headers.
 AC_CHECK_HEADERS([resolv.h windns.h],,,
@@ -136,8 +136,8 @@ AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
 AC_TYPE_UINT8_T
 
-# generic system types 
-AC_CREATE_STDINT_H(ac-stdint.h) 
+# generic system types
+AC_CREATE_STDINT_H(ac-stdint.h)
 
 # Checks for library functions.
 AC_FUNC_CLOSEDIR_VOID
@@ -638,8 +638,8 @@ if test "x-$want_db" = "x-yes" ; then
                                                                      db_version(&major, &minor, &patch);
                                                                      if(major < 4 ||
                                                                          (major == 4 && minor < 1) ||
-                                                                         (major == 4 && minor == 1 && patch < 24) || 
-                                                                         (int)DB_VERSION_MAJOR != major || 
+                                                                         (major == 4 && minor == 1 && patch < 24) ||
+                                                                         (int)DB_VERSION_MAJOR != major ||
                                                                          (int)DB_VERSION_MINOR != minor)
                                                                          return 1;
                                                                  } while(0)]])],
@@ -930,9 +930,14 @@ if test "x-$want_experimental" = "x-yes" ; then
 fi
 AM_CONDITIONAL(ENABLE_EXPERIMENTAL, [test "x-$want_experimental" = "x-yes"])
 
-PKG_CHECK_MODULES([CPPUNIT], [cppunit])
+AC_ARG_ENABLE(tests, AC_HELP_STRING([--enable-tests], [enable tests (yes)]),
+              want_tests=$enableval, want_tests=yes)
+if test "x-$want_tests" = "x-yes" ; then
+    PKG_CHECK_MODULES([CPPUNIT], [cppunit])
+fi
 AC_SUBST(CPPUNIT_CFLAGS)
 AC_SUBST(CPPUNIT_LDFLAGS)
+AM_CONDITIONAL(ENABLE_TESTS, [test "x-$want_tests" = "x-yes"])
 
 # Generate Makefiles
 AC_CONFIG_FILES([Doxyfile

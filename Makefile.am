@@ -6,7 +6,10 @@ SUBDIRS = etc man
 if USE_LIBSUBST
 SUBDIRS += subst
 endif
-SUBDIRS += tools mio sx util c2s router s2s storage sm tests/config
+SUBDIRS += tools mio sx util c2s router s2s storage sm
+if ENABLE_TESTS
+SUBDIRS += tests tests/config
+endif
 
 .PHONY: docs
 
