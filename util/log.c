@@ -223,12 +223,12 @@ void set_debug_flag(int v)
     debug_flag = v;
 }
 
-int set_debug_log_from_config(config_t c)
+void set_debug_log_from_config(config_t c)
 {
     return set_debug_file(config_get_one(c, "log.debug", 0));
-};
+}
 
-JABBERD2_API int set_debug_file(const char *filename)
+JABBERD2_API void set_debug_file(const char *filename)
 {
     // Close debug output file but not stderr
     if (debug_log_target != 0 &&
@@ -255,12 +255,15 @@ JABBERD2_API int set_debug_file(const char *filename)
         // set stderr
         debug_log_target = stderr;
     }
-};
+}
 
 #else /* DEBUG */
 void debug_log(const char *file, int line, const char *msgfmt, ...)
 { }
 
 void set_debug_flag(int v)
+{ }
+
+void set_debug_log_from_config(config_t c)
 { }
 #endif
