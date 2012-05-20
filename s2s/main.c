@@ -632,9 +632,8 @@ int _s2s_populate_whitelist_domains(s2s_t s2s, char **values, int nvalues) {
             continue;
         }
         s2s->whitelist_domains[j] = (char *) malloc(sizeof(char) * (elem_len+1));
-        memset(s2s->whitelist_domains[j], 0, (sizeof(char) * (elem_len+1)));
         strncpy(s2s->whitelist_domains[j], values[i], elem_len);
-        s2s->whitelist_domains[j][elem_len+1] = '\0';
+        s2s->whitelist_domains[j][elem_len] = '\0';
         log_debug(ZONE, "s2s whitelist domain read from file: %s\n", s2s->whitelist_domains[j]);
         j++;
     }
