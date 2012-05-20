@@ -170,23 +170,18 @@ static void _out_dialback(conn_t out, char *rkey, int rkeylen) {
     xhash_put(out->states_time, pstrdupx(xhash_pool(out->states_time), rkey, rkeylen), (void *) now);
 }
 
-void _out_dns_mark_bad(conn_t out, char *ipport) {
-    dnsres_t bad;
-    int ipport_allocated = 0;
-
+void _out_dns_mark_bad(conn_t out) {
     if (out->s2s->dns_bad_timeout > 0) {
+        dnsres_t bad;
+        char *ipport;
+
         /* mark this host as bad */
-        if(ipport == NULL) {
-            ipport_allocated = 1;
-            ipport = dns_make_ipport(out->ip, out->port);
-        }
+        ipport = dns_make_ipport(out->ip, out->port);
         bad = xhash_get(out->s2s->dns_bad, ipport);
         if (bad == NULL) {
             bad = (dnsres_t) calloc(1, sizeof(struct dnsres_st));
             bad->key = ipport;
             xhash_put(out->s2s->dns_bad, ipport, bad);
-        } else if(ipport_allocated) {
-            free(ipport);
         }
         bad->expiry = time(NULL) + out->s2s->dns_bad_timeout;
     }
@@ -552,7 +547,7 @@ int out_route(s2s_t s2s, char *route, int routelen, conn_t *out, int allow_bad) 
             if ((*out)->fd == NULL) {
                 log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] mio_connect error: %s (%d)", -1, (*out)->ip, (*out)->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
-                _out_dns_mark_bad(*out, ipport);
+                _out_dns_mark_bad(*out);
 
                 if (s2s->out_reuse)
                    xhash_zap(s2s->out_host, (*out)->key);
@@ -1381,12 +1376,12 @@ static int _out_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, v
 
                             /* bounce queue */
                             out_bounce_route_queue(out->s2s, rkey, rkeylen, stanza_err_SERVICE_UNAVAILABLE);
-                            _out_dns_mark_bad(out, NULL);
+                            _out_dns_mark_bad(out);
                         }
                     } else {
                         /* bounce queue */
                         out_bounce_route_queue(out->s2s, rkey, rkeylen, stanza_err_REMOTE_SERVER_TIMEOUT);
-                        _out_dns_mark_bad(out, NULL);
+                        _out_dns_mark_bad(out);
                     }
                 } while(xhash_iter_next(out->routes));
             }
@@ -1460,7 +1455,7 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] read error: %s (%d)", out->fd->fd, out->ip, out->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
                 if (!out->online) {
-                    _out_dns_mark_bad(out, NULL);
+                    _out_dns_mark_bad(out);
                 }
 
                 sx_kill(s);
@@ -1496,7 +1491,7 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] write error: %s (%d)", out->fd->fd, out->ip, out->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
             if (!out->online) {
-                _out_dns_mark_bad(out, NULL);
+                _out_dns_mark_bad(out);
             }
 
             sx_kill(s);
@@ -1522,7 +1517,7 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                          strstr(sxe->specific, "internal-server-error") ||     /* that server is broken */
                          strstr(sxe->specific, "unsupported-version")          /* they do not support our stream version */
                         ))) {
-                _out_dns_mark_bad(out, NULL);
+                _out_dns_mark_bad(out);
             }
 
             sx_kill(s);
