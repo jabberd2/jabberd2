@@ -8,7 +8,7 @@ SUBDIRS += subst
 endif
 SUBDIRS += tools mio sx util c2s router s2s storage sm
 if ENABLE_TESTS
-SUBDIRS += tests tests/config
+SUBDIRS += tests
 endif
 
 .PHONY: docs

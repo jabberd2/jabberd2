@@ -11,7 +11,6 @@ AM_INIT_AUTOMAKE
 AC_PROG_CC
 AM_PROG_CC_C_O
 AC_PROG_CPP
-AC_PROG_CXX
 AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_MAKE_SET
@@ -933,10 +932,8 @@ AM_CONDITIONAL(ENABLE_EXPERIMENTAL, [test "x-$want_experimental" = "x-yes"])
 AC_ARG_ENABLE(tests, AC_HELP_STRING([--enable-tests], [enable tests (yes)]),
               want_tests=$enableval, want_tests=yes)
 if test "x-$want_tests" = "x-yes" ; then
-    PKG_CHECK_MODULES([CPPUNIT], [cppunit])
+    PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [want_tests=yes], [want_tests=no])
 fi
-AC_SUBST(CPPUNIT_CFLAGS)
-AC_SUBST(CPPUNIT_LDFLAGS)
 AM_CONDITIONAL(ENABLE_TESTS, [test "x-$want_tests" = "x-yes"])
 
 # Generate Makefiles
@@ -955,6 +952,5 @@ AC_CONFIG_FILES([Doxyfile
                  s2s/Makefile
                  sm/Makefile
                  tools/Makefile
-                 tests/Makefile
-                 tests/config/Makefile])
+                 tests/Makefile])
 AC_OUTPUT
