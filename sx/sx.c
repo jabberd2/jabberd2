@@ -19,6 +19,7 @@
  */
 
 #include "sx.h"
+#include <time.h>
 
 sx_t sx_new(sx_env_t env, int tag, sx_callback_t cb, void *arg) {
     sx_t s;
@@ -45,6 +46,10 @@ sx_t sx_new(sx_env_t env, int tag, sx_callback_t cb, void *arg) {
     XML_SetEntityDeclHandler(s->expat, (void *) _sx_entity_declaration);
 #else
     XML_SetDefaultHandler(s->expat, NULL);
+#endif
+
+#ifdef HAVE_XML_SETHASHSALT
+    XML_SetHashSalt(s->expat, clock());
 #endif
 
     s->wbufq = jqueue_new();
