@@ -1033,9 +1033,13 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
                 nad_free(nad);
 
-                /* return the result to the client */
-                sx_nad_write(sess->s, sess->result);
-                sess->result = NULL;
+                if(sess->result) {
+                    /* return the result to the client */
+                    sx_nad_write(sess->s, sess->result);
+                    sess->result = NULL;
+                } else {
+                    log_write(sess->c2s->log, LOG_WARNING, "user created for session %s which is already gone", skey);
+                }
 
                 return 0;
             }
