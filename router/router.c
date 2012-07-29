@@ -1138,7 +1138,7 @@ int message_log(nad_t nad, router_t r, const unsigned char *msg_from, const unsi
     short int new_msg_file = 0;
     int i;
     int nad_body_len = 0;
-    long int nad_body_start = 0;
+    char *nad_body_start = 0;
     int body_count;
     char *nad_body = NULL;
     char body[MAX_MESSAGE*2];
