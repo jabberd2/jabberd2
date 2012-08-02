@@ -302,6 +302,13 @@
       <require_tls/>
     -->
 
+    <!--
+        Domain whitelisting
+    -->
+    <!--
+    <enable_whitelist/>
+    -->
+
     <!-- Domain whitelisting
          When defined, only whitelisted domains are allowed to connect -->
     <!--
