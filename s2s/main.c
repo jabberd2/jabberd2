@@ -746,7 +746,7 @@ int s2s_domain_in_whitelist(s2s_t s2s, char *in_domain) {
         *dst = (char *)malloc(seg_tmp_len + 1);
         if (*dst != NULL) {
             strncpy(*dst, seg_tmp, seg_tmp_len + 1);
-            dst[seg_tmp_len] = '\0';
+            (*dst)[seg_tmp_len] = '\0';
         } else { 
             if (seg_tmp != NULL) {
                 free(seg_tmp);
