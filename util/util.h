@@ -450,7 +450,10 @@ JABBERD2_API int jabber_wrap_service(int argc, char** argv, jmainhandler_t *wrap
 #if XML_MAJOR_VERSION > 1
 /* XML_StopParser is present in expat 2.x */
 #define HAVE_XML_STOPPARSER
+#if XML_MINOR_VERSION > 0
+/* XML_SetHashSalt is present in expat 2.1.x */
 #define HAVE_XML_SETHASHSALT
+#endif
 #endif
 
 /* define TRUE and FALSE if not yet defined */
