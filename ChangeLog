@@ -1,3 +1,26 @@
+2012-08-06 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed possibility of Unsolicited Dialback Attacks
+	* Use XML_SetHashSalt with expat 2.1.x only
+
+2012-08-02 Eugene Agafonov <e.a.agafonov@gmail.com>
+	* Fix s2s crash with witelist enabled
+
+2012-07-11 Tomasz Sterna <tomek@xiaoka.com>
+	* Send user creation result only if there is one
+
+2012-06-15 Eugene Agafonov <e.a.agafonov@gmail.com>
+	* Utilize XML_SetHashSalt
+
+2012-05-20 Tomasz Sterna <tomek@xiaoka.com>
+	* Replaced cppunit with check
+
+2012-05-20 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed s2s->dns_bad key memory allocation
+	* Fixed whitelist_domains memory allocation
+
+2012-05-05 Tomasz Sterna <tomek@xiaoka.com>
+	* Fixed build with debug disabled
+
 2012-05-04 Tomasz Sterna <tomek@xiaoka.com>
 	* Implemented --enable-tests configure option
 	* Fixed 'make dist' packaging

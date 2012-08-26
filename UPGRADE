@@ -5,6 +5,7 @@ This file contains upgrade instructions between different versions of jabberd2.
 
 What changed:
 - cppunit was replaced by check framework
+- Fixed build with debug disabled
 
 
 * 2.2.15 to 2.2.16 upgrade:
