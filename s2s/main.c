@@ -768,12 +768,9 @@ int s2s_domain_in_whitelist(s2s_t s2s, char *in_domain) {
         for (domain_index = segcount-2; domain_index > 0; domain_index--) {
             matchstr[0] = '\0';
             for (i = domain_index; i < segcount; i++) {
-                if (i > domain_index) {
-                    strncat((char *)&matchstr, ".", sizeof(matchstr));
-                    matchstr[sizeof(matchstr)-1] = '\0';
-                }
-                strncat((char *)&matchstr, (char *)segments[i], sizeof(matchstr));
-                matchstr[sizeof(matchstr)-1] = '\0';
+                if (i > domain_index)
+                    strncat((char *)&matchstr, ".", sizeof(matchstr)-1);
+                strncat((char *)&matchstr, (char *)segments[i], sizeof(matchstr)-1);
             }
             for (wl_index = 0; wl_index < s2s->n_whitelist_domains; wl_index++) {
                 wl_len = strlen(s2s->whitelist_domains[wl_index]);
