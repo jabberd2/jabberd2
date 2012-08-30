@@ -16,7 +16,10 @@ START_TEST (check_config_parse)
 {
     config_t c = config_new();
     fail_unless (c != 0);
-    ck_assert_int_eq (0, config_load_with_id(c, "test_config.xml", "test_id"));
+
+    int r = config_load_with_id(c, "test_config.xml", "test_id");
+    ck_assert_int_eq (0, r); // Do not place config_load into ck_assert_xxxx  othewise it is called twice !!!
+
     ck_assert_str_eq ("test_id", config_get_one(c, "id", 0));
     ck_assert_str_eq ("value if id is test_id", config_get_one(c, "value_with_id", 0));
     ck_assert_str_eq ("1", config_get_one(c, "simple_value", 0));
@@ -37,7 +40,9 @@ START_TEST (check_config_expand)
 {
     config_t c = config_new();
     fail_unless (c != 0);
-    ck_assert_int_eq (0, config_load(c, "test_config.xml"));
+    int r = config_load(c, "test_config.xml");
+    
+    ck_assert_int_eq (0, r);
 
     ck_assert_int_eq ((config_elem_t)0, config_get(c, "non.existing.key"));
     fail_unless ((const char*)0 == config_get_one(c, "non.existing.key", 0));
@@ -101,7 +106,8 @@ START_TEST (check_config_missing)
 {
     config_t c = config_new();
     fail_unless (c != 0);
-    ck_assert_int_eq (1, config_load(c, "no_file.xml"));
+    int load_result = config_load(c, "no_file.xml");
+    ck_assert_int_eq (1, load_result);
     config_free(c);
 }
 END_TEST
@@ -110,7 +116,8 @@ START_TEST (check_config_empty)
 {
     config_t c = config_new();
     fail_unless (c != 0);
-    ck_assert_int_eq (0, config_load(c, "empty.xml"));
+    int r = config_load(c, "empty.xml");
+    ck_assert_int_eq (0, r);
     config_free(c);
 }
 END_TEST
@@ -119,7 +126,8 @@ START_TEST (check_config_include)
 {
     config_t c = config_new();
     fail_unless (c != 0);
-    ck_assert_int_eq (0, config_load(c, "test_include.xml"));
+    int r = config_load(c, "test_include.xml");
+    ck_assert_int_eq (0, r);
     config_free(c);
 }
 END_TEST
@@ -128,7 +136,8 @@ START_TEST (check_config_fail_002)
 {
     config_t c = config_new();
     fail_unless (c != 0);
-    ck_assert_int_eq (1, config_load(c, "failed_to_load_002.xml"));
+    int r = config_load(c, "failed_to_load_002.xml");
+    ck_assert_int_eq (1, r);
     config_free(c);
 }
 END_TEST
@@ -137,7 +146,8 @@ START_TEST (check_config_fail_003)
 {
     config_t c = config_new();
     fail_unless (c != 0);
-    ck_assert_int_eq (1, config_load(c, "failed_to_load_003.xml"));
+    int r = config_load(c, "failed_to_load_003.xml");
+    ck_assert_int_eq (1, r);
     config_free(c);
 }
 END_TEST
@@ -146,7 +156,8 @@ START_TEST (check_config_fail_004)
 {
     config_t c = config_new();
     fail_unless (c != 0);
-    ck_assert_int_eq (1, config_load(c, "failed_to_load_004.xml"));
+    int r = config_load(c, "failed_to_load_004.xml");
+    ck_assert_int_eq (1, r);
     config_free(c);
 }
 END_TEST
@@ -197,6 +208,8 @@ Suite* config_test_suite (void)
 
 int main (void)
 {
+//     set_debug_flag(1);
+
     int number_failed;
     Suite *s = config_test_suite ();
     SRunner *sr = srunner_create (s);
