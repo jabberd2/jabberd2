@@ -627,7 +627,7 @@ int out_packet(s2s_t s2s, pkt_t pkt) {
             nad_free(pkt->nad);
         free(pkt);
 
-        return;
+        return 0;
     }
 
     /* new route key */

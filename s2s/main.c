@@ -772,7 +772,7 @@ int s2s_domain_in_whitelist(s2s_t s2s, char *in_domain) {
                     strncat((char *)&matchstr, ".", sizeof(matchstr));
                     matchstr[sizeof(matchstr)-1] = '\0';
                 }
-                strncat((char *)&matchstr, (char *)segments[i], sizeof(matchstr));
+                strncat((char *)&matchstr, (char *)segments[i], sizeof(matchstr)-strlen(matchstr)-1);
                 matchstr[sizeof(matchstr)-1] = '\0';
             }
             for (wl_index = 0; wl_index < s2s->n_whitelist_domains; wl_index++) {
