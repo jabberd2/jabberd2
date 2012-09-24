@@ -1101,7 +1101,7 @@ int router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *
             snprintf(comp->ip, INET6_ADDRSTRLEN, "%s", (char *) data);
             comp->port = port;
 
-            snprintf(comp->ipport, INET6_ADDRSTRLEN, "%s:%d", comp->ip, comp->port);
+            snprintf(comp->ipport, INET6_ADDRSTRLEN + 6, "%s:%d", comp->ip, comp->port);
 
             comp->s = sx_new(r->sx_env, fd->fd, _router_sx_callback, (void *) comp);
             mio_app(m, fd, router_mio_callback, (void *) comp);
@@ -1138,7 +1138,7 @@ int message_log(nad_t nad, router_t r, const unsigned char *msg_from, const unsi
     short int new_msg_file = 0;
     int i;
     int nad_body_len = 0;
-    long int nad_body_start = 0;
+    char *nad_body_start = 0;
     int body_count;
     char *nad_body = NULL;
     char body[MAX_MESSAGE*2];
