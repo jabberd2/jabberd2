@@ -460,7 +460,7 @@ static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi
     log_debug(ZONE, "added %s to roster (to %d from %d ask %d name %s ngroups %d)", jid_full(item->jid), item->to, item->from, item->ask, item->name, item->ngroups);
 
     if (sm_storage_rate_limit(sess->user->sm, jid_user(sess->user->jid)))
-        return -stanza_err_RESOURCE_CONSTRAINT;
+        return;
 
     /* save changes */
     _roster_save_item(sess->user, item);
@@ -707,7 +707,7 @@ static mod_ret_t _roster_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt)
             item->ask = 0;
     }
 
-    if (sm_storage_rate_limit(user->sm, pkt->from))
+    if (sm_storage_rate_limit(user->sm, jid_user(pkt->from)))
         return -stanza_err_RESOURCE_CONSTRAINT;
 
     /* save changes */
