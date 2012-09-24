@@ -345,7 +345,7 @@ static mod_ret_t _iq_vcard_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     if(pkt->type == pkt_IQ_SET)
         return -stanza_err_FORBIDDEN;
 
-    if (sm_storage_rate_limit(user->sm, pkt->from))
+    if (sm_storage_rate_limit(user->sm, jid_user(pkt->from)))
         return -stanza_err_RESOURCE_CONSTRAINT;
 
     ret = storage_get(user->sm->st, "vcard", jid_user(user->jid), NULL, &os);
