@@ -33,7 +33,6 @@ static int _sx_ssl_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
     char    buf[256];
     X509   *err_cert;
     int     err, depth;
-    SSL    *ssl;
 
     err_cert = X509_STORE_CTX_get_current_cert(ctx);
     err = X509_STORE_CTX_get_error(ctx);
@@ -52,7 +51,6 @@ static int _sx_ssl_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
      * Retrieve the pointer to the SSL of the connection currently treated
      * and the application specific data stored into the SSL object.
      */
-    ssl = X509_STORE_CTX_get_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx());
     X509_NAME_oneline(X509_get_subject_name(err_cert), buf, 256);
 
     if (!preverify_ok) {
@@ -811,21 +809,21 @@ int sx_openssl_initialized = 0;
 
 /** args: name, pemfile, cachain, mode */
 int sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args) {
-    char *name, *pemfile, *cachain;
+    const char *name, *pemfile, *cachain;
     int ret;
     int mode;
 
     _sx_debug(ZONE, "initialising ssl plugin");
 
-    name = va_arg(args, char *);
-    pemfile = va_arg(args, char *);
+    name = va_arg(args, const char *);
+    pemfile = va_arg(args, const char *);
     if(pemfile == NULL)
         return 1;
 
     if(p->private != NULL)
         return 1;
 
-    cachain = va_arg(args, char *);
+    cachain = va_arg(args, const char *);
     mode = va_arg(args, int);
 
     /* !!! output openssl error messages to the debug log */
@@ -857,7 +855,7 @@ int sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args) {
 }
 
 /** args: name, pemfile, cachain, mode */
-int sx_ssl_server_addcert(sx_plugin_t p, char *name, char *pemfile, char *cachain, int mode) {
+int sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, const char *cachain, int mode) {
     xht contexts = (xht) p->private;
     SSL_CTX *ctx;
     SSL_CTX *tmp;
@@ -980,7 +978,7 @@ int sx_ssl_server_addcert(sx_plugin_t p, char *name, char *pemfile, char *cachai
     return 0;
 }
 
-int sx_ssl_client_starttls(sx_plugin_t p, sx_t s, char *pemfile) {
+int sx_ssl_client_starttls(sx_plugin_t p, sx_t s, const char *pemfile) {
     assert((int) (p != NULL));
     assert((int) (s != NULL));
 

@@ -60,7 +60,7 @@
 
 /** internal structure, holds our data */
 typedef struct drvdata_st {
-    char *path;
+    const char *path;
 } *drvdata_t;
 
 static st_ret_t _st_fs_add_type(st_driver_t drv, const char *type) {
@@ -100,7 +100,7 @@ static st_ret_t _st_fs_put(st_driver_t drv, const char *type, const char *owner,
     char *key;
     void *val;
     os_type_t ot;
-    char *xml;
+    const char *xml;
     int len;
 
     if(os_count(os) == 0)
@@ -165,11 +165,11 @@ static st_ret_t _st_fs_put(st_driver_t drv, const char *type, const char *owner,
 
                     switch(ot) {
                         case os_type_BOOLEAN:
-                            fprintf(f, "%s %d %d\n", key, ot, (int) val == 0 ? 0 : 1);
+                            fprintf(f, "%s %d %d\n", key, ot, val ? 1 : 0);
                             break;
                             
                         case os_type_INTEGER:
-                            fprintf(f, "%s %d %d\n", key, ot, (int) val);
+                            fprintf(f, "%s %d %ld\n", key, ot, (long) val);
                             break;
 
                         case os_type_STRING:
@@ -492,7 +492,7 @@ static void _st_fs_free(st_driver_t drv) {
 }
 
 st_ret_t st_init(st_driver_t drv) {
-    char *path;
+    const char *path;
     struct stat sbuf;
     int ret;
     drvdata_t data;

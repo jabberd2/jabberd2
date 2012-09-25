@@ -374,10 +374,10 @@ static void _amp_free(module_t mod) {
     free(mod->private);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
+DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
     module_t mod = mi->mod;
     mod_amp_config_t config;
-    char* option;
+    const char* option;
 
     if (mod->init) return 0;
     

@@ -29,7 +29,7 @@ char *j_strdup(const char *str)
         return strdup(str);
 }
 
-char *j_strcat(char *dest, char *txt)
+char *j_strcat(char *dest, const char *txt)
 {
     if(!txt) return(dest);
 
@@ -128,7 +128,7 @@ spool spool_new(pool_t p)
     return s;
 }
 
-static void _spool_add(spool s, char *goodstr)
+static void _spool_add(spool s, const char *goodstr)
 {
     struct spool_node *sn;
 
@@ -144,7 +144,7 @@ static void _spool_add(spool s, char *goodstr)
         s->first = sn;
 }
 
-void spool_add(spool s, char *str)
+void spool_add(spool s, const char *str)
 {
     if(str == NULL || strlen(str) == 0)
         return;
@@ -152,7 +152,7 @@ void spool_add(spool s, char *str)
     _spool_add(s, pstrdup(s->p, str));
 }
 
-void spool_escape(spool s, char *raw, int len)
+void spool_escape(spool s, const char *raw, int len)
 {
     if(raw == NULL || len <= 0)
         return;
@@ -183,7 +183,7 @@ void spooler(spool s, ...)
     va_end(ap);
 }
 
-char *spool_print(spool s)
+const char *spool_print(spool s)
 {
     char *ret,*tmp;
     struct spool_node *next;
@@ -206,7 +206,7 @@ char *spool_print(spool s)
 }
 
 /** convenience :) */
-char *spools(pool_t p, ...)
+const char *spools(pool_t p, ...)
 {
     va_list ap;
     spool s;
@@ -282,7 +282,7 @@ char *strunescape(pool_t p, char *buf)
 }
 
 
-char *strescape(pool_t p, char *buf, int len)
+char *strescape(pool_t p, const char *buf, int len)
 {
     int i,j,newlen = len;
     char *temp;

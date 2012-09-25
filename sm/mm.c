@@ -47,7 +47,8 @@
 mm_t mm_new(sm_t sm) {
     mm_t mm;
     int celem, melem, attr, *nlist = NULL;
-    char id[13], name[32], mod_fullpath[PATH_MAX], arg[1024], *modules_path;
+    char id[13], name[32], mod_fullpath[PATH_MAX], arg[1024];
+    const char *modules_path;
     mod_chain_t chain = (mod_chain_t) NULL;
     mod_instance_t **list = NULL, mi;
     module_t mod;
@@ -241,7 +242,7 @@ mm_t mm_new(sm_t sm) {
                           FreeLibrary((HMODULE) mod->handle);
                     #endif
 
-                    free(mod->name);
+                    free((void*)mod->name);
                     free(mod);
 
                     mm->nindex--;
@@ -283,7 +284,7 @@ static void _mm_reaper(const char *module, int modulelen, void *val, void *arg) 
             FreeLibrary((HMODULE) mod->handle);
     #endif
 
-    free(mod->name);
+    free((void*)mod->name);
     free(mod);
 }
 
@@ -354,7 +355,7 @@ void mm_free(mm_t mm) {
         for(j = 0; j < *nlist; j++) {
             mi = (*list)[j];
             if(mi->arg != NULL)
-                free(mi->arg);
+                free((void*)mi->arg);
             free(mi);
         }
     }

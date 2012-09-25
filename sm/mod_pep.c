@@ -75,7 +75,7 @@ static mod_ret_t _pep_out_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     return mod_PASS;
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
+DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
     module_t mod = mi->mod;
 
     if(mod->init) return 0;

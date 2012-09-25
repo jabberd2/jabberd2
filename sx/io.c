@@ -87,7 +87,7 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
         while((nad = jqueue_pull(s->rnadq)) != NULL) {
             int plugin_error;
 #ifdef SX_DEBUG
-            char *out; int len;
+            const char *out; int len;
             nad_print(nad, 0, &out, &len);
             _sx_debug(ZONE, "completed nad: %.*s", len, out);
 #endif
@@ -113,7 +113,7 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
 
                 /* if not available, log the whole packet for debugging */
                 if (errstring == NULL) {
-                    char *xml;
+                    const char *xml;
                     int xlen;
 
                     nad_print(nad, 0, &xml, &xlen);
@@ -386,7 +386,7 @@ int sx_can_write(sx_t s) {
 
 /** send a new nad out */
 int _sx_nad_write(sx_t s, nad_t nad, int elem) {
-    char *out;
+    const char *out;
     int len;
 
     /* silently drop it if we're closing or closed */
@@ -432,7 +432,7 @@ void sx_nad_write_elem(sx_t s, nad_t nad, int elem) {
 }
 
 /** send raw data out */
-int _sx_raw_write(sx_t s, char *buf, int len) {
+int _sx_raw_write(sx_t s, const char *buf, int len) {
     /* siltently drop it if we're closing or closed */
     if(s->state >= state_CLOSING) {
         log_debug(ZONE, "stream closed, dropping outgoing raw data");
@@ -451,7 +451,7 @@ int _sx_raw_write(sx_t s, char *buf, int len) {
 }
 
 /** app version */
-void sx_raw_write(sx_t s, char *buf, int len) {
+void sx_raw_write(sx_t s, const char *buf, int len) {
     assert((int) (s != NULL));
     assert((int) (buf != NULL));
     assert(len);

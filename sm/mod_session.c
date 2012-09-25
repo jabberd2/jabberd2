@@ -343,7 +343,7 @@ static mod_ret_t _session_pkt_router(mod_instance_t mi, pkt_t pkt) {
     return mod_PASS;
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
+DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
     if(mi->mod->init) return 0;
 
     mi->mod->in_router = _session_in_router;

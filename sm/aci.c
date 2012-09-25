@@ -83,7 +83,7 @@ xht aci_load(sm_t sm)
 }
 
 /** see if a jid is in an acl */
-int aci_check(xht acls, char *type, jid_t jid)
+int aci_check(xht acls, const char *type, jid_t jid)
 {
     jid_t list, dup;
 

@@ -51,7 +51,7 @@ static void _c2s_signal_usr2(int signum)
 
 /** store the process id */
 static void _c2s_pidfile(c2s_t c2s) {
-    char *pidfile;
+    const char *pidfile;
     FILE *f;
     pid_t pid;
 
@@ -79,7 +79,7 @@ static void _c2s_pidfile(c2s_t c2s) {
 /** pull values out of the config file */
 static void _c2s_config_expand(c2s_t c2s)
 {
-    char *str, *ip, *mask;
+    const char *str, *ip, *mask;
     char *req_domain, *to_address, *to_port;
     config_elem_t elem;
     int i;
@@ -389,7 +389,7 @@ static int _c2s_router_connect(c2s_t c2s) {
 
 static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cbarg) {
     c2s_t c2s = (c2s_t) cbarg;
-    char *my_realm, *mech;
+    const char *my_realm, *mech;
     sx_sasl_creds_t creds;
     static char buf[3072];
     char mechbuf[256];
@@ -873,8 +873,8 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
             sess = (sess_t) jqueue_pull(c2s->dead_sess);
 
             /* free sess data */
-            if(sess->ip != NULL) free(sess->ip);
-            if(sess->smcomp != NULL) free(sess->smcomp);
+            if(sess->ip != NULL) free((void*)sess->ip);
+            if(sess->smcomp != NULL) free((void*)sess->smcomp);
             if(sess->result != NULL) nad_free(sess->result);
             if(sess->resources != NULL)
                 for(res = sess->resources; res != NULL;) {
@@ -944,7 +944,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
         sess = (sess_t) jqueue_pull(c2s->dead_sess);
 
         /* free sess data */
-        if(sess->ip != NULL) free(sess->ip);
+        if(sess->ip != NULL) free((void*)sess->ip);
         if(sess->result != NULL) nad_free(sess->result);
         if(sess->resources != NULL)
             for(res = sess->resources; res != NULL;) {

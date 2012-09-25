@@ -45,13 +45,13 @@ typedef struct dnsres_st    *dnsres_t;
 
 struct host_st {
     /** our realm */
-    char                *realm;
+    const char          *realm;
 
     /** starttls pemfile */
-    char                *host_pemfile;
+    const char          *host_pemfile;
 
     /** certificate chain */
-    char                *host_cachain;
+    const char          *host_cachain;
 
     /** verify-mode  */
     int                 host_verify_mode;
@@ -59,14 +59,14 @@ struct host_st {
 
 struct s2s_st {
     /** our id (hostname) with the router */
-    char                *id;
+    const char          *id;
 
     /** how to connect to the router */
-    char                *router_ip;
+    const char          *router_ip;
     int                 router_port;
-    char                *router_user;
-    char                *router_pass;
-    char                *router_pemfile;
+    const char          *router_user;
+    const char          *router_pass;
+    const char          *router_pemfile;
     int                 router_default;
 
     /** mio context */
@@ -93,12 +93,12 @@ struct s2s_st {
 
     /** log data */
     log_type_t          log_type;
-    char                *log_facility;
-    char                *log_ident;
+    const char          *log_facility;
+    const char          *log_ident;
 
     /** packet counter */
     long long int       packet_count;
-    char                *packet_stats;
+    const char          *packet_stats;
 
     /** connect retry */
     int                 retry_init;
@@ -107,21 +107,21 @@ struct s2s_st {
     int                 retry_left;
 
     /** ip/port to listen on */
-    char                *local_ip;
+    const char          *local_ip;
     int                 local_port;
 
     /** ip(s) to originate connections from */
-    char                **origin_ips;
+    const char          **origin_ips;
     int                 origin_nips;
 
     /** dialback secret */
-    char                *local_secret;
+    const char          *local_secret;
 
     /** pemfile for peer connections */
-    char                *local_pemfile;
+    const char          *local_pemfile;
 
     /** certificate chain */
-    char                *local_cachain;
+    const char          *local_cachain;
 
     /** verify-mode  */
     int                 local_verify_mode;
@@ -139,7 +139,7 @@ struct s2s_st {
     int                 compression;
 
     /** srvs to lookup */
-    char                **lookup_srv;
+    const char          **lookup_srv;
     int                 lookup_nsrv;
     
     /** if we resolve AAAA records */
@@ -170,7 +170,7 @@ struct s2s_st {
     /** Apple security options */
 	int					require_tls;
 	int					enable_whitelist;
-	char                **whitelist_domains;
+	/*const*/ char      **whitelist_domains; // TODO clarify if need to be const
 	int					n_whitelist_domains;
 
     /** list of sx_t on the way out */
@@ -238,8 +238,8 @@ typedef enum {
 struct conn_st {
     s2s_t               s2s;
 
-    char                *key;
-    char                *dkey;
+    const char          *key;
+    const char          *dkey;
 
     sx_t                s;
     mio_fd_t            fd;
@@ -278,7 +278,7 @@ struct dnsquery_st {
     s2s_t               s2s;
 
     /** domain name */
-    char                *name;
+    const char          *name;
 
     /** srv lookup index */
     int                 srv_i;
@@ -287,7 +287,7 @@ struct dnsquery_st {
     xht                 hosts;
 
     /** current host lookup name */
-    char                *cur_host;
+    const char          *cur_host;
 
     /** current host lookup port */
     int                 cur_port;
@@ -332,7 +332,7 @@ struct dnscache_st {
 /** dns resolution results */
 struct dnsres_st {
     /** ip/port */
-    char                *key;
+    const char          *key;
 
     /** host priority */
     int                 prio;
@@ -348,24 +348,24 @@ extern sig_atomic_t s2s_lost_router;
 
 int             s2s_router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
 int             s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg);
-int             s2s_domain_in_whitelist(s2s_t s2s, char *in_domain);
+int             s2s_domain_in_whitelist(s2s_t s2s, const char *in_domain);
 
-char            *s2s_route_key(pool_t p, char *local, char *remote);
-int             s2s_route_key_match(char *local, char *remote, char *rkey, int rkeylen);
-char            *s2s_db_key(pool_t p, char *secret, char *remote, char *id);
-char            *dns_make_ipport(char *host, int port);
+char            *s2s_route_key(pool_t p, const char *local, const char *remote);
+int             s2s_route_key_match(char *local, const char *remote, const char *rkey, int rkeylen);
+char            *s2s_db_key(pool_t p, const char *secret, const char *remote, const char *id);
+char            *dns_make_ipport(const char* host, int port);
 
 int             out_packet(s2s_t s2s, pkt_t pkt);
-int             out_route(s2s_t s2s, char *route, int routelen, conn_t *out, int allow_bad);
-int             dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int allow_bad);
+int             out_route(s2s_t s2s, const char *route, int routelen, conn_t *out, int allow_bad);
+int             dns_select(s2s_t s2s, char* ip, int* port, time_t now, dnscache_t dns, int allow_bad);
 void            dns_resolve_domain(s2s_t s2s, dnscache_t dns);
-void            out_resolve(s2s_t s2s, char *domain, xht results, time_t expiry);
+void            out_resolve(s2s_t s2s, const char *domain, xht results, time_t expiry);
 void            out_dialback(s2s_t s2s, pkt_t pkt);
 int             out_bounce_domain_queues(s2s_t s2s, const char *domain, int err);
-int             out_bounce_route_queue(s2s_t s2s, char *rkey, int rkeylen, int err);
+int             out_bounce_route_queue(s2s_t s2s, const char *rkey, int rkeylen, int err);
 int             out_bounce_conn_queues(conn_t out, int err);
 void            out_flush_domain_queues(s2s_t s2s, const char *domain);
-void            out_flush_route_queue(s2s_t s2s, char *rkey, int rkeylen);
+void            out_flush_route_queue(s2s_t s2s, const char *rkey, int rkeylen);
 
 int             in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
 

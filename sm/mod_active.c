@@ -67,7 +67,7 @@ static void _active_user_delete(mod_instance_t mi, jid_t jid) {
     storage_delete(mi->sm->st, "active", jid_user(jid), NULL);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
+DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
     module_t mod = mi->mod;
 
     if(mod->init) return 0;

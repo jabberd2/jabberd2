@@ -42,7 +42,7 @@ void _pool__free(void *block)
 
 
 /** make an empty pool */
-pool_t _pool_new(char *zone, int line)
+pool_t _pool_new(const char *zone, int line)
 {
     pool_t p;
     while((p = _pool__malloc(sizeof(_pool))) == NULL) sleep(1);
@@ -130,7 +130,7 @@ static struct pheap *_pool_heap(pool_t p, int size)
     return ret;
 }
 
-pool_t _pool_new_heap(int size, char *zone, int line)
+pool_t _pool_new_heap(int size, const char *zone, int line)
 {
     pool_t p;
     p = _pool_new(zone, line);

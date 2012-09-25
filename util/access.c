@@ -160,7 +160,7 @@ static int _access_check_match(struct sockaddr_storage *ip_1, struct sockaddr_st
     return 0;
 }
 
-int access_allow(access_t access, char *ip, char *mask)
+int access_allow(access_t access, const char *ip, const char *mask)
 {
     struct sockaddr_storage ip_addr;
     int netsize;
@@ -180,7 +180,7 @@ int access_allow(access_t access, char *ip, char *mask)
     return 0;
 }
 
-int access_deny(access_t access, char *ip, char *mask)
+int access_deny(access_t access, const char *ip, const char *mask)
 {
     struct sockaddr_storage ip_addr;
     int netsize;
@@ -200,7 +200,7 @@ int access_deny(access_t access, char *ip, char *mask)
     return 0;
 }
 
-int access_check(access_t access, char *ip)
+int access_check(access_t access, const char *ip)
 {
     struct sockaddr_storage addr;
     access_rule_t rule;

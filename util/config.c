@@ -346,7 +346,7 @@ static char *_config_expandx(config_t c, const char *value, int l)
 
     char *var_start, *var_end;
 
-    while (var_start = strstr(s, "${")) {
+    while ((var_start = strstr(s, "${")) != 0) {
 //         fprintf(stderr, "config_expand: processing '%s'\n", s);
         var_end = strstr(var_start + 2, "}");
 

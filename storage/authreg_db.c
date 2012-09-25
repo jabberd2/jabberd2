@@ -46,7 +46,7 @@ typedef struct moddata_st
 {
     DB_ENV  *env;
 
-    char    *path;
+    const char *path;
     int     sync;
 
     xht     realms;
@@ -54,7 +54,7 @@ typedef struct moddata_st
 } *moddata_t;
 
 /** open/create the database for this realm */
-static DB *_ar_db_get_realm_db(authreg_t ar, char *realm)
+static DB *_ar_db_get_realm_db(authreg_t ar, const char *realm)
 {
     moddata_t data = (moddata_t) ar->private;
     DB *db;
@@ -95,7 +95,7 @@ static DB *_ar_db_get_realm_db(authreg_t ar, char *realm)
 }
 
 /** pull a user out of the db */
-static creds_t _ar_db_fetch_user(authreg_t ar, char *username, char *realm)
+static creds_t _ar_db_fetch_user(authreg_t ar, const char *username, const char *realm)
 {
     DB *db;
     DBT key, val;
@@ -111,7 +111,7 @@ static creds_t _ar_db_fetch_user(authreg_t ar, char *username, char *realm)
     memset(&key, 0, sizeof(DBT));
     memset(&val, 0, sizeof(DBT));
     
-    key.data = username;
+    key.data = (void*)username;
     key.size = strlen(username);
 
     err = db->get(db, NULL, &key, &val, 0);
@@ -166,12 +166,12 @@ static int _ar_db_store_user(authreg_t ar, creds_t creds)
     return 0;
 }
 
-static int _ar_db_user_exists(authreg_t ar, char *username, char *realm)
+static int _ar_db_user_exists(authreg_t ar, const char *username, const char *realm)
 {
     return (int) (long) _ar_db_fetch_user(ar, username, realm);
 }
 
-static int _ar_db_get_password(authreg_t ar, char *username, char *realm, char password[257])
+static int _ar_db_get_password(authreg_t ar, const char *username, const char *realm, char password[257])
 {
     creds_t creds;
 
@@ -183,7 +183,7 @@ static int _ar_db_get_password(authreg_t ar, char *username, char *realm, char p
     return 0;
 }
 
-static int _ar_db_set_password(authreg_t ar, char *username, char *realm, char password[257])
+static int _ar_db_set_password(authreg_t ar, const char *username, const char *realm, char password[257])
 {
     creds_t creds;
 
@@ -198,7 +198,7 @@ static int _ar_db_set_password(authreg_t ar, char *username, char *realm, char p
     return 0;
 }
 
-static int _ar_db_create_user(authreg_t ar, char *username, char *realm)
+static int _ar_db_create_user(authreg_t ar, const char *username, const char *realm)
 {
     creds_t creds;
     int ret;
@@ -217,7 +217,7 @@ static int _ar_db_create_user(authreg_t ar, char *username, char *realm)
     return ret;
 }
 
-static int _ar_db_delete_user(authreg_t ar, char *username, char *realm)
+static int _ar_db_delete_user(authreg_t ar, const char *username, const char *realm)
 {
     DB *db;
     DBT key;
@@ -232,7 +232,7 @@ static int _ar_db_delete_user(authreg_t ar, char *username, char *realm)
 
     memset(&key, 0, sizeof(DBT));
 
-    key.data = username;
+    key.data = (void*)username;
     key.size = strlen(username);
 
     err = db->del(db, NULL, &key, 0);
@@ -285,7 +285,7 @@ static void _ar_db_panic(DB_ENV *env, int errval)
 /** start me up */
 int ar_init(authreg_t ar)
 {
-    char *path;
+    const char *path;
     int err;
     DB_ENV *env;
     moddata_t data;

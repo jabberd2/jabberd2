@@ -203,7 +203,7 @@ sess_t sess_start(sm_t sm, jid_t jid) {
 }
 
 /** match a session by resource */
-sess_t sess_match(user_t user, char *resource) {
+sess_t sess_match(user_t user, const char *resource) {
     sess_t sess;
 
     for(sess = user->sessions; sess != NULL; sess = sess->next) {

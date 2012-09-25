@@ -335,7 +335,7 @@ static int _privacy_action(user_t user, zebra_list_t zlist, jid_t jid, pkt_type_
                 break;
 
             case zebra_JID:
-                sprintf(domres, "%s/%s", jid->domain, jid->resource);
+                snprintf(domres, sizeof(domres) / sizeof(domres[0]), "%s/%s", jid->domain, jid->resource);
  
                 /* jid check - match node@dom/res, then node@dom, then dom/resource, then dom */
                 if(jid_compare_full(scan->jid, jid) == 0 ||
@@ -1320,7 +1320,7 @@ static void _privacy_free(module_t mod) {
      feature_unregister(mod->mm->sm, uri_PRIVACY);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
+DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
     module_t mod = mi->mod;
 
     if (mod->init) return 0;

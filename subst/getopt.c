@@ -330,7 +330,7 @@ static void exchange(char **argv)
    If LONG_ONLY is nonzero, '-' as well as '--' can introduce
    long-named options.  */
 
-int _getopt_internal(int argc, char *const *argv, const char *optstring,
+int _getopt_internal(int argc, const char *const *argv, const char *optstring,
 		     const struct option *longopts, int *longind, int long_only)
 {
 	int option_index;
@@ -618,12 +618,12 @@ int _getopt_internal(int argc, char *const *argv, const char *optstring,
 	}
 }
 
-int getopt(int argc, char *const *argv, const char *optstring)
+int getopt(int argc, const char *const *argv, const char *optstring)
 {
 	return _getopt_internal(argc, argv, optstring, (const struct option *) 0, (int *) 0, 0);
 }
 
-int getopt_long(int argc, char *const *argv, const char *options, const struct option long_options, int *opt_index)
+int getopt_long(int argc, const char *const *argv, const char *options, const struct option long_options, int *opt_index)
 {
 	return _getopt_internal(argc, argv, options, &long_options, opt_index, 0);
 }
@@ -635,7 +635,7 @@ int getopt_long(int argc, char *const *argv, const char *options, const struct o
 /* Compile with -DTEST to make an executable for use in testing
    the above definition of `getopt'.  */
 
-int main(int argc, char **argv)
+int main(int argc, const char **argv)
 {
 	int c;
 	int digit_optind = 0;

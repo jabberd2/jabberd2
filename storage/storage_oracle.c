@@ -55,7 +55,7 @@ static int _st_oracle_realloc(void **oblocks, int len)
 /** this is the safety check used to make sure there's always enough mem */
 #define ORACLE_SAFE(blocks, size, len) if((size) > len) len = _st_oracle_realloc((void**)&(blocks),(size));
 
-int checkOCIError(st_driver_t drv, char *szDoing, OCIError *m_ociError, sword nStatus)
+int checkOCIError(st_driver_t drv, const char *szDoing, OCIError *m_ociError, sword nStatus)
 {
   text txtErrorBuffer[512];
   ub4 nErrorCode;
@@ -108,7 +108,7 @@ int count_chars(char *src, char key)
 
 
 
-int oracle_escape_string(char *dest, int dest_length, char *src, int src_length)
+int oracle_escape_string(char *dest, int dest_length, const char *src, int src_length)
 {
   int  result = 0;
   /* src is not null ended */
@@ -232,7 +232,7 @@ static int oracle_ping(st_driver_t drv)
 
 
 
-static void _st_oracle_convert_filter_recursive(st_filter_t f, char **buf, int *buflen, int *nbuf)
+static void _st_oracle_convert_filter_recursive(st_filter_t f, const char **buf, int *buflen, int *nbuf)
 {
   st_filter_t scan;
 
@@ -297,7 +297,7 @@ static void _st_oracle_convert_filter_recursive(st_filter_t f, char **buf, int *
   }
 }
 
-static char *_st_oracle_convert_filter(st_driver_t drv, char *owner, char *filter)
+static char *_st_oracle_convert_filter(st_driver_t drv, const char *owner, const char *filter)
 {
   OracleDriverPointer data = (OracleDriverPointer) drv->private;
   char *buf = NULL, *sbuf = NULL, *cfilter;
@@ -338,13 +338,13 @@ static char *_st_oracle_convert_filter(st_driver_t drv, char *owner, char *filte
   return buf;
 }
 
-static st_ret_t _st_oracle_add_type(st_driver_t drv, char *type)
+static st_ret_t _st_oracle_add_type(st_driver_t drv, const char *type)
 {
   return st_SUCCESS;
 }
 
 
-static st_ret_t _st_oracle_put_guts(st_driver_t drv, char *type, char *owner, os_t os)
+static st_ret_t _st_oracle_put_guts(st_driver_t drv, const char *type, const char *owner, os_t os)
 {
   static const char NAD_PREFIX[] = "NAD";
   
@@ -466,7 +466,7 @@ static st_ret_t _st_oracle_put_guts(st_driver_t drv, char *type, char *owner, os
   return st_SUCCESS;
 }
 
-static st_ret_t _st_oracle_put(st_driver_t drv, char *type, char *owner, os_t os)
+static st_ret_t _st_oracle_put(st_driver_t drv, const char *type, const char *owner, os_t os)
 {
 
   if( !owner ) {
@@ -493,7 +493,7 @@ static st_ret_t _st_oracle_put(st_driver_t drv, char *type, char *owner, os_t os
   return st_SUCCESS;
 }
 
-static st_ret_t _st_oracle_get(st_driver_t drv, char *a_szType, char *owner, char *filter, os_t *os)
+static st_ret_t _st_oracle_get(st_driver_t drv, const char *a_szType, const char *owner, const char *filter, os_t *os)
 {
   OracleDriverPointer data = (OracleDriverPointer) drv->private;
   os_object_t o;
@@ -753,7 +753,7 @@ static st_ret_t _st_oracle_get(st_driver_t drv, char *a_szType, char *owner, cha
   return st_SUCCESS;
 }
 
-static int _st_oracle_count( st_driver_t drv, char *a_szType, char *owner, char *filter, int *count )
+static int _st_oracle_count( st_driver_t drv, const char *a_szType, const char *owner, const char *filter, int *count )
 {
     OracleDriverPointer data = (OracleDriverPointer) drv->private;
     const char *szStmtTemplate = "SELECT COUNT(*) FROM \"%s\" WHERE %s";
@@ -824,7 +824,7 @@ static int _st_oracle_count( st_driver_t drv, char *a_szType, char *owner, char 
     return st_SUCCESS;
 }
 
-static st_ret_t _st_oracle_delete(st_driver_t drv, char *type, char *owner, char *filter)
+static st_ret_t _st_oracle_delete(st_driver_t drv, const char *type, const char *owner, const char *filter)
 {
   OracleDriverPointer data = (OracleDriverPointer) drv->private;
   char *cond, *buf = NULL;
@@ -879,7 +879,7 @@ static st_ret_t _st_oracle_delete(st_driver_t drv, char *type, char *owner, char
   return st_SUCCESS;
 }
 
-static st_ret_t _st_oracle_replace(st_driver_t drv, char *type, char *owner, char *filter, os_t os)
+static st_ret_t _st_oracle_replace(st_driver_t drv, const char *type, const char *owner, const char *filter, os_t os)
 {
   if(oracle_ping(drv) != 0)
   {

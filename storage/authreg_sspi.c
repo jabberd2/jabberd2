@@ -500,13 +500,13 @@ BOOL WINAPI SSPLogonUser(authreg_t ar, LPTSTR szDomain, LPTSTR szUser, LPTSTR sz
 ///////////////////////////////////////////////////////////////////////////////
 // Main jabber wrapper functions
 
-static int _ar_sspi_user_exists(authreg_t ar, char *username, char *realm)
+static int _ar_sspi_user_exists(authreg_t ar, const char *username, const char *realm)
 {
 	/* we can't check if a user exists, so we just assume we have them all the time */
 	return 1;
 }
 
-static int _ar_sspi_check_password(authreg_t ar, char *username, char *realm, char password[257])
+static int _ar_sspi_check_password(authreg_t ar, const char *username, const char *realm, char password[257])
 {
 	return !SSPLogonUser(ar, realm ? realm : "localhost", username, password);
 }

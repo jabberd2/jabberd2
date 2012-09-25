@@ -29,15 +29,15 @@
 
 typedef struct pgsqlcontext_st {
   PGconn * conn;
-  char * sql_create;
-  char * sql_select;
-  char * sql_setpassword;
-  char * sql_delete;
-  char * sql_check_password;
-  char * field_password;
+  const char * sql_create;
+  const char * sql_select;
+  const char * sql_setpassword;
+  const char * sql_delete;
+  const char * sql_check_password;
+  const char * field_password;
   } *pgsqlcontext_t;
 
-static PGresult *_ar_pgsql_get_user_tuple(authreg_t ar, char *username, char *realm) {
+static PGresult *_ar_pgsql_get_user_tuple(authreg_t ar, const char *username, const char *realm) {
     pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
     PGconn *conn = ctx->conn;
 
@@ -81,7 +81,7 @@ static PGresult *_ar_pgsql_get_user_tuple(authreg_t ar, char *username, char *re
     return res;
 }
 
-static int _ar_pgsql_user_exists(authreg_t ar, char *username, char *realm) {
+static int _ar_pgsql_user_exists(authreg_t ar, const char *username, const char *realm) {
     if (ar->get_password) {
         PGresult *res = _ar_pgsql_get_user_tuple(ar, username, realm);
 
@@ -96,7 +96,7 @@ static int _ar_pgsql_user_exists(authreg_t ar, char *username, char *realm) {
     }
 }
 
-static int _ar_pgsql_get_password(authreg_t ar, char *username, char *realm, char password[257]) {
+static int _ar_pgsql_get_password(authreg_t ar, const char *username, const char *realm, char password[257]) {
     pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
     PGresult *res = _ar_pgsql_get_user_tuple(ar, username, realm);
     int fpass;
@@ -123,7 +123,7 @@ static int _ar_pgsql_get_password(authreg_t ar, char *username, char *realm, cha
     return 0;
 }
 
-static int _ar_pgsql_check_password(authreg_t ar, char *username, char *realm, char password[257])
+static int _ar_pgsql_check_password(authreg_t ar, const char *username, const char *realm, char password[257])
 {
     pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
     PGconn *conn = ctx->conn;
@@ -191,7 +191,7 @@ static int _ar_pgsql_check_password(authreg_t ar, char *username, char *realm, c
     return retval;
 };
 
-static int _ar_pgsql_set_password(authreg_t ar, char *username, char *realm, char password[257]) {
+static int _ar_pgsql_set_password(authreg_t ar, const char *username, const char *realm, char password[257]) {
     pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
     PGconn *conn = ctx->conn;
     char iuser[PGSQL_LU+1], irealm[PGSQL_LR+1];
@@ -232,7 +232,7 @@ static int _ar_pgsql_set_password(authreg_t ar, char *username, char *realm, cha
     return 0;
 }
 
-static int _ar_pgsql_create_user(authreg_t ar, char *username, char *realm) {
+static int _ar_pgsql_create_user(authreg_t ar, const char *username, const char *realm) {
     pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
     PGconn *conn = ctx->conn;
     char iuser[PGSQL_LU+1], irealm[PGSQL_LR+1];
@@ -281,7 +281,7 @@ static int _ar_pgsql_create_user(authreg_t ar, char *username, char *realm) {
     return 0;
 }
 
-static int _ar_pgsql_delete_user(authreg_t ar, char *username, char *realm) {
+static int _ar_pgsql_delete_user(authreg_t ar, const char *username, const char *realm) {
     pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
     PGconn *conn = ctx->conn;
     char iuser[PGSQL_LU+1], irealm[PGSQL_LR+1];
@@ -329,19 +329,19 @@ static void _ar_pgsql_free(authreg_t ar) {
     if(conn != NULL)
        PQfinish(conn);
 
-    free(ctx->sql_create);
-    free(ctx->sql_select);
-    free(ctx->sql_setpassword);
-    free(ctx->sql_delete);
+    free((void*)ctx->sql_create);
+    free((void*)ctx->sql_select);
+    free((void*)ctx->sql_setpassword);
+    free((void*)ctx->sql_delete);
     if (ctx->sql_check_password) {
-        free(ctx->sql_check_password);
+        free((void*)ctx->sql_check_password);
     }
     free(ctx);
 }
 
 /** Provide a configuration parameter or default value. */
-static char * _ar_pgsql_param( config_t c, char * key, char * def ) {
-    char * value = config_get_one( c, key, 0 );
+static const char * _ar_pgsql_param( config_t c, const char * key, const char * def ) {
+    const char * value = config_get_one( c, key, 0 );
     if( value == NULL )
       return def;
     else
@@ -353,7 +353,7 @@ static char * _ar_pgsql_param( config_t c, char * key, char * def ) {
 /* one each, in order, of the one character sprintf types that are */
 /* expected to follow the escape characters '%' in the template. */
 /* Returns 0 on success, or an error message on failures. */
-static char * _ar_pgsql_check_template( char * template, char * types ) {
+static const char * _ar_pgsql_check_template( const char * template, const char * types ) {
     int pScan = 0;
     int pType = 0;
     char c;
@@ -389,8 +389,8 @@ static char * _ar_pgsql_check_template( char * template, char * types ) {
 /* required parameter placeholders.  If there is an error, it is   */
 /* written to the error log. */
 /* Returns 0 on success, or 1 on errors. */
-int _ar_pgsql_check_sql( authreg_t ar, char * sql, char * types ) {
-  char * error;
+int _ar_pgsql_check_sql( authreg_t ar, const char * sql, const char * types ) {
+  const char * error;
 
   error = _ar_pgsql_check_template( sql, types );
   if( error == 0 ) return 0;  /* alls right :) */
@@ -406,9 +406,9 @@ extern int sx_openssl_initialized;
 
 /** start me up */
 int ar_init(authreg_t ar) {
-    char *host, *port, *dbname, *user, *pass, *conninfo;
+    const char *host, *port, *dbname, *user, *pass, *conninfo;
     char *create, *select, *setpassword, *delete;
-    char *table, *username, *realm;
+    const char *table, *username, *realm;
     char *template;
     int strlentur; /* string length of table, user, and realm strings */
     PGconn *conn;

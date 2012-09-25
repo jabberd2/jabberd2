@@ -78,9 +78,9 @@ struct sess_st {
 
     char                skey[44];
 
-    char                *smcomp; /* sm component servicing this session */
+    const char          *smcomp; /* sm component servicing this session */
 
-    char                *ip;
+    const char          *ip;
     int                 port;
 
     sx_t                s;
@@ -116,13 +116,13 @@ struct sess_st {
 
 struct host_st {
     /** our realm (SASL) */
-    char                *realm;
+    const char          *realm;
 
     /** starttls pemfile */
-    char                *host_pemfile;
+    const char          *host_pemfile;
 
     /** certificate chain */
-    char                *host_cachain;
+    const char          *host_cachain;
 
     /** verify-mode  */
     int                 host_verify_mode;
@@ -132,22 +132,22 @@ struct host_st {
 
     /** registration */
     int                 ar_register_enable;
-    char                *ar_register_instructions;
-    char                *ar_register_oob;
+    const char          *ar_register_instructions;
+    const char          *ar_register_oob;
     int                 ar_register_password;
 
 };
 
 struct c2s_st {
     /** our id (hostname) with the router */
-    char                *id;
+    const char          *id;
 
     /** how to connect to the router */
-    char                *router_ip;
+    const char          *router_ip;
     int                 router_port;
-    char                *router_user;
-    char                *router_pass;
-    char                *router_pemfile;
+    const char          *router_user;
+    const char          *router_pass;
+    const char          *router_pemfile;
 
     /** mio context */
     mio_t               mio;
@@ -178,12 +178,12 @@ struct c2s_st {
 
     /** log data */
     log_type_t          log_type;
-    char                *log_facility;
-    char                *log_ident;
+    const char          *log_facility;
+    const char          *log_ident;
 
     /** packet counter */
     long long int       packet_count;
-    char                *packet_stats;
+    const char          *packet_stats;
 
     /** connect retry */
     int                 retry_init;
@@ -192,7 +192,7 @@ struct c2s_st {
     int                 retry_left;
 
     /** ip to listen on */
-    char                *local_ip;
+    const char          *local_ip;
 
     /** unencrypted port */
     int                 local_port;
@@ -201,19 +201,19 @@ struct c2s_st {
     int                 local_ssl_port;
 
     /** encrypted port pemfile */
-    char                *local_pemfile;
+    const char          *local_pemfile;
 
     /** encrypted port cachain file */
-    char                *local_cachain;
+    const char          *local_cachain;
 
     /** verify-mode  */
     int                 local_verify_mode;
 
     /** http forwarding URL */
-    char                *http_forward;
+    const char          *http_forward;
 
     /** PBX integration named pipe */
-    char                *pbx_pipe;
+    const char          *pbx_pipe;
     int                 pbx_pipe_fd;
     mio_fd_t            pbx_pipe_mio_fd;
 
@@ -234,7 +234,7 @@ struct c2s_st {
     time_t              next_check;
 
     /** auth/reg module */
-    char                *ar_module_name;
+    const char          *ar_module_name;
     authreg_t           ar;
 
     /** allowed mechanisms */
@@ -307,31 +307,31 @@ struct authreg_st
     void        *private;
 
     /** returns 1 if the user exists, 0 if not */
-    int         (*user_exists)(authreg_t ar, char *username, char *realm);
+    int         (*user_exists)(authreg_t ar, const char *username, const char *realm);
 
     /** return this users cleartext password in the array (digest auth, password auth) */
-    int         (*get_password)(authreg_t ar, char *username, char *realm, char password[257]);
+    int         (*get_password)(authreg_t ar, const char *username, const char *realm, char password[257]);
 
     /** check the given password against the stored password, 0 if equal, !0 if not equal (password auth) */
-    int         (*check_password)(authreg_t ar, char *username, char *realm, char password[257]);
+    int         (*check_password)(authreg_t ar, const char *username, const char *realm, char password[257]);
 
     /** store this password (register) */
-    int         (*set_password)(authreg_t ar, char *username, char *realm, char password[257]);
+    int         (*set_password)(authreg_t ar, const char *username, const char *realm, char password[257]);
 
     /** make or break the user (register / register remove) */
-    int         (*create_user)(authreg_t ar, char *username, char *realm);
-    int         (*delete_user)(authreg_t ar, char *username, char *realm);
+    int         (*create_user)(authreg_t ar, const char *username, const char *realm);
+    int         (*delete_user)(authreg_t ar, const char *username, const char *realm);
 
     void        (*free)(authreg_t ar);
 
     /* Additions at the end - to preserve offsets for existing modules */
 
     /** returns 1 if the user is permitted to authorize as the requested_user, 0 if not. requested_user is a JID */
-    int               (*user_authz_allowed)(authreg_t ar, char *username, char *realm, char *requested_user);
+    int               (*user_authz_allowed)(authreg_t ar, const char *username, const char *realm, const char *requested_user);
 };
 
 /** get a handle for a single module */
-C2S_API authreg_t   authreg_init(c2s_t c2s, char *name);
+C2S_API authreg_t   authreg_init(c2s_t c2s, const char *name);
 
 /** shut down */
 C2S_API void        authreg_free(authreg_t ar);
@@ -343,12 +343,12 @@ typedef int (*ar_module_init_fn)(authreg_t);
 C2S_API int         authreg_process(c2s_t c2s, sess_t sess, nad_t nad);
 
 /*
-int     authreg_user_exists(authreg_t ar, char *username, char *realm);
-int     authreg_get_password(authreg_t ar, char *username, char *realm, char password[257]);
-int     authreg_check_password(authreg_t ar, char *username, char *realm, char password[257]);
-int     authreg_set_password(authreg_t ar, char *username, char *realm, char password[257]);
-int     authreg_create_user(authreg_t ar, char *username, char *realm);
-int     authreg_delete_user(authreg_t ar, char *username, char *realm);
+int     authreg_user_exists(authreg_t ar, const char *username, const char *realm);
+int     authreg_get_password(authreg_t ar, const char *username, const char *realm, char password[257]);
+int     authreg_check_password(authreg_t ar, const char *username, const char *realm, char password[257]);
+int     authreg_set_password(authreg_t ar, const char *username, const char *realm, char password[257]);
+int     authreg_create_user(authreg_t ar, const char *username, const char *realm);
+int     authreg_delete_user(authreg_t ar, const char *username, const char *realm);
 void    authreg_free(authreg_t ar);
 */
 
@@ -356,14 +356,14 @@ void    authreg_free(authreg_t ar);
 union xhashv
 {
   void **val;
-  char **char_val;
+  const char **char_val;
   sess_t *sess_val;
 };
 
 // Data for stream redirect errors
 typedef struct stream_redirect_st
 {
-    char *to_address;
-    char *to_port;
+    const char *to_address;
+    const char *to_port;
 } *stream_redirect_t;
 

@@ -21,6 +21,7 @@
 #include "s2s.h"
 
 #include <stringprep.h>
+#include <unistd.h>
 
 static sig_atomic_t s2s_shutdown = 0;
 sig_atomic_t s2s_lost_router = 0;
@@ -45,9 +46,12 @@ static void _s2s_signal_usr2(int signum)
     set_debug_flag(1);
 }
 
+static int _s2s_populate_whitelist_domains(s2s_t s2s, const char **values, int nvalues);
+
+
 /** store the process id */
 static void _s2s_pidfile(s2s_t s2s) {
-    char *pidfile;
+    const char *pidfile;
     FILE *f;
     pid_t pid;
 
@@ -141,7 +145,7 @@ static void _s2s_config_expand(s2s_t s2s) {
         s2s->origin_nips = elem->nvalues;
     }
     if (s2s->origin_nips == 0) {
-        s2s->origin_ips = (char **)malloc(sizeof(s2s->origin_ips));
+        s2s->origin_ips = (const char **)malloc(sizeof(s2s->origin_ips));
         s2s->origin_ips[0] = strdup(s2s->local_ip);
         s2s->origin_nips = 1;
     }
@@ -360,7 +364,7 @@ static void _s2s_time_checks(s2s_t s2s) {
                                 dns_cancel(NULL, dns->query->query);
                             xhash_free(dns->query->hosts);
                             xhash_free(dns->query->results);
-                            free(dns->query->name);
+                            free((void*)dns->query->name);
                             free(dns->query);
                         }
                         free(dns);
@@ -573,7 +577,7 @@ static void _s2s_dns_expiry(s2s_t s2s) {
                         dns_cancel(NULL, dns->query->query);
                     xhash_free(dns->query->hosts);
                     xhash_free(dns->query->results);
-                    free(dns->query->name);
+                    free((void*)dns->query->name);
                     free(dns->query);
                 }
                 free(dns);
@@ -591,7 +595,7 @@ static void _s2s_dns_expiry(s2s_t s2s) {
                 log_debug(ZONE, "expiring DNS bad host %s", res->key);
                 xhash_iter_zap(s2s->dns_bad);
 
-                free(res->key);
+                free((void*)res->key);
                 free(res);
             }
             else if (res == NULL) {
@@ -616,7 +620,7 @@ static int _mio_resolver_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *da
 }
 
 /* Populate the whitelist_domains array with the config file values */
-int _s2s_populate_whitelist_domains(s2s_t s2s, char **values, int nvalues) {
+int _s2s_populate_whitelist_domains(s2s_t s2s, const char **values, int nvalues) {
     int i, j;
     int elem_len;
     s2s->whitelist_domains = (char **)malloc(sizeof(char*) * (nvalues));
@@ -648,7 +652,7 @@ int _s2s_populate_whitelist_domains(s2s_t s2s, char **values, int nvalues) {
     The whitelist values may be FQDN or domain only (with no prepended hostname).
     returns 1 on match, 0 on failure to match
 */
-int s2s_domain_in_whitelist(s2s_t s2s, char *in_domain) {
+int s2s_domain_in_whitelist(s2s_t s2s, const char *in_domain) {
     int segcount = 0;
     int dotcount;
     char **segments = NULL;
@@ -1027,8 +1031,8 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
             xhash_free(conn->states_time);
             xhash_free(conn->routes);
 
-            free(conn->key);
-            free(conn->dkey);
+            free((void*)conn->key);
+            free((void*)conn->dkey);
             free(conn);
         }
 
@@ -1130,8 +1134,8 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
         xhash_free(conn->states_time);
         xhash_free(conn->routes);
 
-        if(conn->key != NULL) free(conn->key);
-        if(conn->dkey != NULL) free(conn->dkey);
+        if(conn->key != NULL) free((void*)conn->key);
+        if(conn->dkey != NULL) free((void*)conn->dkey);
         free(conn);
     }
 
@@ -1157,7 +1161,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
                      dns_cancel(NULL, dns->query->query);
                  xhash_free(dns->query->hosts);
                  xhash_free(dns->query->results);
-                 free(dns->query->name);
+                 free((void*)dns->query->name);
                  free(dns->query);
              }
              free(dns);
@@ -1167,7 +1171,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
     if(xhash_iter_first(s2s->dns_bad))
         do {
              xhash_iter_get(s2s->dns_bad, NULL, NULL, xhv.val);
-             free(res->key);
+             free((void*)res->key);
              free(res);
         } while(xhash_iter_next(s2s->dns_bad));
 
@@ -1205,7 +1209,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
 
     config_free(s2s->config);
 
-    free(s2s->local_secret);
+    free((void*)s2s->local_secret);
     free(s2s);
 
 #ifdef POOL_DEBUG

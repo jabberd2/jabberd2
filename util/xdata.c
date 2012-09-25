@@ -23,7 +23,7 @@
 #include "util.h"
 
 /** creation */
-xdata_t xdata_new(xdata_type_t type, char *title, char *instructions) {
+xdata_t xdata_new(xdata_type_t type, const char *title, const char *instructions) {
     pool_t p;
     xdata_t xd;
 
@@ -46,7 +46,7 @@ xdata_t xdata_new(xdata_type_t type, char *title, char *instructions) {
 }
 
 /** new field */
-xdata_field_t xdata_field_new(xdata_t xd, xdata_field_type_t type, char *var, char *label, char *desc, int required) {
+xdata_field_t xdata_field_new(xdata_t xd, xdata_field_type_t type, const char *var, const char *label, const char *desc, int required) {
     xdata_field_t xdf;
 
     assert((int) (xd != NULL));
@@ -133,7 +133,7 @@ void xdata_add_item(xdata_t xd, xdata_item_t xdi) {
 }
 
 /** option insertion */
-static void xdata_option_new(xdata_field_t xdf, char *value, int lvalue, char *label, int llabel) {
+static void xdata_option_new(xdata_field_t xdf, const char *value, int lvalue, const char *label, int llabel) {
     xdata_option_t xdo;
 
     assert((int) (xdf != NULL));
@@ -157,7 +157,7 @@ static void xdata_option_new(xdata_field_t xdf, char *value, int lvalue, char *l
 }
 
 /** value insertion */
-void xdata_add_value(xdata_field_t xdf, char *value, int vlen) {
+void xdata_add_value(xdata_field_t xdf, const char *value, int vlen) {
     int first = 0;
 
     assert((int) (xdf != NULL));

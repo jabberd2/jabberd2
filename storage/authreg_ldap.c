@@ -56,21 +56,21 @@ typedef struct moddata_st
 
     LDAP *ld;
 
-    char *host;
+    const char *host;
     long port;
 
     int flags;
     int timeout;
 
-    char *binddn;
-    char *bindpw;
+    const char *binddn;
+    const char *bindpw;
 
-    char *uidattr;
-    char *query;
+    const char *uidattr;
+    const char *query;
     uidattr_order_t uidattr_order;
     
     xht basedn;
-    char *default_basedn;
+    const char *default_basedn;
 } *moddata_t;
 
 /** utility function to get ld_errno */
@@ -143,7 +143,8 @@ static int rebindProc(LDAP *ld, LDAP_CONST char *url, ber_tag_t request, ber_int
         log_write(data->ar->c2s->log, LOG_ERR, "ldap: bind failed (to %s): %s", url, ldap_err2string(_ldap_get_lderrno(data->ld)));
         ldap_unbind_s(data->ld);
         data->ld = NULL;
-        return NULL;
+        // return NULL;  // TODO FIXME Wrong: It is the same as LDAP_SUCCESS
+        return LDAP_OPERATIONS_ERROR;// TODO check if it is correct
     }
 
     return LDAP_SUCCESS;
@@ -158,7 +159,7 @@ static int _ldap_connect(moddata_t data)
     
     /* ssl "wrappermode" */
     if(data->flags & AR_LDAP_FLAGS_SSL) {
-      snprintf(url, sizeof(url), "ldaps://%s:%d", data->host, data->port);
+      snprintf(url, sizeof(url), "ldaps://%s:%ld", data->host, data->port); // TODO FIXME data->port shall be at most 'unsigned int'
       ldap_initialize(&data->ld, url);
     }
     /* non-SSL connect method */
@@ -226,9 +227,10 @@ static int _ldap_reconnect(moddata_t data)
 
 
 /** do a search, return the dn */
-static char *_ldap_search(moddata_t data, char *realm, char *username)
+static char *_ldap_search(moddata_t data, const char *realm, const char *username)
 {
-    char filter[1024], *dn, *no_attrs[] = { NULL }, *basedn;
+    char filter[1024], *dn, *no_attrs[] = { NULL };
+    const char *basedn;
     LDAPMessage *result, *entry;
 
     basedn = xhash_get(data->basedn, realm);
@@ -315,7 +317,7 @@ static char *_ldap_search(moddata_t data, char *realm, char *username)
 }
 
 /** do we have this user? */
-static int _ldap_user_exists(authreg_t ar, char *username, char *realm)
+static int _ldap_user_exists(authreg_t ar, const char *username, const char *realm)
 {
 
     char *dn;
@@ -338,7 +340,7 @@ static int _ldap_user_exists(authreg_t ar, char *username, char *realm)
 }
 
 /** check the password */
-static int _ldap_check_password(authreg_t ar, char *username, char *realm, char password[257])
+static int _ldap_check_password(authreg_t ar, const char *username, const char *realm, char password[257])
 {
 
     moddata_t data;
@@ -403,7 +405,7 @@ int ar_init(authreg_t ar)
 {
     moddata_t data;
     char ldap_entry[128];
-    char *host, *realm,*priority;
+    const char *host, *realm;
     config_elem_t basedn;
     int i,l=0;
     xht domains;
@@ -446,7 +448,7 @@ int ar_init(authreg_t ar)
         if(realm == NULL)
             data->default_basedn = basedn->values[i];
         else
-            xhash_put(data->basedn, realm, basedn->values[i]);
+            xhash_put(data->basedn, realm, (void*)basedn->values[i]);
 
         log_debug(ZONE, "realm '%s' has base dn '%s'", realm, basedn->values[i]);
     }

@@ -55,6 +55,6 @@ typedef enum {
 } datetime_t;
 
 JABBERD2_API time_t  datetime_in(char *date);
-JABBERD2_API void    datetime_out(time_t t, datetime_t type, char *date, int datelen);
+JABBERD2_API void    datetime_out(time_t t, datetime_t type, const char *date, int datelen);
 
 #endif

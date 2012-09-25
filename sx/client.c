@@ -108,7 +108,7 @@ static void _sx_client_notify_header(sx_t s, void *arg) {
     s->want_read = 1;
 }
 
-void sx_client_init(sx_t s, unsigned int flags, char *ns, char *to, char *from, char *version) {
+void sx_client_init(sx_t s, unsigned int flags, const char *ns, const char *to, const char *from, const char *version) {
     sx_buf_t buf;
     char *c;
     int i, len;

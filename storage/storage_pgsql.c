@@ -32,7 +32,7 @@
 typedef struct drvdata_st {
     PGconn *conn;
 
-    char *prefix;
+    const char *prefix;
 
     int txn;
 } *drvdata_t;
@@ -169,9 +169,8 @@ static st_ret_t _st_pgsql_put_guts(st_driver_t drv, const char *type, const char
     os_object_t o;
     char *key, *cval = NULL;
     void *val;
-    int vlen;
     os_type_t ot;
-    char *xml;
+    const char *xml;
     int xlen;
     PGresult *res;
     char tbuf[128];
@@ -200,24 +199,22 @@ static st_ret_t _st_pgsql_put_guts(st_driver_t drv, const char *type, const char
                     switch(ot) {
                         case os_type_BOOLEAN:
                             cval = val ? strdup("t") : strdup("f");
-                            vlen = 1;
                             break;
 
                         case os_type_INTEGER:
                             cval = (char *) malloc(sizeof(char) * 20);
-                            sprintf(cval, "%d", (int) val);
-                            vlen = strlen(cval);
+                            sprintf(cval, "%ld", (long int) val);
                             break;
 
                         case os_type_STRING:
                             cval = (char *) malloc(sizeof(char) * ((strlen((char *) val) * 2) + 1));
-                            vlen = PQescapeString(cval, (char *) val, strlen((char *) val));
+                            PQescapeString(cval, (char *) val, strlen((char *) val));
                             break;
 
                         case os_type_NAD:
                             nad_print((nad_t) val, 0, &xml, &xlen);
                             cval = (char *) malloc(sizeof(char) * ((xlen * 2) + 4));
-                            vlen = PQescapeString(&cval[3], xml, xlen) + 3;
+                            PQescapeString(&cval[3], xml, xlen);
                             strncpy(cval, "NAD", 3);
                             break;
 
@@ -635,7 +632,7 @@ static void _st_pgsql_free(st_driver_t drv) {
 }
 
 st_ret_t st_init(st_driver_t drv) {
-    char *host, *port, *dbname, *user, *pass, *conninfo;
+    const char *host, *port, *dbname, *user, *pass, *conninfo;
     PGconn *conn;
     drvdata_t data;
 

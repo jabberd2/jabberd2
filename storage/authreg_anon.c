@@ -25,13 +25,13 @@
 
 #include "c2s.h"
 
-static int _ar_anon_user_exists(authreg_t ar, char *username, char *realm)
+static int _ar_anon_user_exists(authreg_t ar, const char *username, const char *realm)
 {
     /* always exists */
     return 1;
 }
 
-static int _ar_anon_check_password(authreg_t ar, char *username, char *realm, char password[257])
+static int _ar_anon_check_password(authreg_t ar, const char *username, const char *realm, char password[257])
 {
     /* always correct */
     return 0;

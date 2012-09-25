@@ -48,7 +48,7 @@ static void _router_broadcast(const char *key, int keylen, void *val, void *arg)
 }
 
 /** domain advertisement */
-static void _router_advertise(router_t r, char *domain, component_t src, int unavail) {
+static void _router_advertise(router_t r, const char *domain, component_t src, int unavail) {
     struct broadcast_st bc;
     int ns;
 
@@ -151,7 +151,7 @@ static void _router_process_handshake(component_t comp, nad_t nad) {
 }
 
 void routes_free(routes_t routes) {
-    if(routes->name) free(routes->name);
+    if(routes->name) free((void*)routes->name);
     if(routes->comp) free(routes->comp);
     free(routes);
 }
@@ -355,7 +355,7 @@ static void _router_process_unbind(component_t comp, nad_t nad) {
 
     if(comp->r->default_route != NULL && strcmp(comp->r->default_route, name->domain) == 0) {
         log_write(comp->r->log, LOG_NOTICE, "[%s] default route offline", name->domain);
-        free(comp->r->default_route);
+        free((void*)(comp->r->default_route));
         comp->r->default_route = NULL;
     }
 
@@ -507,7 +507,7 @@ static void _router_process_route(component_t comp, nad_t nad) {
                         ato = nad_find_attr(nad, 1, -1, "target", NULL);
                         if(ato >= 0) to = jid_reset(&sto, NAD_AVAL(nad, ato), NAD_AVAL_L(nad, ato));
                         else {
-                            char *out; int len;
+                            const char *out; int len;
                             nad_print(nad, 0, &out, &len);
                             log_write(comp->r->log, LOG_ERR, "Cannot get destination for multiple route: %.*s", len, out);
                         }
@@ -517,7 +517,7 @@ static void _router_process_route(component_t comp, nad_t nad) {
                     ato = nad_find_attr(nad, 1, -1, "from", NULL);
                     if(ato >= 0) to = jid_reset(&sto, NAD_AVAL(nad, ato), NAD_AVAL_L(nad, ato));
                     else {
-                        char *out; int len;
+                        const char *out; int len;
                         nad_print(nad, 0, &out, &len);
                         log_write(comp->r->log, LOG_ERR, "Cannot get source for multiple route: %.*s", len, out);
                     }
@@ -974,7 +974,7 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
     return 0;
 }
 
-static int _router_accept_check(router_t r, mio_fd_t fd, char *ip) {
+static int _router_accept_check(router_t r, mio_fd_t fd, const char *ip) {
     rate_t rt;
 
     if(access_check(r->access, ip) == 0) {
@@ -1013,7 +1013,7 @@ static void _router_route_unbind_walker(const char *key, int keylen, void *val, 
 
     if(comp->r->default_route != NULL && strlen(comp->r->default_route) == keylen && strncmp(key, comp->r->default_route, keylen) == 0) {
         log_write(comp->r->log, LOG_NOTICE, "[%.*s] default route offline", keylen, key);
-        free(comp->r->default_route);
+        free((void*)(comp->r->default_route));
         comp->r->default_route = NULL;
     }
 
@@ -1029,7 +1029,8 @@ int router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *
     component_t comp = (component_t) arg;
     router_t r = (router_t) arg;
     struct sockaddr_storage sa;
-    int namelen = sizeof(sa), port, nbytes;
+    socklen_t namelen = sizeof(sa);
+    int port, nbytes;
 
     switch(a) {
         case action_READ:
@@ -1138,9 +1139,9 @@ int message_log(nad_t nad, router_t r, const unsigned char *msg_from, const unsi
     short int new_msg_file = 0;
     int i;
     int nad_body_len = 0;
-    char *nad_body_start = 0;
+    const char *nad_body_start = 0;
     int body_count;
-    char *nad_body = NULL;
+    const char *nad_body = NULL;
     char body[MAX_MESSAGE*2];
 
     assert((int) (nad != NULL));
