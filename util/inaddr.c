@@ -43,7 +43,7 @@
  * @param dst the struct sockaddr_storage that should get the new address
  * @return 1 on success, 0 if address is not valid
  */
-int j_inet_pton(char *src, struct sockaddr_storage *dst)
+int j_inet_pton(const char *src, struct sockaddr_storage *dst)
 {
 #ifndef HAVE_INET_PTON
     struct sockaddr_in *sin;

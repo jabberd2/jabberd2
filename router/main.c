@@ -45,7 +45,7 @@ static void router_signal_usr2(int signum)
 
 /** store the process id */
 static void _router_pidfile(router_t r) {
-    char *pidfile;
+    const char *pidfile;
     FILE *f;
     pid_t pid;
 
@@ -74,9 +74,9 @@ static void _router_pidfile(router_t r) {
 /** pull values out of the config file */
 static void _router_config_expand(router_t r)
 {
-    char *str, *ip, *mask, *name, *target;
+    const char *str, *ip, *mask, *name, *target;
     config_elem_t elem;
-    int i, len;
+    int i;
     alias_t alias;
 
     r->id = config_get_one(r->config, "id", 0);

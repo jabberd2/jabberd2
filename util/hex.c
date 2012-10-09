@@ -23,7 +23,7 @@
 #include "util.h"
 
 /** turn raw into hex - out must be (inlen*2)+1 */
-void hex_from_raw(char *in, int inlen, char *out) {
+void hex_from_raw(const char *in, int inlen, char *out) {
     int i, h, l;
 
     for(i = 0; i < inlen; i++) {
@@ -37,7 +37,7 @@ void hex_from_raw(char *in, int inlen, char *out) {
 }
 
 /** turn hex into raw - out must be (inlen/2) */
-int hex_to_raw(char *in, int inlen, char *out) {
+int hex_to_raw(const char *in, int inlen, char *out) {
     int i, o, h, l;
 
     /* need +ve even input */

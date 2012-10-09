@@ -32,7 +32,7 @@ static void _pbx_close_pipe(c2s_t c2s);
 static void _pbx_open_pipe(c2s_t c2s, int mode);
 static void _pbx_read_pipe(c2s_t c2s);
 static void _pbx_write_pipe(c2s_t c2s);
-int _pbx_process_command(c2s_t c2s, char *cmd);
+int _pbx_process_command(c2s_t c2s, const char *cmd);
 
 static void _pbx_read_command(c2s_t c2s) {
 	char buf[COMMANDLINE_LENGTH_MAX];

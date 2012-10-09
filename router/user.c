@@ -23,7 +23,7 @@
 /** user table manager */
 
 int user_table_load(router_t r) {
-    char *userfile;
+    const char *userfile;
     FILE *f;
     long size;
     char *buf;

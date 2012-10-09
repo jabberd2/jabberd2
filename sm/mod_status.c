@@ -30,8 +30,8 @@
 #include "sm.h"
 
 typedef struct _status_st {
-    sm_t    sm;
-    char    *resource;
+    sm_t       sm;
+    const char *resource;
 } *status_t;
 
 static void _status_os_replace(storage_t st, const unsigned char *jid, char *status, char *show, time_t *lastlogin, time_t *lastlogout, nad_t nad) {
@@ -226,7 +226,7 @@ static void _status_free(module_t mod) {
     free(mod->private);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
+DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
     module_t mod = mi->mod;
 
     status_t tr;

@@ -23,7 +23,7 @@
 #include "c2s.h"
 #include <security/pam_appl.h>
 
-static int _ar_pam_user_exists(authreg_t ar, char *username, char *realm) {
+static int _ar_pam_user_exists(authreg_t ar, const char *username, const char *realm) {
     /* we can't check if a user exists, so we just assume we have them all the time */
     return 1;
 }
@@ -56,7 +56,7 @@ static int _ar_pam_delay(int ret, unsigned int usec, void *arg) {
 }
 #endif
 
-static int _ar_pam_check_password(authreg_t ar, char *username, char *realm, char password[257]) {
+static int _ar_pam_check_password(authreg_t ar, const char *username, const char *realm, char password[257]) {
     struct pam_conv conv;
     pam_handle_t *pam;
     int ret, user_len, realm_len;

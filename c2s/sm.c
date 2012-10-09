@@ -31,7 +31,7 @@ static void _sm_generate_id(sess_t sess, bres_t res, const char *type) {
 }
 
 /** make a new action route */
-static nad_t _sm_build_route(sess_t sess, bres_t res, const char *action, const char *target, char *id) {
+static nad_t _sm_build_route(sess_t sess, bres_t res, const char *action, const char *target, const char *id) {
     nad_t nad;
     int ns, ans;
 

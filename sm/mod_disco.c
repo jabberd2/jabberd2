@@ -46,9 +46,9 @@ struct service_st {
 typedef struct disco_st *disco_t;
 struct disco_st {
     /** identity */
-    char        *category;
-    char        *type;
-    char        *name;
+    const char  *category;
+    const char  *type;
+    const char  *name;
 
     /** compatibility */
     int         agents;
@@ -605,7 +605,7 @@ static void _disco_free(module_t mod) {
     free(d);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, char *arg)
+DLLEXPORT int module_init(mod_instance_t mi, const char *arg)
 {
     module_t mod = mi->mod;
     disco_t d;

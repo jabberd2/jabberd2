@@ -42,7 +42,7 @@
 typedef struct drvdata_st {
     DB_ENV *env;
 
-    char *path;
+    const char *path;
     int sync;
 
     xht dbs;
@@ -143,7 +143,8 @@ static st_ret_t _st_db_cursor_free(st_driver_t drv, dbdata_t dbd, DBC *cursor, D
 }
 
 static void _st_db_object_serialise(os_object_t o, char **buf, int *len) {
-    char *key, *xml, *xmlstr;
+    char *key, *xmlstr;
+    const char *xml;
     void *val;
     os_type_t ot;
     int cur = 0, xlen;
@@ -522,7 +523,7 @@ static void _st_db_panic(DB_ENV *env, int errval) {
 }
 
 st_ret_t st_init(st_driver_t drv) {
-    char *path;
+    const char *path;
     int err;
     DB_ENV *env;
     drvdata_t data;

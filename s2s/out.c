@@ -127,7 +127,7 @@ static void _out_packet_queue(s2s_t s2s, pkt_t pkt) {
     jqueue_push(q, (void *) pkt, 0);
 }
 
-static void _out_dialback(conn_t out, char *rkey, int rkeylen) {
+static void _out_dialback(conn_t out, const char *rkey, int rkeylen) {
     char *c, *dbkey, *tmp;
     nad_t nad;
     int elem, ns;
@@ -203,7 +203,7 @@ int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int a
     int c_expired_good = 0;
     union xhashv xhv;
     dnsres_t res;
-    char *ipport;
+    const char *ipport;
     int ipport_len;
     char *c;
     int c_len;
@@ -403,7 +403,7 @@ int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int a
 }
 
 /** find/make a connection for a route */
-int out_route(s2s_t s2s, char *route, int routelen, conn_t *out, int allow_bad) {
+int out_route(s2s_t s2s, const char *route, int routelen, conn_t *out, int allow_bad) {
     dnscache_t dns;
     char ipport[INET6_ADDRSTRLEN + 16], *dkey, *c;
     time_t now;
@@ -558,8 +558,8 @@ int out_route(s2s_t s2s, char *route, int routelen, conn_t *out, int allow_bad) 
 
                 xhash_free((*out)->routes);
 
-                free((*out)->key);
-                free((*out)->dkey);
+                free((void*)(*out)->key);
+                free((void*)(*out)->dkey);
                 free(*out);
                 *out = NULL;
 
@@ -724,7 +724,7 @@ int out_packet(s2s_t s2s, pkt_t pkt) {
     return 0;
 }
 
-char *dns_make_ipport(char *host, int port) {
+char *dns_make_ipport(const char *host, int port) {
     char *c;
     assert(port > 0 && port < 65536);
 
@@ -733,7 +733,7 @@ char *dns_make_ipport(char *host, int port) {
     return c;
 }
 
-static void _dns_add_result(dnsquery_t query, char *ip, int port, int prio, int weight, unsigned int ttl) {
+static void _dns_add_result(dnsquery_t query, const char *ip, int port, int prio, int weight, unsigned int ttl) {
     char *ipport = dns_make_ipport(ip, port);
     dnsres_t res = xhash_get(query->results, ipport);
 
@@ -781,7 +781,7 @@ static void _dns_add_result(dnsquery_t query, char *ip, int port, int prio, int 
     free(ipport);
 }
 
-static void _dns_add_host(dnsquery_t query, char *ip, int port, int prio, int weight, unsigned int ttl) {
+static void _dns_add_host(dnsquery_t query, const char *ip, int port, int prio, int weight, unsigned int ttl) {
     char *ipport = dns_make_ipport(ip, port);
     dnsres_t res = xhash_get(query->hosts, ipport);
 
@@ -1101,7 +1101,7 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
         port_len = ipport_len - (c - ipport);
 
         /* resolve hostname */
-        free(query->cur_host);
+        free((void*)query->cur_host);
         query->cur_host = strndup(ipport, ip_len);
         tmp = strndup(c, port_len);
         query->cur_port = atoi(tmp);
@@ -1134,7 +1134,7 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
         time_t now = time(NULL);
         char *domain;
 
-        free(query->cur_host);
+        free((void*)query->cur_host);
         query->cur_host = NULL;
 
         log_debug(ZONE, "dns requests for %s@%p complete: %d (%d)", query->name,
@@ -1181,23 +1181,25 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
         }
         out_resolve(query->s2s, domain, query->results, query->expiry);
         free(domain);
-        free(query->name);
+        free((void*)query->name);
         free(query);
     }
 }
 
 void dns_resolve_domain(s2s_t s2s, dnscache_t dns) {
     dnsquery_t query = (dnsquery_t) calloc(1, sizeof(struct dnsquery_st));
+    char *name;
 
     query->s2s = s2s;
     query->results = xhash_new(71);
-    if (idna_to_ascii_8z(dns->name, &query->name, 0) != IDNA_SUCCESS) {
+    if (idna_to_ascii_8z(dns->name, &name, 0) != IDNA_SUCCESS) {
         log_write(s2s->log, LOG_ERR, "idna dns encode for %s failed", dns->name);
         /* shortcut resolution failure */
         query->expiry = time(NULL) + 99999999;
         out_resolve(query->s2s, dns->name, query->results, query->expiry);
         return;
     }
+    query->name = name;
     query->hosts = xhash_new(71);
     query->srv_i = -1;
     query->expiry = 0;
@@ -1218,7 +1220,7 @@ void dns_resolve_domain(s2s_t s2s, dnscache_t dns) {
 }
 
 /** responses from the resolver */
-void out_resolve(s2s_t s2s, char *domain, xht results, time_t expiry) {
+void out_resolve(s2s_t s2s, const char *domain, xht results, time_t expiry) {
     dnscache_t dns;
 
     /* no results, resolve failed */
@@ -1406,7 +1408,7 @@ void send_dialbacks(conn_t out)
       if (bad != NULL) {
           log_debug(ZONE, "removing bad host entry for '%s'", out->key);
           xhash_zap(out->s2s->dns_bad, out->key);
-          free(bad->key);
+          free((void*)bad->key);
           free(bad);
       }
   }
@@ -1809,7 +1811,7 @@ int out_bounce_domain_queues(s2s_t s2s, const char *domain, int err)
 }
 
 /* bounce all packets in the queue for route */
-int out_bounce_route_queue(s2s_t s2s, char *rkey, int rkeylen, int err)
+int out_bounce_route_queue(s2s_t s2s, const char *rkey, int rkeylen, int err)
 {
   jqueue_t q;
   pkt_t pkt;
@@ -1838,7 +1840,7 @@ int out_bounce_route_queue(s2s_t s2s, char *rkey, int rkeylen, int err)
   rkey = q->key;
   jqueue_free(q);
   xhash_zap(s2s->outq, rkey);
-  free(rkey);
+  free((void*)rkey);
 
   return pktcount;
 }
@@ -1878,7 +1880,7 @@ void out_flush_domain_queues(s2s_t s2s, const char *domain) {
   }
 }
 
-void out_flush_route_queue(s2s_t s2s, char *rkey, int rkeylen) {
+void out_flush_route_queue(s2s_t s2s, const char *rkey, int rkeylen) {
     jqueue_t q;
     pkt_t pkt;
     int npkt, i, ret;
@@ -1909,7 +1911,7 @@ void out_flush_route_queue(s2s_t s2s, char *rkey, int rkeylen) {
         rkey = q->key;
         jqueue_free(q);
         xhash_zap(s2s->outq, rkey);
-        free(rkey);
+        free((void*)rkey);
     } else {
         log_debug(ZONE, "emptied queue gained more packets...");
     }

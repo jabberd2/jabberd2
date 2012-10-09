@@ -82,17 +82,17 @@ void sx_free(sx_t s) {
 
     _sx_debug(ZONE, "freeing sx for %d", s->tag);
 
-    if(s->ns != NULL) free(s->ns);
+    if(s->ns != NULL) free((void*)s->ns);
 
-    if(s->req_to != NULL) free(s->req_to);
-    if(s->req_from != NULL) free(s->req_from);
-    if(s->req_version != NULL) free(s->req_version);
+    if(s->req_to != NULL) free((void*)s->req_to);
+    if(s->req_from != NULL) free((void*)s->req_from);
+    if(s->req_version != NULL) free((void*)s->req_version);
 
-    if(s->res_to != NULL) free(s->res_to);
-    if(s->res_from != NULL) free(s->res_from);
-    if(s->res_version != NULL) free(s->res_version);
+    if(s->res_to != NULL) free((void*)s->res_to);
+    if(s->res_from != NULL) free((void*)s->res_from);
+    if(s->res_version != NULL) free((void*)s->res_version);
 
-    if(s->id != NULL) free(s->id);
+    if(s->id != NULL) free((void*)s->id);
 
     while((buf = jqueue_pull(s->wbufq)) != NULL)
         _sx_buffer_free(buf);
@@ -109,8 +109,8 @@ void sx_free(sx_t s) {
 
     if(s->nad != NULL) nad_free(s->nad);
 
-    if(s->auth_method != NULL) free(s->auth_method);
-    if(s->auth_id != NULL) free(s->auth_id);
+    if(s->auth_method != NULL) free((void*)s->auth_method);
+    if(s->auth_id != NULL) free((void*)s->auth_id);
 
     if(s->env != NULL) {
         _sx_debug(ZONE, "freeing %d env plugins", s->env->nplugins);
@@ -299,7 +299,7 @@ void _sx_buffer_alloc_margin(sx_buf_t buf, int before, int after)
 }
 
 /** utility: reset a sx_buf_t's contents. If newheap is non-NULL it is assumed to be 'data's malloc block and ownership of the block is taken by the buffer. If newheap is NULL then the data is copied. */
-void _sx_buffer_set(sx_buf_t buf, char *newdata, int newlength, char *newheap)
+void _sx_buffer_set(sx_buf_t buf, char* newdata, int newlength, char* newheap)
 {
     if (newheap == NULL) {
         buf->len = 0;

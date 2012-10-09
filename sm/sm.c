@@ -277,7 +277,7 @@ int sm_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg)
 }
 
 /** send a new action route */
-void sm_c2s_action(sess_t dest, char *action, char *target) {
+void sm_c2s_action(sess_t dest, const char *action, const char *target) {
     nad_t nad;
     int rns, sns;
 
@@ -310,7 +310,7 @@ void sm_c2s_action(sess_t dest, char *action, char *target) {
 }
 
 /** this is gratuitous, but apache gets one, so why not? */
-void sm_signature(sm_t sm, char *str) {
+void sm_signature(sm_t sm, const char *str) {
     if (sm->siglen == 0) {
         snprintf(&sm->signature[sm->siglen], 2048 - sm->siglen, "%s", str);
         sm->siglen += strlen(str);
@@ -321,7 +321,7 @@ void sm_signature(sm_t sm, char *str) {
 }
 
 /** register a new global ns */
-int sm_register_ns(sm_t sm, char *uri) {
+int sm_register_ns(sm_t sm, const char *uri) {
     int ns_idx;
 
     ns_idx = (int) (long) xhash_get(sm->xmlns, uri);
@@ -335,7 +335,7 @@ int sm_register_ns(sm_t sm, char *uri) {
 }
 
 /** unregister a global ns */
-void sm_unregister_ns(sm_t sm, char *uri) {
+void sm_unregister_ns(sm_t sm, const char *uri) {
     int refcount = (int) (long) xhash_get(sm->xmlns_refcount, uri);
     if (refcount == 1) {
         xhash_zap(sm->xmlns, uri);
@@ -346,7 +346,7 @@ void sm_unregister_ns(sm_t sm, char *uri) {
 }
 
 /** get a globally registered ns */
-int sm_get_ns(sm_t sm, char *uri) {
+int sm_get_ns(sm_t sm, const char *uri) {
     return (int) (long) xhash_get(sm->xmlns, uri);
 }
 

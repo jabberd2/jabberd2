@@ -73,7 +73,7 @@ static void _sm_signal_usr2(int signum)
 
 /** store the process id */
 static void _sm_pidfile(sm_t sm) {
-    char *pidfile;
+    const char *pidfile;
     FILE *f;
     pid_t pid;
 

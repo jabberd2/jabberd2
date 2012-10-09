@@ -27,13 +27,13 @@ typedef BOOL (CALLBACK FNLOGONUSERA)(LPTSTR, LPTSTR, LPTSTR, DWORD, DWORD, PHAND
 FNLOGONUSERA *_LogonUserA = NULL;
 HANDLE hModule = NULL;
 
-static int _ar_ntlogon_user_exists(authreg_t ar, char *username, char *realm)
+static int _ar_ntlogon_user_exists(authreg_t ar, const char *username, const char *realm)
 {
 	/* we can't check if a user exists, so we just assume we have them all the time */
 	return 1;
 }
 
-static int _ar_ntlogon_check_password(authreg_t ar, char *username, char *realm, char password[257])
+static int _ar_ntlogon_check_password(authreg_t ar, const char *username, const char *realm, char password[257])
 {
 	HANDLE hToken = NULL;
 	if(!_LogonUserA) return 1;

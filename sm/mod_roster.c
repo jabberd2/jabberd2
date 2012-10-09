@@ -47,10 +47,10 @@ static void _roster_freeuser_walker(const char *key, int keylen, void *val, void
     jid_free(item->jid);
     
     if(item->name != NULL)
-        free(item->name);
+        free((void*)item->name);
 
     for(i = 0; i < item->ngroups; i++)
-        free(item->groups[i]);
+        free((void*)item->groups[i]);
     free(item->groups);
 
     free(item);
@@ -417,14 +417,14 @@ static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi
     {
         /* free the old name */
         if(item->name != NULL) {
-            free(item->name);
+            free((void*)item->name);
             item->name = NULL;
         }
 
         if (NAD_AVAL_L(pkt->nad, attr) > 0)
         {
-            item->name = (char *) malloc(sizeof(char) * (NAD_AVAL_L(pkt->nad, attr) + 1));
-            sprintf(item->name, "%.*s", NAD_AVAL_L(pkt->nad, attr), NAD_AVAL(pkt->nad, attr));
+            item->name = (const char *) malloc(sizeof(char) * (NAD_AVAL_L(pkt->nad, attr) + 1));
+            sprintf((char *)item->name, "%.*s", NAD_AVAL_L(pkt->nad, attr), NAD_AVAL(pkt->nad, attr));
         }
     }
 
@@ -432,7 +432,7 @@ static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi
     if(item->groups != NULL)
     {
         for(i = 0; i < item->ngroups; i++)
-            free(item->groups[i]);
+            free((void*)item->groups[i]);
         free(item->groups);
         item->ngroups = 0;
         item->groups = NULL;
@@ -446,10 +446,10 @@ static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi
         if(NAD_CDATA_L(pkt->nad, elem) >= 0)
         {
             /* make room and shove it in */
-            item->groups = (char **) realloc(item->groups, sizeof(char *) * (item->ngroups + 1));
+            item->groups = (const char **) realloc(item->groups, sizeof(char *) * (item->ngroups + 1));
 
-            item->groups[item->ngroups] = (char *) malloc(sizeof(char) * (NAD_CDATA_L(pkt->nad, elem) + 1));
-            sprintf(item->groups[item->ngroups], "%.*s", NAD_CDATA_L(pkt->nad, elem), NAD_CDATA(pkt->nad, elem));
+            item->groups[item->ngroups] = (const char *) malloc(sizeof(char) * (NAD_CDATA_L(pkt->nad, elem) + 1));
+            sprintf((char *)(item->groups[item->ngroups]), "%.*s", NAD_CDATA_L(pkt->nad, elem), NAD_CDATA(pkt->nad, elem));
 
             item->ngroups++;
         }
@@ -828,7 +828,7 @@ static void _roster_free(module_t mod)
     free(mroster);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
+DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
     module_t mod = mi->mod;
     mod_roster_t mroster;
 

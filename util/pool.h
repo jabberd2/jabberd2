@@ -97,8 +97,8 @@ typedef struct pool_struct
 # define pool_new() _pool_new(NULL,0)
 #endif
 
-JABBERD2_API pool_t _pool_new(char *file, int line); /* new pool :) */
-JABBERD2_API pool_t _pool_new_heap(int size, char *file, int line); /* creates a new memory pool with an initial heap size */
+JABBERD2_API pool_t _pool_new(const char *file, int line); /* new pool :) */
+JABBERD2_API pool_t _pool_new_heap(int size, const char *file, int line); /* creates a new memory pool with an initial heap size */
 JABBERD2_API void *pmalloc(pool_t, int size); /* wrapper around malloc, takes from the pool, cleaned up automatically */
 JABBERD2_API void *pmalloc_x(pool_t p, int size, char c); /* Wrapper around pmalloc which prefils buffer with c */
 JABBERD2_API void *pmalloco(pool_t p, int size); /* YAPW for zeroing the block */

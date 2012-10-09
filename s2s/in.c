@@ -64,7 +64,8 @@ int in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg)
     conn_t in = (conn_t) arg;
     s2s_t s2s = (s2s_t) arg;
     struct sockaddr_storage sa;
-    int namelen = sizeof(sa), port, nbytes, flags = 0;
+    socklen_t namelen = sizeof(sa);
+    int port, nbytes, flags = 0;
     char ipport[INET6_ADDRSTRLEN + 17];
 
     switch(a) {
@@ -250,7 +251,7 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
                    /* remove the initial (non-SSL) stream id from the in connections hash */
                    xhash_zap(in->s2s->in, in->key);
-                   free(in->key);
+                   free((void*)in->key);
                 }
 
                 in->key = strdup(s->id);

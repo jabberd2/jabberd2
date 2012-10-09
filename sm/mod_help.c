@@ -95,7 +95,7 @@ static mod_ret_t _help_pkt_sm(mod_instance_t mi, pkt_t pkt)
         if (jid_compare_full(pkt->from, jid) == 0) {
             /* make a copy of the nad so it can be dumped to a string */
             nad_t copy = nad_copy(pkt->nad);
-            char * xml;
+            const char * xml;
             int len;
             if (!copy) {
                 log_write(mod->mm->sm->log, LOG_ERR, "%s:%d help admin %s is messaging sm for help! packet dropped. (unable to print packet - out of memory?)", ZONE, jid_full(jid));
@@ -168,7 +168,7 @@ static void _help_disco_extend(mod_instance_t mi, pkt_t pkt)
     }
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
+DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
     module_t mod = mi->mod;
 
     if(mod->init) return 0;

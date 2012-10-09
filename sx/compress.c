@@ -343,7 +343,7 @@ int sx_compress_init(sx_env_t env, sx_plugin_t p, va_list args) {
     return 0;
 }
 
-int sx_compress_client_compress(sx_plugin_t p, sx_t s, char *pemfile) {
+int sx_compress_client_compress(sx_plugin_t p, sx_t s, const char *pemfile) {
     assert((int) (p != NULL));
     assert((int) (s != NULL));
 
