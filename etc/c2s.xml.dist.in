@@ -483,6 +483,23 @@
       <!-- Database username and password -->
       <user>jabberd2</user>
       <pass>secret</pass>
+
+      <!-- Passwords in DB may be stored in plain or hashed format -->
+      <!-- NOTE: If you are using hashed passwords, the only auth
+                 method that will work is PLAIN.
+                 Make sure that you disabled others in 'mechanisms'
+                 sections of the config file. -->
+      <password_type>
+        <!-- only one may be enabled here -->
+        <plaintext/>
+        <!-- use crypt(3)ed passwords
+        <crypt/>
+        -->
+        <!-- use A1HASH passwords
+		     This stores the MD5 digest of user:realm:password in the database
+        <a1hash/>
+        -->
+      </password_type>
     </pgsql>
 
     <!-- Oracle driver configuration -->

@@ -20,12 +20,43 @@
 
 /* this module talks to a PostgreSQL server via libpq */
 
+#define _XOPEN_SOURCE 500
 #include "c2s.h"
 #include <libpq-fe.h>
+
+/* Windows does not have the crypt() function, let's take DES_crypt from OpenSSL instead */
+#if defined(HAVE_OPENSSL_CRYPTO_H) && defined(_WIN32)
+#include <openssl/des.h>
+#define crypt DES_crypt
+#define HAVE_CRYPT 1
+#else
+#ifdef HAVE_CRYPT
+#include <unistd.h>
+#endif
+#endif
+
+#ifdef HAVE_SSL
+/* We use OpenSSL's MD5 routines for the a1hash password type */
+#include <openssl/md5.h>
+#endif
 
 #define PGSQL_LU  1024   /* maximum length of username - should correspond to field length */
 #define PGSQL_LR   256   /* maximum length of realm - should correspond to field length */
 #define PGSQL_LP   256   /* maximum length of password - should correspond to field length */
+
+enum pgsql_pws_crypt {
+    MPC_PLAIN,
+#ifdef HAVE_CRYPT
+    MPC_CRYPT,
+#endif
+#ifdef HAVE_SSL
+    MPC_A1HASH,
+#endif
+};
+
+#ifdef HAVE_CRYPT
+static char salter[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ./";
+#endif
 
 typedef struct pgsqlcontext_st {
   PGconn * conn;
@@ -35,7 +66,26 @@ typedef struct pgsqlcontext_st {
   const char * sql_delete;
   const char * sql_check_password;
   const char * field_password;
+  enum pgsql_pws_crypt password_type;
   } *pgsqlcontext_t;
+
+#ifdef HAVE_SSL
+static void calc_a1hash(const char *username, const char *realm, const char *password, char *a1hash)
+{
+#define A1PPASS_LEN PGSQL_LU + 1 + PGSQL_LR + 1 + PGSQL_LP + 1 /* user:realm:password\0 */
+    char buf[A1PPASS_LEN];
+    unsigned char md5digest[MD5_DIGEST_LENGTH];
+    int i;
+
+    snprintf(buf, A1PPASS_LEN, "%.*s:%.*s:%.*s", PGSQL_LU, username, PGSQL_LR, realm, PGSQL_LP, password);
+
+    MD5((unsigned char*)buf, strlen(buf), md5digest);
+
+    for(i=0; i<16; i++) {
+        sprintf(a1hash+i*2, "%02hhx", md5digest[i]);
+    }
+}
+#endif
 
 static PGresult *_ar_pgsql_get_user_tuple(authreg_t ar, const char *username, const char *realm) {
     pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
@@ -123,7 +173,7 @@ static int _ar_pgsql_get_password(authreg_t ar, const char *username, const char
     return 0;
 }
 
-static int _ar_pgsql_check_password(authreg_t ar, const char *username, const char *realm, char password[257])
+static int _ar_pgsql_dbcheck_password(authreg_t ar, const char *username, const char *realm, char password[257])
 {
     pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
     PGconn *conn = ctx->conn;
@@ -190,6 +240,63 @@ static int _ar_pgsql_check_password(authreg_t ar, const char *username, const ch
 
     return retval;
 };
+
+static int _ar_pgsql_check_password(authreg_t ar, const char *username, const char *realm, char password[257])
+{
+    pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
+    PGconn *conn = ctx->conn;
+    char db_pw_value[257];
+#ifdef HAVE_CRYPT
+    char *crypted_pw;
+#endif
+#ifdef HAVE_SSL
+    char a1hash_pw[33];
+#endif
+    int ret;
+
+    ret = _ar_pgsql_get_password(ar, username, realm, db_pw_value);
+    /* return if error */
+    if (ret)
+        return ret;
+
+    switch (ctx->password_type) {
+        case MPC_PLAIN:
+                ret = (strcmp(password, db_pw_value) != 0);
+                break;
+
+#ifdef HAVE_CRYPT
+        case MPC_CRYPT:
+                crypted_pw = crypt(password,db_pw_value);
+                ret = (strcmp(crypted_pw, db_pw_value) != 0);
+                break;
+#endif
+
+#ifdef HAVE_SSL
+        case MPC_A1HASH:
+                if (strchr(username, ':')) {
+                    ret = 1;
+                    log_write(ar->c2s->log, LOG_ERR, "Username cannot contain : with a1hash encryption type.");
+                    break;
+                }
+                if (strchr(realm, ':')) {
+                    ret = 1;
+                    log_write(ar->c2s->log, LOG_ERR, "Realm cannot contain : with a1hash encryption type.");
+                    break;
+                }
+                calc_a1hash(username, realm, password, a1hash_pw);
+                ret = (strncmp(a1hash_pw, db_pw_value, 32) != 0);
+                break;
+#endif
+
+        default:
+        /* should never happen */
+                ret = 1;
+                log_write(ar->c2s->log, LOG_ERR, "Unknown encryption type which passed through config check.");
+                break;
+    }
+
+    return ret;
+}
 
 static int _ar_pgsql_set_password(authreg_t ar, const char *username, const char *realm, char password[257]) {
     pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
@@ -433,6 +540,21 @@ int ar_init(authreg_t ar) {
 	       , "authreg.pgsql.table"
 	       , "authreg" );
 
+    /* get encryption type used in DB */
+    if (config_get_one(ar->c2s->config, "authreg.pgsql.password_type.plaintext", 0)) {
+        pgsqlcontext->password_type = MPC_PLAIN;
+#ifdef HAVE_CRYPT
+    } else if (config_get_one(ar->c2s->config, "authreg.pgsql.password_type.crypt", 0)) {
+        pgsqlcontext->password_type = MPC_CRYPT;
+#endif
+#ifdef HAVE_SSL
+    } else if (config_get_one(ar->c2s->config, "authreg.pgsql.password_type.a1hash", 0)) {
+        pgsqlcontext->password_type = MPC_A1HASH;
+#endif
+    } else {
+        pgsqlcontext->password_type = MPC_PLAIN;
+    }
+
     /* craft the default SQL statements */
     /* we leave unused statements allocated to simplify code - a small price to pay */
     /* bounds checking and parameter format verification will be perfomed if the statement is used (see next section) */
@@ -485,9 +607,12 @@ int ar_init(authreg_t ar) {
     const char *sql_check_password = _ar_pgsql_param( ar->c2s->config, "authreg.pgsql.sql.checkpassword", 0);
 
     if (sql_check_password) {
+        ar->check_password = _ar_pgsql_dbcheck_password;
         pgsqlcontext->sql_check_password = strdup(sql_check_password);
         if( _ar_pgsql_check_sql( ar, pgsqlcontext->sql_check_password, "sss" ) != 0 ) return 1;
     }
+    else
+        ar->check_password = _ar_pgsql_check_password;
 
     /* echo our configuration to debug */
     log_debug( ZONE, "SQL to create account: %s", pgsqlcontext->sql_create );
@@ -534,12 +659,13 @@ int ar_init(authreg_t ar) {
     pgsqlcontext->conn = conn;
 
     ar->user_exists = _ar_pgsql_user_exists;
-
-    if (pgsqlcontext->sql_check_password) {
-        ar->check_password = _ar_pgsql_check_password;
-    } else {
+    if (MPC_PLAIN == pgsqlcontext->password_type) {
+        /* only possible with plaintext passwords */
         ar->get_password = _ar_pgsql_get_password;
+    } else {
+        ar->get_password = NULL;
     }
+
     ar->set_password = _ar_pgsql_set_password;
     ar->create_user = _ar_pgsql_create_user;
     ar->delete_user = _ar_pgsql_delete_user;
