@@ -42,8 +42,8 @@ struct _roster_publish_group_cache_st {
 
 typedef struct _roster_publish_st {
     int publish, forcegroups, fixsubs, overridenames, mappedgroups, fixexist;
-    char *fetchdomain, *fetchuser, *fetchfixed, *dbtable;
-    char *groupprefix, *groupsuffix, *removedomain;
+    const char *fetchdomain, *fetchuser, *fetchfixed, *dbtable;
+    const char *groupprefix, *groupsuffix, *removedomain;
     int groupprefixlen, groupsuffixlen;
     time_t active_cache_ttl;
     time_t group_cache_ttl;
@@ -75,7 +75,7 @@ static void _roster_publish_free_group_cache_walker(const char *key, int keylen,
  * get group's descriptive name by it's text id
  * returned value needs to be freed by caller
  */
-static char *_roster_publish_get_group_name(sm_t sm, roster_publish_t rp, char *groupid)
+static const char *_roster_publish_get_group_name(sm_t sm, roster_publish_t rp, const char *groupid)
 {
     os_t os;
     os_object_t o;
@@ -144,10 +144,10 @@ static void _roster_publish_free_walker(xht roster, const char *key, void *val, 
     jid_free(item->jid);
     
     if(item->name != NULL)
-        free(item->name);
+        free((void*)item->name);
 
     for(i = 0; i < item->ngroups; i++)
-        free(item->groups[i]);
+        free((void*)item->groups[i]);
     free(item->groups);
 
     free(item);
@@ -205,7 +205,9 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
     roster_publish_t roster_publish = (roster_publish_t) mi->mod->private;
     os_t os, os_active;
     os_object_t o, o_active;
-    char *str, *group, filter[4096];
+    char *str;
+    const char *group;
+    char filter[4096];
     const char *fetchkey;
     int i,j,gpos,found,delete,checksm,tmp_to,tmp_from,tmp_do_change;
     item_t item;
@@ -471,7 +473,7 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                                         }
                                         /* remove group from roster item */
                                         if( delete ) {
-                                            free(item->groups[i]);
+                                            free((void*)item->groups[i]);
                                             for(j = i; j < item->ngroups-1; j++) {
                                                 item->groups[j]=item->groups[j+1];
                                             }
@@ -489,7 +491,7 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                                     xhash_put(user->roster, jid_full(item->jid), (void *) item);
                                     _roster_publish_save_item(user,item);
                                 } else {
-                                    free(group);
+                                    free((void*)group);
                                 }
                             } /* else if( roster_publish->forcegroups ) */
                         } /* end of if if( item == NULL ) */
@@ -519,7 +521,7 @@ static void _roster_publish_free(module_t mod) {
     free(roster_publish);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
+DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
     module_t mod = mi->mod;
     roster_publish_t roster_publish;
 

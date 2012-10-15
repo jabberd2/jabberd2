@@ -190,7 +190,7 @@
     <itemizedlist>
 
       <listitem>
-        <para><command>int mio_connect(mio_t m, int port, char *hostip, mio_handler_t app, void *arg)</command></para>
+        <para><command>int mio_connect(mio_t m, int port, const char *hostip, mio_handler_t app, void *arg)</command></para>
         <para><command>mio_connect()</command> initiates a connection to the given ip/port. This function returns immediately, and the connect continues in the background (in non-blocking mode). The application should call <link linkend='mio-check'><command>mio_read()</command></link> and/or <link linkend='mio-check'><command>mio_write()</command></link> after calling <command>mio_connect()</command> in order to receive events after the connection has completed.</para>
         <para>If the connect fails, the callback will be called with the <command>action_CLOSE</command> event.</para>
         <para>This function takes the following arguments:</para>
@@ -209,7 +209,7 @@
       </listitem>
 
       <listitem>
-        <para><command>int mio_listen(mio_t m, int port, char *sourceip, mio_handler_t app, void *arg)</command></para>
+        <para><command>int mio_listen(mio_t m, int port, const char *sourceip, mio_handler_t app, void *arg)</command></para>
         <para><command>mio_listen()</command> starts a listening socket on the given ip/port. The callback will be called with the <command>action_ACCEPT</command> action when a new connection is initiated.</para>
         <para>This function takes the following arguments:</para>
         <itemizedlist>
@@ -292,11 +292,11 @@
       <itemizedlist>
 
         <listitem>
-          <para><command>int access_allow(access_t access, char *ip, char *mask)</command></para>
+          <para><command>int access_allow(access_t access, const char *ip, const char *mask)</command></para>
         </listitem>
 
         <listitem>
-          <para><command>int access_deny(access_t access, char *ip, char *mask)</command></para>
+          <para><command>int access_deny(access_t access, const char *ip, const char *mask)</command></para>
         </listitem>
       
       </itemizedlist>
@@ -308,7 +308,7 @@
       <itemizedlist>
 
         <listitem>
-          <para><command>int access_check(access_t access, char *ip)</command></para>
+          <para><command>int access_check(access_t access, const char *ip)</command></para>
         </listitem>
 
       </itemizedlist>
@@ -345,7 +345,7 @@
       <itemizedlist>
 
         <listitem>
-          <para><command>log_t log_new(int syslog, char *ident, int facility)</command></para>
+          <para><command>log_t log_new(int syslog, const char *ident, int facility)</command></para>
         </listitem>
 
         <listitem>
@@ -447,11 +447,11 @@
       <itemizedlist>
 
         <listitem>
-          <para><command>int ser_string_get(char **dest, int *source, char *buf, int len)</command></para>
+          <para><command>int ser_string_get(char **dest, int *source, const char *buf, int len)</command></para>
         </listitem>
 
         <listitem>
-          <para><command>int ser_int_get(int *dest, int *source, char *buf, int len)</command></para>
+          <para><command>int ser_int_get(int *dest, int *source, const char *buf, int len)</command></para>
         </listitem>
       
       </itemizedlist>
@@ -462,11 +462,11 @@
       <itemizedlist>
 
         <listitem>
-          <para><command>void ser_string_set(char *source, int *dest, char **buf, int *len)</command></para>
+          <para><command>void ser_string_set(char *source, int *dest, const char **buf, int *len)</command></para>
         </listitem>
 
         <listitem>
-          <para><command>void ser_int_set(int source, int *dest, char **buf, int *len)</command></para>
+          <para><command>void ser_int_set(int source, int *dest, const char **buf, int *len)</command></para>
         </listitem>
       
       </itemizedlist>
@@ -527,7 +527,7 @@
       <itemizedlist>
 
         <listitem>
-          <para><command>void spool_add(spool s, char *str)</command></para>
+          <para><command>void spool_add(spool s, const char *str)</command></para>
         </listitem>
 
         <listitem>

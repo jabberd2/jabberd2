@@ -34,7 +34,7 @@
  */
 
 /** register a feature */
-void feature_register(sm_t sm, char *feature)
+void feature_register(sm_t sm, const char *feature)
 {
     log_debug(ZONE, "registering feature %s", feature);
 
@@ -42,7 +42,7 @@ void feature_register(sm_t sm, char *feature)
 }
 
 /** unregister feature */
-void feature_unregister(sm_t sm, char *feature)
+void feature_unregister(sm_t sm, const char *feature)
 {
     int refcount = (int) (long) xhash_get(sm->features, feature);
 

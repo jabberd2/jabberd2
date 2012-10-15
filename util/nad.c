@@ -1112,7 +1112,7 @@ static int _nad_lp0(nad_t nad, int elem)
     return elem;
 }
 
-void nad_print(nad_t nad, int elem, char **xml, int *len)
+void nad_print(nad_t nad, int elem, const char **xml, int *len)
 {
     int ixml = nad->ccur;
 

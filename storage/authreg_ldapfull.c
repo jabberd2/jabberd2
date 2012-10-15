@@ -60,16 +60,16 @@ typedef struct moddata_st
 
     LDAP *ld;
 
-    char *uri;
+    const char *uri;
 
-    char *binddn;
-    char *bindpw;
+    const char *binddn;
+    const char *bindpw;
 
-    char *objectclass;
-    char *uidattr;
-    char *validattr;
-    char *pwattr;
-    char *pwscheme;
+    const char *objectclass;
+    const char *uidattr;
+    const char *validattr;
+    const char *pwattr;
+    const char *pwscheme;
 
     int fulluid; // use "uid@realm" in ldap searches (1) or just use "uid" (0)
     int binded; // if we are binded with binddn and bindpw, then 1, otherwise 0
@@ -77,7 +77,7 @@ typedef struct moddata_st
     int srvtype;
 
     xht basedn;
-    char *default_basedn;
+    const char *default_basedn;
 } *moddata_t;
 
 //////////////////////////////////////////////////////////////////////////////
@@ -103,19 +103,19 @@ typedef struct _ldapfull_pw_scheme {
 
 int _ldapfull_hash_init(); // call it before use of other stuff
 #ifdef HAVE_SSL
-int _ldapfull_chk_hashed(moddata_t data, const char *scheme, int salted, const char *hash, const char *passwd);
-int _ldapfull_set_hashed(moddata_t data, const char *scheme, const char *prefix, int saltlen, const char *passwd, char *buf, int buflen);
+static int _ldapfull_chk_hashed(moddata_t data, const char *scheme, int salted, const char *hash, const char *passwd);
+static int _ldapfull_set_hashed(moddata_t data, const char *scheme, const char *prefix, int saltlen, const char *passwd, char *buf, int buflen);
 #endif
 #ifdef HAVE_CRYPT
-int _ldapfull_chk_crypt(moddata_t data, const char *scheme, int salted, const char *hash, const char *passwd);
-int _ldapfull_set_crypt(moddata_t data, const char *scheme, const char *prefix, int saltlen, const char *passwd, char *buf, int buflen);
+static int _ldapfull_chk_crypt(moddata_t data, const char *scheme, int salted, const char *hash, const char *passwd);
+static int _ldapfull_set_crypt(moddata_t data, const char *scheme, const char *prefix, int saltlen, const char *passwd, char *buf, int buflen);
 #endif
-int _ldapfull_chk_clear(moddata_t data, const char *scheme, int salted, const char *hash, const char *passwd);
-int _ldapfull_set_clear(moddata_t data, const char *scheme, const char *prefix, int saltlen, const char *passwd, char *buf, int buflen);
+static int _ldapfull_chk_clear(moddata_t data, const char *scheme, int salted, const char *hash, const char *passwd);
+static int _ldapfull_set_clear(moddata_t data, const char* scheme, const char* prefix, int saltlen, const char* passwd, char* buf, int buflen);
 
-int _ldapfull_check_passhash(moddata_t data, const char *hash, const char *passwd);
-int _ldapfull_set_passhash(moddata_t data, char *scheme_name, const char *passwd, char *buf, int buflen);
-static int _ldapfull_check_password_bind(authreg_t ar, char *username, char *realm, char password[LDAPFULL_PASSBUF_MAX]);
+static int _ldapfull_check_passhash(moddata_t data, const char *hash, const char *passwd);
+static int _ldapfull_set_passhash(moddata_t data, const char* scheme_name, const char* passwd, char* buf, int buflen);
+static int _ldapfull_check_password_bind(authreg_t ar, const char *username, const char *realm, char password[LDAPFULL_PASSBUF_MAX]);
 
 ldapfull_pw_scheme _ldapfull_pw_schemas[] = {
 #ifdef HAVE_SSL
@@ -178,7 +178,7 @@ int _ldapfull_check_passhash(moddata_t data, const char *hash, const char *passw
 // general set_password
 // returns 1 if password in buf is set, 0 otherwise
 // must provide with buffer of sufficient length, or it will fail
-int _ldapfull_set_passhash(moddata_t data, char *scheme_name, const char *passwd, char *buf, int buflen) {
+int _ldapfull_set_passhash(moddata_t data, const char *scheme_name, const char *passwd, char *buf, int buflen) {
     int n;
 
     if( ! passwd ) {
@@ -218,12 +218,12 @@ int _ldapfull_set_clear(moddata_t data, const char *scheme, const char *prefix, 
         log_write(data->ar->c2s->log,LOG_ERR,"_ldapfull_set_clear: buffer is too short (%i bytes)",buflen);
         return 0;
     }
-    strcpy(buf,passwd);
+    strcpy(buf, passwd);
     return 1;
 }
 
 #ifdef HAVE_SSL
-int _ldapfull_base64_decode( const char *src, char **ret, int *rlen ) {
+int _ldapfull_base64_decode( const char *src, const char **ret, int *rlen ) {
     unsigned int rc, i, tlen = 0;
     char *text;
     EVP_ENCODE_CTX EVP_ctx;
@@ -250,7 +250,7 @@ int _ldapfull_base64_decode( const char *src, char **ret, int *rlen ) {
     return 1;
 }
 
-int _ldapfull_base64_encode( const char *src, int srclen, char **ret, int *rlen ) {
+static int _ldapfull_base64_encode( const char *src, int srclen, char **ret, int *rlen ) {
     int tlen = 0;
     char *text;
     EVP_ENCODE_CTX EVP_ctx;
@@ -273,7 +273,7 @@ int _ldapfull_base64_encode( const char *src, int srclen, char **ret, int *rlen 
 }
 
 int _ldapfull_chk_hashed(moddata_t data, const char *scheme, int salted, const char *hash, const char *passwd) {
-    char *bhash; // binary hash, will get it from base64
+    const char *bhash; // binary hash, will get it from base64
     EVP_MD_CTX mdctx;
     const EVP_MD *md;
     unsigned char digest[EVP_MAX_MD_SIZE];
@@ -296,17 +296,18 @@ int _ldapfull_chk_hashed(moddata_t data, const char *scheme, int salted, const c
     EVP_DigestFinal(&mdctx, digest, NULL);
 
     rc = memcmp((char *)bhash, (char *)digest, EVP_MD_size(md));
-    free(bhash);
+    free((void*)bhash);
     return !rc;
 }
 
 int _ldapfull_set_hashed(moddata_t data, const char *scheme, const char *prefix, int saltlen, const char *passwd, char *buf, int buflen) {
-    char *hash; // base64 hash
+    char *hash = 0; // base64 hash
     EVP_MD_CTX mdctx;
     const EVP_MD *md;
     unsigned char *digest;
     unsigned char *salt;
-    int hlen, plen, dlen, rc;
+    int hlen=0;
+    int plen, dlen, rc;
 
     md = EVP_get_digestbyname(scheme);
     if (!md) {
@@ -508,9 +509,10 @@ static int _ldapfull_connect_bind(moddata_t data)
 }
 
 /** do a search, return the dn */
-static char *_ldapfull_search(moddata_t data, char *realm, char *username)
+static char *_ldapfull_search(moddata_t data, const char *realm, const char *username)
 {
-    char validfilter[256], filter[1024], *dn, *no_attrs[] = { NULL }, *basedn;
+    char validfilter[256], filter[1024], *dn, *no_attrs[] = { NULL };
+    const char *basedn;
     LDAPMessage *result, *entry;
     int tried = 0;
 
@@ -584,7 +586,7 @@ retry:
 }
 
 /** do we have this user? */
-static int _ldapfull_find_user_dn(moddata_t data, char *username, char *realm, char **dn)
+static int _ldapfull_find_user_dn(moddata_t data, const char *username, const char *realm, const char **dn)
 {
     *dn = NULL;
     if(_ldapfull_connect_bind(data))
@@ -597,11 +599,11 @@ static int _ldapfull_find_user_dn(moddata_t data, char *username, char *realm, c
 }
 
 /** do we have this user? */
-static int _ldapfull_user_exists(authreg_t ar, char *username, char *realm)
+static int _ldapfull_user_exists(authreg_t ar, const char *username, const char *realm)
 {
-    char *dn;
+    const char *dn;
     if (_ldapfull_find_user_dn((moddata_t) ar->private, username, realm, &dn)) {
-        ldap_memfree(dn);
+        ldap_memfree((void*)dn);
         return 1;
     }
     return 0;
@@ -610,12 +612,12 @@ static int _ldapfull_user_exists(authreg_t ar, char *username, char *realm)
 /** This method determines the DN of the user and does a new simple bind of the LDAP
 server. If the server allows it, the user has been authenticated.
 */
-static int _ldapfull_check_password_bind(authreg_t ar, char *username, char *realm, char password[LDAPFULL_PASSBUF_MAX])
+static int _ldapfull_check_password_bind(authreg_t ar, const char *username, const char *realm, char password[LDAPFULL_PASSBUF_MAX])
 {
     moddata_t data = (moddata_t) ar->private;
     struct moddata_st bind_data;
     int invalid;
-    char *dn;
+    const char *dn;
 
     if (!_ldapfull_find_user_dn(data, username, realm, &dn)) {
         log_debug(ZONE, "User %s not found", username);
@@ -629,15 +631,16 @@ static int _ldapfull_check_password_bind(authreg_t ar, char *username, char *rea
     invalid = _ldapfull_connect_bind(&bind_data);
     if (!invalid)
         _ldapfull_unbind(&bind_data);
-    ldap_memfree(dn);
+    ldap_memfree((void*)dn);
     return invalid;
 }
 
 // get password from jabberPassword attribute
-static int _ldapfull_get_password(authreg_t ar, char *username, char *realm, char password[LDAPFULL_PASSBUF_MAX]) {
+static int _ldapfull_get_password(authreg_t ar, const char *username, const char *realm, char password[LDAPFULL_PASSBUF_MAX]) {
     moddata_t data = (moddata_t) ar->private;
     LDAPMessage *result, *entry;
-    char *dn, *no_attrs[] = { data->pwattr, NULL }, **vals;
+    const char *dn, *no_attrs[] = { data->pwattr, NULL };
+    char **vals;
 
     log_debug(ZONE, "getting password for %s", username);
 
@@ -649,15 +652,15 @@ static int _ldapfull_get_password(authreg_t ar, char *username, char *realm, cha
     if(dn == NULL)
         return 1;
 
-    if(ldap_search_s(data->ld, dn, LDAP_SCOPE_BASE, "(objectClass=*)", no_attrs, 0, &result))
+    if(ldap_search_s(data->ld, dn, LDAP_SCOPE_BASE, "(objectClass=*)", (char**)no_attrs, 0, &result))
     {
         log_write(data->ar->c2s->log, LOG_ERR, "ldap: search %s failed: %s", dn, ldap_err2string(_ldapfull_get_lderrno(data->ld)));
-        ldap_memfree(dn);
+        ldap_memfree((void*)dn);
         _ldapfull_unbind(data);
         return 1;
     }
 
-    ldap_memfree(dn);
+    ldap_memfree((void*)dn);
 
     entry = ldap_first_entry(data->ld, result);
     if(entry == NULL)
@@ -666,7 +669,7 @@ static int _ldapfull_get_password(authreg_t ar, char *username, char *realm, cha
         return 1;
     }
     
-    vals=(char **)ldap_get_values(data->ld,entry,data->pwattr);
+    vals=ldap_get_values(data->ld,entry,data->pwattr);
     if( ldap_count_values(vals) <= 0 ) {
         ldap_value_free(vals);
         ldap_msgfree(result);
@@ -684,7 +687,7 @@ static int _ldapfull_get_password(authreg_t ar, char *username, char *realm, cha
 }
 
 // set password from jabberPassword attribute
-static int _ldapfull_set_password(authreg_t ar, char *username, char *realm, char password[LDAPFULL_PASSBUF_MAX]) {
+static int _ldapfull_set_password(authreg_t ar, const char *username, const char *realm, char password[LDAPFULL_PASSBUF_MAX]) {
     moddata_t data = (moddata_t) ar->private;
     LDAPMessage *result, *entry;
     LDAPMod *mods[2], attr_pw;
@@ -726,7 +729,7 @@ static int _ldapfull_set_password(authreg_t ar, char *username, char *realm, cha
     ldap_msgfree(result);
 
     attr_pw.mod_op = LDAP_MOD_REPLACE;
-    attr_pw.mod_type = data->pwattr;
+    attr_pw.mod_type = (char*)data->pwattr;
     attr_pw.mod_values = pw_mod_vals;
 
     mods[0] = &attr_pw;
@@ -744,7 +747,7 @@ static int _ldapfull_set_password(authreg_t ar, char *username, char *realm, cha
 }
 
 /** check the password */
-static int _ldapfull_check_password(authreg_t ar, char *username, char *realm, char password[LDAPFULL_PASSBUF_MAX])
+static int _ldapfull_check_password(authreg_t ar, const char *username, const char *realm, char password[LDAPFULL_PASSBUF_MAX])
 {
     moddata_t data = (moddata_t) ar->private;
     char buf[LDAPFULL_PASSBUF_MAX];
@@ -766,7 +769,7 @@ static int _ldapfull_check_password(authreg_t ar, char *username, char *realm, c
     return ! _ldapfull_check_passhash(data,buf,password);
 }
 
-static int _ldapfull_create_user(authreg_t ar, char *username, char *realm) {
+static int _ldapfull_create_user(authreg_t ar, const char *username, const char *realm) {
     if( _ldapfull_user_exists(ar,username,realm) ) {
         return 0;
     } else {
@@ -774,7 +777,7 @@ static int _ldapfull_create_user(authreg_t ar, char *username, char *realm) {
     }
 }
 
-static int _ldapfull_delete_user(authreg_t ar, char *username, char *realm) {
+static int _ldapfull_delete_user(authreg_t ar, const char *username, const char *realm) {
     return 0;
 }
 
@@ -795,7 +798,7 @@ static void _ldapfull_free(authreg_t ar)
 DLLEXPORT int ar_init(authreg_t ar)
 {
     moddata_t data;
-    char *uri, *realm, *srvtype_s;
+    const char *uri, *realm, *srvtype_s;
     config_elem_t basedn;
     int i,hascheck,srvtype_i;
 
@@ -835,7 +838,7 @@ DLLEXPORT int ar_init(authreg_t ar)
         if(realm == NULL)
             data->default_basedn = basedn->values[i];
         else
-            xhash_put(data->basedn, realm, basedn->values[i]);
+            xhash_put(data->basedn, realm, (void*)basedn->values[i]);
 
         log_debug(ZONE, "realm '%s' has base dn '%s'", realm, basedn->values[i]);
     }

@@ -37,8 +37,9 @@ typedef struct _authreg_error_st {
 } *authreg_error_t;
 
 /** get a handle for the named module */
-authreg_t authreg_init(c2s_t c2s, char *name) {
-    char mod_fullpath[PATH_MAX], *modules_path;
+authreg_t authreg_init(c2s_t c2s, const char *name) {
+    char mod_fullpath[PATH_MAX];
+    const char *modules_path;
     ar_module_init_fn init_fn = NULL;
     authreg_t ar;
     void *handle;
@@ -120,7 +121,7 @@ void authreg_free(authreg_t ar) {
 }
 
 /** auth logger */
-inline static void _authreg_auth_log(c2s_t c2s, sess_t sess, char *method, char *username, char *resource, int success) {
+inline static void _authreg_auth_log(c2s_t c2s, sess_t sess, const char *method, const char *username, const char *resource, int success) {
     log_write(c2s->log, LOG_NOTICE, "[%d] %s authentication %s: %s@%s/%s %s:%d%s%s",
         sess->s->tag, method, success ? "succeeded" : "failed",
         username, sess->host->realm, resource,

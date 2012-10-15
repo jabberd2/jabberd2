@@ -170,7 +170,7 @@ JABBERD2_API int nad_add_namespace(nad_t nad, const char *uri, const char *prefi
 JABBERD2_API int nad_append_namespace(nad_t nad, int elem, const char *uri, const char *prefix);
 
 /** create a string representation of the given element (and children), point references to it */
-JABBERD2_API void nad_print(nad_t nad, int elem, char **xml, int *len);
+JABBERD2_API void nad_print(nad_t nad, int elem, const char **xml, int *len);
 
 /** serialize and deserialize a nad */
 JABBERD2_API void nad_serialize(nad_t nad, char **buf, int *len);

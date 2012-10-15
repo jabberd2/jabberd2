@@ -30,10 +30,10 @@
 /* user template - roster */
 
 typedef struct _template_roster_st {
-    sm_t    sm;
-    char    *filename;
-    time_t  mtime;
-    xht     items;
+    sm_t       sm;
+    const char *filename;
+    time_t     mtime;
+    xht        items;
 } *template_roster_t;
 
 /* union for xhash_iter_get to comply with strict-alias rules for gcc3 */
@@ -140,7 +140,7 @@ static int _template_roster_reload(template_roster_t tr) {
                 continue;
             }
 
-            item->groups = (char **) realloc(item->groups, sizeof(char *) * (item->ngroups + 1));
+            item->groups = (const char **) realloc(item->groups, sizeof(char *) * (item->ngroups + 1));
             item->groups[item->ngroups] = pstrdupx(xhash_pool(tr->items), NAD_CDATA(nad, egroup), NAD_CDATA_L(nad, egroup));
             item->ngroups++;
 
@@ -242,9 +242,9 @@ static void _template_roster_free(module_t mod) {
     free(tr);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
+DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
     module_t mod = mi->mod;
-    char *filename;
+    const char *filename;
     template_roster_t tr;
 
     if(mod->init) return 0;

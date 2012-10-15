@@ -98,8 +98,8 @@ typedef int (*sx_plugin_init_t)(sx_env_t env, sx_plugin_t p, va_list args);
 /** error info for event_ERROR */
 typedef struct _sx_error_st {
     int                     code;
-    char                    *generic;
-    char                    *specific;
+    const char              *generic;
+    const char              *specific;
 } sx_error_t;
 
 /** helper macro to populate this struct */
@@ -154,7 +154,7 @@ JABBERD2_API sx_t                        sx_new(sx_env_t env, int tag, sx_callba
 JABBERD2_API void                        sx_free(sx_t s);
 
 /* get things ready */
-JABBERD2_API void                        sx_client_init(sx_t s, unsigned int flags, char *ns, char *to, char *from, char *version);
+JABBERD2_API void                        sx_client_init(sx_t s, unsigned int flags, const char *ns, const char *to, const char *from, const char *version);
 JABBERD2_API void                        sx_server_init(sx_t s, unsigned int flags);
 
 /* activity on socket, do stuff! (returns 1 if more read/write actions wanted, 0 otherwise) */
@@ -166,7 +166,7 @@ JABBERD2_API void                        sx_nad_write_elem(sx_t s, nad_t nad, in
 #define sx_nad_write(s,nad) sx_nad_write_elem(s, nad, 0)
 
 /** sending raw data */
-JABBERD2_API void                        sx_raw_write(sx_t s, char *buf, int len);
+JABBERD2_API void                        sx_raw_write(sx_t s, const char *buf, int len);
 
 /** authenticate the stream and move to the auth'd state */
 JABBERD2_API void                        sx_auth(sx_t s, const char *auth_method, const char *auth_id);
@@ -228,7 +228,7 @@ JABBERD2_API void                        _sx_buffer_set(sx_buf_t buf, char *newd
 JABBERD2_API int                         _sx_nad_write(sx_t s, nad_t nad, int elem);
 
 /** sending raw data (internal) */
-JABBERD2_API void                        sx_raw_write(sx_t s, char *buf, int len);
+JABBERD2_API void                        sx_raw_write(sx_t s, const char *buf, int len);
 
 /** reset stream state without informing the app */
 JABBERD2_API void                        _sx_reset(sx_t s);
@@ -257,7 +257,7 @@ struct _sx_st {
 
 	/* IP address of the connection */
 	/* pointing to sess.ip and owned by sess structure */
-	char                    *ip;
+	const char              *ip;
 
 	/* TCP port of the connection */
 	/* pointing to sess.port and owned by sess structure */
@@ -274,20 +274,20 @@ struct _sx_st {
     unsigned int             flags;
 
     /* application namespace */
-    char                    *ns;
+    const char              *ns;
 
     /* requested stream properties */
-    char                    *req_to;
-    char                    *req_from;
-    char                    *req_version;
+    const char              *req_to;
+    const char              *req_from;
+    const char              *req_version;
 
     /* responded stream properties */
-    char                    *res_to;
-    char                    *res_from;
-    char                    *res_version;
+    const char              *res_to;
+    const char              *res_from;
+    const char              *res_version;
 
     /* stream id */
-    char                    *id;
+    const char              *id;
 
     /* io chain */
     _sx_chain_t              wio, rio;
@@ -324,8 +324,8 @@ struct _sx_st {
     void                   **plugin_data;
 
     /* type and id of auth */
-    char                    *auth_method;
-    char                    *auth_id;
+    const char              *auth_method;
+    const char              *auth_id;
 
     /* if true, then we were called from the callback */
     int                     reentry;

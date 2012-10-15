@@ -138,7 +138,7 @@ struct _Gsasl_digest_md5_server_state
 typedef struct _Gsasl_digest_md5_server_state _Gsasl_digest_md5_server_state;
 
 /** utility: generate a success nad */
-static nad_t _sx_sasl_success(sx_t s, char *data, int dlen) {
+static nad_t _sx_sasl_success(sx_t s, const char *data, int dlen) {
     nad_t nad;
     int ns;
 
@@ -168,7 +168,7 @@ static nad_t _sx_sasl_failure(sx_t s, const char *err) {
 }
 
 /** utility: generate a challenge nad */
-static nad_t _sx_sasl_challenge(sx_t s, char *data, int dlen) {
+static nad_t _sx_sasl_challenge(sx_t s, const char *data, int dlen) {
     nad_t nad;
     int ns;
 
@@ -183,7 +183,7 @@ static nad_t _sx_sasl_challenge(sx_t s, char *data, int dlen) {
 }
 
 /** utility: generate a response nad */
-static nad_t _sx_sasl_response(sx_t s, char *data, int dlen) {
+static nad_t _sx_sasl_response(sx_t s, const char *data, int dlen) {
     nad_t nad;
     int ns;
 
@@ -403,7 +403,7 @@ static void _sx_sasl_notify_success(sx_t s, void *arg) {
 }
 
 /** process handshake packets from the client */
-static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, char *mech, char *in, int inlen) {
+static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, const char *mech, const char *in, int inlen) {
     _sx_sasl_t ctx = (_sx_sasl_t) p->private;
     char *buf = NULL, *out = NULL, *realm = NULL, **ext_id;
     char hostname[256];
@@ -588,7 +588,7 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, ch
 }
 
 /** process handshake packets from the server */
-static void _sx_sasl_server_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, char *in, int inlen) {
+static void _sx_sasl_server_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, const char *in, int inlen) {
     char *buf = NULL, *out = NULL;
     size_t buflen, outlen;
     int ret;
@@ -924,7 +924,7 @@ static void _sx_sasl_unload(sx_plugin_t p) {
 
 /** args: appname, callback, cb arg */
 int sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args) {
-    char *appname;
+    const char *appname;
     sx_sasl_callback_t cb;
     void *cbarg;
     _sx_sasl_t ctx;
@@ -932,7 +932,7 @@ int sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args) {
 
     _sx_debug(ZONE, "initialising sasl plugin");
 
-    appname = va_arg(args, char *);
+    appname = va_arg(args, const char *);
     if(appname == NULL) {
         _sx_debug(ZONE, "appname was NULL, failing");
         return 1;
@@ -976,7 +976,7 @@ int sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args) {
 }
 
 /** kick off the auth handshake */
-int sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, char *pass) {
+int sx_sasl_auth(sx_plugin_t p, sx_t s, const char *appname, const char *mech, const char *user, const char *pass) {
     _sx_sasl_t ctx = (_sx_sasl_t) p->private;
     Gsasl_session *sd;
     char *buf = NULL, *out = NULL;

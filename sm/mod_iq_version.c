@@ -259,7 +259,7 @@ static void _iq_version_free(module_t mod) {
     free(config);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
+DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
     mod_iq_version_config_t config;
     module_t mod = mi->mod;
 

@@ -32,7 +32,7 @@
 typedef struct drvdata_st {
     MYSQL *conn;
 
-    char *prefix;
+    const char *prefix;
 
     int txn;
 } *drvdata_t;
@@ -170,9 +170,8 @@ static st_ret_t _st_mysql_put_guts(st_driver_t drv, const char *type, const char
     os_object_t o;
     char *key, *cval = NULL;
     void *val;
-    int vlen;
     os_type_t ot;
-    char *xml;
+    const char *xml;
     int xlen;
     char tbuf[128];
 
@@ -200,24 +199,22 @@ static st_ret_t _st_mysql_put_guts(st_driver_t drv, const char *type, const char
                     switch(ot) {
                         case os_type_BOOLEAN:
                             cval = val ? strdup("1") : strdup("0");
-                            vlen = 1;
                             break;
         
                         case os_type_INTEGER:
                             cval = (char *) malloc(sizeof(char) * 20);
-                            sprintf(cval, "%d", (int) val);
-                            vlen = strlen(cval);
+                            sprintf(cval, "%ld", (long int) val);
                             break;
         
                         case os_type_STRING:
                             cval = (char *) malloc(sizeof(char) * ((strlen((char *) val) * 2) + 1));
-                            vlen = mysql_real_escape_string(data->conn, cval, (char *) val, strlen((char *) val));
+                            mysql_real_escape_string(data->conn, cval, (char *) val, strlen((char *) val));
                             break;
         
                         case os_type_NAD:
                             nad_print((nad_t) val, 0, &xml, &xlen);
                             cval = (char *) malloc(sizeof(char) * ((xlen * 2) + 4));
-                            vlen = mysql_real_escape_string(data->conn, &cval[3], xml, xlen) + 3;
+                            mysql_real_escape_string(data->conn, &cval[3], xml, xlen);
                             strncpy(cval, "NAD", 3);
                             break;
 
@@ -303,7 +300,6 @@ static st_ret_t _st_mysql_get(st_driver_t drv, const char *type, const char *own
     int ntuples, nfields, i, j;
     MYSQL_FIELD *fields;
     MYSQL_ROW tuple;
-    unsigned long *lengths;
     os_object_t o;
     char *val;
     os_type_t ot;
@@ -375,7 +371,7 @@ static st_ret_t _st_mysql_get(st_driver_t drv, const char *type, const char *own
             if(tuple[j] == NULL)
                 continue;
 
-            lengths = mysql_fetch_lengths(res);
+            // mysql_fetch_lengths(res); // TODO check if mysql_fetch_lengths must be called.
 
             switch(fields[j].type) {
                 case FIELD_TYPE_TINY:   /* tinyint */
@@ -579,7 +575,7 @@ static void _st_mysql_free(st_driver_t drv) {
 }
 
 DLLEXPORT st_ret_t st_init(st_driver_t drv) {
-    char *host, *port, *dbname, *user, *pass;
+    const char *host, *port, *dbname, *user, *pass;
     MYSQL *conn;
     drvdata_t data;
 

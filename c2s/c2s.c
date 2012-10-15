@@ -507,7 +507,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
     return 0;
 }
 
-static int _c2s_client_accept_check(c2s_t c2s, mio_fd_t fd, char *ip) {
+static int _c2s_client_accept_check(c2s_t c2s, mio_fd_t fd, const char *ip) {
     rate_t rt;
 
     if(access_check(c2s->access, ip) == 0) {
@@ -539,7 +539,8 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
     c2s_t c2s = (c2s_t) arg;
     bres_t bres;
     struct sockaddr_storage sa;
-    int namelen = sizeof(sa), port, nbytes, flags = 0;
+    socklen_t namelen = sizeof(sa);
+    int port, nbytes, flags = 0;
 
     switch(a) {
         case action_READ:
@@ -705,6 +706,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
     char skey[44];
     sess_t sess;
     bres_t bres, ires;
+    char *smcomp;
 
     switch(e) {
         case event_WANT_READ:
@@ -978,7 +980,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     target = nad_find_attr(nad, 1, -1, "target", NULL);
                     smid = nad_find_attr(nad, 1, ns, "sm", NULL);
                     if(target < 0 || smid < 0) {
-                        char *buf;
+                        const char *buf;
                         int len;
                         nad_print(nad, 0, &buf, &len);
                         log_write(c2s->log, LOG_NOTICE, "sm sent an invalid start packet: %.*s", len, buf );
@@ -1261,8 +1263,11 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
                     /* and remember the SM that services us */
                     from = nad_find_attr(nad, 0, -1, "from", NULL);
-                    sess->smcomp = malloc(NAD_AVAL_L(nad, from) + 1);
-                    snprintf(sess->smcomp, NAD_AVAL_L(nad, from) + 1, "%.*s", NAD_AVAL_L(nad, from), NAD_AVAL(nad, from));
+                    
+                    
+                    smcomp = malloc(NAD_AVAL_L(nad, from) + 1);
+                    snprintf(smcomp, NAD_AVAL_L(nad, from) + 1, "%.*s", NAD_AVAL_L(nad, from), NAD_AVAL(nad, from));
+                    sess->smcomp = smcomp;
 
                     nad_free(nad);
 

@@ -93,7 +93,7 @@ static mod_ret_t _deliver_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt)
     return mod_PASS;
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
+DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
     module_t mod = mi->mod;
 
     if(mod->init) return 0;

@@ -24,7 +24,7 @@
 #include "s2s.h"
 
 /** generate a local/remote route key */
-char *s2s_route_key(pool_t p, char *local, char *remote) {
+char *s2s_route_key(pool_t p, const char *local, const char *remote) {
     char *key;
 
     if(local == NULL) local = "";
@@ -41,7 +41,7 @@ char *s2s_route_key(pool_t p, char *local, char *remote) {
 }
 
 /** match route key - used for searching route hash */
-int s2s_route_key_match(char *local, char *remote, char *rkey, int rkeylen) {
+int s2s_route_key_match(char *local, const char *remote, const char *rkey, int rkeylen) {
     char *klocal, *kremote;
     int ret;
 
@@ -58,7 +58,7 @@ int s2s_route_key_match(char *local, char *remote, char *rkey, int rkeylen) {
 }
 
 /** generate a dialback key */
-char *s2s_db_key(pool_t p, char *secret, char *remote, char *id) {
+char *s2s_db_key(pool_t p, const char *secret, const char *remote, const char *id) {
     char hash[41], buf[1024];
 
     _sx_debug(ZONE, "generating dialback key, secret %s, remote %s, id %s", secret, remote, id);

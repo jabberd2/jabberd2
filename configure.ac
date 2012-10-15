@@ -936,6 +936,9 @@ if test "x-$want_tests" = "x-yes" ; then
 fi
 AM_CONDITIONAL(ENABLE_TESTS, [test "x-$want_tests" = "x-yes"])
 
+AC_ARG_ENABLE([werror], AC_HELP_STRING([--enable-werror], [Treat all warnings as error]),
+              CFLAGS="-Wall -Werror -Wno-unused-result -Wno-pointer-sign -Wno-strict-overflow $CFLAGS")
+
 # Generate Makefiles
 AC_CONFIG_FILES([Doxyfile
                  Makefile

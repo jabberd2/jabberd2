@@ -105,11 +105,11 @@ struct _xdata_item_st {
 };
 
 /** creation */
-JABBERD2_API xdata_t xdata_new(xdata_type_t type, char *title, char *instructions);
+JABBERD2_API xdata_t xdata_new(xdata_type_t type, const char *title, const char *instructions);
 JABBERD2_API xdata_t xdata_parse(nad_t nad, int root);
 
 /** new field */
-JABBERD2_API xdata_field_t xdata_field_new(xdata_t xd, xdata_field_type_t type, char *var, char *label, char *desc, int required);
+JABBERD2_API xdata_field_t xdata_field_new(xdata_t xd, xdata_field_type_t type, const char *var, const char *label, const char *desc, int required);
 
 /** new item */
 JABBERD2_API xdata_item_t xdata_item_new(xdata_t xd);
@@ -123,9 +123,9 @@ JABBERD2_API void xdata_add_field_item(xdata_item_t item, xdata_field_t xdf);
 JABBERD2_API void xdata_add_item(xdata_t xd, xdata_item_t xdi);
 
 /** option insertion */
-JABBERD2_API void xdata_add_option(xdata_field_t xdf, char *value, int lvalue, char *label, int llabel);
+JABBERD2_API void xdata_add_option(xdata_field_t xdf, const char *value, int lvalue, const char *label, int llabel);
 
 /** value insertion */
-JABBERD2_API void xdata_add_value(xdata_field_t xdf, char *value, int vlen);
+JABBERD2_API void xdata_add_value(xdata_field_t xdf, const char *value, int vlen);
 
 #endif

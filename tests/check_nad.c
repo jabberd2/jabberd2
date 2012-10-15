@@ -91,7 +91,7 @@ mateamargonerds'/><point xmlns='http://www.georss.org/georss'>-33.4262838 -70.56
 
 START_TEST (check_s2s_wrap)
 {
-    char *buf;
+    const char *buf;
     int len, ns, sns, elem;
 
     nad_t nad = nad_parse(nadtxt[_i], 0);
@@ -166,7 +166,7 @@ END_TEST
 
 START_TEST (check_leaf_path)
 {
-    char *buf;
+    const char *buf;
     int len, elem;
 
     const char *nad_test =

@@ -40,7 +40,7 @@ void filter_unload(router_t r) {
 }
 
 int filter_load(router_t r) {
-    char *filterfile;
+    const char *filterfile;
     FILE *f;
     long size;
     char *buf;

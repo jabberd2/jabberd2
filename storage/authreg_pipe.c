@@ -39,14 +39,14 @@
 
 /** internal structure, holds our data */
 typedef struct moddata_st {
-    char    *exec;
+    const char    *exec;
     
     pid_t   child;
 
     int     in, out;
 } *moddata_t;
 
-static int _ar_pipe_write(authreg_t ar, int fd, char *msgfmt, ...)
+static int _ar_pipe_write(authreg_t ar, int fd, const char *msgfmt, ...)
 {
     va_list args;
     char buf[1024];
@@ -88,7 +88,7 @@ static int _ar_pipe_read(authreg_t ar, int fd, char *buf, int buflen)
     return ret;
 }
 
-static int _ar_pipe_user_exists(authreg_t ar, char *username, char *realm)
+static int _ar_pipe_user_exists(authreg_t ar, const char *username, const char *realm)
 {
     moddata_t data = (moddata_t) ar->private;
     char buf[1024];
@@ -105,7 +105,7 @@ static int _ar_pipe_user_exists(authreg_t ar, char *username, char *realm)
     return 1;
 }
 
-static int _ar_pipe_get_password(authreg_t ar, char *username, char *realm, char password[257])
+static int _ar_pipe_get_password(authreg_t ar, const char *username, const char *realm, char password[257])
 {
     moddata_t data = (moddata_t) ar->private;
     char buf[1024];
@@ -137,7 +137,7 @@ static int _ar_pipe_get_password(authreg_t ar, char *username, char *realm, char
     return 0;
 }
 
-static int _ar_pipe_check_password(authreg_t ar, char *username, char *realm, char password[257])
+static int _ar_pipe_check_password(authreg_t ar, const char *username, const char *realm, char password[257])
 {
     moddata_t data = (moddata_t) ar->private;
     char buf[1024];
@@ -164,7 +164,7 @@ static int _ar_pipe_check_password(authreg_t ar, char *username, char *realm, ch
     return 0;
 }
 
-static int _ar_pipe_set_password(authreg_t ar, char *username, char *realm, char password[257])
+static int _ar_pipe_set_password(authreg_t ar, const char *username, const char *realm, char password[257])
 {
     moddata_t data = (moddata_t) ar->private;
     char buf[1024];
@@ -191,7 +191,7 @@ static int _ar_pipe_set_password(authreg_t ar, char *username, char *realm, char
     return 0;
 }
 
-static int _ar_pipe_create_user(authreg_t ar, char *username, char *realm)
+static int _ar_pipe_create_user(authreg_t ar, const char *username, const char *realm)
 {
     moddata_t data = (moddata_t) ar->private;
     char buf[1024];
@@ -208,7 +208,7 @@ static int _ar_pipe_create_user(authreg_t ar, char *username, char *realm)
     return 0;
 }
 
-static int _ar_pipe_delete_user(authreg_t ar, char *username, char *realm)
+static int _ar_pipe_delete_user(authreg_t ar, const char *username, const char *realm)
 {
     moddata_t data = (moddata_t) ar->private;
     char buf[1024];

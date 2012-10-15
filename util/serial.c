@@ -108,7 +108,7 @@ static int _ser_realloc(void **oblocks, int len)
 /** this is the safety check used to make sure there's always enough mem */
 #define SER_SAFE(blocks, size, len) if((size) > len) len = _ser_realloc((void**)&(blocks),(size));
 
-void ser_string_set(char *source, int *dest, char **buf, int *len)
+void ser_string_set(const char *source, int *dest, char **buf, int *len)
 {
     int need = sizeof(char) * (strlen(source) + 1);
 

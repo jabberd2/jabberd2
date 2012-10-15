@@ -33,7 +33,7 @@
 /** internal structure, holds our data */
 typedef struct drvdata_st {
     sqlite3 *db;
-    char *prefix;
+    const char *prefix;
     int txn;
 } *drvdata_t;
 
@@ -223,7 +223,7 @@ static st_ret_t _st_sqlite_put_guts (st_driver_t drv, const char *type,
     char *key, *cval = NULL;
     void *val;
     os_type_t ot;
-    char *xml;
+    const char *xml;
     int xlen;
     char tbuf[128];
     int res;
@@ -296,11 +296,11 @@ static st_ret_t _st_sqlite_put_guts (st_driver_t drv, const char *type,
 
 		    switch(ot) {
 		     case os_type_BOOLEAN:
-		      sqlite3_bind_int (stmt, i + 2, (int) val ? 1 : 0);
+		      sqlite3_bind_int (stmt, i + 2, val ? 1 : 0);
 		      break;
 
 		     case os_type_INTEGER:
-		      sqlite3_bind_int (stmt, i + 2, (int) val);
+		      sqlite3_bind_int (stmt, i + 2, (long)val); // HACK ugly hack for pointer-to-int-cast
 		      break;
 
 		     case os_type_STRING:
@@ -677,11 +677,11 @@ static void _st_sqlite_free (st_driver_t drv) {
 
 DLLEXPORT st_ret_t st_init(st_driver_t drv) {
 
-    char *dbname;
+    const char *dbname;
     sqlite3 *db;
     drvdata_t data;
     int ret;
-    char *busy_timeout;
+    const char *busy_timeout;
 
     dbname = config_get_one (drv->st->config,
 			     "storage.sqlite.dbname", 0);

@@ -36,14 +36,14 @@
 
 #include "c2s.h"
 
-static int _pbx_command_part_len(char *cmd)
+static int _pbx_command_part_len(const char *cmd)
 {
 	int i;
 	for(i=0; *cmd != ' ' && *cmd != '\t' && *cmd != '\n' && *cmd != '\0'; cmd++, i++);
 	return i;
 }
 
-static nad_t _pbx_presence_nad(int available, char *cmd)
+static nad_t _pbx_presence_nad(int available, const char *cmd)
 {
 	nad_t nad;
 	int ns;
@@ -115,7 +115,7 @@ static nad_t _pbx_presence_nad(int available, char *cmd)
  * process commandline
  * @return: 0 to indicate that output needs to be written
  */
-int _pbx_process_command(c2s_t c2s, char *cmd)
+int _pbx_process_command(c2s_t c2s, const char *cmd)
 {
 	jid_t jid;
 	int action = 0, len;

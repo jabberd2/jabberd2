@@ -103,7 +103,7 @@ ldapvcard_entry_st ldapvcard_entry[] =
     {NULL,NULL,0}
 };
 
-int processregex(char *src, const char *regex, int patterngroups, int wantedgroup, char *dest, size_t dest_size, st_driver_t drv) {
+static int processregex(char *src, const char *regex, int patterngroups, int wantedgroup, char *dest, size_t dest_size, st_driver_t drv) {
   regex_t preg;
   regmatch_t pmatch[patterngroups];
   //log_debug(ZONE,"processregex: src='%s' regex='%s'", src, regex);
@@ -439,7 +439,6 @@ retry_pubrost:
                 vals = (char **)ldap_get_values(data->ld,entry,data->uidattr);
                 if( ldap_count_values(vals) <= 0 ) {
                     ldap_value_free(vals);
-                    free(group);
                     continue;
                 }
                 strncpy(jid,vals[0],sizeof(jid)-1); jid[sizeof(jid)-1]='\0';

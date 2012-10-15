@@ -110,11 +110,11 @@ typedef struct mio_st
 {
   void (*mio_free)(struct mio_st **m);
 
-  struct mio_fd_st *(*mio_listen)(struct mio_st **m, int port, char *sourceip,
+  struct mio_fd_st *(*mio_listen)(struct mio_st **m, int port, const char *sourceip,
 				  mio_handler_t app, void *arg);
 
-  struct mio_fd_st *(*mio_connect)(struct mio_st **m, int port, char *hostip,
-				   char *srcip, mio_handler_t app, void *arg);
+  struct mio_fd_st *(*mio_connect)(struct mio_st **m, int port, const char *hostip,
+				   const char *srcip, mio_handler_t app, void *arg);
 
   struct mio_fd_st *(*mio_register)(struct mio_st **m, int fd,
 				   mio_handler_t app, void *arg);

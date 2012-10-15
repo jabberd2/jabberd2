@@ -65,10 +65,10 @@ extern "C" {
 JABBERD2_API int                         sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args);
 
 /** add cert function */
-JABBERD2_API int                         sx_ssl_server_addcert(sx_plugin_t p, char *name, char *pemfile, char *cachain, int mode);
+JABBERD2_API int                         sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, const char *cachain, int mode);
 
 /** trigger for client starttls */
-JABBERD2_API int                         sx_ssl_client_starttls(sx_plugin_t p, sx_t s, char *pemfile);
+JABBERD2_API int                         sx_ssl_client_starttls(sx_plugin_t p, sx_t s, const char *pemfile);
 
 /* previous states */
 #define SX_SSL_STATE_NONE       (0)
@@ -116,7 +116,7 @@ typedef int                 (*sx_sasl_callback_t)(int cb, void *arg, void **res,
 #define sx_sasl_ret_FAIL	    (1)
 
 /** trigger for client auth */
-JABBERD2_API int                         sx_sasl_auth(sx_plugin_t p, sx_t s, char *appname, char *mech, char *user, char *pass);
+JABBERD2_API int                         sx_sasl_auth(sx_plugin_t p, sx_t s, const char *appname, const char *mech, const char *user, const char *pass);
 
 /* for passing auth data to callback */
 typedef struct sx_sasl_creds_st {

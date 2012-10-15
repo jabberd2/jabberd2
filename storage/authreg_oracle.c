@@ -66,7 +66,7 @@ static int _st_oracle_realloc(void **oblocks, int len)
 
 #define ORACLE_SAFE(blocks, size, len) if((size) > len){ len = _st_oracle_realloc((void**)&(blocks),(size)); }
 
-int checkOCIError( authreg_t ar, char *szDoing, OCIError *m_ociError, sword nStatus )
+int checkOCIError( authreg_t ar, const char *szDoing, OCIError *m_ociError, sword nStatus )
 {
     text txtErrorBuffer[512];
     ub4 nErrorCode;
@@ -163,7 +163,7 @@ static int _ar_oracle_get_user_tuple( authreg_t ar, char* username, char* realm 
     else return 0;
 }
 
-static int _ar_oracle_user_exists(authreg_t ar, char *username, char *realm)
+static int _ar_oracle_user_exists(authreg_t ar, const char *username, const char *realm)
 {
     if( _ar_oracle_get_user_tuple(ar, username, realm ) > 0 )
     {
@@ -173,7 +173,7 @@ static int _ar_oracle_user_exists(authreg_t ar, char *username, char *realm)
     return 0;
 }
 
-static int _ar_oracle_create_user( authreg_t ar, char *username, char *realm )
+static int _ar_oracle_create_user( authreg_t ar, const char *username, const char *realm )
 {
     Oracle_context_t _ctx = (Oracle_context_t)ar->private;
     char* _sqlbuf = NULL;
@@ -244,7 +244,7 @@ int _ar_oracle_get_authreg_user( authreg_t ar )
 }
 
 
-static int _ar_oracle_get_password( authreg_t ar, char *username, char *realm, char password[PWSIZE] )
+static int _ar_oracle_get_password( authreg_t ar, const char *username, const char *realm, char password[PWSIZE] )
 {
     Oracle_context_t _ctx = (Oracle_context_t)ar->private;
     char* _sqlbuf = NULL;
@@ -289,7 +289,7 @@ static int _ar_oracle_get_password( authreg_t ar, char *username, char *realm, c
     return 0;
 }
 
-static int _ar_oracle_set_password(authreg_t ar, char *username, char *realm, char password[PWSIZE])
+static int _ar_oracle_set_password(authreg_t ar, const char *username, const char *realm, char password[PWSIZE])
 {
     Oracle_context_t _ctx = (Oracle_context_t)ar->private;
     char* _sqlbuf = NULL;
@@ -317,7 +317,7 @@ static int _ar_oracle_set_password(authreg_t ar, char *username, char *realm, ch
     return 0;
 }
 
-static int _ar_oracle_delete_user(authreg_t ar, char *username, char *realm)
+static int _ar_oracle_delete_user(authreg_t ar, const char *username, const char *realm)
 {
     if( _ar_oracle_get_user_tuple(ar, username, realm ) == 0 )return 0;
 
@@ -360,7 +360,7 @@ static void _ar_oracle_free( authreg_t ar )
 }
 
 /** Provide a configuration parameter or default value. */
-static char * _ar_oracle_param( config_t c, char * key, char * def ) {
+static char * _ar_oracle_param( config_t c, const char * key, const char * def ) {
     char * value = config_get_one( c, key, 0 );
     if( value == NULL )
       return def;

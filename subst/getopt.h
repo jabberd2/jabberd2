@@ -112,16 +112,16 @@ struct option
 /* Many other libraries have conflicting prototypes for getopt, with
    differences in the consts, in stdlib.h.  To avoid compilation
    errors, only prototype getopt for the GNU C library.  */
-JABBERD2_API int getopt (int argc, char *const *argv, const char *shortopts);
+JABBERD2_API int getopt (int argc, const char *const *argv, const char *shortopts);
 #endif /* not __GNU_LIBRARY__ */
-JABBERD2_API int getopt_long (int argc, char *const *argv, const char *shortopts,
+JABBERD2_API int getopt_long (int argc, const char *const *argv, const char *shortopts,
 		        const struct option *longopts, int *longind);
-JABBERD2_API int getopt_long_only (int argc, char *const *argv,
+JABBERD2_API int getopt_long_only (int argc, const char *const *argv,
 			     const char *shortopts,
 		             const struct option *longopts, int *longind);
 
 /* Internal only.  Users should not call this directly.  */
-JABBERD2_API int _getopt_internal (int argc, char *const *argv,
+JABBERD2_API int _getopt_internal (int argc, const char *const *argv,
 			     const char *shortopts,
 		             const struct option *longopts, int *longind,
 			     int long_only);

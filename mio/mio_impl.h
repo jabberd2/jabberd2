@@ -324,7 +324,7 @@ static void _mio_write(mio_t m, mio_fd_t fd)
 }
 
 /** set up a listener in this mio w/ this default app/arg */
-static mio_fd_t _mio_listen(mio_t m, int port, char *sourceip, mio_handler_t app, void *arg)
+static mio_fd_t _mio_listen(mio_t m, int port, const char *sourceip, mio_handler_t app, void *arg)
 {
     int fd, flag = 1;
     mio_fd_t mio_fd;
@@ -377,7 +377,7 @@ static mio_fd_t _mio_listen(mio_t m, int port, char *sourceip, mio_handler_t app
 }
 
 /** create an fd and connect to the given ip/port */
-static mio_fd_t _mio_connect(mio_t m, int port, char *hostip, char *srcip, mio_handler_t app, void *arg)
+static mio_fd_t _mio_connect(mio_t m, int port, const char *hostip, const char *srcip, mio_handler_t app, void *arg)
 {
     int fd, flag, flags;
     mio_fd_t mio_fd;
