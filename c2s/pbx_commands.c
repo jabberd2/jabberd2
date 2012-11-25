@@ -120,8 +120,8 @@ int _pbx_process_command(c2s_t c2s, const char *cmd)
 	jid_t jid;
 	int action = 0, len;
 	sess_t sess;
-	unsigned char hashbuf[44] = "PBX";
-	unsigned char *sesshash;
+	char hashbuf[44] = "PBX";
+	char *sesshash;
 
 	sesshash = hashbuf+3;
 

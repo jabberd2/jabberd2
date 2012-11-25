@@ -157,14 +157,14 @@ static int _sx_compress_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     /* compress the data */
     if(sc->wbuf->len > 0) {
         sc->wstrm.avail_in = sc->wbuf->len;
-        sc->wstrm.next_in = sc->wbuf->data;
+        sc->wstrm.next_in = (Bytef*)sc->wbuf->data;
         /* deflate() on write buffer until there is data to compress */
         do {
             /* make place for deflated data */
             _sx_buffer_alloc_margin(buf, 0, sc->wbuf->len + SX_COMPRESS_CHUNK);
 
                 sc->wstrm.avail_out = sc->wbuf->len + SX_COMPRESS_CHUNK;
-            sc->wstrm.next_out = buf->data + buf->len;
+            sc->wstrm.next_out = (Bytef*)(buf->data + buf->len);
 
             ret = deflate(&(sc->wstrm), Z_SYNC_FLUSH);
             assert(ret != Z_STREAM_ERROR);
@@ -185,7 +185,7 @@ static int _sx_compress_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
         }
 
         sc->wbuf->len = sc->wstrm.avail_in;
-        sc->wbuf->data = sc->wstrm.next_in;
+        sc->wbuf->data = (char*)sc->wstrm.next_in;
     }
 
     _sx_debug(ZONE, "passing %d bytes from zlib write buffer", buf->len);
@@ -218,14 +218,14 @@ static int _sx_compress_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     /* decompress the data */
     if(sc->rbuf->len > 0) {
         sc->rstrm.avail_in = sc->rbuf->len;
-        sc->rstrm.next_in = sc->rbuf->data;
+        sc->rstrm.next_in = (Bytef*)sc->rbuf->data;
         /* run inflate() on read buffer while able to fill the output buffer */
         do {
             /* make place for inflated data */
             _sx_buffer_alloc_margin(buf, 0, SX_COMPRESS_CHUNK);
 
             sc->rstrm.avail_out = SX_COMPRESS_CHUNK;
-            sc->rstrm.next_out = buf->data + buf->len;
+            sc->rstrm.next_out = (Bytef*)(buf->data + buf->len);
 
             ret = inflate(&(sc->rstrm), Z_SYNC_FLUSH);
             assert(ret != Z_STREAM_ERROR);
@@ -248,7 +248,7 @@ static int _sx_compress_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
         } while (sc->rstrm.avail_out == 0);
 
         sc->rbuf->len = sc->rstrm.avail_in;
-        sc->rbuf->data = sc->rstrm.next_in;
+        sc->rbuf->data = (char*)sc->rstrm.next_in;
     }
 
     _sx_debug(ZONE, "passing %d bytes from zlib read buffer", buf->len);

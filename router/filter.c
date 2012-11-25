@@ -182,7 +182,7 @@ int filter_load(router_t r) {
 int filter_packet(router_t r, nad_t nad) {
     acl_t acl;
     int ato, afrom, error = 0;
-    unsigned char *cur, *to = NULL, *from = NULL;
+    char *cur, *to = NULL, *from = NULL;
 
     ato = nad_find_attr(nad, 1, -1, "to", NULL);
     afrom = nad_find_attr(nad, 1, -1, "from", NULL);

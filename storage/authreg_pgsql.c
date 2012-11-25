@@ -54,10 +54,6 @@ enum pgsql_pws_crypt {
 #endif
 };
 
-#ifdef HAVE_CRYPT
-static char salter[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ./";
-#endif
-
 typedef struct pgsqlcontext_st {
   PGconn * conn;
   const char * sql_create;
@@ -244,7 +240,6 @@ static int _ar_pgsql_dbcheck_password(authreg_t ar, const char *username, const 
 static int _ar_pgsql_check_password(authreg_t ar, const char *username, const char *realm, char password[257])
 {
     pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
-    PGconn *conn = ctx->conn;
     char db_pw_value[257];
 #ifdef HAVE_CRYPT
     char *crypted_pw;
