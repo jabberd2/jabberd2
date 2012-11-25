@@ -231,7 +231,7 @@ int     filter_load(router_t r);
 void    filter_unload(router_t r);
 int     filter_packet(router_t r, nad_t nad);
 
-int     message_log(nad_t nad, router_t r, const unsigned char *msg_from, const unsigned char *msg_to);
+int     message_log(nad_t nad, router_t r, const char *msg_from, const char *msg_to);
 
 void routes_free(routes_t routes);
 
