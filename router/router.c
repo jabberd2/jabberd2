@@ -1129,7 +1129,7 @@ int router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *
 }
 
 
-int message_log(nad_t nad, router_t r, const unsigned char *msg_from, const unsigned char *msg_to)
+int message_log(nad_t nad, router_t r, const char *msg_from, const char *msg_to)
 {
     time_t t;
     char *time_pos;

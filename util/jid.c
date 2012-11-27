@@ -22,7 +22,7 @@
 #include <stringprep.h>
 
 /** Forward declaration **/
-static jid_t jid_reset_components_internal(jid_t jid, const unsigned char *node, const unsigned char *domain, const unsigned char *resource, int prepare);
+static jid_t jid_reset_components_internal(jid_t jid, const char *node, const char *domain, const char *resource, int prepare);
 
 /** do stringprep on the pieces */
 static int jid_prep_pieces(char *node, char *domain, char *resource) {
@@ -78,7 +78,7 @@ int jid_prep(jid_t jid)
 }
 
 /** make a new jid */
-jid_t jid_new(const unsigned char *id, int len) {
+jid_t jid_new(const char *id, int len) {
     jid_t jid, ret;
 
     jid = malloc(sizeof(struct jid_st));
@@ -105,13 +105,13 @@ void jid_static(jid_t jid, jid_static_buf *buf)
     memset(jid, 0, sizeof(*jid));
 
     /* set buffer */
-    jid->jid_data = (unsigned char *)buf;
+    jid->jid_data = (char *)buf;
 }
 
 
 /** build a jid from an id */
-jid_t jid_reset(jid_t jid, const unsigned char *id, int len) {
-    unsigned char *myid, *cur, *olddata=NULL;
+jid_t jid_reset(jid_t jid, const char *id, int len) {
+    char *myid, *cur, *olddata=NULL;
 
     assert((int) (jid != NULL));
 
@@ -196,8 +196,8 @@ jid_t jid_reset(jid_t jid, const unsigned char *id, int len) {
 }
 
 /** build a jid from components - internal version */
-static jid_t jid_reset_components_internal(jid_t jid, const unsigned char *node, const unsigned char *domain, const unsigned char *resource, int prepare) {
-    unsigned char *olddata=NULL;
+static jid_t jid_reset_components_internal(jid_t jid, const char *node, const char *domain, const char *resource, int prepare) {
+    char *olddata=NULL;
     int node_l,domain_l,resource_l;
     int dataStatic;
     jid_static_buf staticTmpBuf;
@@ -269,16 +269,16 @@ static jid_t jid_reset_components_internal(jid_t jid, const unsigned char *node,
         memcpy(jid->jid_data,staticTmpBuf,node_l+domain_l+resource_l+3); /* Copy data from tmp buf to original buffer */
 
         /* Relocate pointers */
-        jid->node = olddata+(jid->node-(unsigned char *)staticTmpBuf);
-        jid->domain = olddata+(jid->domain-(unsigned char *)staticTmpBuf);
-        jid->resource = olddata+(jid->resource-(unsigned char *)staticTmpBuf);
+        jid->node = olddata+(jid->node-(char *)staticTmpBuf);
+        jid->domain = olddata+(jid->domain-(char *)staticTmpBuf);
+        jid->resource = olddata+(jid->resource-(char *)staticTmpBuf);
     }
 
     return jid;
 }
 
 /** build a jid from components */
-jid_t jid_reset_components(jid_t jid, const unsigned char *node, const unsigned char *domain, const unsigned char *resource) {
+jid_t jid_reset_components(jid_t jid, const char *node, const char *domain, const char *resource) {
     return jid_reset_components_internal(jid, node, domain, resource, 1);
 }
 
@@ -305,7 +305,7 @@ void jid_expand(jid_t jid)
 
     if(*jid->domain == '\0') {
       /* empty */
-      jid->_full = (unsigned char*) realloc(jid->_full, 1);
+      jid->_full = (char*) realloc(jid->_full, 1);
       jid->_full[0] = 0;
       return;
     }
@@ -316,19 +316,19 @@ void jid_expand(jid_t jid)
 
     if(nlen == 0) {
         ulen = dlen+1;
-        jid->_user = (unsigned char*) realloc(jid->_user, ulen);
+        jid->_user = (char*) realloc(jid->_user, ulen);
         strcpy(jid->_user, jid->domain);
     } else {
         ulen = nlen+1+dlen+1;
-        jid->_user = (unsigned char*) realloc(jid->_user, ulen);
+        jid->_user = (char*) realloc(jid->_user, ulen);
         snprintf(jid->_user, ulen, "%s@%s", jid->node, jid->domain);
     }
 
     if(rlen == 0) {
-        jid->_full = (unsigned char*) realloc(jid->_full, ulen);
+        jid->_full = (char*) realloc(jid->_full, ulen);
         strcpy(jid->_full, jid->_user);
     } else {
-        jid->_full = (unsigned char*) realloc(jid->_full, ulen+1+rlen);
+        jid->_full = (char*) realloc(jid->_full, ulen+1+rlen);
         snprintf(jid->_full, ulen+1+rlen, "%s/%s", jid->_user, jid->resource);
     }
 
@@ -336,7 +336,7 @@ void jid_expand(jid_t jid)
 }
 
 /** expand and return the user */
-const unsigned char *jid_user(jid_t jid)
+const char *jid_user(jid_t jid)
 {
     jid_expand(jid);
 
@@ -344,7 +344,7 @@ const unsigned char *jid_user(jid_t jid)
 }
 
 /** expand and return the full */
-const unsigned char *jid_full(jid_t jid)
+const char *jid_full(jid_t jid)
 {
     jid_expand(jid);
 

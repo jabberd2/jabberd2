@@ -320,7 +320,7 @@ static int _privacy_action(user_t user, zebra_list_t zlist, jid_t jid, pkt_type_
     zebra_item_t scan;
     int match, i;
     item_t ritem;
-    unsigned char domres[2048];
+    char domres[2048];
 
     log_debug(ZONE, "running match on list %s for %s (packet type 0x%x) (%s)", zlist->name, jid_full(jid), ptype, in ? "incoming" : "outgoing");
 

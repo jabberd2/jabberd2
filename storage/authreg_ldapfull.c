@@ -223,24 +223,25 @@ int _ldapfull_set_clear(moddata_t data, const char *scheme, const char *prefix, 
 }
 
 #ifdef HAVE_SSL
-int _ldapfull_base64_decode( const char *src, const char **ret, int *rlen ) {
-    unsigned int rc, i, tlen = 0;
-    char *text;
+int _ldapfull_base64_decode( const char *src, const unsigned char **ret, int *rlen ) {
+    unsigned int rc, tlen = 0;
+    int i;
+    unsigned char *text;
     EVP_ENCODE_CTX EVP_ctx;
 
-    text = (char *)malloc(((strlen(src)+3)/4 * 3) + 1);
+    text = (unsigned char *)malloc(((strlen(src)+3)/4 * 3) + 1);
     if (text == NULL) {
         return 0;
     }
 
     EVP_DecodeInit(&EVP_ctx);
-    rc = EVP_DecodeUpdate(&EVP_ctx, text, &i, (char *)src, strlen(src));
+    rc = EVP_DecodeUpdate(&EVP_ctx, text, &i, (const unsigned char *)src, strlen(src));
     if (rc < 0) {
         free(text);
         return 0;
     }
     tlen+=i;
-    EVP_DecodeFinal(&EVP_ctx, text, &i); 
+    EVP_DecodeFinal(&EVP_ctx, (unsigned char*)text, &i); 
 
     *ret = text;
     if (rlen != NULL) {
@@ -250,21 +251,21 @@ int _ldapfull_base64_decode( const char *src, const char **ret, int *rlen ) {
     return 1;
 }
 
-static int _ldapfull_base64_encode( const char *src, int srclen, char **ret, int *rlen ) {
+static int _ldapfull_base64_encode( const unsigned char *src, int srclen, char **ret, int *rlen ) {
     int tlen = 0;
-    char *text;
+    unsigned char *text;
     EVP_ENCODE_CTX EVP_ctx;
 
-    text = (char *)malloc((srclen*4/3) + 1 );
+    text = (unsigned char *)malloc((srclen*4/3) + 1 );
     if (text == NULL) {
         return 0;
     }
 
     EVP_EncodeInit(&EVP_ctx);
-    EVP_EncodeUpdate(&EVP_ctx, text, &tlen, (char *)src, srclen);
+    EVP_EncodeUpdate(&EVP_ctx, text, &tlen, src, srclen);
     EVP_EncodeFinal(&EVP_ctx, text, &tlen); 
 
-    *ret = text; 
+    *ret = (char*)text; 
     if (rlen != NULL) {
         *rlen = tlen;
     }
@@ -273,7 +274,7 @@ static int _ldapfull_base64_encode( const char *src, int srclen, char **ret, int
 }
 
 int _ldapfull_chk_hashed(moddata_t data, const char *scheme, int salted, const char *hash, const char *passwd) {
-    const char *bhash; // binary hash, will get it from base64
+    const unsigned char *bhash; // binary hash, will get it from base64
     EVP_MD_CTX mdctx;
     const EVP_MD *md;
     unsigned char digest[EVP_MAX_MD_SIZE];
@@ -307,7 +308,8 @@ int _ldapfull_set_hashed(moddata_t data, const char *scheme, const char *prefix,
     unsigned char *digest;
     unsigned char *salt;
     int hlen=0;
-    int plen, dlen, rc;
+    int plen, rc;
+    unsigned int dlen;
 
     md = EVP_get_digestbyname(scheme);
     if (!md) {
@@ -384,14 +386,14 @@ int _ldapfull_chk_crypt(moddata_t data, const char *scheme, int salted, const ch
 
 int _ldapfull_set_crypt(moddata_t data, const char *scheme, const char *prefix, int saltlen, const char *passwd, char *buf, int buflen) {
     const char *encrypted;
-    unsigned char salt[3];
+    char salt[3];
     static const char saltchars[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./";
     if ((saltlen != 2) || (buflen < 14)) {
         log_write(data->ar->c2s->log, LOG_ERR, "Invalid crypt hash params");
         return 0;
     }
 #ifdef HAVE_SSL
-    if( !RAND_bytes(salt,saltlen) )
+    if( !RAND_bytes((unsigned char*)salt, saltlen) )
         return 0;
     salt[0] = saltchars[salt[0] % 64];
     salt[1] = saltchars[salt[1] % 64];

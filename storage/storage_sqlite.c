@@ -136,7 +136,7 @@ static char *_st_sqlite_convert_filter (st_driver_t drv, const char *owner,
 					const char *filter) {
 
     char *buf = NULL;
-    unsigned int buflen = 0, nbuf = 0;
+    int buflen = 0, nbuf = 0;
     st_filter_t f;
 
 
@@ -481,7 +481,7 @@ static st_ret_t _st_sqlite_get (st_driver_t drv, const char *type,
 	    } else if (coltype == SQLITE3_TEXT) {
 		ot = os_type_STRING;
 
-		val = sqlite3_column_text (stmt, i);
+		val = (const char*)sqlite3_column_text (stmt, i);
 		os_object_put (o, colname, val, ot);
 
 	    } else {

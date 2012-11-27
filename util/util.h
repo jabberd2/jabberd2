@@ -402,7 +402,7 @@ JABBERD2_API struct _stanza_error_st _stanza_errors[];
 
 
 /* hex conversion utils */
-JABBERD2_API void hex_from_raw(const char* in, int inlen, char* out);
+JABBERD2_API void hex_from_raw(const unsigned char* in, int inlen, char* out);
 JABBERD2_API int hex_to_raw(const char *in, int inlen, char *out);
 
 
