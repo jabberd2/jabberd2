@@ -1,8 +1,7 @@
 README for Jabber Open Source Server (2.2)
 
 Thanks for downloading jabberd 2.2. Below are some basic instructions to
-get you started. Complete documentation is available at
-http://jabberd2.xiaoka.com/
+get you started. Complete documentation is available at http://jabberd2.org/
 
 -- the jabberd team
 
@@ -125,7 +124,6 @@ Run:
   You can either run all of the pieces separately:
 
     % $prefix/bin/router &
-    % $prefix/bin/resolver &
     % $prefix/bin/s2s &
     % $prefix/bin/sm &
     % $prefix/bin/c2s &
@@ -147,9 +145,9 @@ Upgrade:
 
 Support:
 
-Webpage: http://jabberd2.xiaoka.com/
+Webpage: http://jabberd2.org/
 Mailinglist: jabberd2@lists.xiaoka.com
- (Subscribe by sending mail to jabberd2-subscribe@jabberd2.xiaoka.com)
+ (Subscribe by sending mail to jabberd2-subscribe@lists.xiaoka.com)
 
 When requesting assistance, please note that the following things can
 provide useful information which may assist with finding your problem:
@@ -165,7 +163,7 @@ reporting problems - it will make helping you much easier.
 Copyright & License:
   
  jabberd - Jabber Open Source Server
- Copyright (c) 2002-2007 Jeremie Miller, Thomas Muldowney,
+ Copyright (c) 2002-2012 Jeremie Miller, Thomas Muldowney,
                          Ryan Eatmon, Robert Norris, Tomasz Sterna.
 
  This program is free software; you can redistribute it and/or modify
@@ -185,11 +183,6 @@ Copyright & License:
  As a special exception, the authors give permission to link this
  program with the OpenSSL library and distribute the resulting binary.
 
-
- Includes Expat (1.95.7).
- Copyright (c) 1998, 1999, 2000 Thai Open Source Software Center Ltd
-                                and Clark Cooper.
- Copyright (c) 2001, 2002 Expat maintainers.
 
  subst/snprintf.c and util/base64.c were originally taken from the
  Apache web server project.
