@@ -430,7 +430,8 @@ retry_pubrost:
                     ldap_value_free(vals);
                     continue;
                 }
-                if (data->groupattr_regex != NULL && processregex(vals[0],data->groupattr_regex,2,1,group,sizeof(group),drv) !=0) {
+                if (data->groupattr_regex == NULL || processregex(vals[0],data->groupattr_regex,2,1,group,sizeof(group),drv) !=0) {
+                    // if there is no regex defined or processing the regex failed - take value as is
                     strncpy(group,vals[0],sizeof(group)-1);
                 }
                 group[sizeof(group)-1]='\0';
