@@ -563,6 +563,15 @@
       <!--
       <validattr>valid</validattr>
       -->
+
+      <!-- Group that users must be members of
+           If this is set, only user that are members of the specified LDAP
+           group can log in. The group must be specified with its full
+           distinguished name -->
+      <!--
+      <group_dn>cn=jabberdusers,ou=servicegroups,dc=example,dc=com</group_dn>
+      -->
+
       <fulluid/>
       <!-- If pwscheme is not defined, then passwords are stored in clear
            text and digest authentication may be done.

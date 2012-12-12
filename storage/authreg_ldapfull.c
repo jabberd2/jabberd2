@@ -68,6 +68,7 @@ typedef struct moddata_st
     const char *objectclass;
     const char *uidattr;
     const char *validattr;
+    const char *group_dn;
     const char *pwattr;
     const char *pwscheme;
 
@@ -587,7 +588,51 @@ retry:
     return dn;
 }
 
-/** do we have this user? */
+/** Is this user part of the given LDAP group? */
+static int _ldapfull_user_in_group(moddata_t data, const char *user_dn, const char *group_dn)
+{
+    LDAPMessage *result, *entry;
+    int tried = 0;
+    char filter[1024];
+
+    log_debug(ZONE, "checking whether user with dn %s is in group %s", user_dn, group_dn);
+
+    memset(filter, 0, 1024);
+    snprintf(filter, 1024, "(member=%s)", user_dn); // TODO Check if snprintf result was truncated
+
+    retry:
+    if(ldap_search_s(data->ld, group_dn, LDAP_SCOPE_BASE, filter, NULL, 0, &result))
+    {
+        if( tried++ < LDAPFULL_SEARCH_MAX_RETRIES ) {
+            log_debug(ZONE, "ldap: group search fail, will retry; %s: %s", filter, ldap_err2string(_ldapfull_get_lderrno(data->ld)));
+            _ldapfull_unbind(data);
+            if( _ldapfull_connect_bind(data) == 0 ) {
+                goto retry;
+            } else {
+                return 0;
+            }
+        }
+        log_write(data->ar->c2s->log, LOG_ERR, "ldap: group search %s failed: %s", filter, ldap_err2string(_ldapfull_get_lderrno(data->ld)));
+        _ldapfull_unbind(data);
+        return 0;
+    }
+
+    entry = ldap_first_entry(data->ld, result);
+    if(entry == NULL)
+    {
+        ldap_msgfree(result);
+
+        return 0;
+    }
+    else
+    {
+        ldap_msgfree(result);
+
+        return 1;
+    }
+}
+
+/** Get distinguished name for this user if we have it */
 static int _ldapfull_find_user_dn(moddata_t data, const char *username, const char *realm, const char **dn)
 {
     *dn = NULL;
@@ -595,7 +640,7 @@ static int _ldapfull_find_user_dn(moddata_t data, const char *username, const ch
         return 0; // error
 
     log_debug(ZONE, "checking existance of %s", username);
-    
+
     *dn = _ldapfull_search(data, realm, username);
     return *dn != NULL;
 }
@@ -605,7 +650,12 @@ static int _ldapfull_user_exists(authreg_t ar, const char *username, const char 
 {
     const char *dn;
     if (_ldapfull_find_user_dn((moddata_t) ar->private, username, realm, &dn)) {
-        ldap_memfree((void*)dn);
+        if(((moddata_t) ar->private)->group_dn != NULL
+            && !_ldapfull_user_in_group((moddata_t) ar->private, dn, ((moddata_t) ar->private)->group_dn)) {
+            ldap_memfree(dn);
+            return 0;
+            }
+        ldap_memfree(dn);
         return 1;
     }
     return 0;
@@ -670,7 +720,7 @@ static int _ldapfull_get_password(authreg_t ar, const char *username, const char
         ldap_msgfree(result);
         return 1;
     }
-    
+
     vals=ldap_get_values(data->ld,entry,data->pwattr);
     if( ldap_count_values(vals) <= 0 ) {
         ldap_value_free(vals);
@@ -703,7 +753,7 @@ static int _ldapfull_set_password(authreg_t ar, const char *username, const char
         log_debug(ZONE, "password scheme is not defined");
         return 1;
     }
-    
+
     if( _ldapfull_connect_bind(data) ) {
         return 1;
     }
@@ -753,22 +803,54 @@ static int _ldapfull_check_password(authreg_t ar, const char *username, const ch
 {
     moddata_t data = (moddata_t) ar->private;
     char buf[LDAPFULL_PASSBUF_MAX];
+    char *dn = NULL;
 
     log_debug(ZONE, "checking password for %s", username);
 
     if(password[0] == '\0')
         return 1;
 
+    if(data->group_dn != NULL) {
+        if (!_ldapfull_find_user_dn(data, username, realm, &dn))
+            return 1;
+    }
     /* The bind scheme doesn't need the password read first, so short circuit
        the whole passhash scheme */
-    if (!strcmp(data->pwscheme, "bind"))
-        return _ldapfull_check_password_bind(ar, username, realm, password);
+    if (!strcmp(data->pwscheme, "bind")) {
+        if(_ldapfull_check_password_bind(ar, username, realm, password) == 0) {
+            if(data->group_dn != NULL && !_ldapfull_user_in_group(data, dn, data->group_dn)) {
+                ldap_memfree(dn);
+                return 1;
+            }
+            else {
+                ldap_memfree(dn);
+                return 0;
+            }
+        }
+    }
 
     if( _ldapfull_get_password(ar,username,realm,buf) != 0  ) {
+        if(dn != NULL)
+            ldap_memfree(dn);
         return 1;
     }
 
-    return ! _ldapfull_check_passhash(data,buf,password);
+    if(_ldapfull_check_passhash(data,buf,password)){
+        if(data->group_dn != NULL && !_ldapfull_user_in_group(data, dn, data->group_dn)) {
+            ldap_memfree(dn);
+            return 1;
+        }
+        else {
+            if(dn != NULL)
+                ldap_memfree(dn);
+            return 0;
+        }
+    }
+    else {
+        if(dn != NULL)
+            ldap_memfree(dn);
+        return 1;
+    }
 }
 
 static int _ldapfull_create_user(authreg_t ar, const char *username, const char *realm) {
@@ -858,8 +940,10 @@ DLLEXPORT int ar_init(authreg_t ar)
     data->uidattr = config_get_one(ar->c2s->config, "authreg.ldapfull.uidattr", 0);
     if(data->uidattr == NULL)
         data->uidattr = "uid";
-    
+
     data->validattr = config_get_one(ar->c2s->config, "authreg.ldapfull.validattr", 0);
+
+    data->group_dn = config_get_one(ar->c2s->config, "authreg.ldapfull.group_dn", 0);
 
     data->pwattr = config_get_one(ar->c2s->config, "authreg.ldapfull.pwattr", 0);
     if(data->pwattr == NULL)
@@ -882,7 +966,7 @@ DLLEXPORT int ar_init(authreg_t ar)
     }
 
     data->ar = ar;
-    
+
     if(_ldapfull_connect_bind(data))
     {
         xhash_free(data->basedn);
