@@ -100,7 +100,13 @@
     <driver type='vcard'>ldapvcard</driver>
     -->
 
-    <!-- Read mapping for group id <-> group name from ldap.
+    <!-- Only ldapvcard driver implements published-roster: -->
+    <!--
+    <driver type='published-roster'>ldapvcard</driver>
+    -->
+
+    <!-- Use ldapvcard driver for published-roster-groups.
+         See description in section sm/user/template/mapped-groups.
          Used by mod_published_roster.
          See ldapvcard section for options.
          When resolving group id to group name, it searches for
@@ -135,7 +141,7 @@
       <!-- Database name -->
       <dbname>@localstatedir@/@package@/db/sqlite.db</dbname>
 
-      <!-- Transacation support. If this is commented out, transactions
+      <!-- Transaction support. If this is commented out, transactions
            will be disabled. This might make database accesses faster,
            but data may be lost if jabberd crashes. -->
       <transactions/>
@@ -157,7 +163,7 @@
       <user>jabberd2</user>
       <pass>secret</pass>
 
-      <!-- Transacation support. If this is commented out, transactions
+      <!-- Transaction support. If this is commented out, transactions
            will be disabled. This might make database accesses faster,
            but data may be lost if jabberd crashes.
 
@@ -188,7 +194,7 @@
       <user>jabberd2</user>
       <pass>secret</pass>
 
-      <!-- Transacation support. If this is commented out, transactions
+      <!-- Transaction support. If this is commented out, transactions
            will be disabled. This might make database accesses faster,
            but data may be lost if jabberd crashes. -->
       <transactions/>
@@ -239,7 +245,7 @@
       <bindpw>secret</bindpw>
       -->
 
-      <!-- see authreg.ldapfull int c2s.xml for description. -->
+      <!-- see authreg.ldapfull in c2s.xml for description. -->
       <!--
       <type>ad</type>
       -->
@@ -254,7 +260,7 @@
       <pwattr>jabberPassword</pwattr>
       -->
 
-      <!-- see authreg.ldapfull int c2s.xml for description. -->
+      <!-- see authreg.ldapfull in c2s.xml for description. -->
       <!--
       <validattr>valid</validattr>
       -->
@@ -279,20 +285,20 @@
       <groupattr_regex>OU=([^,]*),</groupattr_regex>
       -->
 
-      <!-- boolean attribute that tells, publish or not this user
+      <!-- boolean attribute that tells whether or not to publish this user
            jabberPublishedItem by default -->
       <!--
       <publishedattr>jabberPublishedItem</publishedattr>
       -->
 
       <!-- If value specified, then keep cache of "published-roster"
-           database. Cache is renewed when kept more seconds than value
+           database, which is used for all users. Cache is renewed when kept more seconds than value
            specified. Setting this value increases perfomance of publishing
            roster. If not specified, then we don't keep cache. -->
       <publishedcachettl>60</publishedcachettl>
 
       <mapped-groups>
-        <!-- If turned on, then reading mapping of group ids to names with
+        <!-- If turned on, then mapping of group ids to names with
              LDAP will works. -->
         <!--
         <map-groups/>
@@ -359,7 +365,7 @@
        it).
 
        Removing a module from these lists will stop the module being
-       called, even if its compiled into the server.
+       called, even if it's compiled into the server.
 
        Serveral modules have a presence in more than one chain. It is
        possible to remove a module from one chain but not others, but
@@ -603,7 +609,7 @@
          a session. The creation process is usually triggered by a c2s
          component in response to a client registering a new user.
 
-         Enableing this option will make it so that a user create will be
+         Enabling this option will make it so that user creation will be
          triggered the first time a non-existant user attempts to start
          a session. This is useful if you already have users in an
          external authentication database (eg LDAP) and you don't want
@@ -627,7 +633,7 @@
     <!-- Templates. If defined, the contents of these files will be
          stored in the users data store when they are created. -->
     <template>
-      <!-- Uncomment <publish> if you wish to forcely publish
+      <!-- Uncomment <publish> if you wish to forcibly publish
            roster template from ldap on each user login -->
       <!--
       <publish>
@@ -652,7 +658,7 @@
         <!-- Alternatively if <force-create-contacts/> is not commented,
 		     published contact is added to sm user database
 			 and user set known to sm, so it won't auto-unsubscribe
-			 on connection extablished -->
+			 on connection established -->
         <!--
         <force-create-contacts/>
         -->
@@ -660,26 +666,26 @@
              This will significantly speed up publishing of roster.
              If unspecified or 0, no cache is used. -->
         <active-cache-ttl>60</active-cache-ttl>
-        <!-- If <fix-subscriptions/> is not commented, set subscriptions of
+        <!-- If <fix-subscriptions/> is not commented, set "to" and "from" subscriptions of
              user's contacts to subscriptions of corresponding published
-             contacts. As for now, "both". -->
+             contacts. -->
         <!--
         <fix-subscriptions/>
         -->
-        <!-- If <override-names/> is not commented, then displayed names of
+        <!-- If <override-names/> is uncommented, then displayed names of
              contacts in user's roster will be updated accordingly to
              published roster (if they differ). If commented, then user can
-             rename contacs in roster -->
+             rename contacts in roster -->
         <!--
         <override-names/>
         -->
-        <!-- when mapped-groups is on (<map-groups/> is uncommented, the actual
+        <!-- when mapped-groups is on (<map-groups/> is uncommented), the actual
              group names for published contacts are read from
-             published-roster-groups storage type, which in turn may be mapped
+             published-roster-groups storage type, which may be set
              to ldapvcard driver. The key for searching is published user's
              group, and returned value is used as group name. So you can assign
              textual group IDs to users rather then group names.
-             group-cache-ttl keeps cache of mapping group id <-> group name for
+             group-cache-ttl keeps cache of mapping from group id to name for
              specified number of seconds. If unspecified or 0, no cache is used.
              -->
         <!--
@@ -690,20 +696,18 @@
         -->
         <!-- If <force-groups> is commented out, published roster's contact
              added to user's roster only when user does not have this contact.
-             If <force-groups> is not commented out, then these checks performed
-             against roster item when publishing roster item that already in
-             user's roster:
-               If user already has added his roster's contact to group of
-               published contact, no changes are made with this group (note
+
+             If <force-groups> is uncommented, then these checks are performed
+             against each roster item already in user's roster:
+	       If roster item already present in user's roster in
+	       group of same name, no changes are made with this group (note
                that contact may be in more than one group).
-               If <prefix> given, then prefix of each group of user's compared
-               whith given prefix, and if it matches, user's contact removed from
-               matched group (see below).
-               Same for <suffix>.
-               After that, user's contact added to a group of published roster's
-               contact.
+	       If <prefix> or <suffix> are given, then contact removed
+	       from any matching groups.
+               After that, contact is added to group from published roster.
+
              In other words, all groups of updated contact, that match prefix
-             or suffix, replaced with group of published contact.
+             or suffix, are replaced with group of published contact.
              This is done because there is no way to determine that group was
              published or greated by user. -->
         <!--
