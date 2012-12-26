@@ -294,7 +294,7 @@
   <!-- If this is enabled, domains which share the same host will re-use
        existing outgoing connections. This is a potential security risk
        as the SSL connection from the first domain will be re-used too. -->
-  <out-reuse-conn/>
+  <out-conn-reuse/>
 
   <security>
     <!-- Require TLS secured S2S connections -->
