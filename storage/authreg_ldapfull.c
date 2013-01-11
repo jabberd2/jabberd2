@@ -652,10 +652,10 @@ static int _ldapfull_user_exists(authreg_t ar, const char *username, const char 
     if (_ldapfull_find_user_dn((moddata_t) ar->private, username, realm, &dn)) {
         if(((moddata_t) ar->private)->group_dn != NULL
             && !_ldapfull_user_in_group((moddata_t) ar->private, dn, ((moddata_t) ar->private)->group_dn)) {
-            ldap_memfree(dn);
+            ldap_memfree((void*)dn);
             return 0;
             }
-        ldap_memfree(dn);
+        ldap_memfree((void*)dn);
         return 1;
     }
     return 0;
@@ -803,7 +803,7 @@ static int _ldapfull_check_password(authreg_t ar, const char *username, const ch
 {
     moddata_t data = (moddata_t) ar->private;
     char buf[LDAPFULL_PASSBUF_MAX];
-    char *dn = NULL;
+    const char *dn = NULL;
 
     log_debug(ZONE, "checking password for %s", username);
 
@@ -819,11 +819,11 @@ static int _ldapfull_check_password(authreg_t ar, const char *username, const ch
     if (!strcmp(data->pwscheme, "bind")) {
         if(_ldapfull_check_password_bind(ar, username, realm, password) == 0) {
             if(data->group_dn != NULL && !_ldapfull_user_in_group(data, dn, data->group_dn)) {
-                ldap_memfree(dn);
+                ldap_memfree((void*)dn);
                 return 1;
             }
             else {
-                ldap_memfree(dn);
+                ldap_memfree((void*)dn);
                 return 0;
             }
         }
@@ -831,24 +831,24 @@ static int _ldapfull_check_password(authreg_t ar, const char *username, const ch
 
     if( _ldapfull_get_password(ar,username,realm,buf) != 0  ) {
         if(dn != NULL)
-            ldap_memfree(dn);
+            ldap_memfree((void*)dn);
         return 1;
     }
 
     if(_ldapfull_check_passhash(data,buf,password)){
         if(data->group_dn != NULL && !_ldapfull_user_in_group(data, dn, data->group_dn)) {
-            ldap_memfree(dn);
+            ldap_memfree((void*)dn);
             return 1;
         }
         else {
             if(dn != NULL)
-                ldap_memfree(dn);
+                ldap_memfree((void*)dn);
             return 0;
         }
     }
     else {
         if(dn != NULL)
-            ldap_memfree(dn);
+            ldap_memfree((void*)dn);
         return 1;
     }
 }
