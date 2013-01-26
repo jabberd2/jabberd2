@@ -65,7 +65,7 @@ mm_t mm_new(sm_t sm) {
     if (modules_path != NULL)
         log_write(sm->log, LOG_NOTICE, "modules search path: %s", modules_path);
     else
-        log_write(sm->log, LOG_NOTICE, "modules search path undefined, using deafult: "LIBRARY_DIR);
+        log_write(sm->log, LOG_NOTICE, "modules search path undefined, using default: "LIBRARY_DIR);
 
     celem = nad_find_elem(sm->config->nad, celem, -1, "chain", 1);
     while(celem >= 0) {
