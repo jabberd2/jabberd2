@@ -19,7 +19,6 @@
  */
 
 #include "sx.h"
-#include <time.h>
 
 sx_t sx_new(sx_env_t env, int tag, sx_callback_t cb, void *arg) {
     sx_t s;
@@ -49,7 +48,7 @@ sx_t sx_new(sx_env_t env, int tag, sx_callback_t cb, void *arg) {
 #endif
 
 #ifdef HAVE_XML_SETHASHSALT
-    XML_SetHashSalt(s->expat, clock());
+    XML_SetHashSalt(s->expat, rand());
 #endif
 
     s->wbufq = jqueue_new();
