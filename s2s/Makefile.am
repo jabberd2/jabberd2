@@ -1,4 +1,4 @@
-INCLUDES = -DCONFIG_DIR=\"$(sysconfdir)\"
+INCLUDES = -DCONFIG_DIR=\"$(sysconfdir)\" -I@top_srcdir@
 
 LIBTOOL += --quiet
 

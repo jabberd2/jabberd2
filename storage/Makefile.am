@@ -1,6 +1,6 @@
 EXTRA_DIST = authreg_ntlogon.c authreg_sspi.c
 
-INCLUDES = -I$(top_srcdir)/c2s
+INCLUDES = -I$(top_srcdir)/c2s -I@top_srcdir@
 
 LIBTOOL += --quiet
 

@@ -17,7 +17,7 @@ $(man_MANS):
       edit="$$edit -e s,@jabberd_$$p\_bin\\@,$$bin,g"; \
     done; \
 	rm -f $@ $@.tmp; \
-	eval "$$edit < $@.in > $@.tmp"; \
+	eval "$$edit < @srcdir@/$@.in > $@.tmp"; \
 	mv $@.tmp $@ 
     
 clean-local:

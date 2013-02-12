@@ -15,7 +15,7 @@ edit = sed \
 $(bin_SCRIPTS): $(EXTRA_DIST)
 	@echo "generating $@ from $@.in"; \
 	rm -f $@ $@.tmp; \
-	$(edit) < $@.in > $@.tmp; \
+	$(edit) < @srcdir@/$@.in > $@.tmp; \
 	chmod +x $@.tmp; \
 	mv $@.tmp $@
 
