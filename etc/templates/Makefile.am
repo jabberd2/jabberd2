@@ -13,7 +13,7 @@ edit = sed \
 $(templates_DATA):
 	@echo "generating $@ from $@.in"; \
 	rm -f $@ $@.tmp; \
-	$(edit) < $@.in > $@.tmp; \
+	$(edit) < @srcdir@/$@.in > $@.tmp; \
 	mv $@.tmp $@
     
 install-data-hook:

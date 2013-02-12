@@ -1,4 +1,5 @@
 LIBTOOL += --quiet
+INCLUDES = -I@top_srcdir@
 
 bin_PROGRAMS = sm
 

@@ -1,4 +1,5 @@
 LIBTOOL += --quiet
+INCLUDES = -I@top_srcdir@
 
 noinst_LTLIBRARIES = libmio.la
 
