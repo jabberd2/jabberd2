@@ -42,7 +42,7 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
             /* parse error */
             errstring = (char *) XML_ErrorString(XML_GetErrorCode(s->expat));
 
-            _sx_debug(ZONE, "XML parse error: %s; line: %d, column: %d", errstring, XML_GetCurrentLineNumber(s->expat), XML_GetCurrentColumnNumber(s->expat));
+            _sx_debug(ZONE, "XML parse error: %s; line: %d, column: %d, buffer: %.*s", errstring, XML_GetCurrentLineNumber(s->expat), XML_GetCurrentColumnNumber(s->expat), buf->len, buf->data);
             _sx_gen_error(sxe, SX_ERR_XML_PARSE, "XML parse error", errstring);
             _sx_event(s, event_ERROR, (void *) &sxe);
 
