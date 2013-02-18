@@ -116,7 +116,7 @@ static int _nad_attr(nad_t nad, int elem, int ns, const char *name, const char *
         nad->attrs[attr].lval = vallen;
     else
         nad->attrs[attr].lval = strlen(val);
-    nad->attrs[attr].ival = _nad_cdata(nad,val,nad->attrs[attr].lval);    
+    nad->attrs[attr].ival = _nad_cdata(nad,val,nad->attrs[attr].lval);
     nad->attrs[attr].my_ns = ns;
 
     return attr;
@@ -241,7 +241,7 @@ int nad_find_attr(nad_t nad, int elem, int ns, const char *name, const char *val
 
     /* make sure there are valid args */
     if(elem >= nad->ecur || name == NULL) return -1;
- 
+
     attr = nad->elems[elem].attr;
     lname = strlen(name);
     if(val != NULL) lval = strlen(val);
@@ -249,7 +249,7 @@ int nad_find_attr(nad_t nad, int elem, int ns, const char *name, const char *val
     while(attr >= 0)
     {
         /* hefty, match name and if a val, also match that */
-        if(lname == nad->attrs[attr].lname && strncmp(name,nad->cdata + nad->attrs[attr].iname, lname) == 0 && 
+        if(lname == nad->attrs[attr].lname && strncmp(name,nad->cdata + nad->attrs[attr].iname, lname) == 0 &&
           (lval <= 0 || (lval == nad->attrs[attr].lval && strncmp(val,nad->cdata + nad->attrs[attr].ival, lval) == 0)) &&
           (ns < 0 || ((my_ns = nad->attrs[attr].my_ns) >= 0 && NAD_NURI_L(nad, ns) == NAD_NURI_L(nad, my_ns) && strncmp(NAD_NURI(nad, ns), NAD_NURI(nad, my_ns), NAD_NURI_L(nad, ns)) == 0)))
             return attr;
@@ -558,7 +558,7 @@ int nad_insert_nad(nad_t dest, int delem, nad_t src, int selem) {
 
         /* namespaces */
         dest->elems[first + i].my_ns = dest->elems[first + i].ns = dest->scope = -1;
-        
+
         /* first, the element namespace */
         ns = src->elems[selem + i].my_ns;
         if(ns >= 0) {
@@ -639,7 +639,7 @@ int nad_insert_nad(nad_t dest, int delem, nad_t src, int selem) {
                 /* val */
                 dest->attrs[dest->acur].lval = src->attrs[attr].lval;
                 dest->attrs[dest->acur].ival = _nad_cdata(dest, src->cdata + src->attrs[attr].ival, src->attrs[attr].lval);
-        
+
                 /* namespace */
                 dest->attrs[dest->acur].my_ns = -1;
 
@@ -650,7 +650,7 @@ int nad_insert_nad(nad_t dest, int delem, nad_t src, int selem) {
                             dest->attrs[dest->acur].my_ns = j;
                             break;
                         }
-                        
+
                 /* link it up */
                 dest->attrs[dest->acur].next = dest->elems[first + i].attr;
                 dest->elems[first + i].attr = dest->acur;
@@ -755,7 +755,7 @@ int nad_add_namespace(nad_t nad, const char *uri, const char *prefix)
     if(prefix != NULL)
     {
         nad->nss[ns].lprefix = strlen(prefix);
-        nad->nss[ns].iprefix = _nad_cdata(nad, prefix, nad->nss[ns].lprefix);    
+        nad->nss[ns].iprefix = _nad_cdata(nad, prefix, nad->nss[ns].lprefix);
     }
     else
         nad->nss[ns].iprefix = -1;
@@ -787,7 +787,7 @@ int nad_append_namespace(nad_t nad, int elem, const char *uri, const char *prefi
     if(prefix != NULL)
     {
         nad->nss[ns].lprefix = strlen(prefix);
-        nad->nss[ns].iprefix = _nad_cdata(nad, prefix, nad->nss[ns].lprefix);    
+        nad->nss[ns].iprefix = _nad_cdata(nad, prefix, nad->nss[ns].lprefix);
     }
     else
         nad->nss[ns].iprefix = -1;
@@ -904,6 +904,7 @@ static int _nad_lp0(nad_t nad, int elem)
     int attr;
     int ndepth;
     int ns;
+    int elem_ns;
 
     /* there's a lot of code in here, but don't let that scare you, it's just duplication in order to be a bit more efficient cpu-wise */
 
@@ -930,16 +931,58 @@ static int _nad_lp0(nad_t nad, int elem)
         nad->ccur += nad->nss[ns].lprefix;
         *(nad->cdata + nad->ccur++) = ':';
     }
-    
+
     /* copy in the name */
     memcpy(nad->cdata + nad->ccur, nad->cdata + nad->elems[elem].iname, nad->elems[elem].lname);
     nad->ccur += nad->elems[elem].lname;
+
+    /* add element prefix namespace */
+    ns = nad->elems[elem].my_ns;
+    if(ns >= 0 && nad->nss[ns].iprefix >= 0)
+    {
+        /* make space */
+        if(nad->nss[ns].iprefix >= 0)
+        {
+            NAD_SAFE(nad->cdata, nad->ccur + nad->nss[ns].luri + nad->nss[ns].lprefix + 10, nad->clen);
+        } else {
+            NAD_SAFE(nad->cdata, nad->ccur + nad->nss[ns].luri + 9, nad->clen);
+        }
+
+        /* start */
+        memcpy(nad->cdata + nad->ccur, " xmlns", 6);
+        nad->ccur += 6;
+
+        /* prefix if necessary */
+        if(nad->nss[ns].iprefix >= 0)
+        {
+            *(nad->cdata + nad->ccur++) = ':';
+            memcpy(nad->cdata + nad->ccur, nad->cdata + nad->nss[ns].iprefix, nad->nss[ns].lprefix);
+            nad->ccur += nad->nss[ns].lprefix;
+        }
+
+        *(nad->cdata + nad->ccur++) = '=';
+        *(nad->cdata + nad->ccur++) = '\'';
+
+        /* uri */
+        memcpy(nad->cdata + nad->ccur, nad->cdata + nad->nss[ns].iuri, nad->nss[ns].luri);
+        nad->ccur += nad->nss[ns].luri;
+
+        *(nad->cdata + nad->ccur++) = '\'';
+
+        elem_ns = ns;
+    }else{
+        elem_ns = -1;
+    }
 
     /* add the namespaces */
     for(ns = nad->elems[elem].ns; ns >= 0; ns = nad->nss[ns].next)
     {
         /* never explicitly declare the implicit xml namespace */
         if(nad->nss[ns].luri == strlen(uri_XML) && strncmp(uri_XML, nad->cdata + nad->nss[ns].iuri, nad->nss[ns].luri) == 0)
+            continue;
+
+        /* do not redeclare element namespace */
+        if(ns == elem_ns)
             continue;
 
         /* make space */
@@ -994,7 +1037,7 @@ static int _nad_lp0(nad_t nad, int elem)
             nad->ccur += nad->nss[ns].lprefix;
             *(nad->cdata + nad->ccur++) = ':';
         }
-    
+
         /* copy in the name parts */
         memcpy(nad->cdata + nad->ccur, nad->cdata + nad->attrs[attr].iname, nad->attrs[attr].lname);
         nad->ccur += nad->attrs[attr].lname;
@@ -1042,7 +1085,7 @@ static int _nad_lp0(nad_t nad, int elem)
             /* close tag */
             memcpy(nad->cdata + nad->ccur, "</", 2);
             nad->ccur += 2;
-    
+
             /* add the prefix if necessary */
             if(ns >= 0 && nad->nss[ns].iprefix >= 0)
             {
@@ -1050,7 +1093,7 @@ static int _nad_lp0(nad_t nad, int elem)
                 nad->ccur += nad->nss[ns].lprefix;
                 *(nad->cdata + nad->ccur++) = ':';
             }
-    
+
             memcpy(nad->cdata + nad->ccur, nad->cdata + nad->elems[elem].iname, nad->elems[elem].lname);
             nad->ccur += nad->elems[elem].lname;
             *(nad->cdata + nad->ccur++) = '>';
@@ -1072,10 +1115,10 @@ static int _nad_lp0(nad_t nad, int elem)
         /* close ourself and append any cdata first */
         NAD_SAFE(nad->cdata, nad->ccur + 1, nad->clen);
         *(nad->cdata + nad->ccur++) = '>';
-        _nad_escape(nad, nad->elems[elem].icdata, nad->elems[elem].lcdata,4);
+        _nad_escape(nad, nad->elems[elem].icdata, nad->elems[elem].lcdata, 4);
 
         /* process children */
-        nelem = _nad_lp0(nad,elem+1);
+        nelem = _nad_lp0(nad, elem+1);
 
         /* close and tail up */
         ns = nad->elems[elem].my_ns;
@@ -1118,7 +1161,7 @@ void nad_print(nad_t nad, int elem, const char **xml, int *len)
 
     _nad_ptr_check(__func__, nad);
 
-    _nad_lp0(nad,elem);
+    _nad_lp0(nad, elem);
     *len = nad->ccur - ixml;
     *xml = nad->cdata + ixml;
 }
@@ -1317,7 +1360,7 @@ static void _nad_parse_namespace_start(void *arg, const char *prefix, const char
     ns = nad_add_namespace(bd->nad, (char *) uri, (char *) prefix);
 
     /* Always set the namespace (to catch cases where nad_add_namespace doesn't add it) */
-    bd->nad->scope = ns; 
+    bd->nad->scope = ns;
 }
 
 #ifdef HAVE_XML_STOPPARSER
