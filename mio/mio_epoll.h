@@ -40,10 +40,10 @@
                                                                         \
         event.events = priv_fd->events;                                 \
         event.data.u64 = 0;                                             \
-        event.data.ptr = priv_fd;                              \
+        event.data.ptr = priv_fd;                                       \
         epoll_ctl(MIO(m)->epoll_fd, EPOLL_CTL_ADD, fd, &event);         \
                                                                         \
-        return (mio_fd_t)priv_fd;                                        \
+        return (mio_fd_t)priv_fd;                                       \
     }
 
 
@@ -65,6 +65,7 @@
             return NULL;                                                \
         }                                                               \
     } while(0)
+
 #define MIO_FREE_VARS(m) \
     do {                                                                \
         close(MIO(m)->epoll_fd);                                        \
@@ -89,7 +90,10 @@
 #define MIO_SET_READ(m, mfd) \
     do {                                                                \
         struct epoll_event event;                                       \
+        event.events = mfd->events;                                     \
         mfd->events |= EPOLLIN;                                         \
+        if( mfd->events == event.events )                               \
+            break;                                                      \
         event.events = mfd->events;                                     \
         event.data.u64 = 0;                                             \
         event.data.ptr = mfd;                                           \
@@ -100,7 +104,10 @@
 #define MIO_SET_WRITE(m, mfd) \
     do {                                                                \
         struct epoll_event event;                                       \
+        event.events = mfd->events;                                     \
         mfd->events |= EPOLLOUT;                                        \
+        if( mfd->events == event.events )                               \
+            break;                                                      \
         event.events = mfd->events;                                     \
         event.data.u64 = 0;                                             \
         event.data.ptr = mfd;                                           \
@@ -111,17 +118,24 @@
 #define MIO_UNSET_READ(m, mfd) \
     do {                                                                \
         struct epoll_event event;                                       \
+        event.events = mfd->events;                                     \
         mfd->events &= ~EPOLLIN;                                        \
+        if( mfd->events == event.events )                               \
+            break;                                                      \
         event.events = mfd->events;                                     \
         event.data.u64 = 0;                                             \
         event.data.ptr = mfd;                                           \
         epoll_ctl(MIO(m)->epoll_fd, EPOLL_CTL_MOD,                      \
                   mfd->mio_fd.fd, &event);                              \
     } while (0)
+
 #define MIO_UNSET_WRITE(m, mfd) \
     do {                                                                \
         struct epoll_event event;                                       \
+        event.events = mfd->events;                                     \
         mfd->events &= ~(EPOLLOUT);                                     \
+        if( mfd->events == event.events )                               \
+            break;                                                      \
         event.events = mfd->events;                                     \
         event.data.u64 = 0;                                             \
         event.data.ptr = mfd;                                           \
