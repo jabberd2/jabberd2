@@ -190,6 +190,9 @@ static pkt_t _iq_vcard_to_pkt(sm_t sm, os_t os) {
 
         log_debug(ZONE, "extracted dbkey %s val '%s' for vcard key %s", dkey, dval, vkey);
 
+        if (!strcmp(dkey, "tel")) {
+            nad_append_elem(pkt->nad, NAD_ENS(pkt->nad, 2), "VOICE", pkt->nad->elems[elem].depth + 1);
+        }
         nad_append_elem(pkt->nad, NAD_ENS(pkt->nad, 2), vskey, pkt->nad->elems[elem].depth + 1);
         nad_append_cdata(pkt->nad, dval, strlen(dval), pkt->nad->elems[elem].depth + 2);
     }
