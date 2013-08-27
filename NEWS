@@ -1,144 +1,557 @@
-2005-03-31 jabberd 2.0s7
-    * I have been using ChangeLog to record this info - justin
-    * See the wiki at http://j2.openaether.org/mediawiki for real news
+This file contains upgrade instructions between different versions of jabberd2.
 
-2004-06-25  jabberd 2.0s3
 
-    * Fixed several memory leaks and overruns <karsten.petersen@hrz.tu-chemnitz.de>
-    * Fixed XMPP session replacement [rob]
-    * Added support for Win32 platforms <peter@cerebus.co.za> [rob]
-    * Added support for requiring SSL/TLS before auth <deryni@eden.rutgers.edu>
-    * Added support for LDAPv3 (including channel encryption) [rob]
-    * Added workaround to make large presence broadcasts more efficient [rob]
-    * Generate random dialback key if none provided [rob]
-    * Rewrote configure script (+ many code tweaks to support this) [rob]
-    * Remove build requirement for Libidn and OpenSSL [rob]
-    * Removed bundled Libidn due to licensing issues [rob]
-    * Bugfixes: 3059, 3174, 3343, 3368, 3480, 3481, 3594
+* 2.2.16 to 2.2.17 upgrade:
 
-2004-02-10  jabberd 2.0s2
+What changed:
+- cppunit was replaced by check framework
+- Fixed build with debug disabled
 
-    * Brought privacy lists into line with latest spec <dudley@cs.stanford.edu>
-    * Fixed registration bug & password changing security hole [rob]
-    * Fixed DIGEST-MD5 "qop" attribute handling [rob]
-    * Fixed a number of c2s/s2s I/O race conditions [rob]
-    * Fixed keepalives (now work with SSL/TLS connections) [rob]
-    * Fixed build against OpenLDAP 2.2 [rob]
-    * Updated presence broadcast semantics [rob]
-    * Added calls to PAM account management functions <patrick@mindstep.com>
-    * Added handling for zero-length LDAP passwords [rob]
-    * Added checks for Berkeley DB 4.2 [rob]
-    * Added check for vsyslog() and workaround code for systems that don't have it (eg HP-UX) [rob]
-    * Removed -R flags from link directives [rob]
 
-2003-12-28  jabberd 2.0s1
+* 2.2.15 to 2.2.16 upgrade:
 
-2003-12-10  jabberd 2.0rc2
+What changed:
+- Debug logging into file implemented
+  See etc/*.xml.dist for instructions
+- Unit tests are not mandatory
+  See --enable-tests/--disable-tests option for ./configure
+- Fix for invalid default router.xml (Unterminated XML comment tag)
 
-2003-11-17  jabberd 2.0rc1
 
-2003-11-03  jabberd 2.0b3
+* 2.2.14 to 2.2.15 upgrade:
 
-    * Support for multiple SRV lookups [rob]
-    * c2s/sm detect when the other is unavailable, and kills sessions appropriately [rob]
-    * Optional logging to stdout [rob]
+What changed:
+- Merged config variables expansion
+- Group extraction by RegExp from LDAP
+- A1HASH passwords support for MySQL
+- PBX integration pipe implementation
+- Enable/disable debug output with signals USR1/USR2
+- '-i ID' command line option
+- DB query rate limitting
+- Domain whitelisting support
+- Support enforcing TLS secured S2S connections only
+- Simple message logging to a directory
+- MIO kqueue implementation
+- Support for see-other-host stream redirects
+- Unit tests
 
-2003-10-08  jabberd 2.0b2
+You will need cppunit(-devel) installed to get the tests built.
+See example configuration files on how to enable new features.
 
-    * 1.4 migration tool [rob]
-    * Configurable router reconnect [rob]
-    * Lots of memory corruption and other bugs fixed [rob]
 
-2003-09-03  jabberd 2.0b1
+* 2.2.13 to 2.2.14 upgrade:
 
-    * Offline message event (JEP-0022) support [rob]
-    * Message expiration (JEP-0023) support [rob]
-    * Libidn updated to 0.2.1 [rob]
-    * SQL templates for MySQL/PostgreSQL authreg modules <mike@mikeprince.com>
-    * Static builds (experimental) [rob]
-    * Optionally allow in-band password changes instead of full account creation [rob]
-    * Allow multiple s2s instances [mawis]
-    * Optionally restrict available authentication mechanisms [rob]
-    * SASL ANONYMOUS support [rob]
+What changed:
+- There are example upstart configuration files in etc/ you may use.
 
-2003-08-04  jabberd 2.0.0-a6
+* 2.2.12 to 2.2.13 upgrade:
 
-    * XMPP privacy list support [rob]
-    * Stringprep cache (= significant performance increase) [rob]
-    * Internal SASL implementation (no dependency on Cyrus-SASL) [rob]
-    * Removed c2s external password synchronisation (not needed without Cyrus-SASL) [rob]
-    * s2s keepalives [rob]
-    * s2s queue expiry [rob]
-    * s2s invalid expiry [rob]
-    * XMPP-compliant presence tracker [rob]
-    * PID files [rob]
-    * Component packet throttling [rob]
-    * Broadcast packets [rob]
-    * Roster templates [rob]
+What changed:
+- New authentication option 'bind' for authreg_ldapfull
+  See etc/c2s.xml.dist for instructions
+- Stream Compression for S2S connections
+  See etc/c2s.xml.dist for instructions
 
-2003-06-19  jabberd 2.0.0-a5
 
-    * Build system overhaul [rob]
-    * Query-based storage layer [rob]
-    * PostgreSQL storage and authentication [rob]
-    * MySQL storage and authentication [rob]
-    * PAM authentication [rob]
-    * Incremental roster database updates [rob]
-    * c2s idle connection checks [rob]
-    * c2s keepalives [rob]
-    * c2s external password synchronisation [rob]
-    * Disco identity configuration [rob]
-    * Disco item publish [rob]
-    * XMPP-style errors [rob]
-    * XMPP-style session start [rob]
+* 2.2.11 to 2.2.12 upgrade:
 
-2003-03-21  jabberd 2.0.0-a4
+What changed:
+- published-roster
+  Uses displayName to populate published-roster name and fallbacks to cn.
 
-    * Rewritten streams library [rob]
-    * STARTTLS and SASL updated to xmpp-core-05 [rob]
-    * JID preparation (xmpp-core section 3) [rob]
-    * New component routing protocol [rob]
-    * External s2s component [rob]
-    * Components can encrypt router session [rob]
-    * Name aliases (supports 1.4 uplink components) [rob]
-    * Component access controls [rob]
-    * SM version signature [rob]
-    * configure can take alternate paths for external libs [rob]
-    * LDAP authentication module [rob]
-    * Expat updated to 1.95.6 [rob]
-    * Facilities for packet logging components [rob]
 
-2002-12-20  jabberd 2.0.0-a3
+* 2.2.10 to 2.2.11 upgrade:
 
-    * Component presence & service discovery [rob]
-    * Pipe authenticator [rob]
-    * SIGHUP reopens logfiles [rob]
-    * Access control for priviliged operations [rob]
-    * Support for module multiplexors (eg mod_perl) [rob]
-    * Broadcast messages (announce, motd, etc) [rob]
-    * Resend messages for SM to admins [rob]
-    * IPv6 support [mawis]
+What changed:
+- only bugfixes
 
-2002-11-22  jabberd 2.0.0-a2
 
-    * Reconnect code added to resolver, c2s, and sm.  [reatmon]
-    * jabber:iq:privacy (JEP-0016) support [rob]
-    * jabber:iq:private (JEP-0049) support [rob]
-    * Message echo support [rob]
-    * jabberd wrapper script [reatmon]
-    * New c2s/sm command protocol [rob]
-    * Transaction/recovery support for Berkeley DB modules [rob]
+* 2.2.9 to 2.2.10 upgrade:
 
-2002-11-07  jabberd 2.0.0-a1
-    
-    * Core IM support in sm (messages, presence, rosters, s10ns) [rob]
-    * Config files for c2s/resolver/router [rob]
-    * c2s auth/reg subsystem [rob]
-    * IP-based access controls [rob]
-    * Connection rate limiting [rob]
-    * Karma (byterate limiting) [rob]
-    * vCard support [rob]
-    * Basic README [rob]
-    * Upgrade to Expat 1.95.5 [rob]
-    * Autotools-based build system [temas]
-    * Debug clean ups [reatmon]
+What changed:
+- removed mod_disco_publish (it was removed from XEP-0030)
+
+Remove <module>disco-publish</module> lines from your sm.xml.
+
+
+* 2.2.8 to 2.2.9 upgrade:
+
+What changed:
+- Implemented component clustering
+- Many virtual hosts in one SM process
+- FreeBSD kqueue support
+- Implemented PBX integration interface
+- crypt() password support for LDAP backend
+
+There is new <local/> section in sm.xml. You may use it to configure domains
+serviced by the SM process. Old style domain name in <id/> section still works
+for backward compatibility, but the <local/> section overrides it.
+You need to give different <id/> names to SM instances participating in
+clustering. Router needs a way to differenciate these.
+
+There is new <pbx/> section in c2s.xml configuration file. Please see it if you
+want to use the PBX integration.
+
+
+* 2.2.7 to 2.2.8 upgrade:
+
+What changed:
+- User can message/query own resources
+- Settable size for vCard image field
+- Proper server disco#info answer
+- Support for /etc/hosts lookup (as a last resort)
+- Workaround for Java SSL bug (Google servers connection problems)
+
+You may configure the vCard field size limit in sm.xml.
+Look at sm.xml.dist for example.
+
+
+* 2.2.6 to 2.2.7.1 upgrade:
+
+What changed:
+- Fixed issue with not supported but advertised SASL integrity protection
+- Workaround for buggy Java TLS implementation affecting OpenFire and GTalk
+
+There is nothing for you to do.
+
+
+* 2.2.5 to 2.2.6 upgrade:
+
+What changed:
+- added ip.origin option to s2s.xml
+- Implemented GSASL qop-int integrity checks
+- Implemented router-filter packet logging
+
+See etc/s2s.xml and etc/router-filter.xml for new options.
+
+
+* 2.2.4 to 2.2.5 upgrade:
+This is a bugfix release. There are almost none visible changes.
+NAD caching was removed. This should reduce memory usage and
+memory growth (at a cost of little more CPU usage).
+A key was added to the 'status' table in MySQL.  This improves performance
+for queries to that table.  The is recommended for everyone, but will have
+the biggest impact for installations with a large number of signons and
+signoffs.  It only affects installations with mod_status enabled.
+You can add the key by running this statement:
+ALTER TABLE status ADD KEY (`collection-owner`(255));
+
+
+* 2.2.3 to 2.2.4 upgrade:
+
+What changed:
+- [WIN32] libidn & gsasl downloads are now at GNU servers
+- Detecting unrecoverable stream errors on establishing an outgoing s2s connection
+- Do not offer compression if STARTTLS is required and not enabled
+- Return better error on STARTTLS required failure
+- [WIN32] Don't override server.pem on upgrade
+- [WIN32] Add TLS server certificate for default win32 c2s config
+- [WIN32] Don't fail when service fails to start (Should popup ignore box)
+- Implemented logging of compressed conection established
+- Implemented My IP Address extension
+
+Fortunately you do not need to configure anything to observe these changes,
+but you should be aware of them to not get surprised.
+
+
+* 2.2.2 to 2.2.3 upgrade:
+
+What changed:
+- GnuSASL 0.2.27 is required
+- GSSAPI support
+
+Upgrade gsasl to 0.2.27.
+You may use GSSAPI if you have it configured. Add <gssapi/> to c2s.xml mechanizms.
+
+
+* 2.2.1 to 2.2.2 upgrade:
+
+What changed:
+- SCOD is gone (again)
+- implemented rate limiting throtling
+- option to limit stanzas per second
+
+See io.limits.stanzas section in etc/c2s.xml.dist and copy to yours c2s.xml.
+Now, when you rate limit your clients, they are throttled instead of disconnected.
+
+
+* 2.2.0 to 2.2.1 upgrade:
+
+What changed:
+- new ./configure option --without-subst
+- fixed router-filter
+- fixed rate limiting
+- removed "leaking" caches etc.
+
+You may disable the "license unsure" subst/ function replacements library
+with --without-subst. This allows Debian to include jabberd.
+Please see example router-filter.xml for additional notes how it works.
+(Please note that filter does not match resources as suggested before.)
+You may now expect rate limiting to actually work.
+Jabberd should now grow memory usage like before, but may eat a bit more CPU power.
+
+
+* 2.1.24 to 2.2.0 upgrade:
+
+What changed:
+- UDNS library required
+- GnuSASL 0.2.26 or higher version required
+- resolver component removed
+- fixed SSL handling
+
+Install UDNS http://www.corpit.ru/mjt/udns.html and upgrade GSASL to
+at least 0.2.26 version.
+Resolver is now built in S2S component, so you need to add <lookup/> section
+to your s2s.xml config. Then remove resolver component from your configuration.
+Please check your verify-mode setting in c2s.xml, and make sure it is what you
+wanted. See SSL_CTX_set_verify(3) manual page.
+
+
+* 2.1.23 to 2.1.24 upgrade:
+
+What changed:
+- server component presences
+
+Look at etc/sm.xml.dist to see how 'pkt-sm' chain should look now.
+
+
+* 2.1.22 to 2.1.23 upgrade:
+
+What changed:
+- XEP-0232: Software Information implemented
+- BerkeleyDB dump and 2-MySQL migrations scripts in tools
+- Updated sources to build on win32 again
+
+See sm.xml.dist config for disco-extend chain snippet for software information
+to add to your sm.xml.
+See tools/db-update.sqlite for win32 database upgrade script for win32.
+
+* 2.1.21 to 2.1.22 upgrade:
+
+What changed:
+- MySQL 5.0+ dependency
+- moved --enable-sasl configure option to --with-sasl
+
+
+* 2.1.20 to 2.1.21 upgrade:
+
+What changed:
+- LDAP backend <query/> option
+
+See c2s.xml.dist for example, how to use news <query/> option, that
+allows you to customize the query sent to LDAP server.
+
+
+* 2.1.19 to 2.1.20 upgrade:
+
+What changed:
+- added missing XEP-0054 fields
+- server vcard support
+- new authreg ldapfull, storage ldapvcard and sm roster-publish modules
+- implemented maximum stanza size limit
+- disabled CyrusSASL backend compilation
+
+You need to add missing columns to "vcard" table:
+ALTER TABLE vcard ADD "jabberid" text, ADD "mailer" text, ADD "uid" text;
+See c2s.xml and sm.xml for options of new modules and stanzasize.
+
+
+* 2.1.18 to 2.1.19 upgrade:
+
+What changed:
+- mod_status stores full last presence stanza
+- so called "offline status" support
+  (sending last unavailable presence stanza for unavailable users)
+
+You need to add "xml" column to "status" table:
+ALTER TABLE "status" ADD COLUMN "xml" TEXT;
+
+
+* 2.1.17 to 2.1.18 upgrade:
+
+What changed:
+- implemented /webstatus service
+
+If you want to allow users of other servers to store their presence information
+in your "status" database table, add status.resource section and status module
+in 'pkt-sm' chain in sm.xml. See sm.xml.dist for reference.
+
+
+* 2.1.16 to 2.1.17 upgrade:
+
+What changed:
+- s2s maximum fds option implemented
+
+If you want to configure maximum file descriptors for s2s, look in s2s.xml.dist
+for io/max_fds option, that mirrors the same option from c2s.xml.
+
+
+* 2.1.15 to 2.1.16 upgrade:
+
+What changed:
+- Offline storage does not store headline messages by default
+- XEP-0157: Contact Addresses for XMPP Services
+- --enable-superseded ./configure option
+- Messages are delivered to all resources with highest priority number
+  in accordance to RFC3921bis changes
+- XEP-0138: Stream Compression
+- XEP-0198: Stanza Acknowledgements
+- Dynamic virtual hosts support
+- Packet througput counters implemented
+- XEP-0202: Entity Time, XEP-0203: Delayed Delivery
+
+If you want to store headline messages in offlinestorage, enable
+<storeheadlines/> in sm.xml. See etc/sm.xml.dist for reference.
+If you want to set XEP-0157: Contact Addresses please see
+etc/sm.xml.dist discovery.serverinfo section for example configuration
+to include in sm.xml. You need to add new chain 'disco-extend' section
+and discovery/sserverinfo section to configuration.
+If you wish, you may use --disable-superseded option during ./configure
+to disable all features, that was superseded by newer ones.
+If you want to enable stream compression, please uncomment proper section
+in c2s.xml.
+If you want to enable XEP-0198, please give --enable-experimental parameter
+to ./configure script.
+If you configure an <id/> in c2s.xml with no hostname, it will be used as
+a fallback default configuration for running SM with no configured <id/>.
+See <stats/> sections in c2s.xml and s2s.xml for reference how to configure
+packet counters.
+
+
+* 2.1.14 to 2.1.15 upgrade:
+
+Only bug and compilation fixes. No configuration changes needed.
+
+
+* 2.1.13 to 2.1.14 upgrade:
+
+What changed:
+- Oracle authreg backend
+
+You may use Oracle backend to store your user data too. See c2s.xml.dist.
+
+
+* 2.1.12 to 2.1.13 upgrade:
+
+Only bug and compilation fixes. No configuration changes needed.
+
+
+* 2.1.11 to 2.1.12 upgrade:
+
+What changed:
+- PQconnectdb PostgreSQL connection method
+- using pg_config to find PostgreSQL
+
+For the PQconnectdb see <conninfo/> in etc/c2s.xml.dist and etc/sm.xml.dist.
+You may add --enable-pgsql=/path/to/pg_config to ./configure to get PostgreSQL
+paths using pg_config.
+
+
+* 2.1.10 to 2.1.11 upgrade:
+
+Only bug and compliance fixes. No configuration changes needed.
+
+
+* 2.1.9 to 2.1.10 upgrade:
+
+What changed:
+- configure SASL backend fallback removed
+- user roster items limit support
+
+If you want to use other than GnuSASL backend for SASL, you need to enforce it
+by --with-sasl=BACKEND option to ./configure. There is no fallback anymore,
+because other backends are not supported and mostly do not work.
+If you want to limit user roster items, please see etc/sm.xml.dist for reference.
+
+
+* 2.1.8 to 2.1.9 upgrade:
+
+What changed:
+- logging formats
+- oob redirection during registration
+
+If you use log analysers please note that c2s and s2s connect messages have
+now a "TLS negotiated" indicator at the end. For s2s it was "SSL negotiated".
+c2s disconnection message now has user JID included.
+If you want to use oob redirection during registration, please see
+etc/c2s.xml.dist for reference.
+
+
+* 2.1.7 to 2.1.8 upgrade:
+
+What changed:
+- SASL backend selection method
+
+During ./configure use --with-sasl=BACKEND instead of --enable-gsasl
+and --enable-cyrus.
+
+
+* 2.1.6 to 2.1.7 upgrade:
+
+What changed:
+- MySQL connection defaults to UTF-8 now
+- Removed support for ZeroK authentication
+
+Please make sure that the encoding of the data in your MySQL DB is UTF-8
+or is convertable by MySQL to UTF-8.
+You may remove the 'token', 'sequence' and 'hash' columns in authreg table.
+
+
+* 2.1.5 to 2.1.6 upgrade:
+
+What changed:
+- implemented XEP-0199: XMPP ping
+- sysconfdir isn't changed to .../etc/jabberd anymore
+- SASL backend is now GnuSASL by default with Cyrus as an alternative
+- configure.in was renamed to configure.ac
+- strndup() and timegm() implementations in subst/
+- PATH_MAX definition added when necessary
+
+Add <module>iq-ping</module> to in-sess and pkt-sm chains in sm.xml.
+You need to explicitly set --sysconfdir with jabberd subdir if you want to.
+You need to --disable-gsasl and --enable-cyrus if you need to use Cyrus SASL.
+Remove all source dependant patches for missing functions if you have ones.
+
+
+* 2.1.4 to 2.1.5 upgrade:
+
+What changed:
+- auth/reg/storage modules are now loaded dynamically at runtime
+- MySQL storage backend is not enabled by default
+
+Dynamic modules should run out of box once installed (make install).
+If you need to configure other than the compiled-in path for it, please refer
+to the c2s.xml.dist and sm.xml.dist for a proper <path/> option.
+You will need to explicitly --enable-mysql during ./configure if you want to
+use MySQL backends.
+
+
+* 2.1.3 to 2.1.4 upgrade:
+
+What changed:
+- full SQLite support
+- PostgreSQL NULL parameters handling
+- more than one LDAP server support
+- new LDAP append-realm setting
+- correct CA chain handling
+
+Please refer to sm.xml.dist and c2s.xml.dist for new config sections and add
+them to your config files.
+Please read these example files to see how to setup your CA chain correctly.
+You may also remove cachain option from c2s.xml.
+You may remove hostname form PostgreSQL setup to access it via unix socket.
+
+
+* 2.1 to 2.1.3 upgrade:
+
+What changed:
+- c2s.xml added <ssl-mechanisms/> section
+- c2s PAM authenticator now handles realm setting
+- libjabberd moved from /usr/lib to /usr/lib/jabberd
+- removed bootstrap script - use: autoreconf --install if you build from sources
+
+If you want to use new SSL aware auth mechanizms please merge <ssl-mechanisms/>
+section of c2s.xml.dist into your c2s.xml config file.
+Remove any realm setting for PAM authenticated domains or setup your PAM system
+to handle additional realms.
+If you use modules.path in sm.xml, add .../jabberd/ at the end.
+
+
+* 2.0 to 2.1 upgrade:
+
+What changed:
+- c2s.xml local/id syntax:
+- DB schema
+- amp and status modules
+- CyrusSASL usage
+
+
+Upgrade:
+
+Basically all <local/> subitems and registration options from section
+<register/> are configurable per-realm now. So you need to move pemfile,
+verify-mode, require-starttls to <id/> attributes.
+You may also use subitems of <local/> as before, and these will be used
+for legacy port 5223 SSL wrapper.
+
+Options require-starttls, register-enable and password-change ale boolean.
+These are enabled if set to anything. 'true' seems reasonable for clarity.
+WARNING: Setting 'false' doesn't disable it!!!
+
+When you disabled new registrations for a realm not setting register-enable,
+you may wish to set password-change to enable users to change password.
+
+For new options like httpforward, see example c2s.xml for reference.
+
+
+DB changes:
+You need to add the following fields to the "vcard" table:
+
+ALTER TABLE vcard ADD COLUMN "tz" text;
+ALTER TABLE vcard ADD COLUMN "n-middle" text;
+ALTER TABLE vcard ADD COLUMN "n-prefix" text;
+ALTER TABLE vcard ADD COLUMN "n-suffix" text;
+ALTER TABLE vcard ADD COLUMN "n-prefx" text;
+ALTER TABLE vcard ADD COLUMN "n-suffix" text;
+ALTER TABLE vcard ADD COLUMN "adr-street" text;
+ALTER TABLE vcard ADD COLUMN "adr-extadd" text;
+ALTER TABLE vcard ADD COLUMN "adr-pobox" text;
+ALTER TABLE vcard ADD COLUMN "adr-locality" text;
+ALTER TABLE vcard ADD COLUMN "adr-region" text;
+ALTER TABLE vcard ADD COLUMN "adr-pcode" text;
+ALTER TABLE vcard ADD COLUMN "adr-country" text;
+ALTER TABLE vcard ADD COLUMN "geo-lat" text;
+ALTER TABLE vcard ADD COLUMN "geo-lon" text;
+ALTER TABLE vcard ADD COLUMN "org-orgname" text;
+ALTER TABLE vcard ADD COLUMN "agent-extval" text;
+ALTER TABLE vcard ADD COLUMN "sort-string" text;
+ALTER TABLE vcard ADD COLUMN "desc" text;
+ALTER TABLE vcard ADD COLUMN "note" text;
+ALTER TABLE vcard ADD COLUMN "photo-type" text;
+ALTER TABLE vcard ADD COLUMN "photo-binval" text;
+ALTER TABLE vcard ADD COLUMN "photo-extval" text;
+ALTER TABLE vcard ADD COLUMN "logo-type" text;
+ALTER TABLE vcard ADD COLUMN "logo-binval" text;
+ALTER TABLE vcard ADD COLUMN "logo-extval" text;
+ALTER TABLE vcard ADD COLUMN "sound-phonetic" text;
+ALTER TABLE vcard ADD COLUMN "sound-binval" text;
+ALTER TABLE vcard ADD COLUMN "sound-extval" text;
+ALTER TABLE vcard ADD COLUMN "key-type" text;
+ALTER TABLE vcard ADD COLUMN "key-cred" text;
+ALTER TABLE vcard ADD COLUMN "rev" text;
+
+and create table "status":
+
+CREATE TABLE "status" (
+    "collection-owner" text PRIMARY KEY,
+    "object-sequence" bigint,
+    "status" text NOT NULL,
+    "show" text,
+    "last-login" int DEFAULT '0',
+    "last-logout" int DEFAULT '0' );
+
+NOTE: PostgreSQL schema was greatly improved as a whole.
+It might be a good idea to dump your data (as INSERTS), recreate DB from
+new schema and import data back again.
+
+
+New modules: amp and status
+
+In order for amp and status session manager modules to work, you need to
+add them to appropriate chains in sm.xml and set their configuration options.
+Chains needed to be updated: sess-start, sess-end, in-sess, pkt-sm, pkt-user
+and user-delete. For details see sm.xml.dist.
+
+
+CyrusSASL
+
+You need working CyrusSASL installation. Please take care to include all
+required auth modules. Especially cyrus-sasl-md5 and cyrus-sasl-plain.
+
+
+
+
+Please report all errors of this howto to:
+http://bugs.xiaoka.com/proj3
+
+Tomasz Sterna <tomek@xiaoka.com>
