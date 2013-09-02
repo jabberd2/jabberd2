@@ -29,6 +29,13 @@
 
 sig_atomic_t sm_lost_router = 0;
 
+/* union for xhash_iter_get to comply with strict-alias rules for gcc3 */
+union xhashv
+{
+  void **val;
+  sess_t *sess_val;
+};
+
 /** our master callback */
 int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
     sm_t sm = (sm_t) arg;
@@ -38,6 +45,9 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
     pkt_t pkt;
     int len, ns, elem, attr;
     char *domain;
+    union xhashv xhv;
+    const char *bulk_action, *action;
+    sess_t sess;
 
     switch(e) {
         case event_WANT_READ:
@@ -137,7 +147,7 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 ns = nad_add_namespace(nad, uri_COMPONENT, NULL);
                 elem = nad_append_elem(nad, ns, "bind", 0);
                 nad_set_attr(nad, elem, -1, "name", domain, len);
-                nad_append_attr(nad, -1, "multi", "to");
+                nad_append_attr(nad, -1, "id", sm->id);
                 log_debug(ZONE, "requesting domain bind for '%.*s'", len, domain);
                 sx_nad_write(sm->router, nad);
             
@@ -223,6 +233,58 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 log_debug(ZONE, "invalid packet, dropping");
                 return 0;
             }
+
+	    /* binding level changes */
+	    if(pkt->rtype == route_BINDLEVELBAREJID || pkt->rtype == route_BINDLEVELDOMAIN) {
+		if(pkt->rtype == route_BINDLEVELBAREJID) {
+		    if(pkt->sm->bind_bares) {
+			log_debug(ZONE, "router already asked for bare JIDs, bug!");
+			pkt_free(pkt);
+			return 0;
+		    }
+		    bulk_action = "bulk-bind";
+		    action = "bind";
+		    pkt->sm->bind_bares = 1;
+		} else {
+		    if(!pkt->sm->bind_bares) {
+			log_debug(ZONE, "router already asked for domain binding, bug!");
+			pkt_free(pkt);
+			return 0;
+		    }
+		    bulk_action = "bulk-unbind";
+		    action = "unbind";
+		    pkt->sm->bind_bares = 0;
+		}
+
+		log_debug(ZONE, "router asked for binding change, %sing all already started sessions", bulk_action);
+
+		xhv.sess_val = &sess;
+		if(xhash_iter_first(pkt->sm->sessions)) {
+		    int ns, nb = 0;
+		    nad_t nad;
+
+		    nad = nad_new();
+		    ns = nad_add_namespace(nad, uri_COMPONENT, NULL);
+		    nad_append_elem(nad, ns, bulk_action, 0);
+
+		    do {
+			xhash_iter_get(pkt->sm->sessions, NULL, NULL, xhv.val);
+			if(sess) {
+			    nad_append_elem(nad, ns, action, 1);
+			    nad_append_attr(nad, -1, "name", jid_user(sess->user->jid));
+			    nb++;
+			}
+		    } while (xhash_iter_next(pkt->sm->sessions));
+
+		    if (nb)
+			sx_nad_write(pkt->sm->router, nad);
+
+		    nad_free(nad);
+		}
+
+		pkt_free(pkt);
+		return 0;
+	    }
 
             /* go */
             dispatch(sm, pkt);

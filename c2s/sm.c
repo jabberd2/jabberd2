@@ -53,8 +53,10 @@ static nad_t _sm_build_route(sess_t sess, bres_t res, const char *action, const 
 
     nad_append_attr(nad, -1, "action", action);
 
-    if(target != NULL)
+    if(target != NULL) {
+        nad_set_attr(nad, 0, -1, "target", target, NULL);
         nad_append_attr(nad, -1, "target", target);
+    }
     if(id != NULL)
         nad_append_attr(nad, -1, "id", id);
 

@@ -48,12 +48,16 @@
 # include <sys/stat.h>
 #endif
 
-typedef struct router_st    *router_t;
-typedef struct component_st *component_t;
-typedef struct routes_st    *routes_t;
-typedef struct alias_st     *alias_t;
+typedef struct router_st         *router_t;
+typedef struct remote_routers_st *remote_routers_t;
+typedef struct component_st      *component_t;
+typedef struct routes_st         *routes_t;
+typedef struct ids_st            *ids_t;
+typedef struct route_elem_st     *route_elem_t;
+typedef struct graph_elem_st     *graph_elem_t;
+typedef struct alias_st          *alias_t;
+typedef struct acl_s             *acl_t;
 
-typedef struct acl_s *acl_t;
 struct acl_s {
     int error;
     char *redirect;
@@ -79,6 +83,10 @@ struct router_st {
     /** user table */
     acl_t               filter;
     time_t              filter_load;
+
+    /** remote-routers table */
+    remote_routers_t    remote_routers;
+    time_t              remote_routers_load;
 
     /** logging */
     log_t               log;
@@ -132,11 +140,20 @@ struct router_st {
     /** attached components, key is 'ip:port', var is component_t */
     xht                 components;
 
-    /** valid routes, key is route name (packet "to" address), var is component_t */
-    xht                 routes;
+    /** valid components IDs, key is ID, var is route_t */
+    xht                 rids;
 
-    /** default route, only one */
-    const char          *default_route;
+    /** valid domain routes, key is domain, var is route_t */
+    xht                 domains;
+
+    /** valid IDs routes, key is bare_jid, var is xht domainbares */
+    xht                 bare_jids;
+
+    /** valid IDs, key is ID, var is ids_t */
+    xht                 ids;
+
+    /** head of neighbours graph */
+    graph_elem_t        graph;
 
     /** log sinks, key is route name, var is component_t */
     xht                 log_sinks;
@@ -154,11 +171,20 @@ struct router_st {
     jqueue_t            closefd;
 
     /** list of routes_t waiting to be cleaned up */
-    jqueue_t            deadroutes;
+    jqueue_t            dead_routes;
+
+    /** list of route_elem_t waiting to be cleaned up */
+    jqueue_t            dead_route_elems;
+
+    /** list of remote_routers_t waiting to be cleaned up */
+    jqueue_t            dead_remote_routers;
+
+    /** list of remote_routers_t waiting to be connected */
+    jqueue_t            new_remote_routers;
 
     /** simple message logging */
-	int message_logging_enabled;
-	const char *message_logging_file;
+    int                 message_logging_enabled;
+    const char          *message_logging_file;
 };
 
 /** a single component */
@@ -186,7 +212,13 @@ struct component_st {
     xht                 routes;
 
     /** true if this is an old component:accept stream */
-    int                 legacy;
+    unsigned int        legacy;
+
+    /** component ID */
+    char                *id;
+
+    /** only if this is a remote router */
+    remote_routers_t    remote_router;
 
     /** throttle queue */
     jqueue_t            tq;
@@ -195,19 +227,53 @@ struct component_st {
     time_t              last_activity;
 };
 
-/** route types */
-typedef enum {
-    route_SINGLE = 0x00,         /**< single component route */
-    route_MULTI_TO = 0x10,       /**< multi component route - route by 'to' */
-    route_MULTI_FROM = 0x11,     /**< multi component route - route by 'from' */
-} route_type_t;
+/** route list header */
+struct routes_st {
+    unsigned int        nb_routes;
+    unsigned int        legacy;
+    remote_routers_t    remote_router;
 
-struct routes_st
-{
-    const char          *name;
-    route_type_t        rtype;
-    component_t         *comp;
-    int                 ncomp;
+    route_elem_t        head;
+};
+
+/** route list element */
+struct route_elem_st {
+    char                *id;     // ID of neighbour
+    unsigned int        metric;  // metric to dest
+    component_t         comp;    // neighbour component
+    
+    route_elem_t        next;    // next route for this ID
+};
+
+/** ID list element */
+struct ids_st {
+    char                *id;      // ID
+    unsigned int        refcount; // reference count
+};
+
+/** graph list element */
+struct graph_elem_st {
+    char                *id;             // ID of neighbour
+    
+    graph_elem_t        neighbour_next;  // next neighbour
+    graph_elem_t        neighbours_head; // head of neighbours's neighbours
+};
+
+struct remote_routers_st {
+    component_t         comp;
+    unsigned int        seen;
+    unsigned int        outbound;
+    unsigned int        metric;
+    char                *user;
+    char                *pass;
+    char                *pemfile;
+    int                 retry_init;
+    int                 retry_sleep;
+    int                 retry_left;
+    time_t              last_connect;
+    unsigned int        online;
+
+    remote_routers_t    next;
 };
 
 struct alias_st {
@@ -219,6 +285,7 @@ struct alias_st {
 
 int     router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
 void    router_sx_handshake(sx_t s, sx_buf_t buf, void *arg);
+int     router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg);
 
 xht     aci_load(router_t r);
 void    aci_unload(xht aci);
@@ -227,19 +294,22 @@ int     aci_check(xht acls, const char *type, const char *name);
 int     user_table_load(router_t r);
 void    user_table_unload(router_t r);
 
+int     remote_routers_table_load(router_t r, unsigned int reload);
+void    remote_routers_table_unload(router_t r);
+void    remote_router_free(remote_routers_t remote);
+int     remote_router_connect(router_t r, remote_routers_t remote);
+
 int     filter_load(router_t r);
 void    filter_unload(router_t r);
 int     filter_packet(router_t r, nad_t nad);
 
 int     message_log(nad_t nad, router_t r, const char *msg_from, const char *msg_to);
 
-void routes_free(routes_t routes);
-
 /* union for xhash_iter_get to comply with strict-alias rules for gcc3 */
 union xhashv
 {
-  void **val;
-  char **char_val;
-  component_t *comp_val;
-  rate_t *rt_val;
+    void **val;
+    char **char_val;
+    component_t *comp_val;
+    rate_t *rt_val;
 };

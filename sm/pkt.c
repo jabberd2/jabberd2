@@ -114,6 +114,8 @@ pkt_t pkt_new(sm_t sm, nad_t nad) {
     pkt_t pkt;
     int ns, attr, elem;
     char pri[20];
+    const char *nadbuf;
+    int nadlen;
 
     log_debug(ZONE, "creating new packet");
 
@@ -306,7 +308,18 @@ pkt_t pkt_new(sm_t sm, nad_t nad) {
         return pkt;
     }
 
-    log_debug(ZONE, "invalid component packet");
+    /* binding level change */
+    if(NAD_ENAME_L(nad, 0) == 10 && strncmp("bind-level", NAD_ENAME(nad, 0), 10) == 0) {
+        if(nad_find_attr(nad, 0, -1, "level", "barejid") >= 0)
+            pkt->rtype = route_BINDLEVELBAREJID;
+        else
+            pkt->rtype = route_BINDLEVELDOMAIN;
+
+        return pkt;
+    }
+
+    nad_print(nad, 0, &nadbuf, &nadlen);
+    log_debug(ZONE, "invalid component packet: %.*s", nadlen, nadbuf);
 
     pkt_free(pkt);
     return NULL;
@@ -392,7 +405,8 @@ void pkt_router(pkt_t pkt) {
 
     if(pkt->rto != NULL)
         jid_free(pkt->rto);
-    pkt->rto = jid_new(pkt->to->domain, -1);
+//    pkt->rto = jid_new(pkt->to->domain, -1);
+    pkt->rto = jid_new(jid_user(pkt->to), -1);
 
     if(pkt->rto == NULL) {
         log_debug(ZONE, "invalid to address on packet, unable to route");
@@ -400,7 +414,8 @@ void pkt_router(pkt_t pkt) {
         return;
     }
 
-    nad_set_attr(pkt->nad, 0, -1, "to", pkt->rto->domain, 0);
+//    nad_set_attr(pkt->nad, 0, -1, "to", pkt->rto->domain, 0);
+    nad_set_attr(pkt->nad, 0, -1, "to", jid_user(pkt->rto), 0);
 
     if(pkt->rfrom != NULL)
         jid_free(pkt->rfrom);

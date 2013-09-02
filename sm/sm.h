@@ -122,6 +122,8 @@ typedef enum {
     route_BROADCAST = 0x11,     /**< broadcast */
     route_ADV = 0x20,           /**< advertisement (available) */
     route_ADV_UN = 0x21,        /**< advertisement (unavailable) */
+    route_BINDLEVELDOMAIN = 0x30,/**< binding level change (to domain) */
+    route_BINDLEVELBAREJID = 0x31,/**< binding level change (to bare JID) */
     route_ERROR = 0x40          /**< route error */
 } route_type_t;
 
@@ -173,6 +175,8 @@ struct sm_st {
     const char          *router_pass;       /**< password to authenticate to the router with */
     const char          *router_pemfile;    /**< name of file containing a SSL certificate &
                                                  key for channel to the router */
+
+    int                 bind_bares;         /**< whether we bind bare JIDs */
 
     mio_t               mio;                /**< mio context */
 

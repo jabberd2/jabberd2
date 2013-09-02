@@ -74,7 +74,8 @@ static void _router_pidfile(router_t r) {
 /** pull values out of the config file */
 static void _router_config_expand(router_t r)
 {
-    const char *str, *ip, *mask, *name, *target;
+    const char *str;
+    char *ip, *mask, *name, *target;
     config_elem_t elem;
     int i;
     alias_t alias;
@@ -289,6 +290,18 @@ static void _router_time_checks(router_t r) {
    return;
 }
 
+void free_graph(graph_elem_t graph) {
+    graph_elem_t tmp;
+
+    while(graph != NULL) {
+	free_graph(graph->neighbours_head);
+
+	tmp = graph->neighbour_next;
+	free(graph->id);
+	free(graph);
+	graph = tmp;
+    }
+}
 
 JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Router", NULL)
 {
@@ -297,6 +310,7 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
     int optchar;
     rate_t rt;
     component_t comp;
+    jqueue_t q = jqueue_new();
     union xhashv xhv;
     int close_wait_max;
     const char *cli_id = 0;
@@ -406,13 +420,21 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
     r->conn_rates = xhash_new(101);
 
     r->components = xhash_new(101);
-    r->routes = xhash_new(101);
+    r->domains = xhash_new(101);
+    r->rids = xhash_new(101);
+    r->bare_jids = xhash_new(101);
+    r->ids = xhash_new(101);
 
     r->log_sinks = xhash_new(101);
 
     r->dead = jqueue_new();
     r->closefd = jqueue_new();
-    r->deadroutes = jqueue_new();
+    r->dead_routes = jqueue_new();
+    r->dead_route_elems = jqueue_new();
+    r->dead_remote_routers = jqueue_new();
+    r->new_remote_routers = jqueue_new();
+
+    if(remote_routers_table_load(r, 0)) exit(1);
 
     r->sx_env = sx_env_new();
 
@@ -462,6 +484,11 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
             user_table_unload(r);
             user_table_load(r);
 
+            log_write(r->log, LOG_NOTICE, "reloading remote routers ...");
+            remote_routers_table_load(r, 1);
+
+            log_write(r->log, LOG_NOTICE, "checking routers connections ...");
+
             router_logrotate = 0;
         }
 
@@ -474,8 +501,29 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
             mio_close(r->mio, (mio_fd_t) jqueue_pull(r->closefd));
 
         /* cleanup dead routes */
-        while(jqueue_size(r->deadroutes) > 0)
-            routes_free((routes_t) jqueue_pull(r->deadroutes));
+        while(jqueue_size(r->dead_routes) > 0)
+            free((routes_t) jqueue_pull(r->dead_routes));
+
+        /* cleanup dead route_elems */
+        while(jqueue_size(r->dead_route_elems) > 0)
+	    free((route_elem_t) jqueue_pull(r->dead_route_elems));
+
+        /* cleanup dead remote routers */
+        while(jqueue_size(r->dead_remote_routers) > 0)
+	    remote_router_free((remote_routers_t) jqueue_pull(r->dead_remote_routers));
+
+        /* connect to new remote routers */
+        while(jqueue_size(r->new_remote_routers) > 0) {
+	    remote_routers_t remote = jqueue_pull(r->new_remote_routers);
+	    if(remote->last_connect + remote->retry_sleep < time(NULL) && remote->retry_left-- > 0) {
+		if(remote_router_connect(r, remote) == 0)
+		    jqueue_push(q, (void *) remote, 0);
+		remote->last_connect = time(NULL);
+	    }
+	}
+
+        while(jqueue_size(q) > 0)
+	    jqueue_push(r->new_remote_routers, (void *) jqueue_pull(q), 0);
 
         /* time checks */
         if(r->check_interval > 0 && time(NULL) >= r->next_check) {
@@ -538,10 +586,20 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
         mio_close(r->mio, (mio_fd_t) jqueue_pull(r->closefd));
     jqueue_free(r->closefd);
 
-    /* cleanup dead routes - probably just showed up (route was just closed) */
-    while(jqueue_size(r->deadroutes) > 0)
-        routes_free((routes_t) jqueue_pull(r->deadroutes));
-    jqueue_free(r->deadroutes);
+    /* cleanup dead routes */
+    while(jqueue_size(r->dead_routes) > 0)
+	free((routes_t) jqueue_pull(r->dead_routes));
+    jqueue_free(r->dead_routes);
+
+    /* cleanup dead route_elems */
+    while(jqueue_size(r->dead_route_elems) > 0)
+	free((route_elem_t) jqueue_pull(r->dead_route_elems));
+    jqueue_free(r->dead_route_elems);
+
+    /* cleanup dead remote routers */
+    while(jqueue_size(r->dead_remote_routers) > 0)
+	remote_router_free((remote_routers_t) jqueue_pull(r->dead_remote_routers));
+    jqueue_free(r->dead_remote_routers);
 
     /* walk r->conn_rates and free */
     xhv.rt_val = &rt;
@@ -555,14 +613,64 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
 
     xhash_free(r->log_sinks);
 
-    /* walk r->routes and free */
-    if (xhash_iter_first(r->routes))
+    /* walk r->rids and free */
+    if (xhash_iter_first(r->rids))
         do {
-            routes_t p;
-            xhash_iter_get(r->routes, NULL, NULL, (void *) &p);
-            routes_free(p);
-        } while(xhash_iter_next(r->routes));
-    xhash_free(r->routes);
+    	    routes_t routes;
+    	    route_elem_t scan, tmp;
+
+            xhash_iter_get(r->rids, NULL, NULL, (void *) &routes);
+    	    if((scan = routes->head))
+    		while(scan != NULL) {
+    		    tmp = scan->next;
+		    free(scan->id);
+    		    free(scan);
+    		    scan = tmp;
+    		}
+        } while(xhash_iter_next(r->rids));
+    xhash_free(r->rids);
+
+    /* walk r->bare_jids and free */
+    if (xhash_iter_first(r->bare_jids))
+        do {
+	    xht domain_bares;
+
+            xhash_iter_get(r->bare_jids, NULL, NULL, (void *) &domain_bares);
+	    xhash_free(domain_bares);
+        } while(xhash_iter_next(r->bare_jids));
+    xhash_free(r->bare_jids);
+
+    /* walk r->domains and free */
+    if (xhash_iter_first(r->domains))
+        do {
+    	    routes_t routes;
+    	    route_elem_t scan, tmp;
+
+            xhash_iter_get(r->domains, NULL, NULL, (void *) &routes);
+    	    if((scan = routes->head))
+    		while(scan != NULL) {
+    		    tmp = scan->next;
+		    free(scan->id);
+    		    free(scan);
+    		    scan = tmp;
+    		}
+        } while(xhash_iter_next(r->domains));
+    xhash_free(r->domains);
+
+    /* walk r->ids and free */
+    if (xhash_iter_first(r->ids))
+        do {
+    	    ids_t id;
+
+            xhash_iter_get(r->ids, NULL, NULL, (void *) &id);
+	    free(id->id);
+	    free(id);
+        } while(xhash_iter_next(r->ids));
+    xhash_free(r->ids);
+
+    /* walk r->graph and free */
+    if(r->graph != NULL)
+	free_graph(r->graph);
 
     /* unload users */
     user_table_unload(r);
@@ -572,6 +680,9 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
 
     /* unload filter */
     filter_unload(r);
+
+    /* unload routers */
+    remote_routers_table_unload(r);
 
     sx_env_free(r->sx_env);
 

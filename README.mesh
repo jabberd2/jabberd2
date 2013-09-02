@@ -1,0 +1,168 @@
+*** WARNING: This is a pre-alpha version of jabberd2 with router mesh functionality
+
+Introduction:
+=============
+
+The purpose of this fork is to add router mesh functionality to jabberd2. The mesh consists of interconnected routers that can be distributed on several hosts.
+
+Limitations:
+============
+
+- every component in the setup must have a unique name, even if connected to another router.
+- the legacy components support is implemented but have not been tested and is surely buggy.
+- different domains are possible but haven't been really tested (i.e. tested only in simple configurations).
+- error checking at a lot of places need to be done.
+- no optimizations for the moment.
+- no support at the moment for component disconnections / reconnections. That means that network splits are *not managed*. In that case every router needs to be restarted.
+- each remote router connection has a metric, but it is not implemented. At the moment all connections are hard-coded with a metric of 1.
+- can generate some core dumps when killing / exiting router. This is normal due to cleanup routines written a while ago and not modified since.
+- memory leaks? Surely…
+- last tests have been made on complex router configurations, hopefully not disturbing simpler configurations!
+
+Configuration:
+==============
+
+The configuration is the same as the original, except that a required "remote-routers.xml" file must exist for each router. The content of this file is as follows:
+
+-------
+<remote-routers>
+
+  <remote-router>
+    <ip>127.0.0.1</ip>
+    <port>15005</port>
+    <metric>1</metric>
+    <user>jabberd</user>
+    <pass>secret</pass>
+  </remote-router>
+
+</remote-routers>
+-------
+
+There can be no or several <remote-router> elements, but at least and at most one <remote-routers> (note the final 's').
+
+There is no need (and it is discouraged) to establish a 2-way connection. That means that every remote router connection is already 2-way. So to connect for example router1 and router2, configure router2 to connect to router1 (or the opposite) and that's it.
+
+Internals:
+==========
+
+Here are explanations of the changes (and only them) made to the original files in the jabberd2 distribution.
+
+File c2s/sm.c:
+--------------
+
+- In _sm_build_route(), add the target to the <route> element. This is to allow auto-bind at router level.
+
+File router/Makefile.am:
+------------------------
+
+- added remote-routers.c to router_SOURCES
+
+File sm/sm.h:
+-------------
+
+- added route_BINDLEVELDOMAIN and route_BINDLEVELBAREJID enum types in route_type_t.
+- added container for current bind-level type in struct sm_st.
+
+File sm/pkt.c:
+--------------
+
+- in pkt_new(), manage binding level changes
+- in pkt_router(), set pkt->rto to user instead of domain, and set it as "to" attribute
+
+File sm/sm.c:
+-------------
+
+- in sm_sx_callback(), manage binding level changes
+
+File router/main.c:
+-------------------
+
+- added free_graph() to free the router mesh graph
+- splitted r->routes into r->domains and r->rids (remote IDs)
+- added various code to set up and free routes, warning this code has not verified for a long time
+- call remote_routers_table_load() to load the remote routers configuration (see router/remote-routers.c)
+
+File router/remote-routers.c:
+-----------------------------
+
+New file.
+
+- remote_routers_table_load() loads (or reloads) the remote router configuration file
+- the remote routers configuration file is set with the <remote-routers> directive in the main configuration file (router.xml)
+- remote_routers_table_unload() closes connections to remote routers
+- remote_router_free() frees the structures
+- remote_router_connect() attempts to connect to a remote router
+
+File router/router.h:
+---------------------
+
+There are some data structure changes and new data structures.
+
+- router_t:
+  - added remote routers list
+  - splitted r->routes into r->domains and r->rids (remote IDs)
+  - added bare_jids hash to route by bare JID
+  - added ids hash to maintain ID list and its refcount (memory consumption optimization)
+  - added graph to maintain the graph of all IDs
+  - added various jqueues
+
+- component_t:
+  - added an ID
+  - added a remote router ptr if and only if this neighbour is a remote router
+
+- routes_t: header of routes (pointed by r->domains and r->rids)
+  - nb_routes contains the number of different routes to the ID
+  - remote_router contains a remote router ptr if and only if this route goes through a remote router (not sure it is still needed)
+  - legacy contains 1 if route leads to legacy component
+  - next points to list head
+
+- route_elem_t: route elements pointed by routes_t
+  - ID of the element
+  - metric sum
+  - neighbour component
+  - next element
+
+- ids_t:
+  - ID pointer to store
+  - refcount
+
+- graph_elem_t; element of the IDs graph
+  - ID of the neighbour
+  - neighbour_next points to next neighbour
+  - neighbours_head points to this neighbour's neighbours
+
+- remote_routers_t: list of remote routers
+
+File router/router.c:
+---------------------
+
+All major changes are in this file.
+
+FIXME: provide algorithm details
+
+- _select_domain_comp(): selects a comp between possible routes, using random across lowest metric routes
+- _get_id_from_ids(): gets an ID string pointer and increment refcounter, or create one if not found
+- _get_id_from_bare_jid(): gets an ID (and a component_t) from a bare JID. Returns 0 if one has to be created
+- _store_bare_jid(): stores a bare JID
+- _zap_bare_jid(): deletes a bare JID
+- _router_broadcast_comp(): broadcast a packet to a component
+- _router_advertise(): use the preceding function to advertise presence (or bind for routers) to all known components (remote routers and possibly leaves. Leaves are local component that are not a remote router)
+- _router_advertise_user(): advertise a user to all components in a domain
+- _router_advertise_reverse(): modified to send bind or presence according to component type
+- _router_broadcast_ids(): broadcast a packet to all known remote IDs
+- _route_add(): modified to take into account splitted r->routes, storing routes to new data structures and manage bind-levels
+- _send_new_neighbour(): sends the new neighbour to all remote routers
+- _route_remove_all(): removes all routes through a component. This function has been written a while ago and surely does not work correctly.
+- _route_remove(): removes one route. Same warning as above.
+- _router_send_path_from_graph(): sends the path elements from the stored graph to a component. Recursive.
+- _router_propagate_path(): when getting path elements, propagate them to remote routers
+- _router_process_remote_router(): managing new remote router connection ('router' element)
+- _router_prune_graph(): prunes the graph from one node
+- _router_process_path(): process 'path' / 'hop' elements, and propagate to elements not already seen in path
+- _router_process_bind(): heavily modified to use new data structures (FIXME: explain more)
+- _router_process_unbind(): ditto. Not sure it works correctly. Not tested for a while.
+- _router_process_bind_level(): processes the new binding levels
+- _router_process_route(): heavily modified to use new data structures / algorithm (FIXME: explain more)
+- router_sx_callback(): removed 'static' attribute and modified to take into account remote routers
+- _router_route_unbind_walker(): modified a while ago to use new data structures. Not tested, buggy.
+- router_mio_callback(): slightly modified to free a pointer and use router_sx_callback new name.
