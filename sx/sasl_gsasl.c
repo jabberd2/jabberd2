@@ -37,106 +37,6 @@ typedef struct _sx_sasl_st {
     char                        *ext_id[SX_CONN_EXTERNAL_ID_MAX_COUNT];
 } *_sx_sasl_t;
 
-/* Per-session library handle. */
-/* defined here to be able to get mechanism from handle */
-struct Gsasl_session
-{
-  Gsasl *ctx;
-  int clientp;
-  Gsasl_mechanism *mech;
-  void *mech_data;
-  void *application_hook;
-  /* Properties. */
-  char *anonymous_token;
-  char *authid;
-  char *authzid;
-  char *password;
-  char *passcode;
-  char *pin;
-  char *suggestedpin;
-  char *service;
-  char *hostname;
-  char *realm;
-#ifndef GSASL_NO_OBSOLETE
-  /* Obsolete stuff. */
-  void *application_data;
-#endif
-};
-
-/* another internal GSASL structures needed to hack into its internals */
-#define DIGEST_MD5_LENGTH 16
-
-struct digest_md5_challenge
-{
-  size_t nrealms;
-  char **realms;
-  char *nonce;
-  int qops;
-  int stale;
-  unsigned long servermaxbuf;
-  int utf8;
-  int ciphers;
-};
-typedef struct digest_md5_challenge digest_md5_challenge;
-
-enum digest_md5_qop
-{
-  DIGEST_MD5_QOP_AUTH = 1,
-  DIGEST_MD5_QOP_AUTH_INT = 2,
-  DIGEST_MD5_QOP_AUTH_CONF = 4
-};
-typedef enum digest_md5_qop digest_md5_qop;
-
-enum digest_md5_cipher
-{
-  DIGEST_MD5_CIPHER_DES = 1,
-  DIGEST_MD5_CIPHER_3DES = 2,
-  DIGEST_MD5_CIPHER_RC4 = 4,
-  DIGEST_MD5_CIPHER_RC4_40 = 8,
-  DIGEST_MD5_CIPHER_RC4_56 = 16,
-  DIGEST_MD5_CIPHER_AES_CBC = 32
-};
-typedef enum digest_md5_cipher digest_md5_cipher;
-
-#define DIGEST_MD5_RESPONSE_LENGTH 32
-struct digest_md5_response
-{
-  char *username;
-  char *realm;
-  char *nonce;
-  char *cnonce;
-  unsigned long nc;
-  digest_md5_qop qop;
-  char *digesturi;
-  unsigned long clientmaxbuf;
-  int utf8;
-  digest_md5_cipher cipher;
-  char *authzid;
-  char response[DIGEST_MD5_RESPONSE_LENGTH + 1];
-};
-typedef struct digest_md5_response digest_md5_response;
-
-struct digest_md5_finish
-{
-  char rspauth[DIGEST_MD5_RESPONSE_LENGTH + 1];
-};
-typedef struct digest_md5_finish digest_md5_finish;
-
-struct _Gsasl_digest_md5_server_state
-{
-  int step;
-  unsigned long readseqnum, sendseqnum;
-  char secret[DIGEST_MD5_LENGTH];
-  char kic[DIGEST_MD5_LENGTH];
-  char kcc[DIGEST_MD5_LENGTH];
-  char kis[DIGEST_MD5_LENGTH];
-  char kcs[DIGEST_MD5_LENGTH];
-  digest_md5_challenge challenge;
-  digest_md5_response response;
-  digest_md5_finish finish;
-};
-typedef struct _Gsasl_digest_md5_server_state _Gsasl_digest_md5_server_state;
-
 /** utility: generate a success nad */
 static nad_t _sx_sasl_success(sx_t s, const char *data, int dlen) {
     nad_t nad;
@@ -272,10 +172,11 @@ void _sx_sasl_open(sx_t s, Gsasl_session *sd) {
     const char *realm = NULL;
     struct sx_sasl_creds_st creds = {NULL, NULL, NULL, NULL};
     _sx_sasl_t ctx = gsasl_session_hook_get(sd);
-    
+    const char *mechname = gsasl_mechanism_name (sd);
+
     /* get the method */
-    method = (char *) malloc(sizeof(char) * (strlen(sd->mech->name) + 6));
-    sprintf(method, "SASL/%s", sd->mech->name);
+    method = (char *) malloc(sizeof(char) * (strlen(mechname) + 6));
+    sprintf(method, "SASL/%s", mechname);
 
     /* and the authorization identifier */
     creds.authzid = gsasl_property_fast(sd, GSASL_AUTHZID);
@@ -437,12 +338,6 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, co
         gsasl_session_hook_set(sd, (void *) ctx);
         gsasl_property_set(sd, GSASL_SERVICE, ctx->appname);
         gsasl_property_set(sd, GSASL_REALM, realm);
-
-        /* allow only qop=auth for DIGEST-MD5 */
-        if (!strncmp(mech, "DIGEST-MD5", 10)) {
-            _Gsasl_digest_md5_server_state *state = sd->mech_data;
-            state->challenge.qops = DIGEST_MD5_QOP_AUTH;
-        }
 
         /* get hostname */
         hostname[0] = '\0';
