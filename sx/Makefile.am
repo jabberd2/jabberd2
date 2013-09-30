@@ -1,5 +1,5 @@
 LIBTOOL += --quiet
-INCLUDES = -I@top_srcdir@
+AM_CPPFLAGS = -I@top_srcdir@
 
 noinst_LTLIBRARIES = libsx.la
 noinst_HEADERS = plugins.h sasl.h sx.h
