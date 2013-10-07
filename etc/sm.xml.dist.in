@@ -124,11 +124,11 @@
 
     <!-- Rate limiting -->
     <limits>
-      <!-- Maximum bytes per second - if more than X bytes are sent in Y
+      <!-- Maximum queries per second - if more than X queries are sent in Y
            seconds, connection is throttled for Z seconds. The format
            is:
 
-             <bytes seconds='Y' throttle='Z'>X</bytes>
+             <queries seconds='Y' throttle='Z'>X</bytes>
 
            Default Y is 5, default Z is 60. set X to 0 to disable. -->
       <!--
