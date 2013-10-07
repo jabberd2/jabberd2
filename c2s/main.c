@@ -188,9 +188,11 @@ static void _c2s_config_expand(c2s_t c2s)
 
     if(config_get(c2s->config, "authreg.mechanisms.traditional.plain") != NULL) c2s->ar_mechanisms |= AR_MECH_TRAD_PLAIN;
     if(config_get(c2s->config, "authreg.mechanisms.traditional.digest") != NULL) c2s->ar_mechanisms |= AR_MECH_TRAD_DIGEST;
+    if(config_get(c2s->config, "authreg.mechanisms.traditional.cram-md5") != NULL) c2s->ar_mechanisms |= AR_MECH_TRAD_CRAMMD5;
 
     if(config_get(c2s->config, "authreg.ssl-mechanisms.traditional.plain") != NULL) c2s->ar_ssl_mechanisms |= AR_MECH_TRAD_PLAIN;
     if(config_get(c2s->config, "authreg.ssl-mechanisms.traditional.digest") != NULL) c2s->ar_ssl_mechanisms |= AR_MECH_TRAD_DIGEST;
+    if(config_get(c2s->config, "authreg.ssl-mechanisms.traditional.cram-md5") != NULL) c2s->ar_ssl_mechanisms |= AR_MECH_TRAD_CRAMMD5;
 
     elem = config_get(c2s->config, "io.limits.bytes");
     if(elem != NULL)

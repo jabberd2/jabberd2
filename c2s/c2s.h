@@ -108,11 +108,15 @@ struct sess_st {
     nad_t               result;
 
     int                 sasl_authd;     /* 1 = they did a sasl auth */
+
+    /** Apple: session challenge for challenge-response authentication */
+    char                auth_challenge[65];
 };
 
 /* allowed mechanisms */
 #define AR_MECH_TRAD_PLAIN      (1<<0)
 #define AR_MECH_TRAD_DIGEST     (1<<1)
+#define AR_MECH_TRAD_CRAMMD5    (1<<2)
 
 struct host_st {
     /** our realm (SASL) */
@@ -328,6 +332,10 @@ struct authreg_st
 
     /** returns 1 if the user is permitted to authorize as the requested_user, 0 if not. requested_user is a JID */
     int               (*user_authz_allowed)(authreg_t ar, const char *username, const char *realm, const char *requested_user);
+
+    /** Apple extensions for challenge/response authentication methods */
+    int         (*create_challenge)(authreg_t ar, const char *username, const char *challenge, int maxlen);
+    int         (*check_response)(authreg_t ar, const char *username, const char *realm, const char *challenge, const char *response);
 };
 
 /** get a handle for a single module */
