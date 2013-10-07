@@ -65,10 +65,10 @@ extern "C" {
 JABBERD2_API int                         sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args);
 
 /** add cert function */
-JABBERD2_API int                         sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, const char *cachain, int mode);
+JABBERD2_API int                         sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, const char *cachain, int mode, const char *private_key_password);
 
 /** trigger for client starttls */
-JABBERD2_API int                         sx_ssl_client_starttls(sx_plugin_t p, sx_t s, const char *pemfile);
+JABBERD2_API int                         sx_ssl_client_starttls(sx_plugin_t p, sx_t s, const char *pemfile, const char *private_key_password);
 
 /* previous states */
 #define SX_SSL_STATE_NONE       (0)
@@ -90,6 +90,8 @@ typedef struct _sx_ssl_conn_st {
     int         last_state;
 
     char        *pemfile;
+
+    char        *private_key_password;
 } *_sx_ssl_conn_t;
 
 #endif /* HAVE_SSL */

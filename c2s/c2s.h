@@ -128,6 +128,9 @@ struct host_st {
     /** certificate chain */
     const char          *host_cachain;
 
+    /** private key password */
+    char                *host_private_key_password;
+
     /** verify-mode  */
     int                 host_verify_mode;
 
@@ -152,6 +155,8 @@ struct c2s_st {
     const char          *router_user;
     const char          *router_pass;
     const char          *router_pemfile;
+    const char          *router_cachain;
+    const char          *router_private_key_password;
 
     /** mio context */
     mio_t               mio;
@@ -209,6 +214,9 @@ struct c2s_st {
 
     /** encrypted port cachain file */
     const char          *local_cachain;
+
+    /** private key password */
+    const char          *local_private_key_password;
 
     /** verify-mode  */
     int                 local_verify_mode;

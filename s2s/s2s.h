@@ -55,6 +55,9 @@ struct host_st {
 
     /** verify-mode  */
     int                 host_verify_mode;
+
+    /** private key password */
+    char                *host_private_key_password;    
 };
 
 struct s2s_st {
@@ -67,6 +70,8 @@ struct s2s_st {
     const char          *router_user;
     const char          *router_pass;
     const char          *router_pemfile;
+    const char          *router_cachain;
+    const char          *router_private_key_password;
     int                 router_default;
 
     /** mio context */
@@ -119,6 +124,9 @@ struct s2s_st {
 
     /** pemfile for peer connections */
     const char          *local_pemfile;
+
+    /** private key password for local pemfile, if encrypted */
+    const char          *local_private_key_password;
 
     /** certificate chain */
     const char          *local_cachain;

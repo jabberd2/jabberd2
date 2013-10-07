@@ -126,6 +126,8 @@ static void _sm_config_expand(sm_t sm)
 
     sm->router_pemfile = config_get_one(sm->config, "router.pemfile", 0);
 
+    sm->router_private_key_password = config_get_one(sm->config, "router.private_key_password", 0);
+
     sm->retry_init = j_atoi(config_get_one(sm->config, "router.retry.init", 0), 3);
     sm->retry_lost = j_atoi(config_get_one(sm->config, "router.retry.lost", 0), 3);
     if((sm->retry_sleep = j_atoi(config_get_one(sm->config, "router.retry.sleep", 0), 2)) < 1)
@@ -370,7 +372,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
 
 #ifdef HAVE_SSL
     if(sm->router_pemfile != NULL) {
-        sm->sx_ssl = sx_env_plugin(sm->sx_env, sx_ssl_init, NULL, sm->router_pemfile, NULL, NULL);
+        sm->sx_ssl = sx_env_plugin(sm->sx_env, sx_ssl_init, NULL, sm->router_pemfile, NULL, NULL, sm->router_private_key_password);
         if(sm->sx_ssl == NULL) {
             log_write(sm->log, LOG_ERR, "failed to load SSL pemfile, SSL disabled");
             sm->router_pemfile = NULL;

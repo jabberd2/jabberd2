@@ -822,7 +822,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     if(ns >= 0) {
                         elem = nad_find_elem(nad, 0, ns, "starttls", 1);
                         if(elem >= 0) {
-                            if(sx_ssl_client_starttls(c2s->sx_ssl, s, c2s->router_pemfile) == 0) {
+                            if(sx_ssl_client_starttls(c2s->sx_ssl, s, c2s->router_pemfile, c2s->router_private_key_password) == 0) {
                                 nad_free(nad);
                                 return 0;
                             }

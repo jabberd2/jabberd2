@@ -93,6 +93,7 @@ struct router_st {
     int                 local_port;
     const char          *local_secret;
     const char          *local_pemfile;
+    const char          *local_private_key_password;
 
     /** max file descriptors */
     int                 io_max_fds;

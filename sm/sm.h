@@ -173,6 +173,8 @@ struct sm_st {
     const char          *router_pass;       /**< password to authenticate to the router with */
     const char          *router_pemfile;    /**< name of file containing a SSL certificate &
                                                  key for channel to the router */
+    const char          *router_private_key_password;    /** password for private key if pemfile
+                                                             key is encrypted */
 
     mio_t               mio;                /**< mio context */
 

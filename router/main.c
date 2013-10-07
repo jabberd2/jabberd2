@@ -113,6 +113,8 @@ static void _router_config_expand(router_t r)
 
     r->local_pemfile = config_get_one(r->config, "local.pemfile", 0);
 
+    r->local_private_key_password = config_get_one(r->config, "local.private_key_password", 0);
+
     r->io_max_fds = j_atoi(config_get_one(r->config, "io.max_fds", 0), 1024);
 
     elem = config_get(r->config, "io.limits.bytes");
@@ -418,7 +420,7 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
 
 #ifdef HAVE_SSL
     if(r->local_pemfile != NULL) {
-        r->sx_ssl = sx_env_plugin(r->sx_env, sx_ssl_init, NULL, r->local_pemfile, NULL, NULL);
+        r->sx_ssl = sx_env_plugin(r->sx_env, sx_ssl_init, NULL, r->local_pemfile, NULL, NULL, r->local_private_key_password);
         if(r->sx_ssl == NULL)
             log_write(r->log, LOG_ERR, "failed to load SSL pemfile, SSL disabled");
     }

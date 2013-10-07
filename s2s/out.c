@@ -1572,7 +1572,7 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                         elem = nad_find_elem(nad, 0, ns, "starttls", 1);
                         if(elem >= 0) {
                             log_debug(ZONE, "got STARTTLS in stream features");
-                            if(sx_ssl_client_starttls(out->s2s->sx_ssl, s, out->s2s->local_pemfile) == 0) {
+                            if(sx_ssl_client_starttls(out->s2s->sx_ssl, s, out->s2s->local_pemfile, out->s2s->local_private_key_password) == 0) {
                                 starttls = 1;
                                 nad_free(nad);
                                 return 0;

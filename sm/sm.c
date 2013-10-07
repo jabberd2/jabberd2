@@ -169,7 +169,7 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     if (ns >= 0) {
                         elem = nad_find_elem(nad, 0, ns, "starttls", 1);
                         if (elem >= 0) {
-                            if (sx_ssl_client_starttls(sm->sx_ssl, s, NULL) == 0) {
+                            if (sx_ssl_client_starttls(sm->sx_ssl, s, NULL, NULL) == 0) {
                                 nad_free(nad);
                                 return 0;
                             }
