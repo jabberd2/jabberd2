@@ -45,3 +45,4 @@ tests/config/configtest
 docs/code
 /tests/check_config
 /tests/check_nad
+/test-driver
