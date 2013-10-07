@@ -30,5 +30,6 @@
 #define _sasl_err_MECH_TOO_WEAK         "mechanism-too-weak"
 #define _sasl_err_NOT_AUTHORIZED        "not-authorized"
 #define _sasl_err_TEMPORARY_FAILURE     "temporary-auth-failure"
+#define _sasl_err_INTERNAL_SERVER_ERROR  "internal-server-error"
 
 #endif
