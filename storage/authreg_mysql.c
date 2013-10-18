@@ -252,7 +252,7 @@ static int _ar_mysql_set_password(authreg_t ar, const char *username, const char
        srand(time(0));
        for(i=0; i<22; i++)
                salt[16+i] = salter[rand()%64];
-       salt[39] = '\0';
+       salt[38] = '\0';
        strcpy(password, crypt(password, salt));
     }
 #endif
