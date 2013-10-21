@@ -246,13 +246,13 @@ static int _ar_mysql_set_password(authreg_t ar, const char *username, const char
 
 #ifdef HAVE_CRYPT
     if (ctx->password_type == MPC_CRYPT) {
-       char salt[12] = "$1$";
+       char salt[39] = "$6$rounds=50000$";
        int i;
 
        srand(time(0));
-       for(i=0; i<8; i++)
-               salt[3+i] = salter[rand()%64];
-       salt[11] = '\0';
+       for(i=0; i<22; i++)
+               salt[16+i] = salter[rand()%64];
+       salt[38] = '\0';
        strcpy(password, crypt(password, salt));
     }
 #endif
