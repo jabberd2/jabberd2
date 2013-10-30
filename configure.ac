@@ -424,7 +424,7 @@ AM_CONDITIONAL(SASL_CYRUS, [test "x-$sasl_backend" = "x-cyrus"])
 #
 # optional libs
 
-# OpenSSL >= 0.9.6b
+# OpenSSL >= 1.0.1
 AC_ARG_ENABLE(ssl, AC_HELP_STRING([--enable-ssl], [enable SSL/TLS support (yes)]), want_ssl=$enableval, want_ssl=yes)
 if test "x-$want_ssl" = "x-yes" ; then
     AC_CHECK_HEADERS(openssl/crypto.h)
@@ -438,15 +438,15 @@ if test "x-$want_ssl" = "x-yes" ; then
         AC_CHECK_LIB(ssl, SSL_connect)
     fi
     if test "x-$ac_cv_lib_ssl_SSL_connect" = "x-yes" ; then
-        AC_MSG_CHECKING(for OpenSSL version >= 0.9.6b)
+        AC_MSG_CHECKING(for OpenSSL version >= 1.0.1)
         AC_RUN_IFELSE([AC_LANG_PROGRAM([[#include <openssl/crypto.h>]],
-                                       [[return !(SSLeay() >= 0x000906020L)]])],
+                                       [[return !(SSLeay() >= 0x010001000L)]])],
                       [AC_MSG_RESULT(yes)
                        have_openssl=yes],
                       AC_MSG_RESULT(no))
     fi
     if test "x-$have_openssl" != "x-yes" ; then
-        AC_MSG_ERROR([OpenSSL >= 0.9.6b not found])
+        AC_MSG_ERROR([OpenSSL >= 1.0.1 not found])
     fi
 
     AC_DEFINE(HAVE_SSL,1,[Define to 1 if OpenSSL is available.])
