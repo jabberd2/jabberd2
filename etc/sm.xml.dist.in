@@ -190,6 +190,9 @@
       <!-- Database name -->
       <dbname>jabberd2</dbname>
 
+      <!-- Database schema -->
+      <schema>public</schema>
+
       <!-- Database username and password -->
       <user>jabberd2</user>
       <pass>secret</pass>

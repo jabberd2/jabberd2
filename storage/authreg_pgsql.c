@@ -508,8 +508,8 @@ extern int sx_openssl_initialized;
 
 /** start me up */
 int ar_init(authreg_t ar) {
-    const char *host, *port, *dbname, *user, *pass, *conninfo;
-    char *create, *select, *setpassword, *delete;
+    const char *host, *port, *dbname, *schema, *user, *pass, *conninfo;
+    char *create, *select, *setpassword, *delete, *setsearchpath;
     const char *table, *username, *realm;
     char *template;
     int strlentur; /* string length of table, user, and realm strings */
@@ -629,6 +629,7 @@ int ar_init(authreg_t ar) {
     host = config_get_one(ar->c2s->config, "authreg.pgsql.host", 0);
     port = config_get_one(ar->c2s->config, "authreg.pgsql.port", 0);
     dbname = config_get_one(ar->c2s->config, "authreg.pgsql.dbname", 0);
+    schema = config_get_one(ar->c2s->config, "authreg.pgsql.schema", 0);
     user = config_get_one(ar->c2s->config, "authreg.pgsql.user", 0);
     pass = config_get_one(ar->c2s->config, "authreg.pgsql.pass", 0);
     conninfo = config_get_one(ar->c2s->config,"authreg.pgsql.conninfo",0);
@@ -650,6 +651,14 @@ int ar_init(authreg_t ar) {
 
     if(PQstatus(conn) != CONNECTION_OK)
         log_write(ar->c2s->log, LOG_ERR, "pgsql: connection to database failed, will retry later: %s", PQerrorMessage(conn));
+
+    if (schema) {
+        template = "SET search_path TO \"%s\"";
+        setsearchpath = malloc( strlen( template ) + strlen(schema) );
+        sprintf( setsearchpath, template, schema );
+        PQexec(conn, setsearchpath);
+        free(setsearchpath);
+    }
 
     pgsqlcontext->conn = conn;
 
