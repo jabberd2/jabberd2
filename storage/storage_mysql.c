@@ -66,7 +66,7 @@ static size_t _st_mysql_realloc(char **oblocks, size_t len) {
 }
 
 /** this is the safety check used to make sure there's always enough mem */
-#define MYSQL_SAFE(blocks, size, len) if((size) >= len) len = _st_mysql_realloc(&(blocks),(size + 1));
+#define MYSQL_SAFE(blocks, size, len) if((unsigned int)(size) >= (unsigned int)(len)) len = _st_mysql_realloc(&(blocks),(size + 1));
 
 static void _st_mysql_convert_filter_recursive(st_driver_t drv, st_filter_t f, char **buf, int *buflen, int *nbuf) {
     drvdata_t data = (drvdata_t) drv->private;
