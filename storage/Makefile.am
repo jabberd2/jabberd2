@@ -1,6 +1,6 @@
 EXTRA_DIST = authreg_ntlogon.c authreg_sspi.c
 
-AM_CPPFLAGS = -I$(top_srcdir)/c2s -I@top_srcdir@
+AM_CFLAGS = -I$(top_srcdir)/c2s -I@top_srcdir@
 
 LIBTOOL += --quiet
 
@@ -53,14 +53,14 @@ endif
 if STORAGE_MYSQL
 pkglib_LTLIBRARIES += authreg_mysql.la storage_mysql.la
 authreg_mysql_la_SOURCES = authreg_mysql.c
-authreg_mysql_la_CPPFLAGS = $(AM_CPPFLAGS) $(MYSQL_CFLAGS)
+authreg_mysql_la_CPPFLAGS = $(MYSQL_CFLAGS)
 authreg_mysql_la_LDFLAGS = $(MODULE_LDFLAGS)
 authreg_mysql_la_LIBADD  = $(MODULE_LIBADD) $(MYSQL_LIBS)
 if HAVE_CRYPT
 authreg_mysql_la_LIBADD += -lcrypt
 endif
 storage_mysql_la_SOURCES = storage_mysql.c
-storage_mysql_la_CPPFLAGS = $(AM_CPPFLAGS) $(MYSQL_CFLAGS)
+storage_mysql_la_CPPFLAGS = $(MYSQL_CFLAGS)
 storage_mysql_la_LDFLAGS = $(MODULE_LDFLAGS)
 storage_mysql_la_LIBADD  = $(MODULE_LIBADD) $(MYSQL_LIBS)
 endif
@@ -68,11 +68,11 @@ endif
 if STORAGE_ORACLE
 pkglib_LTLIBRARIES += authreg_oracle.la storage_oracle.la
 authreg_oracle_la_SOURCES = authreg_oracle.c
-authreg_oracle_la_CPPFLAGS = $(AM_CPPFLAGS) $(ORACLE_CPPFLAGS)
+authreg_oracle_la_CPPFLAGS = $(ORACLE_CPPFLAGS)
 authreg_oracle_la_LDFLAGS = $(MODULE_LDFLAGS) $(ORACLE_LDFLAGS)
 authreg_oracle_la_LIBADD  = $(MODULE_LIBADD) $(ORACLE_LIBS)
 storage_oracle_la_SOURCES = storage_oracle.c
-storage_oracle_la_CPPFLAGS = $(AM_CPPFLAGS) $(ORACLE_CPPFLAGS)
+storage_oracle_la_CPPFLAGS = $(ORACLE_CPPFLAGS)
 storage_oracle_la_LDFLAGS = $(MODULE_LDFLAGS) $(ORACLE_LDFLAGS)
 storage_oracle_la_LIBADD  = $(MODULE_LIBADD) $(ORACLE_LIBS)
 endif
@@ -87,11 +87,11 @@ endif
 if STORAGE_PGSQL
 pkglib_LTLIBRARIES += authreg_pgsql.la storage_pgsql.la
 authreg_pgsql_la_SOURCES = authreg_pgsql.c
-authreg_pgsql_la_CPPFLAGS = $(AM_CPPFLAGS) $(PGSQL_CFLAGS)
+authreg_pgsql_la_CPPFLAGS = $(PGSQL_CFLAGS)
 authreg_pgsql_la_LDFLAGS = $(MODULE_LDFLAGS)
 authreg_pgsql_la_LIBADD  = $(MODULE_LIBADD) $(PGSQL_LIBS)
 storage_pgsql_la_SOURCES = storage_pgsql.c
-storage_pgsql_la_CPPFLAGS = $(AM_CPPFLAGS) $(PGSQL_CFLAGS)
+storage_pgsql_la_CPPFLAGS = $(PGSQL_CFLAGS)
 storage_pgsql_la_LDFLAGS = $(MODULE_LDFLAGS)
 storage_pgsql_la_LIBADD  = $(MODULE_LIBADD) $(PGSQL_LIBS)
 endif
