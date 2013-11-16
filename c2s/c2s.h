@@ -311,6 +311,11 @@ C2S_API int             bind_init(sx_env_t env, sx_plugin_t p, va_list args);
 
 C2S_API void            c2s_pbx_init(c2s_t c2s);
 
+#ifdef ENABLE_EXPERIMENTAL
+/* My IP Address plugin */
+JABBERD2_API int                         address_init(sx_env_t env, sx_plugin_t p, va_list args);
+#endif /* ENABLE_EXPERIMENTAL */
+
 struct authreg_st
 {
     c2s_t       c2s;

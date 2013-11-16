@@ -764,7 +764,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     sx_env_plugin(c2s->sx_env, sx_ack_init);
 
     /* and user IP address plugin */
-    sx_env_plugin(c2s->sx_env, sx_address_init);
+    sx_env_plugin(c2s->sx_env, address_init);
 #endif
 
     /* get sasl online */

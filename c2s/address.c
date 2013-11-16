@@ -21,10 +21,10 @@
  * as described in http://delta.affinix.com/specs/xmppstream.html#myip
  */
 
-#include "sx.h"
+#include "c2s.h"
 
 /** sx features callback */
-static void _sx_address_features(sx_t s, sx_plugin_t p, nad_t nad) {
+static void _address_features(sx_t s, sx_plugin_t p, nad_t nad) {
     int ns;
 
     /* offer feature only when not authenticated yet */
@@ -39,10 +39,10 @@ static void _sx_address_features(sx_t s, sx_plugin_t p, nad_t nad) {
 }
 
 /** args: none */
-int sx_address_init(sx_env_t env, sx_plugin_t p, va_list args) {
+int address_init(sx_env_t env, sx_plugin_t p, va_list args) {
     log_debug(ZONE, "initialising address sx plugin");
 
-    p->features = _sx_address_features;
+    p->features = _address_features;
 
     return 0;
 }

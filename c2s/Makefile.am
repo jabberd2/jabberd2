@@ -15,3 +15,7 @@ c2s_LDADD = $(top_builddir)/sx/libsx.la \
 if USE_LIBSUBST
 c2s_LDADD += $(top_builddir)/subst/libsubst.la
 endif
+
+if ENABLE_EXPERIMENTAL
+c2s_SOURCES += address.c
+endif
