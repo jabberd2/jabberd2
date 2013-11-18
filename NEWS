@@ -1,4 +1,27 @@
-This file contains upgrade instructions between different versions of jabberd2.
+This file contains news, important changes
+and upgrade instructions between different versions of jabberd2.
+
+
+* 2.2.17 to 2.3.0 upgrade:
+
+What changed:
+- Renamed non-standard UPGRADE file overwriting outdated NEWS file
+- Semantic Versioning: http://semver.org/
+- TLS Everywhere: https://github.com/stpeter/manifesto
+- Required GSASL >=1.1
+- jabberd should compile without warnings
+- out-of-source builds should work
+- pgsql: authreg password_type support
+- pgsql: schema support
+- ldapvcard: groupattr works even if no groupattr_regex defined
+- ldapfull: checks for ldap group membership on login
+- vCard: Assume tel phone is voice phone
+- MySQL: default password hashing algorithm changed to SHA512
+- out-conn-reuse s2s.xml option naming unified
+- XML parse error will log buffer details
+- CRAM-MD5 auth support
+- router private key cachain and password support
+- hashed passwords support in SQLite3 storage
 
 
 * 2.2.16 to 2.2.17 upgrade:
