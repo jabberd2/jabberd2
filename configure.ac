@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.61)
-AC_INIT([jabberd], [2.2dev], [jabberd2@lists.xiaoka.com])
+AC_INIT([jabberd], [2.x.dev], [jabberd2@lists.xiaoka.com])
 AC_CONFIG_SRCDIR([sx/sx.h])
 AC_CONFIG_HEADER([config.h])
 AM_INIT_AUTOMAKE
