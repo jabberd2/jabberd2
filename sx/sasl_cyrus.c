@@ -23,14 +23,8 @@
 #error Cyrus SASL implementation is not supported! It is included here only for the brave ones, that do know what they are doing. You need to remove this line to compile it.
 
 #include <sys/types.h>
-#include "sasl_switch_hit.h"
-#include "auth_event.h"
-#include "odkerb.h"
 #include "sx.h"
 #include "sasl.h"
-
-/* temporary work around to <rdar://problem/8196059> */
-#include <ldap.h>
 
 /* Gack - need this otherwise SASL's MD5 definitions conflict with OpenSSLs */
 #ifdef HEADER_MD5_H
@@ -68,7 +62,6 @@ typedef struct _sx_sasl_data_st {
     sasl_conn_t                 *sasl;
     sx_t                        stream;
     int                         sasl_server_started;
-    auth_event_data_t           auth_event_data;
 } *_sx_sasl_data_t;
 
 
@@ -238,7 +231,7 @@ static int _sx_sasl_checkpass(sasl_conn_t *conn, void *ctx, const char *user, co
  * the user
  */
 
-static int _sx_sasl_canon_user(sasl_conn_t *conn, void *ctx, const char *user, unsigned ulen, unsigned flags, const char *user_realm, const char *out_user, unsigned out_umax, unsigned *out_ulen) {
+static int _sx_sasl_canon_user(sasl_conn_t *conn, void *ctx, const char *user, unsigned ulen, unsigned flags, const char *user_realm, char * const out_user, unsigned out_umax, unsigned *out_ulen) {
     char *buf;
     char principal[3072];
     char out_buf[3072]; // node(1023) + '@'(1) + domain/realm(1023) + '@'(1) + krb domain(1023) + '\0'(1)
@@ -262,15 +255,16 @@ static int _sx_sasl_canon_user(sasl_conn_t *conn, void *ctx, const char *user, u
         if (s) {
             char *c = strsep(&s, "@");
             if (c) {
-                strlcpy(adjusted_user, c, sizeof(adjusted_user));
+                strncpy(adjusted_user, c, sizeof(adjusted_user));
+		adjusted_user[sizeof(adjusted_user)-1] = '\0';
                 c = strsep(&s, "@");
                 if (c) {
                     // should be the default realm - ignore
                     c = strsep(&s, "@");
                     if (c) {
                         // should be a foreign realm that we want to check
-                        strlcat(adjusted_user, "@", sizeof(adjusted_user));
-                        strlcat(adjusted_user, c, sizeof(adjusted_user));
+                        strncat(adjusted_user, "@", sizeof(adjusted_user));
+                        strncat(adjusted_user, c, sizeof(adjusted_user));
                     }
                 } else {
                     _sx_debug(ZONE, "Notice: unexpected format of SASL \"user\" argument: %s", user_null_term);
@@ -287,14 +281,13 @@ static int _sx_sasl_canon_user(sasl_conn_t *conn, void *ctx, const char *user, u
         }
 
         snprintf(principal, sizeof(principal), "%s@%s", adjusted_user, user_realm);
-        if (odkerb_get_im_handle(principal, sd->stream->req_to, "JABBER:", out_buf, 
-                    ((out_umax > sizeof(out_buf)) ? sizeof(out_buf) : out_umax)) == 0) {
-            strlcpy(out_user, out_buf, out_umax); 
-            *out_ulen = strlen(out_user);
-            _sx_debug(ZONE, "Got IM handle: %s for user %s, realm %s", out_buf, user_null_term, user_realm);
-        } else {
+        if (strlen(principal) >= out_umax) {
             return SASL_BADAUTH;
         }
+
+        strncpy(out_user, principal, out_umax);
+        *out_ulen = strlen(out_user);
+        _sx_debug(ZONE, "Got IM handle: %s for user %s, realm %s", out_buf, user_null_term, user_realm);
     }
     else if (strncmp(buf, "ANONYMOUS", 10) == 0) {
         sd->ctx->cb(sx_sasl_cb_GEN_AUTHZID, NULL, (void **)&buf, sd->stream, sd->ctx->cbarg);
@@ -496,13 +489,6 @@ void _sx_sasl_open(sx_t s, sasl_conn_t *sasl, sx_plugin_t p) {
     
     /* get the method */
     sasl_getprop(sasl, SASL_MECHNAME, (const void **) &buf);
-    if (s->type == type_CLIENT) {
-        static int first_time = 1;
-        if (first_time) {
-            first_time = 0;
-            sasl_switch_hit_register_apple_digest_md5();
-        }
-    }
 
     method = (char *) malloc(sizeof(char) * (strlen(buf) + 17));
     sprintf(method, "SASL/%s", buf);
@@ -859,7 +845,6 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, const char *mech, con
     if(mech != NULL) {
         ret = sasl_server_start(sd->sasl, mech, buf, buflen, (const char **) &out, &outlen);
         sd->sasl_server_started = 1;
-        auth_event_data_init((auth_event_data_t *)&sd->auth_event_data, s->ip, s->port, mech);
     } else {
         if ((!sd->sasl) || (! sd->sasl_server_started)) {
             _sx_debug(ZONE, "response send before auth request enabling mechanism (decoded: %.*s)", buflen, buf);
@@ -884,16 +869,6 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, const char *mech, con
         ((sx_buf_t) s->wbufq->front->data)->notify = _sx_sasl_notify_success;
         ((sx_buf_t) s->wbufq->front->data)->notify_arg = (void *) p;
 
-        if (sd->auth_event_data != NULL) {
-            if (sd->auth_event_data->username == NULL) {
-                sasl_getprop(sd->sasl, SASL_USERNAME, (const void **) &user);
-                if (user != NULL)
-                    sd->auth_event_data->username = strdup(user);
-            }
-            sd->auth_event_data->status = eAuthSuccess;
-            auth_event_log(sd->auth_event_data);
-        }
-
 	return;
     }
 
@@ -917,16 +892,6 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, const char *mech, con
         buf = "[no error message available]";
 
     _sx_debug(ZONE, "sasl handshake failed: %s", buf);
-
-    if (sd->auth_event_data != NULL) {
-        if (sd->auth_event_data->username == NULL) {
-            sasl_getprop(sd->sasl, SASL_USERNAME, (const void **) &user);
-            if (user != NULL)
-                sd->auth_event_data->username = strdup(user);
-        }
-        sd->auth_event_data->status = eAuthFailure;
-        auth_event_log(sd->auth_event_data);
-    }
 
     _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_MALFORMED_REQUEST), 0);
 }
@@ -1131,7 +1096,6 @@ static void _sx_sasl_free(sx_t s, sx_plugin_t p) {
     if(sd->user != NULL) free(sd->user);
     if(sd->psecret != NULL) free(sd->psecret);
     if(sd->callbacks != NULL) free(sd->callbacks);
-    if(sd->auth_event_data != NULL) auth_event_data_dispose((auth_event_data_t *)&sd->auth_event_data);
 
     free(sd);
 
@@ -1206,13 +1170,9 @@ int sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args) {
     ctx->saslcallbacks[1].id = SASL_CB_LIST_END;
 #endif
 
-    /* temporary work around to <rdar://problem/8196059> */ 
-	LDAP *ldap_con = NULL;
-    ldap_initialize(&ldap_con, "ldap://127.0.0.1");
-
-    ret = sasl_server_init_alt(ctx->saslcallbacks, appname);
+    ret = sasl_server_init(ctx->saslcallbacks, appname);
     if(ret != SASL_OK) {
-        _sx_debug(ZONE, "sasl_server_init_alt() failed (%s), disabling", sasl_errstring(ret, NULL, NULL));
+        _sx_debug(ZONE, "sasl_server_init() failed (%s), disabling", sasl_errstring(ret, NULL, NULL));
         free(ctx->saslcallbacks);
         free(ctx);
         return 1;
