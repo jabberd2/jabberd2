@@ -44,7 +44,7 @@ START_TEST (check_config_expand)
     
     ck_assert_int_eq (0, r);
 
-    ck_assert_int_eq ((config_elem_t)0, config_get(c, "non.existing.key"));
+    ck_assert_ptr_eq ((config_elem_t)0, config_get(c, "non.existing.key"));
     fail_unless ((const char*)0 == config_get_one(c, "non.existing.key", 0));
 
     ck_assert_str_eq ("qwerty", config_get_one(c, "test_key", 0));
