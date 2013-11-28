@@ -917,15 +917,15 @@ AM_CONDITIONAL(USE_LIBSUBST, [test "$OPT_LIBSUBST" != "no"])
 
 # conditional features
 AC_ARG_ENABLE(superseded, AC_HELP_STRING([--enable-superseded], [enable superseded XEP support (yes)]),
-              want_superseded=$enableval, want_superseded=yes)
+              want_superseded=$enableval, want_superseded=no)
 if test "x-$want_superseded" = "x-yes" ; then
     AC_DEFINE(ENABLE_SUPERSEDED,1,[Define to 1 if you want to compile-in superseded XEP handlers.])
 fi
 
-AC_ARG_ENABLE(experimental, AC_HELP_STRING([--enable-experimental], [enable experimental XEP support (yes)]),
-              want_experimental=$enableval, want_experimental=yes)
+AC_ARG_ENABLE(experimental, AC_HELP_STRING([--enable-experimental], [enable experimental features (yes)]),
+              want_experimental=$enableval, want_experimental=no)
 if test "x-$want_experimental" = "x-yes" ; then
-    AC_DEFINE(ENABLE_EXPERIMENTAL,1,[Define to 1 if you want to compile-in experimental XEP handlers.])
+    AC_DEFINE(ENABLE_EXPERIMENTAL,1,[Define to 1 if you want to compile-in experimental features.])
 fi
 AM_CONDITIONAL(ENABLE_EXPERIMENTAL, [test "x-$want_experimental" = "x-yes"])
 

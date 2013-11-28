@@ -153,13 +153,9 @@ typedef struct _sx_compress_conn_st {
 #endif /* HAVE_LIBZ */
 
 
-#ifdef ENABLE_EXPERIMENTAL
-
 /* Stanza Acknowledgements plugin */
 /** init function */
 JABBERD2_API int                         sx_ack_init(sx_env_t env, sx_plugin_t p, va_list args);
-
-#endif /* ENABLE_EXPERIMENTAL */
 
 
 #ifdef __cplusplus

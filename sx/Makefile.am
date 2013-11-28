@@ -4,7 +4,7 @@ AM_CPPFLAGS = -I@top_srcdir@
 noinst_LTLIBRARIES = libsx.la
 noinst_HEADERS = plugins.h sasl.h sx.h
 
-libsx_la_SOURCES = callback.c chain.c client.c env.c error.c io.c server.c sx.c
+libsx_la_SOURCES = callback.c chain.c client.c env.c error.c io.c server.c sx.c ack.c
 libsx_la_LIBADD = @LDFLAGS@
 
 if SASL_GSASL
@@ -21,8 +21,4 @@ endif
 
 if HAVE_LIBZ
 libsx_la_SOURCES += compress.c
-endif
-
-if ENABLE_EXPERIMENTAL
-libsx_la_SOURCES += ack.c
 endif

@@ -657,8 +657,12 @@ static void _sx_ssl_client(sx_t s, sx_plugin_t p) {
     sc->ssl = SSL_new(ctx);
     SSL_set_bio(sc->ssl, sc->rbio, sc->wbio);
     SSL_set_connect_state(sc->ssl);
-    SSL_set_ssl_method(sc->ssl, TLSv1_2_client_method());
     SSL_set_options(sc->ssl, SSL_OP_NO_TICKET);
+#ifdef ENABLE_EXPERIMENTAL
+    SSL_set_ssl_method(sc->ssl, TLSv1_2_client_method());
+#else
+    SSL_set_ssl_method(sc->ssl, TLSv1_client_method());
+#endif
 
     /* empty external_id */
     for (i = 0; i < SX_CONN_EXTERNAL_ID_MAX_COUNT; i++)
@@ -755,6 +759,7 @@ static void _sx_ssl_server(sx_t s, sx_plugin_t p) {
     sc->ssl = SSL_new(ctx);
     SSL_set_bio(sc->ssl, sc->rbio, sc->wbio);
     SSL_set_accept_state(sc->ssl);
+    SSL_set_options(sc->ssl, SSL_OP_NO_SSLv3);
 
     /* empty external_id */
     for (i = 0; i < SX_CONN_EXTERNAL_ID_MAX_COUNT; i++)
@@ -896,7 +901,11 @@ int sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, 
     ERR_clear_error();
 
     /* create the context */
+#ifdef ENABLE_EXPERIMENTAL
     ctx = SSL_CTX_new(TLSv1_2_method());
+#else
+    ctx = SSL_CTX_new(SSLv23_method());
+#endif
     if(ctx == NULL) {
         _sx_debug(ZONE, "ssl context creation failed; %s", ERR_error_string(ERR_get_error(), NULL));
         return 1;

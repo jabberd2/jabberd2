@@ -80,7 +80,6 @@ static mod_ret_t _iq_private_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) 
 
     /* get */
     if(pkt->type == pkt_IQ) {
-#ifdef ENABLE_EXPERIMENTAL
         /* remember that this resource requested the namespace */
         if(sess->module_data[mod->index] == NULL) {
             /* create new hash if necesary */
@@ -88,7 +87,6 @@ static mod_ret_t _iq_private_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) 
             pool_cleanup(sess->p, (void (*))(void *) xhash_free, sess->module_data[mod->index]);
         }
         xhash_put(sess->module_data[mod->index], pstrdupx(sess->p, NAD_NURI(pkt->nad, targetns), NAD_NURI_L(pkt->nad, targetns)), (void *) 1);
-#endif
         snprintf(filter, 4096, "(ns=%i:%.*s)", NAD_NURI_L(pkt->nad, targetns), NAD_NURI_L(pkt->nad, targetns), NAD_NURI(pkt->nad, targetns));
         ret = storage_get(sess->user->sm->st, "private", jid_user(sess->jid), filter, &os);
         switch(ret) {
@@ -166,7 +164,6 @@ static mod_ret_t _iq_private_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) 
             pkt_id(pkt, result);
             /* and flush it to the session */
             pkt_sess(result, sess);
-#ifdef ENABLE_EXPERIMENTAL
             /* push it to all resources that read this xmlns item */
             snprintf(filter, 4096, "%.*s", NAD_NURI_L(pkt->nad, targetns), NAD_NURI(pkt->nad, targetns));
             for(sscan = sess->user->sessions; sscan != NULL; sscan = sscan->next) {
@@ -185,7 +182,6 @@ static mod_ret_t _iq_private_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) 
                     pkt_sess(result, sscan);
                 }
             }
-#endif
             /* finally free the packet */
             pkt_free(pkt);
             return mod_HANDLED;
