@@ -376,50 +376,23 @@ if test "x-$ac_cv_lib_udns_dns_init" != "x-yes" ; then
     AC_MSG_ERROR([UDNS library not found])
 fi
 
-#
-# SASL backend selection
-AC_ARG_WITH(sasl,
-	AC_HELP_STRING([--with-sasl=BACKENDS],[use usable one of given BACKENDS as SASL backend]),
-	[ sasl_check=$with_sasl ],
-	[ sasl_check='gsasl' ])
-
-sasl_backend=''
-for backend in $sasl_check ; do
-    case x-$backend in
-
-        x-gsasl)
-            AC_CHECK_HEADERS(gsasl.h)
-            if test "x-$ac_cv_header_gsasl_h" = "x-yes" ; then
-                AC_CHECK_LIB(gsasl, gsasl_check_version)
-            fi
-            if test "x-$ac_cv_lib_gsasl_gsasl_check_version" = "x-yes" ; then
-                AC_MSG_CHECKING(for GnuSASL version >= 0.2.27)
-                AC_RUN_IFELSE([AC_LANG_PROGRAM([[#include <gsasl.h>]],
-                                               [[return !(gsasl_check_version("0.2.27"))]])],
-                              [AC_MSG_RESULT(yes)
-                                sasl_backend='gsasl'],
-                              AC_MSG_RESULT(no))
-            fi
-            ;;
-
-        x-cyrus)
-            AC_CHECK_LIB(sasl2, sasl_client_init)
-            if test "x-$ac_cv_lib_sasl2_sasl_client_init" = "x-yes" ; then
-                AC_CHECK_HEADERS(sasl/sasl.h)
-                if test "x-$ac_cv_header_sasl_sasl_h" = "x-yes" ; then
-                    sasl_backend='cyrus'
-                fi
-            fi
-            ;;
-    esac
-done
-
-if test "x-$sasl_backend" = "x-" ; then
-    AC_MSG_ERROR([no SASL backend available out of: $sasl_check])
+# GnuSASL
+AC_CHECK_HEADERS(gsasl.h)
+if test "x-$ac_cv_header_gsasl_h" = "x-yes" ; then
+    AC_CHECK_LIB(gsasl, gsasl_check_version)
+fi
+if test "x-$ac_cv_lib_gsasl_gsasl_check_version" = "x-yes" ; then
+    AC_MSG_CHECKING(for GnuSASL version >= 1.4.0)
+    AC_RUN_IFELSE([AC_LANG_PROGRAM([[#include <gsasl.h>]],
+                                   [[return !(gsasl_check_version("1.4.0"))]])],
+                  [AC_MSG_RESULT(yes)
+                    have_gsasl=yes],
+                  AC_MSG_RESULT(no))
 fi
 
-AM_CONDITIONAL(SASL_GSASL, [test "x-$sasl_backend" = "x-gsasl"])
-AM_CONDITIONAL(SASL_CYRUS, [test "x-$sasl_backend" = "x-cyrus"])
+if test "x-$have_gsasl" != "x-yes" ; then
+    AC_MSG_ERROR([GnuSASL >= 1.4.0 not found])
+fi
 
 #
 # optional libs
