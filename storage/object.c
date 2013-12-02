@@ -141,8 +141,7 @@ void os_object_put(os_object_t o, const char *key, const void *val, os_type_t ty
     switch(type) {
         case os_type_BOOLEAN:
         case os_type_INTEGER:
-            osf->val = (void *) pmalloco(o->os->p, sizeof(int));
-            * (int *) osf->val = * (int *) val;
+            osf->val = (void *) (intptr_t) (* (int *) val);
             break;
 
         case os_type_STRING:
@@ -244,7 +243,7 @@ int os_object_get(os_t os, os_object_t o, const char *key, void **val, os_type_t
     switch(type) {
         case os_type_BOOLEAN:
         case os_type_INTEGER:
-            * (int *) val = * (int *) osf->val;
+            * (int *) val = (int) (intptr_t) osf->val;
             break;
 
         case os_type_STRING:
@@ -311,7 +310,7 @@ void os_object_iter_get(os_object_t o, char **key, void **val, os_type_t *type) 
     switch(osf->type) {
         case os_type_BOOLEAN:
         case os_type_INTEGER:
-            * (int *) val = * (int *) osf->val;
+            * (int *) val = (int) (intptr_t) osf->val;
             break;
 
         case os_type_STRING:

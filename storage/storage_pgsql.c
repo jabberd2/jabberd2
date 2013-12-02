@@ -203,7 +203,7 @@ static st_ret_t _st_pgsql_put_guts(st_driver_t drv, const char *type, const char
 
                         case os_type_INTEGER:
                             cval = (char *) malloc(sizeof(char) * 20);
-                            sprintf(cval, "%ld", (long int) val);
+                            sprintf(cval, "%ld", (int) (intptr_t) val);
                             break;
 
                         case os_type_STRING:
