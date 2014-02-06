@@ -1,5 +1,4 @@
 LIBTOOL += --quiet
-AM_CPPFLAGS = -I@top_srcdir@
 
 bin_PROGRAMS = sm
 
@@ -26,7 +25,7 @@ pkglib_LTLIBRARIES = mod_active.la \
                   mod_status.la \
                   mod_template-roster.la \
                   mod_vacation.la \
-                  mod_validate.la 
+                  mod_validate.la
 
 noinst_HEADERS = sm.h
 
@@ -41,7 +40,7 @@ sm_SOURCES = aci.c \
              sm.c \
              user.c
 
-sm_CPPFLAGS = -DCONFIG_DIR=\"$(sysconfdir)\" -DLIBRARY_DIR=\"$(pkglibdir)\"
+sm_CPPFLAGS = -DCONFIG_DIR=\"$(sysconfdir)\" -DLIBRARY_DIR=\"$(pkglibdir)\" -I@top_srcdir@
 sm_LDFLAGS = -export-dynamic
 sm_LDADD = $(top_builddir)/sx/libsx.la \
            $(top_builddir)/mio/libmio.la \
