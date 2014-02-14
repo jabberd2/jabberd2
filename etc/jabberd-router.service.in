@@ -1,0 +1,11 @@
+[Unit]
+Description=Jabber Router XML Packet Distributior
+After=network.target
+BindTo=jabberd.service
+
+[Service]
+User=jabber
+ExecStart=@bindir@/@jabberd_router_bin@ -c @sysconfdir@/router.xml
+
+[Install]
+WantedBy=multi-user.target
