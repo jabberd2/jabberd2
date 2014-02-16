@@ -263,6 +263,11 @@
       <pwattr>jabberPassword</pwattr>
       -->
 
+      <!-- Realm to append to uidattr. -->
+      <!--
+      <realm>example.org</realm>
+      -->
+
       <!-- see authreg.ldapfull in c2s.xml for description. -->
       <!--
       <validattr>valid</validattr>

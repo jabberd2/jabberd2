@@ -44,6 +44,8 @@ typedef struct drvdata_st {
     LDAP *ld;
     const char *uri;
 
+    const char *realm; // server id to be appended to uid
+
     const char *binddn;
     const char *bindpw;
     const char *basedn;
@@ -442,7 +444,12 @@ retry_pubrost:
                     ldap_value_free(vals);
                     continue;
                 }
-                strncpy(jid,vals[0],sizeof(jid)-1); jid[sizeof(jid)-1]='\0';
+                if( data->realm == NULL ) {
+                    strncpy(jid,vals[0],sizeof(jid)-1); jid[sizeof(jid)-1]='\0';
+                } else {
+                    snprintf(jid, 2048, "%s@%s", vals[0], data->realm);
+                }
+
                 ldap_value_free(vals);
 
                 vals = (char **)ldap_get_values(data->ld,entry,"displayName");
@@ -554,7 +561,7 @@ static void _st_ldapvcard_free(st_driver_t drv) {
 DLLEXPORT st_ret_t st_init(st_driver_t drv)
 {
     drvdata_t data;
-    const char *uri, *basedn, *srvtype_s;
+    const char *uri, *realm, *basedn, *srvtype_s;
     int srvtype_i;
 
     log_write(drv->st->log, LOG_NOTICE, "ldapvcard: initializing");
@@ -563,6 +570,11 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv)
     if(uri == NULL) {
         log_write(drv->st->log, LOG_ERR, "ldapvcard: no uri specified in config file");
         return st_FAILED;
+    }
+
+    realm = config_get_one(drv->st->config, "storage.ldapvcard.realm", 0);
+    if(realm != NULL) {
+        log_write(drv->st->log, LOG_NOTICE, "ldapvcard: defined realm %s", realm);
     }
 
     basedn = config_get_one(drv->st->config, "storage.ldapvcard.basedn", 0);
@@ -588,6 +600,7 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv)
     drv->private = (void *) data;
 
     data->uri = uri;
+    data->realm = realm;
     data->basedn = basedn;
     data->srvtype = srvtype_i;
 
