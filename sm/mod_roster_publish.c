@@ -239,8 +239,8 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                 do {
                     o = os_iter_object(os);
                     if(os_object_get_str(os, o, "jid", &str)) {
-#ifndef NO_SM_CACHE
                         int userinsm;
+#ifndef NO_SM_CACHE
                         _roster_publish_active_cache_t active_cached = 0;
 #endif
                         log_debug(ZONE, "got %s item for inserting in", str);
