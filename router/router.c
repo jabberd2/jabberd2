@@ -1129,64 +1129,40 @@ int router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *
 }
 
 
-int message_log(nad_t nad, router_t r, const char *msg_from, const char *msg_to)
-{
+int message_log(nad_t nad, router_t r, const char *msg_from, const char *msg_to) {
     time_t t;
-    char *time_pos;
-    int time_sz;
+    struct tm *time_pos;
+    char timestamp[25];
     struct stat filestat;
     FILE *message_file;
     short int new_msg_file = 0;
     int i;
     int nad_body_len = 0;
-    const char *nad_body_start = 0;
-    int body_count;
-    const char *nad_body = NULL;
-    char body[MAX_MESSAGE*2];
+    char *nad_body = NULL;
+    int elem;
 
     assert((int) (nad != NULL));
 
-    /* timestamp */
-    t = time(NULL);
-    time_pos = ctime(&t);
-    time_sz = strlen(time_pos);
-    /* chop off the \n */
-    time_pos[time_sz-1]=' ';
-
     // Find the message body
-    for (i = 0; NAD_ENAME_L(nad, i) > 0; i++)
-    {
-        if((NAD_ENAME_L(nad, i) == 4) && (strncmp("body", NAD_ENAME(nad, i), 4) == 0))
-        {
-            nad_body_len = NAD_CDATA_L(nad, i);
-            if (nad_body_len > 0) {
-                nad_body = NAD_CDATA(nad, i);
-            } else {
-                log_write(r->log, LOG_NOTICE, "message_log received a message with empty body");
-                return 0;
-            }
-            break;
-        }
+    elem = nad_find_elem(nad, 0, -1, "message", 1);
+    if (elem >= 0) {
+        elem = nad_find_elem(nad, elem, -1, "body", 1);
     }
 
     // Don't log anything if we found no NAD body
-    if (nad_body == NULL) {
+    if (elem == -1) {
         return 0;
     }
 
-    // Store original pointer address so that we know when to stop iterating through nad_body
-    nad_body_start = nad_body;
+    nad_body_len = NAD_CDATA_L(nad, elem);
+    nad_body = NAD_CDATA(nad, elem);
 
-    // replace line endings with "\n"
-    for (body_count = 0; (nad_body < nad_body_start + nad_body_len) && (body_count < (MAX_MESSAGE*2)-3); nad_body++) {
-        if (*nad_body == '\n') {
-            body[body_count++] = '\\';
-            body[body_count++] = 'n';
-        } else {
-            body[body_count++] = *nad_body;
+    // temporary replace line endings with 0x01, ASCII: <control> SOH <start of heading>
+    for (i = 0; i < nad_body_len; i++) {
+        if (nad_body[i] == '\n') {
+            nad_body[i] = 0x01;
         }
     }
-    body[body_count] = '\0';
 
     // Log our message
     umask((mode_t) 0077);
@@ -1194,8 +1170,7 @@ int message_log(nad_t nad, router_t r, const char *msg_from, const char *msg_to)
         new_msg_file = 1;
     }
 
-    if ((message_file = fopen(r->message_logging_file, "a")) == NULL)
-    {
+    if ((message_file = fopen(r->message_logging_file, "a")) == NULL) {
         log_write(r->log, LOG_ERR, "Unable to open message log for writing: %s", strerror(errno));
         return 1;
     }
@@ -1207,16 +1182,31 @@ int message_log(nad_t nad, router_t r, const char *msg_from, const char *msg_to)
             return 1;
         }
         fprintf(message_file, "# See router.xml for logging options.\n");
-        fprintf(message_file, "# Format: (Date)<tab>(From JID)<tab>(To JID)<tab>(Message Body)<line end>\n");
+        fprintf(message_file, "# Format: DateTime FromJID ToJID MessageBody<line end>\n");
     }
 
-    if (! fprintf(message_file, "%s\t%s\t%s\t%s\n", time_pos, msg_from, msg_to, body))
-    {
+    /* ISO8601 timestamp */
+    t = time(NULL);
+    time_pos = localtime(&t);
+    if (strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%S%z", time_pos) == 0) {
+        log_write(r->log, LOG_ERR, "strftime failed: %s", strerror(errno));
+    }
+
+    elem = fprintf(message_file, "%s %s %s %.*s\n", timestamp, msg_from, msg_to, nad_body_len, nad_body);
+
+    fclose(message_file);
+
+    // revert line endings
+    for (i = 0; i < nad_body_len; i++) {
+        if (nad_body[i] == 0x01) {
+            nad_body[i] = '\n';
+        }
+    }
+
+    if (!elem) {
         log_write(r->log, LOG_ERR, "Unable to write to message log: %s", strerror(errno));
         return 1;
     }
-
-    fclose(message_file);
 
     return 0;
 }
