@@ -5,7 +5,7 @@
 
   <!-- The process ID file. Comment this out if you don't need to know
        the process ID from outside the process (eg for control scripts) -->
-  <pidfile>@localstatedir@/@package@/pid/router.pid</pidfile>
+  <pidfile>@localstatedir@/@package@/pid/${id}.pid</pidfile>
 
   <!-- Log configuration - type is "syslog", "file" or "stdout" -->
   <log type='syslog'>
