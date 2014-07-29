@@ -5,7 +5,7 @@
 
   <!-- The process ID file. Comment this out if you don't need to know
        the process ID from outside the process (eg for control scripts) -->
-  <pidfile>@localstatedir@/@package@/pid/s2s.pid</pidfile>
+  <pidfile>@localstatedir@/@package@/pid/${id}.pid</pidfile>
 
   <!-- Router connection configuration -->
   <router>
