@@ -574,6 +574,7 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
 
             if (sess->authreg_private != NULL) {
                 free(sess->authreg_private);
+                sess->authreg_private = NULL;
             }
 
             jqueue_push(sess->c2s->dead, (void *) sess->s, 0);
