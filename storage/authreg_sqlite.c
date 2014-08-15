@@ -115,7 +115,7 @@ _get_stmt(authreg_t ar, sqlite3 *db, sqlite3_stmt **stmt, const char *sql)
  * @return 1 if the user exists, 0 if not 
  */
 static int
-_ar_sqlite_user_exists(authreg_t ar, const char *username, const char *realm)
+_ar_sqlite_user_exists(authreg_t ar, sess_t sess, const char *username, const char *realm)
 {
 
     sqlite3_stmt *stmt;
@@ -149,7 +149,7 @@ _ar_sqlite_user_exists(authreg_t ar, const char *username, const char *realm)
  * @return 0 is password is populated, 1 if not 
  */
 static int
-_ar_sqlite_get_password(authreg_t ar, const char *username, const char *realm,
+_ar_sqlite_get_password(authreg_t ar, sess_t sess, const char *username, const char *realm,
 			char password[257])
 {
 
@@ -182,7 +182,7 @@ _ar_sqlite_get_password(authreg_t ar, const char *username, const char *realm,
  * @return 0 if the given password matches the password stored in the database, !0 if not
  */
 static int
-_ar_sqlite_check_password(authreg_t ar, const char *username, const char *realm,
+_ar_sqlite_check_password(authreg_t ar, sess_t sess, const char *username, const char *realm,
 			  char password[257])
 {
 
@@ -198,7 +198,7 @@ _ar_sqlite_check_password(authreg_t ar, const char *username, const char *realm,
 
     log_debug(ZONE, "sqlite (authreg): check password");
 
-    ret = _ar_sqlite_get_password (ar, username, realm, db_pw_value);
+    ret = _ar_sqlite_get_password (ar, sess, username, realm, db_pw_value);
     if (ret)
         return ret;
 
@@ -245,7 +245,7 @@ _ar_sqlite_check_password(authreg_t ar, const char *username, const char *realm,
  * @return 0 if password is stored, 1 if not
  */
 static int
-_ar_sqlite_set_password(authreg_t ar, const char *username, const char *realm,
+_ar_sqlite_set_password(authreg_t ar, sess_t sess, const char *username, const char *realm,
 			char password[257])
 {
 
@@ -298,7 +298,7 @@ _ar_sqlite_set_password(authreg_t ar, const char *username, const char *realm,
  * @return 0 if user is created, 1 if not
  */
 static int
-_ar_sqlite_create_user(authreg_t ar, const char *username, const char *realm)
+_ar_sqlite_create_user(authreg_t ar, sess_t sess, const char *username, const char *realm)
 {
     sqlite3_stmt *stmt;
     moddata_t data = data = (moddata_t) ar->private;
@@ -330,7 +330,7 @@ _ar_sqlite_create_user(authreg_t ar, const char *username, const char *realm)
  * @return 0 if user is deleted, 1 if not
  */
 static int
-_ar_sqlite_delete_user(authreg_t ar, const char *username, const char *realm)
+_ar_sqlite_delete_user(authreg_t ar, sess_t sess, const char *username, const char *realm)
 {
     sqlite3_stmt *stmt;
     moddata_t data = (moddata_t) ar->private;

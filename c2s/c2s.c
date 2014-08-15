@@ -572,6 +572,10 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
                 for(bres = sess->resources; bres != NULL; bres = bres->next)
                     sm_end(sess, bres);
 
+            if (sess->authreg_private != NULL) {
+                free(sess->authreg_private);
+            }
+
             jqueue_push(sess->c2s->dead, (void *) sess->s, 0);
 
             xhash_zap(sess->c2s->sessions, sess->skey);
@@ -1218,7 +1222,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
                         /* create failed, so we need to remove them from authreg */
                         if(NAD_AVAL_L(nad, action) == 6 && c2s->ar->delete_user != NULL) {
-                            if((c2s->ar->delete_user)(c2s->ar, bres->jid->node, sess->host->realm) != 0)
+                            if((c2s->ar->delete_user)(c2s->ar, sess, bres->jid->node, sess->host->realm) != 0)
                                 log_write(c2s->log, LOG_NOTICE, "[%d] user creation failed, and unable to delete user credentials: user=%s, realm=%s", sess->s->tag, bres->jid->node, sess->host->realm);
                             else
                                 log_write(c2s->log, LOG_NOTICE, "[%d] user creation failed, so deleted user credentials: user=%s, realm=%s", sess->s->tag, bres->jid->node, sess->host->realm);

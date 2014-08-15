@@ -166,12 +166,12 @@ static int _ar_db_store_user(authreg_t ar, creds_t creds)
     return 0;
 }
 
-static int _ar_db_user_exists(authreg_t ar, const char *username, const char *realm)
+static int _ar_db_user_exists(authreg_t ar, sess_t sess, const char *username, const char *realm)
 {
     return (int) (long) _ar_db_fetch_user(ar, username, realm);
 }
 
-static int _ar_db_get_password(authreg_t ar, const char *username, const char *realm, char password[257])
+static int _ar_db_get_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257])
 {
     creds_t creds;
 
@@ -183,7 +183,7 @@ static int _ar_db_get_password(authreg_t ar, const char *username, const char *r
     return 0;
 }
 
-static int _ar_db_set_password(authreg_t ar, const char *username, const char *realm, char password[257])
+static int _ar_db_set_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257])
 {
     creds_t creds;
 
@@ -198,7 +198,7 @@ static int _ar_db_set_password(authreg_t ar, const char *username, const char *r
     return 0;
 }
 
-static int _ar_db_create_user(authreg_t ar, const char *username, const char *realm)
+static int _ar_db_create_user(authreg_t ar, sess_t sess, const char *username, const char *realm)
 {
     creds_t creds;
     int ret;
@@ -217,7 +217,7 @@ static int _ar_db_create_user(authreg_t ar, const char *username, const char *re
     return ret;
 }
 
-static int _ar_db_delete_user(authreg_t ar, const char *username, const char *realm)
+static int _ar_db_delete_user(authreg_t ar, sess_t sess, const char *username, const char *realm)
 {
     DB *db;
     DBT key;

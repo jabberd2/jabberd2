@@ -646,7 +646,7 @@ static int _ldapfull_find_user_dn(moddata_t data, const char *username, const ch
 }
 
 /** do we have this user? */
-static int _ldapfull_user_exists(authreg_t ar, const char *username, const char *realm)
+static int _ldapfull_user_exists(authreg_t ar, sess_t sess, const char *username, const char *realm)
 {
     const char *dn;
     if (_ldapfull_find_user_dn((moddata_t) ar->private, username, realm, &dn)) {
@@ -688,7 +688,7 @@ static int _ldapfull_check_password_bind(authreg_t ar, const char *username, con
 }
 
 // get password from jabberPassword attribute
-static int _ldapfull_get_password(authreg_t ar, const char *username, const char *realm, char password[LDAPFULL_PASSBUF_MAX]) {
+static int _ldapfull_get_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[LDAPFULL_PASSBUF_MAX]) {
     moddata_t data = (moddata_t) ar->private;
     LDAPMessage *result, *entry;
     const char *dn, *no_attrs[] = { data->pwattr, NULL };
@@ -739,7 +739,7 @@ static int _ldapfull_get_password(authreg_t ar, const char *username, const char
 }
 
 // set password from jabberPassword attribute
-static int _ldapfull_set_password(authreg_t ar, const char *username, const char *realm, char password[LDAPFULL_PASSBUF_MAX]) {
+static int _ldapfull_set_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[LDAPFULL_PASSBUF_MAX]) {
     moddata_t data = (moddata_t) ar->private;
     LDAPMessage *result, *entry;
     LDAPMod *mods[2], attr_pw;
@@ -799,7 +799,7 @@ static int _ldapfull_set_password(authreg_t ar, const char *username, const char
 }
 
 /** check the password */
-static int _ldapfull_check_password(authreg_t ar, const char *username, const char *realm, char password[LDAPFULL_PASSBUF_MAX])
+static int _ldapfull_check_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[LDAPFULL_PASSBUF_MAX])
 {
     moddata_t data = (moddata_t) ar->private;
     char buf[LDAPFULL_PASSBUF_MAX];
@@ -829,7 +829,7 @@ static int _ldapfull_check_password(authreg_t ar, const char *username, const ch
         }
     }
 
-    if( _ldapfull_get_password(ar,username,realm,buf) != 0  ) {
+    if( _ldapfull_get_password(ar,sess,username,realm,buf) != 0  ) {
         if(dn != NULL)
             ldap_memfree((void*)dn);
         return 1;
@@ -853,15 +853,15 @@ static int _ldapfull_check_password(authreg_t ar, const char *username, const ch
     }
 }
 
-static int _ldapfull_create_user(authreg_t ar, const char *username, const char *realm) {
-    if( _ldapfull_user_exists(ar,username,realm) ) {
+static int _ldapfull_create_user(authreg_t ar, sess_t sess, const char *username, const char *realm) {
+    if( _ldapfull_user_exists(ar,sess,username,realm) ) {
         return 0;
     } else {
         return 1;
     }
 }
 
-static int _ldapfull_delete_user(authreg_t ar, const char *username, const char *realm) {
+static int _ldapfull_delete_user(authreg_t ar, sess_t sess, const char *username, const char *realm) {
     return 0;
 }
 

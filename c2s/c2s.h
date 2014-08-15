@@ -111,6 +111,9 @@ struct sess_st {
 
     /** Apple: session challenge for challenge-response authentication */
     char                auth_challenge[65];
+
+    /* Per user session authreg private data */
+    void                *authreg_private;
 };
 
 /* allowed mechanisms */
@@ -298,21 +301,21 @@ struct c2s_st {
 
 extern sig_atomic_t c2s_lost_router;
 
-C2S_API int             c2s_router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
-C2S_API int             c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg);
+C2S_API int         c2s_router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
+C2S_API int         c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg);
 
-C2S_API void            sm_start(sess_t sess, bres_t res);
-C2S_API void            sm_end(sess_t sess, bres_t res);
-C2S_API void            sm_create(sess_t sess, bres_t res);
-C2S_API void            sm_delete(sess_t sess, bres_t res);
-C2S_API void            sm_packet(sess_t sess, bres_t res, nad_t nad);
+C2S_API void        sm_start(sess_t sess, bres_t res);
+C2S_API void        sm_end(sess_t sess, bres_t res);
+C2S_API void        sm_create(sess_t sess, bres_t res);
+C2S_API void        sm_delete(sess_t sess, bres_t res);
+C2S_API void        sm_packet(sess_t sess, bres_t res, nad_t nad);
 
-C2S_API int             bind_init(sx_env_t env, sx_plugin_t p, va_list args);
+C2S_API int         bind_init(sx_env_t env, sx_plugin_t p, va_list args);
 
-C2S_API void            c2s_pbx_init(c2s_t c2s);
+C2S_API void        c2s_pbx_init(c2s_t c2s);
 
 /* My IP Address plugin */
-JABBERD2_API int                         address_init(sx_env_t env, sx_plugin_t p, va_list args);
+JABBERD2_API int    address_init(sx_env_t env, sx_plugin_t p, va_list args);
 
 struct authreg_st
 {
@@ -322,31 +325,31 @@ struct authreg_st
     void        *private;
 
     /** returns 1 if the user exists, 0 if not */
-    int         (*user_exists)(authreg_t ar, const char *username, const char *realm);
+    int         (*user_exists)(authreg_t ar, sess_t sess, const char *username,const char *realm);
 
     /** return this users cleartext password in the array (digest auth, password auth) */
-    int         (*get_password)(authreg_t ar, const char *username, const char *realm, char password[257]);
+    int         (*get_password)(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257]);
 
     /** check the given password against the stored password, 0 if equal, !0 if not equal (password auth) */
-    int         (*check_password)(authreg_t ar, const char *username, const char *realm, char password[257]);
+    int         (*check_password)(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257]);
 
     /** store this password (register) */
-    int         (*set_password)(authreg_t ar, const char *username, const char *realm, char password[257]);
+    int         (*set_password)(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257]);
 
     /** make or break the user (register / register remove) */
-    int         (*create_user)(authreg_t ar, const char *username, const char *realm);
-    int         (*delete_user)(authreg_t ar, const char *username, const char *realm);
+    int         (*create_user)(authreg_t ar, sess_t sess, const char *username, const char *realm);
+    int         (*delete_user)(authreg_t ar, sess_t sess, const char *username, const char *realm);
 
     void        (*free)(authreg_t ar);
 
     /* Additions at the end - to preserve offsets for existing modules */
 
     /** returns 1 if the user is permitted to authorize as the requested_user, 0 if not. requested_user is a JID */
-    int               (*user_authz_allowed)(authreg_t ar, const char *username, const char *realm, const char *requested_user);
+    int         (*user_authz_allowed)(authreg_t ar, sess_t sess, const char *username, const char *realm, const char *requested_user);
 
     /** Apple extensions for challenge/response authentication methods */
-    int         (*create_challenge)(authreg_t ar, const char *username, const char *challenge, int maxlen);
-    int         (*check_response)(authreg_t ar, const char *username, const char *realm, const char *challenge, const char *response);
+    int         (*create_challenge)(authreg_t ar, sess_t sess, const char *username, const char *realm, const char *challenge, int maxlen);
+    int         (*check_response)(authreg_t ar, sess_t sess, const char *username, const char *realm, const char *challenge, const char *response);
 };
 
 /** get a handle for a single module */
@@ -385,4 +388,3 @@ typedef struct stream_redirect_st
     const char *to_address;
     const char *to_port;
 } *stream_redirect_t;
-

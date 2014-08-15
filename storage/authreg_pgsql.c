@@ -127,7 +127,7 @@ static PGresult *_ar_pgsql_get_user_tuple(authreg_t ar, const char *username, co
     return res;
 }
 
-static int _ar_pgsql_user_exists(authreg_t ar, const char *username, const char *realm) {
+static int _ar_pgsql_user_exists(authreg_t ar, sess_t sess, const char *username, const char *realm) {
     if (ar->get_password) {
         PGresult *res = _ar_pgsql_get_user_tuple(ar, username, realm);
 
@@ -142,7 +142,7 @@ static int _ar_pgsql_user_exists(authreg_t ar, const char *username, const char 
     }
 }
 
-static int _ar_pgsql_get_password(authreg_t ar, const char *username, const char *realm, char password[257]) {
+static int _ar_pgsql_get_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257]) {
     pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
     PGresult *res = _ar_pgsql_get_user_tuple(ar, username, realm);
     int fpass;
@@ -169,7 +169,7 @@ static int _ar_pgsql_get_password(authreg_t ar, const char *username, const char
     return 0;
 }
 
-static int _ar_pgsql_dbcheck_password(authreg_t ar, const char *username, const char *realm, char password[257])
+static int _ar_pgsql_dbcheck_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257])
 {
     pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
     PGconn *conn = ctx->conn;
@@ -237,7 +237,7 @@ static int _ar_pgsql_dbcheck_password(authreg_t ar, const char *username, const 
     return retval;
 };
 
-static int _ar_pgsql_check_password(authreg_t ar, const char *username, const char *realm, char password[257])
+static int _ar_pgsql_check_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257])
 {
     pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
     char db_pw_value[257];
@@ -249,7 +249,7 @@ static int _ar_pgsql_check_password(authreg_t ar, const char *username, const ch
 #endif
     int ret;
 
-    ret = _ar_pgsql_get_password(ar, username, realm, db_pw_value);
+    ret = _ar_pgsql_get_password(ar, sess, username, realm, db_pw_value);
     /* return if error */
     if (ret)
         return ret;
@@ -293,7 +293,7 @@ static int _ar_pgsql_check_password(authreg_t ar, const char *username, const ch
     return ret;
 }
 
-static int _ar_pgsql_set_password(authreg_t ar, const char *username, const char *realm, char password[257]) {
+static int _ar_pgsql_set_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257]) {
     pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
     PGconn *conn = ctx->conn;
     char iuser[PGSQL_LU+1], irealm[PGSQL_LR+1];
@@ -334,7 +334,7 @@ static int _ar_pgsql_set_password(authreg_t ar, const char *username, const char
     return 0;
 }
 
-static int _ar_pgsql_create_user(authreg_t ar, const char *username, const char *realm) {
+static int _ar_pgsql_create_user(authreg_t ar, sess_t sess, const char *username, const char *realm) {
     pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
     PGconn *conn = ctx->conn;
     char iuser[PGSQL_LU+1], irealm[PGSQL_LR+1];
@@ -383,7 +383,7 @@ static int _ar_pgsql_create_user(authreg_t ar, const char *username, const char 
     return 0;
 }
 
-static int _ar_pgsql_delete_user(authreg_t ar, const char *username, const char *realm) {
+static int _ar_pgsql_delete_user(authreg_t ar, sess_t sess, const char *username, const char *realm) {
     pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
     PGconn *conn = ctx->conn;
     char iuser[PGSQL_LU+1], irealm[PGSQL_LR+1];

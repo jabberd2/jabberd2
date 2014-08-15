@@ -406,9 +406,17 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
     struct jid_st jid;
     jid_static_buf jid_buf;
     int i, r;
+    sess_t sess;
+    char skey[44];
 
     /* init static jid */
     jid_static(&jid,&jid_buf);
+
+    /* retrieve our session */
+    assert(s != NULL);
+    sprintf(skey, "%d", s->tag);
+    sess = xhash_get(c2s->sessions, skey);
+    assert(sess != NULL);
 
     switch(cb) {
         case sx_sasl_cb_GET_REALM:
@@ -443,7 +451,8 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
 
             log_debug(ZONE, "sx sasl callback: get pass (authnid=%s, realm=%s)", creds->authnid, creds->realm);
 
-            if(c2s->ar->get_password && (c2s->ar->get_password)(c2s->ar, (char *)creds->authnid, (creds->realm != NULL) ? (char *)creds->realm: "", buf) == 0) {
+            if(c2s->ar->get_password && (c2s->ar->get_password)(
+                        c2s->ar, sess, (char *)creds->authnid, (creds->realm != NULL) ? (char *)creds->realm: "", buf) == 0) {
                 *res = buf;
                 return sx_sasl_ret_OK;
             }
@@ -456,14 +465,15 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
             log_debug(ZONE, "sx sasl callback: check pass (authnid=%s, realm=%s)", creds->authnid, creds->realm);
 
             if(c2s->ar->check_password != NULL) {
-                if ((c2s->ar->check_password)(c2s->ar, (char *)creds->authnid, (creds->realm != NULL) ? (char *)creds->realm : "", (char *)creds->pass) == 0)
+                if ((c2s->ar->check_password)(
+                            c2s->ar, sess, (char *)creds->authnid, (creds->realm != NULL) ? (char *)creds->realm : "", (char *)creds->pass) == 0)
                     return sx_sasl_ret_OK;
                 else
                     return sx_sasl_ret_FAIL;
             }
 
             if(c2s->ar->get_password != NULL) {
-                if ((c2s->ar->get_password)(c2s->ar, (char *)creds->authnid, (creds->realm != NULL) ? (char *)creds->realm : "", buf) != 0)
+                if ((c2s->ar->get_password)(c2s->ar, sess, (char *)creds->authnid, (creds->realm != NULL) ? (char *)creds->realm : "", buf) != 0)
                     return sx_sasl_ret_FAIL;
 
                 if (strcmp(creds->pass, buf)==0)
@@ -494,11 +504,11 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
 
             /* and user has right to authorize as */
             if (c2s->ar->user_authz_allowed) {
-                if (c2s->ar->user_authz_allowed(c2s->ar, (char *)creds->authnid, (char *)creds->realm, (char *)creds->authzid))
+                if (c2s->ar->user_authz_allowed(c2s->ar, sess, (char *)creds->authnid, (char *)creds->realm, (char *)creds->authzid))
                         return sx_sasl_ret_OK;
             } else {
                 if (strcmp(creds->authnid, jid.node) == 0 &&
-                    (c2s->ar->user_exists)(c2s->ar, jid.node, jid.domain))
+                    (c2s->ar->user_exists)(c2s->ar, sess, jid.node, jid.domain))
                     return sx_sasl_ret_OK;
             }
 
