@@ -26,7 +26,7 @@
 #include <gsasl-mech.h>
 #include <string.h>
 
-/** our context */
+/** our sasl application context */
 typedef struct _sx_sasl_st {
     char                        *appname;
     Gsasl                       *gsasl_ctx;
@@ -36,6 +36,12 @@ typedef struct _sx_sasl_st {
 
     char                        *ext_id[SX_CONN_EXTERNAL_ID_MAX_COUNT];
 } *_sx_sasl_t;
+
+/** our sasl per session context */
+typedef struct _sx_sasl_sess_st {
+    sx_t            s;
+    _sx_sasl_t      ctx;
+} *_sx_sasl_sess_t;
 
 /** utility: generate a success nad */
 static nad_t _sx_sasl_success(sx_t s, const char *data, int dlen) {
@@ -171,7 +177,8 @@ void _sx_sasl_open(sx_t s, Gsasl_session *sd) {
     char *method, *authzid;
     const char *realm = NULL;
     struct sx_sasl_creds_st creds = {NULL, NULL, NULL, NULL};
-    _sx_sasl_t ctx = gsasl_session_hook_get(sd);
+    _sx_sasl_sess_t sctx = gsasl_session_hook_get(sd);
+    _sx_sasl_t ctx = sctx->ctx;
     const char *mechname = gsasl_mechanism_name (sd);
 
     /* get the method */
@@ -306,6 +313,7 @@ static void _sx_sasl_notify_success(sx_t s, void *arg) {
 /** process handshake packets from the client */
 static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, const char *mech, const char *in, int inlen) {
     _sx_sasl_t ctx = (_sx_sasl_t) p->private;
+    _sx_sasl_sess_t sctx = NULL;
     char *buf = NULL, *out = NULL, *realm = NULL, **ext_id;
     char hostname[256];
     int ret;
@@ -334,8 +342,16 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, co
         /* get the realm */
         if(ctx->cb != NULL)
             (ctx->cb)(sx_sasl_cb_GET_REALM, NULL, (void **) &realm, s, ctx->cbarg);
-        
-        gsasl_session_hook_set(sd, (void *) ctx);
+
+        /* cleanup any existing session context */ 
+        sctx = gsasl_session_hook_get(sd);
+        if (sctx != NULL) free(sctx);
+
+        /* allocate and initialize our per session context */
+        sctx = (_sx_sasl_sess_t) calloc(1, sizeof(struct _sx_sasl_sess_st));
+        sctx->s = s;
+        sctx->ctx = ctx;
+        gsasl_session_hook_set(sd, (void *) sctx);
         gsasl_property_set(sd, GSASL_SERVICE, ctx->appname);
         gsasl_property_set(sd, GSASL_REALM, realm);
 
@@ -391,6 +407,7 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, co
                 _sx_debug(ZONE, "gsasl_base64_from failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
                 _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_INCORRECT_ENCODING), 0);
                 if(buf != NULL) free(buf);
+                if(sctx != NULL) free(sctx);
                 return;
             }
         }
@@ -401,6 +418,7 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, co
             _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_MALFORMED_REQUEST), 0);
             if(out != NULL) free(out);
             if(buf != NULL) free(buf);
+            if(sctx != NULL) free(sctx);
             return;
         }
     }
@@ -675,23 +693,37 @@ static int _sx_sasl_process(sx_t s, sx_plugin_t p, nad_t nad) {
 /** cleanup */
 static void _sx_sasl_free(sx_t s, sx_plugin_t p) {
     Gsasl_session *sd = (Gsasl_session *) s->plugin_data[p->index];
+    _sx_sasl_sess_t sctx;
 
     if(sd == NULL)
         return;
 
     _sx_debug(ZONE, "cleaning up conn state");
 
+    /* we need to clean up our per session context but keep sasl ctx */
+    sctx = gsasl_session_hook_get(sd);
+    if (sctx != NULL) free(sctx);
     gsasl_finish(sd);
     s->plugin_data[p->index] = NULL;
 }
 
 static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_property prop) {
-    _sx_sasl_t ctx = gsasl_session_hook_get(sd);
+    _sx_sasl_sess_t sctx = gsasl_session_hook_get(sd);
+    _sx_sasl_t ctx = NULL;
     struct sx_sasl_creds_st creds = {NULL, NULL, NULL, NULL};
     char *value, *node, *host;
     int len, i;
 
+    /*
+     * session hook data is not always available while its being set up,
+     * also not needed in many of the cases below.
+     */
+     if(sctx != NULL) {
+         ctx = sctx->ctx;
+     }
+
     _sx_debug(ZONE, "in _sx_sasl_gsasl_callback, property: %d", prop);
+
     switch(prop) {
         case GSASL_PASSWORD:
             /* GSASL_AUTHID, GSASL_AUTHZID, GSASL_REALM */
@@ -700,7 +732,7 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
             creds.realm   = gsasl_property_fast(sd, GSASL_REALM);
             if(!creds.authnid) return GSASL_NO_AUTHID;
             if(!creds.realm) return GSASL_NO_AUTHZID;
-            if((ctx->cb)(sx_sasl_cb_GET_PASS, &creds, (void **)&value, NULL, ctx->cbarg) == sx_sasl_ret_OK) {
+            if((ctx->cb)(sx_sasl_cb_GET_PASS, &creds, (void **)&value, sctx->s, ctx->cbarg) == sx_sasl_ret_OK) {
                 gsasl_property_set(sd, GSASL_PASSWORD, value);
             }
             return GSASL_NEEDS_MORE;
@@ -730,7 +762,7 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
             if(!creds.authnid) return GSASL_NO_AUTHID;
             if(!creds.realm) return GSASL_NO_AUTHZID;
             if(!creds.pass) return GSASL_NO_PASSWORD;
-            if((ctx->cb)(sx_sasl_cb_CHECK_PASS, &creds, NULL, NULL, ctx->cbarg) == sx_sasl_ret_OK)
+            if((ctx->cb)(sx_sasl_cb_CHECK_PASS, &creds, NULL, sctx->s, ctx->cbarg) == sx_sasl_ret_OK)
                 return GSASL_OK;
             else
                 return GSASL_AUTHENTICATION_ERROR;
@@ -873,6 +905,7 @@ int sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args) {
 /** kick off the auth handshake */
 int sx_sasl_auth(sx_plugin_t p, sx_t s, const char *appname, const char *mech, const char *user, const char *pass) {
     _sx_sasl_t ctx = (_sx_sasl_t) p->private;
+    _sx_sasl_sess_t sctx = NULL;
     Gsasl_session *sd;
     char *buf = NULL, *out = NULL;
     char hostname[256];
@@ -905,8 +938,17 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, const char *appname, const char *mech, c
     gethostname(hostname, 256);
     hostname[255] = '\0';
 
+    /* cleanup any existing session context */ 
+    sctx = gsasl_session_hook_get(sd);
+    if (sctx != NULL) free(sctx);
+
+    /* allocate and initialize our per session context */
+    sctx = (_sx_sasl_sess_t) calloc(1, sizeof(struct _sx_sasl_sess_st));
+    sctx->s = s;
+    sctx->ctx = ctx;
+
     /* set user data in session handle */
-    gsasl_session_hook_set(sd, (void *) ctx);
+    gsasl_session_hook_set(sd, (void *) sctx);
     gsasl_property_set(sd, GSASL_AUTHID, user);
     gsasl_property_set(sd, GSASL_PASSWORD, pass);
     gsasl_property_set(sd, GSASL_SERVICE, appname);

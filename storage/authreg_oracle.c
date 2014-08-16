@@ -163,7 +163,7 @@ static int _ar_oracle_get_user_tuple( authreg_t ar, char* username, char* realm 
     else return 0;
 }
 
-static int _ar_oracle_user_exists(authreg_t ar, const char *username, const char *realm)
+static int _ar_oracle_user_exists(authreg_t ar, sess_t sess, const char *username, const char *realm)
 {
     if( _ar_oracle_get_user_tuple(ar, username, realm ) > 0 )
     {
@@ -173,7 +173,7 @@ static int _ar_oracle_user_exists(authreg_t ar, const char *username, const char
     return 0;
 }
 
-static int _ar_oracle_create_user( authreg_t ar, const char *username, const char *realm )
+static int _ar_oracle_create_user( authreg_t ar, sess_t sess, const char *username, const char *realm )
 {
     Oracle_context_t _ctx = (Oracle_context_t)ar->private;
     char* _sqlbuf = NULL;
@@ -244,7 +244,7 @@ int _ar_oracle_get_authreg_user( authreg_t ar )
 }
 
 
-static int _ar_oracle_get_password( authreg_t ar, const char *username, const char *realm, char password[PWSIZE] )
+static int _ar_oracle_get_password( authreg_t ar, sess_t sess, const char *username, const char *realm, char password[PWSIZE] )
 {
     Oracle_context_t _ctx = (Oracle_context_t)ar->private;
     char* _sqlbuf = NULL;
@@ -289,7 +289,7 @@ static int _ar_oracle_get_password( authreg_t ar, const char *username, const ch
     return 0;
 }
 
-static int _ar_oracle_set_password(authreg_t ar, const char *username, const char *realm, char password[PWSIZE])
+static int _ar_oracle_set_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[PWSIZE])
 {
     Oracle_context_t _ctx = (Oracle_context_t)ar->private;
     char* _sqlbuf = NULL;
@@ -317,7 +317,7 @@ static int _ar_oracle_set_password(authreg_t ar, const char *username, const cha
     return 0;
 }
 
-static int _ar_oracle_delete_user(authreg_t ar, const char *username, const char *realm)
+static int _ar_oracle_delete_user(authreg_t ar, sess_t sess, const char *username, const char *realm)
 {
     if( _ar_oracle_get_user_tuple(ar, username, realm ) == 0 )return 0;
 

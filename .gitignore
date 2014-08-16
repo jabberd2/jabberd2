@@ -5,6 +5,7 @@
 *.la
 *.so
 *~
+*.swp
 Makefile
 Makefile.in
 aclocal.m4

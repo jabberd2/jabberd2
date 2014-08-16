@@ -317,7 +317,7 @@ static char *_ldap_search(moddata_t data, const char *realm, const char *usernam
 }
 
 /** do we have this user? */
-static int _ldap_user_exists(authreg_t ar, const char *username, const char *realm)
+static int _ldap_user_exists(authreg_t ar, sess_t sess, const char *username, const char *realm)
 {
 
     char *dn;
@@ -340,7 +340,7 @@ static int _ldap_user_exists(authreg_t ar, const char *username, const char *rea
 }
 
 /** check the password */
-static int _ldap_check_password(authreg_t ar, const char *username, const char *realm, char password[257])
+static int _ldap_check_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257])
 {
 
     moddata_t data;

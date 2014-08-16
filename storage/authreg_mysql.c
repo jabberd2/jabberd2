@@ -127,7 +127,7 @@ static MYSQL_RES *_ar_mysql_get_user_tuple(authreg_t ar, const char *username, c
     return res;
 }
 
-static int _ar_mysql_user_exists(authreg_t ar, const char *username, const char *realm) {
+static int _ar_mysql_user_exists(authreg_t ar, sess_t sess, const char *username, const char *realm) {
     MYSQL_RES *res = _ar_mysql_get_user_tuple(ar, username, realm);
 
     if(res != NULL) {
@@ -138,7 +138,7 @@ static int _ar_mysql_user_exists(authreg_t ar, const char *username, const char 
     return 0;
 }
 
-static int _ar_mysql_get_password(authreg_t ar, const char *username, const char *realm, char password[257]) {
+static int _ar_mysql_get_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257]) {
     mysqlcontext_t ctx = (mysqlcontext_t) ar->private;
     MYSQL *conn = ctx->conn;
     MYSQL_RES *res = _ar_mysql_get_user_tuple(ar, username, realm);
@@ -175,7 +175,7 @@ static int _ar_mysql_get_password(authreg_t ar, const char *username, const char
     return 0;
 }
 
-static int _ar_mysql_check_password(authreg_t ar, const char *username, const char *realm, char password[257]) {
+static int _ar_mysql_check_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257]) {
     mysqlcontext_t ctx = (mysqlcontext_t) ar->private;
     char db_pw_value[257];
 #ifdef HAVE_CRYPT
@@ -186,7 +186,7 @@ static int _ar_mysql_check_password(authreg_t ar, const char *username, const ch
 #endif
     int ret;
 
-    ret = _ar_mysql_get_password(ar, username, realm, db_pw_value);
+    ret = _ar_mysql_get_password(ar, sess, username, realm, db_pw_value);
     /* return if error */
     if (ret)
         return ret;
@@ -230,7 +230,7 @@ static int _ar_mysql_check_password(authreg_t ar, const char *username, const ch
     return ret;
 }
 
-static int _ar_mysql_set_password(authreg_t ar, const char *username, const char *realm, char password[257]) {
+static int _ar_mysql_set_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257]) {
     mysqlcontext_t ctx = (mysqlcontext_t) ar->private;
     MYSQL *conn = ctx->conn;
     char iuser[MYSQL_LU+1], irealm[MYSQL_LR+1];
@@ -281,7 +281,7 @@ static int _ar_mysql_set_password(authreg_t ar, const char *username, const char
     return 0;
 }
 
-static int _ar_mysql_create_user(authreg_t ar, const char *username, const char *realm) {
+static int _ar_mysql_create_user(authreg_t ar, sess_t sess, const char *username, const char *realm) {
     mysqlcontext_t ctx = (mysqlcontext_t) ar->private;
     MYSQL *conn = ctx->conn;
     char iuser[MYSQL_LU+1], irealm[MYSQL_LR+1];
@@ -318,7 +318,7 @@ static int _ar_mysql_create_user(authreg_t ar, const char *username, const char 
     return 0;
 }
 
-static int _ar_mysql_delete_user(authreg_t ar, const char *username, const char *realm) {
+static int _ar_mysql_delete_user(authreg_t ar, sess_t sess, const char *username, const char *realm) {
     mysqlcontext_t ctx = (mysqlcontext_t) ar->private;
     MYSQL *conn = ctx->conn;
     char iuser[MYSQL_LU+1], irealm[MYSQL_LR+1];
