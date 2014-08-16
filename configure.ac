@@ -398,8 +398,13 @@ fi
 # optional libs
 
 # OpenSSL >= 1.0.1
-AC_ARG_ENABLE(ssl, AC_HELP_STRING([--enable-ssl], [enable SSL/TLS support (yes)]), want_ssl=$enableval, want_ssl=yes)
-if test "x-$want_ssl" = "x-yes" ; then
+AC_ARG_ENABLE(ssl, AC_HELP_STRING([--enable-ssl[=DIR]], [enable SSL/TLS support (yes)]), want_ssl=$enableval, want_ssl=yes)
+if test "x-$want_ssl" != "x-no" ; then
+    if test "x-$want_ssl" != "x-yes" ; then
+        CFLAGS="$CFLAGS -I$enableval/include" 
+        CPPFLAGS="$CPPFLAGS -I$enableval/include" 
+        LDFLAGS="$LDFLAGS -L$enableval/lib"
+    fi
     AC_CHECK_HEADERS(openssl/crypto.h)
     if test "x-$ac_cv_header_openssl_crypto_h" = "x-yes" ; then
         AC_CHECK_LIB(crypto, CRYPTO_lock)
