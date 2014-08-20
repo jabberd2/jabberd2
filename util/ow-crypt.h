@@ -32,7 +32,7 @@ extern char *crypt_rn(__const char *key, __const char *setting,
 	void *data, int size);
 extern char *crypt_ra(__const char *key, __const char *setting,
 	void **data, int *size);
-extern char *crypt_gensalt(__const char *prefix, unsigned long count,
+extern char *bcrypt_gensalt(__const char *prefix, unsigned long count,
 	__const char *input, int size);
 extern char *crypt_gensalt_rn(__const char *prefix, unsigned long count,
 	__const char *input, int size, char *output, int output_size);

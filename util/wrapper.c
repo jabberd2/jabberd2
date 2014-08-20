@@ -194,7 +194,7 @@ char *bcrypt(const char *key, const char *setting)
 
 #define __crypt_gensalt_rn crypt_gensalt_rn
 #define __crypt_gensalt_ra crypt_gensalt_ra
-#define __crypt_gensalt crypt_gensalt
+#define __crypt_gensalt bcrypt_gensalt
 #endif
 
 char *__crypt_gensalt_rn(const char *prefix, unsigned long count,

@@ -90,18 +90,14 @@ static void calc_a1hash(const char *username, const char *realm, const char *pas
     }
 }
 
-static void bcrypt_password(const char *password, int cost, char* bcrypt_password)
+static void bcrypt_hash(const char *password, int cost, char* hash)
 {
-    char hash_format[16];
-    sprintf(hash_format, "$2y$%02d$", cost);
     char salt[16];
     if(!RAND_pseudo_bytes(salt, 16))
-        ;//we've got a problem
-    char _hash[32];
-    strcat(_hash, hash_format);
-    strcat(_hash, salt);
-    //strcpy(hash, _hash);
-    strcpy(bcrypt_password, bcrypt(password, _hash));
+        ; //we've got a problem
+
+    char* gen = bcrypt_gensalt("$2y$", cost, salt, 16);
+    strcpy(hash, bcrypt(password, gen));
 }
 
 static int bcrypt_verify(const char *password, const char* hash)
@@ -112,7 +108,7 @@ static int bcrypt_verify(const char *password, const char* hash)
     int i=0;
     for(i; i < strlen(ret); i++)
         status |= (ret[i] ^ hash[i]);
-    return status == 0;
+    return status != 0;
 }
 
 static int bcrypt_needs_rehash(authreg_t ar, const char* hash)
@@ -121,8 +117,8 @@ static int bcrypt_needs_rehash(authreg_t ar, const char* hash)
     if(cost = j_atoi(config_get_attr(ar->c2s->config, "authreg.mysql.password_type.bcrypt", 0, "cost"), 0))
     {
         if(cost < 4 || cost > 31) {
-        log_write(ar->c2s->log, LOG_ERR, "bcrypt cost has to be higher than 3 and lower than 32.");
-	           cost = 10; // use default
+        	log_write(ar->c2s->log, LOG_ERR, "bcrypt cost has to be higher than 3 and lower than 32.");
+	    	cost = 10; // use default
         }
 
         char hash_cost[3];
@@ -315,7 +311,7 @@ static int _ar_mysql_set_password(authreg_t ar, sess_t sess, const char *usernam
     if (ctx->password_type == MPC_A1HASH) {
        calc_a1hash(username, realm, password, password);
     } else if (ctx->password_type == MPC_BCRYPT) {
-       bcrypt_password(password, ctx->bcrypt_cost, password);
+       bcrypt_hash(password, ctx->bcrypt_cost, password);
     }
 #endif
     

@@ -59,6 +59,9 @@ authreg_mysql_la_LIBADD  = $(MODULE_LIBADD) $(MYSQL_LIBS)
 if HAVE_CRYPT
 authreg_mysql_la_LIBADD += -lcrypt
 endif
+if HAVE_SSL
+authreg_mysql_la_LIBADD += -lutil
+endif
 storage_mysql_la_SOURCES = storage_mysql.c
 storage_mysql_la_CPPFLAGS = $(MYSQL_CFLAGS)
 storage_mysql_la_LDFLAGS = $(MODULE_LDFLAGS)
