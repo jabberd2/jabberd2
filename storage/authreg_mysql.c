@@ -38,7 +38,7 @@
 #ifdef HAVE_SSL
 /* We use OpenSSL's MD5 routines for the a1hash password type */
 #include <openssl/md5.h>
-#include <crypt_blowfish/ow-crypt.h>
+#include <util/ow-crypt.h>
 #endif
 
 #define MYSQL_LU  1024   /* maximum length of username - should correspond to field length */
@@ -90,28 +90,28 @@ static void calc_a1hash(const char *username, const char *realm, const char *pas
     }
 }
 
-static void bcrypt_hash(const char *password, int cost, char* hash)
+static void bcrypt_password(const char *password, int cost, char* bcrypt_password)
 {
     char hash_format[16];
     sprintf(hash_format, "$2y$%02d$", cost);
     char salt[16];
     if(!RAND_pseudo_bytes(salt, 16))
-	   ;//we've got a problem
+        ;//we've got a problem
     char _hash[32];
     strcat(_hash, hash_format);
     strcat(_hash, salt);
-    strcpy(hash, _hash);
-    //hash = crypt(password, _hash);
+    //strcpy(hash, _hash);
+    strcpy(bcrypt_password, bcrypt(password, _hash));
 }
 
 static int bcrypt_verify(const char *password, const char* hash)
 {
     char *ret;
-    ret = crypt(password, hash);
+    ret = bcrypt(password, hash);
     int status = 0;
     int i=0;
     for(i; i < strlen(ret); i++)
-         status |= (ret[i] ^ hash[i]);
+        status |= (ret[i] ^ hash[i]);
     return status == 0;
 }
 
@@ -119,21 +119,21 @@ static int bcrypt_needs_rehash(authreg_t ar, const char* hash)
 {
     int cost;
     if(cost = j_atoi(config_get_attr(ar->c2s->config, "authreg.mysql.password_type.bcrypt", 0, "cost"), 0))
-     {
-           if(cost < 4 || cost > 31) {
-	        log_write(ar->c2s->log, LOG_ERR, "bcrypt cost has to be higher than 3 and lower than 32.");
-	        cost = 10; // use default
-           }
+    {
+        if(cost < 4 || cost > 31) {
+        log_write(ar->c2s->log, LOG_ERR, "bcrypt cost has to be higher than 3 and lower than 32.");
+	           cost = 10; // use default
+        }
 
-           char hash_cost[3];
-           sscanf(hash, "$2y$%d$", hash_cost);
+        char hash_cost[3];
+        sscanf(hash, "$2y$%d$", hash_cost);
 
-           if(cost != j_atoi(hash_cost, 0))
-           {
-                return 1;
-	       }
-     }
-     return 0;
+        if(cost != j_atoi(hash_cost, 0))
+        {
+            return 1;
+        }
+    }
+    return 0;
 }
 #endif
 
@@ -270,7 +270,7 @@ static int _ar_mysql_check_password(authreg_t ar, sess_t sess, const char *usern
                 ret = (strncmp(a1hash_pw, db_pw_value, 32) != 0);
                 break;
 	case MPC_BCRYPT:
-		ret = bcrypt_verify(username, password);
+		ret = bcrypt_verify(password, db_pw_value);
 		break;
 #endif
 
@@ -315,7 +315,7 @@ static int _ar_mysql_set_password(authreg_t ar, sess_t sess, const char *usernam
     if (ctx->password_type == MPC_A1HASH) {
        calc_a1hash(username, realm, password, password);
     } else if (ctx->password_type == MPC_BCRYPT) {
-       bcrypt_hash(password, ctx->bcrypt_cost, password);
+       bcrypt_password(password, ctx->bcrypt_cost, password);
     }
 #endif
     
@@ -525,8 +525,9 @@ DLLEXPORT int ar_init(authreg_t ar) {
 	    if(cost < 4 || cost > 31) {
 	        log_write(ar->c2s->log, LOG_ERR, "bcrypt cost has to be higher than 3 and lower than 32.");
 		mysqlcontext->bcrypt_cost = 10; // use default
-	    } else
+	    } else {
 	        mysqlcontext->bcrypt_cost = cost;
+        }
 	}
 #endif
     } else {
