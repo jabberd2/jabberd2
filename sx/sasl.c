@@ -407,7 +407,6 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, co
                 _sx_debug(ZONE, "gsasl_base64_from failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
                 _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_INCORRECT_ENCODING), 0);
                 if(buf != NULL) free(buf);
-                if(sctx != NULL) free(sctx);
                 return;
             }
         }
@@ -418,7 +417,6 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, co
             _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_MALFORMED_REQUEST), 0);
             if(out != NULL) free(out);
             if(buf != NULL) free(buf);
-            if(sctx != NULL) free(sctx);
             return;
         }
     }
@@ -702,7 +700,11 @@ static void _sx_sasl_free(sx_t s, sx_plugin_t p) {
 
     /* we need to clean up our per session context but keep sasl ctx */
     sctx = gsasl_session_hook_get(sd);
-    if (sctx != NULL) free(sctx);
+    if (sctx != NULL){
+        free(sctx);
+        gsasl_session_hook_set(sd, (void *) NULL);
+    }
+
     gsasl_finish(sd);
     s->plugin_data[p->index] = NULL;
 }
