@@ -17,19 +17,13 @@
 #ifndef _CRYPT_BLOWFISH_H
 #define _CRYPT_BLOWFISH_H
 
-#if defined(__GLIBC__) && defined(_LIBC)
-#define __SKIP_GNU
-#endif
-
 #ifndef __GNUC__
 #undef __const
 #define __const const
 #endif
 
-#ifndef __SKIP_GNU
 extern char *bcrypt(__const char *key, __const char *setting);
 extern char *crypt_r(__const char *key, __const char *setting, void *data);
-#endif
 
 #ifndef __SKIP_OW
 extern char *crypt_rn(__const char *key, __const char *setting,
