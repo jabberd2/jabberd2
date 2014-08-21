@@ -55,12 +55,9 @@ pkglib_LTLIBRARIES += authreg_mysql.la storage_mysql.la
 authreg_mysql_la_SOURCES = authreg_mysql.c
 authreg_mysql_la_CPPFLAGS = $(MYSQL_CFLAGS)
 authreg_mysql_la_LDFLAGS = $(MODULE_LDFLAGS)
-authreg_mysql_la_LIBADD  = $(MODULE_LIBADD) $(MYSQL_LIBS)
+authreg_mysql_la_LIBADD  = $(MODULE_LIBADD) $(MYSQL_LIBS) ../util/libutil.la
 if HAVE_CRYPT
 authreg_mysql_la_LIBADD += -lcrypt
-endif
-if HAVE_SSL
-authreg_mysql_la_LIBADD += -lutil
 endif
 storage_mysql_la_SOURCES = storage_mysql.c
 storage_mysql_la_CPPFLAGS = $(MYSQL_CFLAGS)

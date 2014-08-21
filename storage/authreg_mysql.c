@@ -38,7 +38,7 @@
 #ifdef HAVE_SSL
 /* We use OpenSSL's MD5 routines for the a1hash password type */
 #include <openssl/md5.h>
-#include <util/ow-crypt.h>
+#include <util/crypt_blowfish.h>
 #endif
 
 #define MYSQL_LU  1024   /* maximum length of username - should correspond to field length */
