@@ -415,8 +415,12 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
     /* retrieve our session */
     assert(s != NULL);
     sprintf(skey, "%d", s->tag);
+
+    /*
+     * Retrieve the session, note that depending on the operation,
+     * session may be null.
+     */
     sess = xhash_get(c2s->sessions, skey);
-    assert(sess != NULL);
 
     switch(cb) {
         case sx_sasl_cb_GET_REALM:
@@ -447,6 +451,7 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
             break;
 
         case sx_sasl_cb_GET_PASS:
+            assert(sess != NULL);
             creds = (sx_sasl_creds_t) arg;
 
             log_debug(ZONE, "sx sasl callback: get pass (authnid=%s, realm=%s)", creds->authnid, creds->realm);
@@ -460,6 +465,7 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
             return sx_sasl_ret_FAIL;
 
         case sx_sasl_cb_CHECK_PASS:
+            assert(sess != NULL);
             creds = (sx_sasl_creds_t) arg;
 
             log_debug(ZONE, "sx sasl callback: check pass (authnid=%s, realm=%s)", creds->authnid, creds->realm);
@@ -484,6 +490,7 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
             break;
 
         case sx_sasl_cb_CHECK_AUTHZID:
+            assert(sess != NULL);
             creds = (sx_sasl_creds_t) arg;
 
             /* we need authzid to validate */
