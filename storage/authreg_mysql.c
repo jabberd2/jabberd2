@@ -216,71 +216,6 @@ static int _ar_mysql_get_password(authreg_t ar, sess_t sess, const char *usernam
     return 0;
 }
 
-static int _ar_mysql_check_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257]) {
-    mysqlcontext_t ctx = (mysqlcontext_t) ar->private;
-    char db_pw_value[257];
-#ifdef HAVE_CRYPT
-    char *crypted_pw;
-#endif
-#ifdef HAVE_SSL
-    char a1hash_pw[33];
-#endif
-    int ret;
-
-    ret = _ar_mysql_get_password(ar, sess, username, realm, db_pw_value);
-    /* return if error */
-    if (ret)
-        return ret;
-
-    switch (ctx->password_type) {
-        case MPC_PLAIN:
-                ret = (strcmp(password, db_pw_value) != 0);
-                break;
-
-#ifdef HAVE_CRYPT
-        case MPC_CRYPT:
-                crypted_pw = crypt(password,db_pw_value);
-                ret = (strcmp(crypted_pw, db_pw_value) != 0);
-                break;
-#endif
-
-#ifdef HAVE_SSL
-        case MPC_A1HASH:
-                if (strchr(username, ':')) {
-                    ret = 1;
-                    log_write(ar->c2s->log, LOG_ERR, "Username cannot contain : with a1hash encryption type.");
-                    break;
-                }
-                if (strchr(realm, ':')) {
-                    ret = 1;
-                    log_write(ar->c2s->log, LOG_ERR, "Realm cannot contain : with a1hash encryption type.");
-                    break;
-                }
-                calc_a1hash(username, realm, password, a1hash_pw);
-                ret = (strncmp(a1hash_pw, db_pw_value, 32) != 0);
-                break;
-    case MPC_BCRYPT:
-        ret = bcrypt_verify(password, db_pw_value);
-        if(ret == 0) {
-            if(bcrypt_needs_rehash(ctx->bcrypt_cost, db_pw_value)) {
-                // TODO: Find a way to rehash current password
-                // bcrypt_hash(password, ctx->bcrypt_cost, password);
-                // _ar_mysql_set_password(ar, sess, username, realm, password);
-            }
-        }
-        break;
-#endif
-
-        default:
-        /* should never happen */
-                ret = 1;
-                log_write(ar->c2s->log, LOG_ERR, "Unknown encryption type which passed through config check.");
-                break;
-    }
-
-    return ret;
-}
-
 static int _ar_mysql_set_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257]) {
     mysqlcontext_t ctx = (mysqlcontext_t) ar->private;
     MYSQL *conn = ctx->conn;
@@ -332,6 +267,71 @@ static int _ar_mysql_set_password(authreg_t ar, sess_t sess, const char *usernam
     }
 
     return 0;
+}
+
+static int _ar_mysql_check_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257]) {
+    mysqlcontext_t ctx = (mysqlcontext_t) ar->private;
+    char db_pw_value[257];
+#ifdef HAVE_CRYPT
+    char *crypted_pw;
+#endif
+#ifdef HAVE_SSL
+    char a1hash_pw[33];
+#endif
+    int ret;
+
+    ret = _ar_mysql_get_password(ar, sess, username, realm, db_pw_value);
+    /* return if error */
+    if (ret)
+        return ret;
+
+    switch (ctx->password_type) {
+        case MPC_PLAIN:
+                ret = (strcmp(password, db_pw_value) != 0);
+                break;
+
+#ifdef HAVE_CRYPT
+        case MPC_CRYPT:
+                crypted_pw = crypt(password,db_pw_value);
+                ret = (strcmp(crypted_pw, db_pw_value) != 0);
+                break;
+#endif
+
+#ifdef HAVE_SSL
+        case MPC_A1HASH:
+                if (strchr(username, ':')) {
+                    ret = 1;
+                    log_write(ar->c2s->log, LOG_ERR, "Username cannot contain : with a1hash encryption type.");
+                    break;
+                }
+                if (strchr(realm, ':')) {
+                    ret = 1;
+                    log_write(ar->c2s->log, LOG_ERR, "Realm cannot contain : with a1hash encryption type.");
+                    break;
+                }
+                calc_a1hash(username, realm, password, a1hash_pw);
+                ret = (strncmp(a1hash_pw, db_pw_value, 32) != 0);
+                break;
+    case MPC_BCRYPT:
+        ret = bcrypt_verify(password, db_pw_value);
+        if(ret == 0) {
+            if(bcrypt_needs_rehash(ctx->bcrypt_cost, db_pw_value)) {
+                char tmp[257];
+                strcpy(tmp, password);
+                _ar_mysql_set_password(ar, sess, username, realm, tmp);
+            }
+        }
+        break;
+#endif
+
+        default:
+        /* should never happen */
+                ret = 1;
+                log_write(ar->c2s->log, LOG_ERR, "Unknown encryption type which passed through config check.");
+                break;
+    }
+
+    return ret;
 }
 
 static int _ar_mysql_create_user(authreg_t ar, sess_t sess, const char *username, const char *realm) {
