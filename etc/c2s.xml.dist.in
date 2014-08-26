@@ -469,7 +469,7 @@
                  sections of the config file. -->
       <password_type>
         <!-- only one may be enabled here -->
-        <!--plaintext/-->
+        <plaintext/>
         <!-- use crypt(3)ed passwords
         <crypt/>
         -->
@@ -477,7 +477,10 @@
 		     This stores the MD5 digest of user:realm:password in the database
         <a1hash/>
         -->
-	<bcrypt cost='10'/>
+        <!-- use bcrypt passwords
+         NOTE: cost has to be higher than 3 and lower than 32
+        <bcrypt cost='10'/>
+        -->
       </password_type>
     </mysql>
 
