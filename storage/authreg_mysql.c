@@ -38,6 +38,7 @@
 #ifdef HAVE_SSL
 /* We use OpenSSL's MD5 routines for the a1hash password type */
 #include <openssl/md5.h>
+#include <util/crypt_blowfish.h>
 #endif
 
 #define MYSQL_LU  1024   /* maximum length of username - should correspond to field length */
@@ -51,6 +52,7 @@ enum mysql_pws_crypt {
 #endif
 #ifdef HAVE_SSL
     MPC_A1HASH,
+    MPC_BCRYPT
 #endif
 };
 
@@ -66,6 +68,9 @@ typedef struct mysqlcontext_st {
   const char * sql_delete;
   const char * field_password;
   enum mysql_pws_crypt password_type;
+#ifdef HAVE_SSL
+  int bcrypt_cost;
+#endif
 } *mysqlcontext_t;
 
 #ifdef HAVE_SSL
@@ -83,6 +88,42 @@ static void calc_a1hash(const char *username, const char *realm, const char *pas
     for(i=0; i<16; i++) {
         sprintf(a1hash+i*2, "%02hhx", md5digest[i]);
     }
+}
+
+static void bcrypt_hash(const char *password, int cost, char* hash)
+{
+    char salt[16];
+    if(!RAND_bytes(salt, 16))
+        ; //we've got a problem
+
+    char* gen = bcrypt_gensalt("$2y$", cost, salt, 16);
+    strcpy(hash, bcrypt(password, gen));
+}
+
+static int bcrypt_verify(const char *password, const char* hash)
+{
+    char *ret;
+    ret = bcrypt(password, hash);
+
+    if(strlen(ret) != strlen(hash))
+        return 1;
+
+    int status = 0;
+    int i = 0;
+    for(i; i < strlen(ret); i++)
+        status |= (ret[i] ^ hash[i]);
+    return status != 0;
+}
+
+static int bcrypt_needs_rehash(int current_cost, const char* hash)
+{
+    int hash_cost;
+    sscanf(hash, "$2y$%d$", &hash_cost);
+
+    if(current_cost != hash_cost)
+        return 1;
+
+    return 0;
 }
 #endif
 
@@ -175,6 +216,59 @@ static int _ar_mysql_get_password(authreg_t ar, sess_t sess, const char *usernam
     return 0;
 }
 
+static int _ar_mysql_set_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257]) {
+    mysqlcontext_t ctx = (mysqlcontext_t) ar->private;
+    MYSQL *conn = ctx->conn;
+    char iuser[MYSQL_LU+1], irealm[MYSQL_LR+1];
+    char euser[MYSQL_LU*2+1], erealm[MYSQL_LR*2+1], epass[513], sql[1024+MYSQL_LU*2+MYSQL_LR*2+512+1];  /* query(1024) + euser + erealm + epass(512) + \0(1) */
+
+    if(mysql_ping(conn) != 0) {
+        log_write(ar->c2s->log, LOG_ERR, "mysql: connection to database lost");
+        return 1;
+    }
+
+    snprintf(iuser, MYSQL_LU+1, "%s", username);
+    snprintf(irealm, MYSQL_LR+1, "%s", realm);
+
+#ifdef HAVE_CRYPT
+    if (ctx->password_type == MPC_CRYPT) {
+        char salt[39] = "$6$rounds=50000$";
+        int i;
+
+        srand(time(0));
+        for(i=0; i<22; i++)
+            salt[16+i] = salter[rand()%64];
+        salt[38] = '\0';
+        strcpy(password, crypt(password, salt));
+    }
+#endif
+
+#ifdef HAVE_SSL
+    if (ctx->password_type == MPC_A1HASH) {
+        calc_a1hash(username, realm, password, password);
+    } else if (ctx->password_type == MPC_BCRYPT) {
+        bcrypt_hash(password, ctx->bcrypt_cost, password);
+    }
+#endif
+    
+    password[256]= '\0';
+
+    mysql_real_escape_string(conn, euser, iuser, strlen(iuser));
+    mysql_real_escape_string(conn, erealm, irealm, strlen(irealm));
+    mysql_real_escape_string(conn, epass, password, strlen(password));
+
+    sprintf(sql, ctx->sql_setpassword, epass, euser, erealm);
+
+    log_debug(ZONE, "prepared sql: %s", sql);
+
+    if(mysql_query(conn, sql) != 0) {
+        log_write(ar->c2s->log, LOG_ERR, "mysql: sql update failed: %s", mysql_error(conn));
+        return 1;
+    }
+
+    return 0;
+}
+
 static int _ar_mysql_check_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257]) {
     mysqlcontext_t ctx = (mysqlcontext_t) ar->private;
     char db_pw_value[257];
@@ -218,6 +312,16 @@ static int _ar_mysql_check_password(authreg_t ar, sess_t sess, const char *usern
                 calc_a1hash(username, realm, password, a1hash_pw);
                 ret = (strncmp(a1hash_pw, db_pw_value, 32) != 0);
                 break;
+    case MPC_BCRYPT:
+        ret = bcrypt_verify(password, db_pw_value);
+        if(ret == 0) {
+            if(bcrypt_needs_rehash(ctx->bcrypt_cost, db_pw_value)) {
+                char tmp[257];
+                strcpy(tmp, password);
+                _ar_mysql_set_password(ar, sess, username, realm, tmp);
+            }
+        }
+        break;
 #endif
 
         default:
@@ -228,57 +332,6 @@ static int _ar_mysql_check_password(authreg_t ar, sess_t sess, const char *usern
     }
 
     return ret;
-}
-
-static int _ar_mysql_set_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257]) {
-    mysqlcontext_t ctx = (mysqlcontext_t) ar->private;
-    MYSQL *conn = ctx->conn;
-    char iuser[MYSQL_LU+1], irealm[MYSQL_LR+1];
-    char euser[MYSQL_LU*2+1], erealm[MYSQL_LR*2+1], epass[513], sql[1024+MYSQL_LU*2+MYSQL_LR*2+512+1];  /* query(1024) + euser + erealm + epass(512) + \0(1) */
-
-    if(mysql_ping(conn) != 0) {
-        log_write(ar->c2s->log, LOG_ERR, "mysql: connection to database lost");
-        return 1;
-    }
-
-    snprintf(iuser, MYSQL_LU+1, "%s", username);
-    snprintf(irealm, MYSQL_LR+1, "%s", realm);
-
-#ifdef HAVE_CRYPT
-    if (ctx->password_type == MPC_CRYPT) {
-       char salt[39] = "$6$rounds=50000$";
-       int i;
-
-       srand(time(0));
-       for(i=0; i<22; i++)
-               salt[16+i] = salter[rand()%64];
-       salt[38] = '\0';
-       strcpy(password, crypt(password, salt));
-    }
-#endif
-
-#ifdef HAVE_SSL
-    if (ctx->password_type == MPC_A1HASH) {
-       calc_a1hash(username, realm, password, password);
-    }
-#endif
-    
-    password[256]= '\0';
-
-    mysql_real_escape_string(conn, euser, iuser, strlen(iuser));
-    mysql_real_escape_string(conn, erealm, irealm, strlen(irealm));
-    mysql_real_escape_string(conn, epass, password, strlen(password));
-
-    sprintf(sql, ctx->sql_setpassword, epass, euser, erealm);
-
-    log_debug(ZONE, "prepared sql: %s", sql);
-
-    if(mysql_query(conn, sql) != 0) {
-        log_write(ar->c2s->log, LOG_ERR, "mysql: sql update failed: %s", mysql_error(conn));
-        return 1;
-    }
-
-    return 0;
 }
 
 static int _ar_mysql_create_user(authreg_t ar, sess_t sess, const char *username, const char *realm) {
@@ -461,6 +514,18 @@ DLLEXPORT int ar_init(authreg_t ar) {
 #ifdef HAVE_SSL
     } else if (config_get_one(ar->c2s->config, "authreg.mysql.password_type.a1hash", 0)) {
         mysqlcontext->password_type = MPC_A1HASH;
+    } else if (config_get_one(ar->c2s->config, "authreg.mysql.password_type.bcrypt", 0)) {
+        mysqlcontext->password_type = MPC_BCRYPT;
+    int cost;
+    if(cost = j_atoi(config_get_attr(ar->c2s->config, "authreg.mysql.password_type.bcrypt", 0, "cost"), 0))
+    {
+        if(cost < 4 || cost > 31) {
+            log_write(ar->c2s->log, LOG_ERR, "bcrypt cost has to be higher than 3 and lower than 32.");
+            mysqlcontext->bcrypt_cost = 10; // use default
+        } else {
+            mysqlcontext->bcrypt_cost = cost;
+        }
+    }
 #endif
     } else {
         mysqlcontext->password_type = MPC_PLAIN;
