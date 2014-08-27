@@ -340,6 +340,10 @@ struct authreg_st
     int         (*create_user)(authreg_t ar, sess_t sess, const char *username, const char *realm);
     int         (*delete_user)(authreg_t ar, sess_t sess, const char *username, const char *realm);
 
+    /** called prior to session being closed, to cleanup session specific private data */
+    void        (*sess_end)(authreg_t ar, sess_t sess);
+
+    /** called prior to authreg shutdown */
     void        (*free)(authreg_t ar);
 
     /* Additions at the end - to preserve offsets for existing modules */
