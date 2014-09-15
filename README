@@ -1,6 +1,6 @@
-README for Jabber Open Source Server (2.2)
+README for Jabber Open Source Server (2.x)
 
-Thanks for downloading jabberd 2.2. Below are some basic instructions to
+Thanks for downloading jabberd2. Below are some basic instructions to
 get you started. Complete documentation is available at http://jabberd2.org/
 
 -- the jabberd team
@@ -139,7 +139,7 @@ All the processes can take the following switches:
 
 Upgrade:
 
-  Please see UPGRADE file.
+  Please see NEWS file.
 
 
 Support:
