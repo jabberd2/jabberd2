@@ -388,12 +388,17 @@ static st_ret_t _st_oracle_put_guts(st_driver_t drv, const char *type, const cha
       {
         do 
         {
+          /* For os_type_BOOLEAN and os_type_INTEGER, sizeof(int) bytes
+             are stored in val, which might be less than sizeof(dvoid *).
+             Therefore, the difference is garbage unless cleared first.
+           */
+          val = NULL;
           os_object_iter_get(o, &key, &val, &ot);
 
           switch(ot) 
           {
             case os_type_BOOLEAN:
-              cval = val ? strdup("1") : strdup("0");
+              cval = ((int)val != 0) ? strdup("1") : strdup("0");
               vlen = 1;
               break;
 

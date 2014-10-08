@@ -156,6 +156,11 @@ static void _st_db_object_serialise(os_object_t o, char **buf, int *len) {
 
     if(os_object_iter_first(o))
         do {
+            /* For os_type_BOOLEAN and os_type_INTEGER, sizeof(int) bytes
+               are stored in val, which might be less than sizeof(void *).
+               Therefore, the difference is garbage unless cleared first.
+             */
+            val = NULL;
             os_object_iter_get(o, &key, &val, &ot);
             
             log_debug(ZONE, "serialising key %s", key);
@@ -165,11 +170,11 @@ static void _st_db_object_serialise(os_object_t o, char **buf, int *len) {
 
             switch(ot) {
                 case os_type_BOOLEAN:
-                    ser_int_set(((int) (long) val) != 0, &cur, buf, len);
+                    ser_int_set(((int)val) != 0, &cur, buf, len);
                     break;
 
                 case os_type_INTEGER:
-                    ser_int_set((int) (long) val, &cur, buf, len);
+                    ser_int_set((int)val, &cur, buf, len);
                     break;
 
                 case os_type_STRING:
