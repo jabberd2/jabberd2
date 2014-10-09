@@ -194,16 +194,22 @@ static st_ret_t _st_pgsql_put_guts(st_driver_t drv, const char *type, const char
             o = os_iter_object(os);
             if(os_object_iter_first(o))
                 do {
+
+                    /* For os_type_BOOLEAN and os_type_INTEGER, sizeof(int) bytes
+                       are stored in val, which might be less than sizeof(void *).
+                       Therefore, the difference is garbage unless cleared first.
+                     */
+                    val = NULL;
                     os_object_iter_get(o, &key, &val, &ot);
 
                     switch(ot) {
                         case os_type_BOOLEAN:
-                            cval = val ? strdup("t") : strdup("f");
+                            cval = ((int)val != 0) ? strdup("t") : strdup("f");
                             break;
 
                         case os_type_INTEGER:
                             cval = (char *) malloc(sizeof(char) * 20);
-                            sprintf(cval, "%ld", (int) (intptr_t) val);
+                            sprintf(cval, "%d", (int)val);
                             break;
 
                         case os_type_STRING:

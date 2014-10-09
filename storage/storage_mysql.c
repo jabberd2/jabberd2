@@ -194,16 +194,21 @@ static st_ret_t _st_mysql_put_guts(st_driver_t drv, const char *type, const char
             o = os_iter_object(os);
             if(os_object_iter_first(o))
                 do {
+                    /* For os_type_BOOLEAN and os_type_INTEGER, sizeof(int) bytes
+                       are stored in val, which might be less than sizeof(void *).
+                       Therefore, the difference is garbage unless cleared first.
+                     */
+                    val = NULL;
                     os_object_iter_get(o, &key, &val, &ot);
         
                     switch(ot) {
                         case os_type_BOOLEAN:
-                            cval = val ? strdup("1") : strdup("0");
+                            cval = ((int)val != 0) ? strdup("1") : strdup("0");
                             break;
         
                         case os_type_INTEGER:
                             cval = (char *) malloc(sizeof(char) * 20);
-                            sprintf(cval, "%ld", (long int) val);
+                            sprintf(cval, "%d", (int) val);
                             break;
         
                         case os_type_STRING:
@@ -218,7 +223,7 @@ static st_ret_t _st_mysql_put_guts(st_driver_t drv, const char *type, const char
                             strncpy(cval, "NAD", 3);
                             break;
 
-			case os_type_UNKNOWN:
+                        case os_type_UNKNOWN:
                             break;
                     }
         

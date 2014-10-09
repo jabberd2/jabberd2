@@ -292,15 +292,20 @@ static st_ret_t _st_sqlite_put_guts (st_driver_t drv, const char *type,
 	    o = os_iter_object (os);
 	    if (os_object_iter_first(o))
 		do {
+            /* For os_type_BOOLEAN and os_type_INTEGER, sizeof(int) bytes
+               are stored in val, which might be less than sizeof(void *).
+               Therefore, the difference is garbage unless cleared first.
+             */
+            val = NULL;
 		    os_object_iter_get (o, &key, &val, &ot);
 
 		    switch(ot) {
 		     case os_type_BOOLEAN:
-		      sqlite3_bind_int (stmt, i + 2, val ? 1 : 0);
+		      sqlite3_bind_int (stmt, i + 2, ((int)val != 0) ? 1 : 0);
 		      break;
 
 		     case os_type_INTEGER:
-		      sqlite3_bind_int (stmt, i + 2, (long)val); // HACK ugly hack for pointer-to-int-cast
+		      sqlite3_bind_int (stmt, i + 2, (int)val);
 		      break;
 
 		     case os_type_STRING:

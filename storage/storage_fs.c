@@ -98,7 +98,7 @@ static st_ret_t _st_fs_put(st_driver_t drv, const char *type, const char *owner,
     FILE *f;
     os_object_t o;
     char *key;
-    void *val;
+    void *val = NULL;
     os_type_t ot;
     const char *xml;
     int len;
@@ -159,17 +159,22 @@ static st_ret_t _st_fs_put(st_driver_t drv, const char *type, const char *owner,
 
             if(os_object_iter_first(o))
                 do {
+                    /* For os_type_BOOLEAN and os_type_INTEGER, sizeof(int) bytes
+                       are stored in val, which might be less than sizeof(void *).
+                       Therefore, the difference is garbage unless cleared first.
+                     */
+                    val = NULL;
                     os_object_iter_get(o, &key, &val, &ot);
 
                     log_debug(ZONE, "writing field %s type %d", key, ot);
 
                     switch(ot) {
                         case os_type_BOOLEAN:
-                            fprintf(f, "%s %d %d\n", key, ot, val ? 1 : 0);
+                            fprintf(f, "%s %d %d\n", key, ot, ((int)val != 0) ? 1 : 0);
                             break;
                             
                         case os_type_INTEGER:
-                            fprintf(f, "%s %d %ld\n", key, ot, (long) val);
+                            fprintf(f, "%s %d %d\n", key, ot, (int) val);
                             break;
 
                         case os_type_STRING:
