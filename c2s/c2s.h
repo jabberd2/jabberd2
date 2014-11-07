@@ -352,7 +352,7 @@ struct authreg_st
     int         (*user_authz_allowed)(authreg_t ar, sess_t sess, const char *username, const char *realm, const char *requested_user);
 
     /** Apple extensions for challenge/response authentication methods */
-    int         (*create_challenge)(authreg_t ar, sess_t sess, const char *username, const char *realm, const char *challenge, int maxlen);
+    int         (*create_challenge)(authreg_t ar, sess_t sess, const char *username, const char *realm, char *challenge, int maxlen);
     int         (*check_response)(authreg_t ar, sess_t sess, const char *username, const char *realm, const char *challenge, const char *response);
 };
 
