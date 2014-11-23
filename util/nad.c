@@ -789,8 +789,10 @@ int nad_append_namespace(nad_t nad, int elem, const char *uri, const char *prefi
         nad->nss[ns].lprefix = strlen(prefix);
         nad->nss[ns].iprefix = _nad_cdata(nad, prefix, nad->nss[ns].lprefix);
     }
-    else
+    else {
+        nad->nss[ns].lprefix = 0;
         nad->nss[ns].iprefix = -1;
+    }
 
     return ns;
 }
