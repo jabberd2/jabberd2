@@ -2,6 +2,16 @@ This file contains news, important changes
 and upgrade instructions between different versions of jabberd2.
 
 
+* 2.3.2 to 2.3.3 upgrade:
+
+What changed:
+- Support for RSA/DH/ECDH key agreement
+- bcrypt support for MySQL storage
+- C2S per session user data & authreg auth API extensions
+  for custom authreg backends
+- Option to provide a custom the openssl library path
+
+
 * 2.3.1 to 2.3.2 upgrade:
 
 What changed:
