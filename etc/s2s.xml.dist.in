@@ -122,6 +122,11 @@
     <verify-mode>7</verify-mode>
     -->
 
+    <!-- List of available TLS ciphers -->
+    <!--
+    <ciphers>DEFAULT</ciphers>
+    -->
+
     <!-- File containing an optional SSL certificate chain file for SSL
          connections. -->
     <!--

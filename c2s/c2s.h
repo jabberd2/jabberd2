@@ -140,12 +140,14 @@ struct host_st {
     /** require starttls */
     int                 host_require_starttls;
 
+    /** list of TLS ciphers */
+    const char          *host_ciphers;
+
     /** registration */
     int                 ar_register_enable;
     const char          *ar_register_instructions;
     const char          *ar_register_oob;
     int                 ar_register_password;
-
 };
 
 struct c2s_st {
@@ -160,6 +162,7 @@ struct c2s_st {
     const char          *router_pemfile;
     const char          *router_cachain;
     const char          *router_private_key_password;
+    const char          *router_ciphers;
 
     /** mio context */
     mio_t               mio;
@@ -223,6 +226,9 @@ struct c2s_st {
 
     /** verify-mode  */
     int                 local_verify_mode;
+
+    /** list of TLS ciphers */
+    const char          *local_ciphers;
 
     /** http forwarding URL */
     const char          *http_forward;

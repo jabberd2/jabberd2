@@ -65,7 +65,7 @@ extern "C" {
 JABBERD2_API int                         sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args);
 
 /** add cert function */
-JABBERD2_API int                         sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, const char *cachain, int mode, const char *private_key_password);
+JABBERD2_API int                         sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, const char *cachain, int mode, const char *private_key_password, const char *ciphers);
 
 /** trigger for client starttls */
 JABBERD2_API int                         sx_ssl_client_starttls(sx_plugin_t p, sx_t s, const char *pemfile, const char *private_key_password);

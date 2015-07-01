@@ -902,7 +902,7 @@ int sx_openssl_initialized = 0;
 
 /** args: name, pemfile, cachain, mode */
 int sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args) {
-    const char *name, *pemfile, *cachain, *password;
+    const char *name, *pemfile, *cachain, *password, *ciphers;
     int ret;
     int mode;
 
@@ -919,6 +919,7 @@ int sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args) {
     cachain = va_arg(args, const char *);
     mode = va_arg(args, int);
     password = va_arg(args, char *);
+    ciphers = va_arg(args, char *);
 
     /* !!! output openssl error messages to the debug log */
 
@@ -929,7 +930,7 @@ int sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args) {
     }
     sx_openssl_initialized = 1;
 
-    ret = sx_ssl_server_addcert(p, name, pemfile, cachain, mode, password);
+    ret = sx_ssl_server_addcert(p, name, pemfile, cachain, mode, password, ciphers);
     if(ret)
         return 1;
 
@@ -949,7 +950,7 @@ int sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args) {
 }
 
 /** args: name, pemfile, cachain, mode */
-int sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, const char *cachain, int mode, const char *password) {
+int sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, const char *cachain, int mode, const char *password, const char *ciphers) {
     xht contexts = (xht) p->private;
     SSL_CTX *ctx;
     SSL_CTX *tmp;
@@ -985,8 +986,11 @@ int sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, 
         return 1;
     }
 
-    // Set allowed ciphers
-       if (SSL_CTX_set_cipher_list(ctx, "ECDHE-RSA-AES128-SHA256:AES128-GCM-SHA256:HIGH:!MD5:!LOW:!SSLv2:!EXP:!aNULL:!EDH:!RC4") != 1) {
+    // Set allowed ciphers. if non set, at least always disable NULL and export
+    if (!ciphers)
+        ciphers = "!aNULL:!eNULL:!EXP:" SSL_DEFAULT_CIPHER_LIST;
+    _sx_debug(ZONE, "Restricting TLS ciphers to %s", ciphers);
+    if (SSL_CTX_set_cipher_list(ctx, ciphers) != 1) {
         _sx_debug(ZONE, "Can't set cipher list for SSL context: %s", ERR_error_string(ERR_get_error(), NULL));
         SSL_CTX_free(ctx);
         return 1;
@@ -1086,7 +1090,7 @@ int sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, 
 
         /* this is the first context, if it's not the default then make a copy of it as the default */
         if(!(name[0] == '*' && name[1] == 0)) {
-            int ret = sx_ssl_server_addcert(p, "*", pemfile, cachain, mode, password);
+            int ret = sx_ssl_server_addcert(p, "*", pemfile, cachain, mode, password, NULL);
 
             if(ret) {
                 /* uh-oh */

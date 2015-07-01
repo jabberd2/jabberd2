@@ -111,11 +111,14 @@
 		 SSL_VERIFY_CLIENT_ONCE          0x04
 		 Use 7 to require all clients to present _valid_ certificates.
 
-     
+         ciphers
+         List of available TLS ciphers. The format of the string is
+         described in https://www.openssl.org/docs/apps/ciphers.html
+
          cachain
-         SSL CA chain. Used to verify client certificates. 
+         SSL CA chain. Used to verify client certificates.
          CA names published to client upon connection.
-          
+
          require-starttls
          If this attribute is set to any value, clients must do STARTTLS
          before they can authenticate. Until the stream is encrypted,
@@ -188,7 +191,12 @@
     <!--
     <verify-mode>7</verify-mode>
     -->
-    
+
+    <!-- List of available TLS ciphers -->
+    <!--
+    <ciphers>DEFAULT</ciphers>
+    -->
+
     <!-- SSL CA chain. Used to verify client certificates. CA names published to client upon connection -->
     <!--
     <cachain>@sysconfdir@/client_ca_certs.pem</cachain>  
