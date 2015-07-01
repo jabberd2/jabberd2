@@ -25,6 +25,8 @@
 
 #include "sx.h"
 #include <openssl/x509_vfy.h>
+#include <openssl/dh.h>
+#include <openssl/bn.h>
 
 
 /* code stolen from SSL_CTX_set_verify(3) */
@@ -80,6 +82,73 @@ static int _sx_pem_passwd_callback(char *buf, int size, int rwflag, void *passwo
     strncpy(buf, (char *)(password), size);
     buf[size - 1] = '\0';
     return(strlen(buf));
+}
+
+#define DECLARE_sx_ssl_getparams(name, type)                \
+    static type *sx_ssl_get_##name(const char *file) {      \
+        type *ret;                                          \
+        BIO *bio;                                           \
+        if ((bio = BIO_new_file(file, "r")) == NULL)        \
+            return NULL;                                    \
+        ret = PEM_read_bio_##name(bio, NULL, NULL, NULL);   \
+        BIO_free(bio);                                      \
+        return ret;                                         \
+    }
+DECLARE_sx_ssl_getparams(DHparams, DH)
+DECLARE_sx_ssl_getparams(ECPKParameters, EC_GROUP)
+
+static struct {
+    BIGNUM *(*const get_prime)(BIGNUM *);
+    DH *dh;
+    const unsigned minlen;
+} dhparams[] = {
+    { get_rfc3526_prime_8192, NULL, 6145 },
+    { get_rfc3526_prime_6144, NULL, 4097 },
+    { get_rfc3526_prime_4096, NULL, 3073 },
+    { get_rfc3526_prime_3072, NULL, 2049 },
+    { get_rfc3526_prime_2048, NULL, 1025 },
+    { get_rfc2409_prime_1024, NULL, 0 }
+};
+
+static DH *sx_ssl_make_dh_params(BIGNUM *(*const get_prime)(BIGNUM *), const char *gen) {
+    DH *dh = DH_new();
+    if (!dh)
+        return NULL;
+
+    dh->p = get_prime(NULL);
+    BN_dec2bn(&dh->g, gen);
+    if (!dh->p || !dh->g) {
+        DH_free(dh);
+        return NULL;
+    }
+    return dh;
+}
+
+static void sx_ssl_free_dh_params(void) {
+    unsigned i;
+    for (i = 0; i < sizeof(dhparams)/sizeof(dhparams[0]); i++) {
+        DH_free(dhparams[i].dh);
+        dhparams[i].dh = NULL;
+    }
+}
+
+static DH *_sx_ssl_tmp_dh_callback(SSL *ssl, int export, int keylen) {
+    EVP_PKEY *pkey = SSL_get_privatekey(ssl);
+    int type = pkey ? EVP_PKEY_type(pkey->type) : EVP_PKEY_NONE;
+    unsigned i;
+
+    if (type == EVP_PKEY_RSA || type == EVP_PKEY_DSA)
+        keylen = EVP_PKEY_bits(pkey);
+
+    for (i = 0; i < sizeof(dhparams)/sizeof(dhparams[0]); i++) {
+        if (keylen >= dhparams[i].minlen) {
+            if (dhparams[i].dh == NULL)
+                dhparams[i].dh = sx_ssl_make_dh_params(dhparams[i].get_prime, "2");
+            return dhparams[i].dh;
+        }
+    }
+
+    return NULL;
 }
 
 static void _sx_ssl_starttls_notify_proceed(sx_t s, void *arg) {
@@ -825,6 +894,8 @@ static void _sx_ssl_unload(sx_plugin_t p) {
         } while(xhash_iter_next(contexts));
 
     xhash_free(contexts);
+
+    sx_ssl_free_dh_params();
 }
 
 int sx_openssl_initialized = 0;
@@ -877,112 +948,6 @@ int sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args) {
     return 0;
 }
 
-RSA *rsa_512 = NULL;
-RSA *rsa_1024 = NULL;
-static RSA *sx_ssl_tmp_rsa_callback(SSL *ssl, int export, int keylength) {
- RSA *rsa_tmp = NULL;
- if (keylength == 512) {
- if (!rsa_512)
- rsa_512 = RSA_generate_key(keylength, RSA_F4, NULL, NULL);
- rsa_tmp = rsa_512;
- }
- else {
- if (!rsa_1024)
- rsa_1024 = RSA_generate_key(keylength, RSA_F4, NULL, NULL);
- rsa_tmp = rsa_1024;
- }
- return rsa_tmp;
-}
-
-static unsigned char dh512_p[] = {
- 0xEC,0xAC,0xF9,0x92,0x4C,0x4E,0x5F,0x56,0xEC,0x15,0x7D,0xFD,
- 0xFD,0xAC,0x0B,0xC6,0xDB,0xAD,0x0D,0x62,0x76,0x43,0x07,0xAB,
- 0x1D,0x5A,0x8C,0xB6,0xE2,0xA7,0x48,0xEA,0xBE,0x91,0x22,0x9A,
- 0x6E,0xB2,0xC8,0xF6,0x4F,0xF5,0x7A,0xA5,0x7F,0x6E,0x08,0x7D,
- 0x4A,0x89,0xA0,0x54,0x2A,0x68,0x2D,0x06,0x59,0x89,0x32,0xF3,
- 0x3D,0xF7,0x74,0x1B,
-};
-static unsigned char dh512_g[] = {
- 0x02,
-};
-
-static DH *get_dh512(void) {
- DH *dh;
-
- if (!(dh = DH_new()))
- return NULL;
-
- dh->p = BN_bin2bn(dh512_p, sizeof(dh512_p), NULL);
- dh->g = BN_bin2bn(dh512_g, sizeof(dh512_g), NULL);
- if (!(dh->p && dh->g)) {
- DH_free(dh);
- return NULL;
- }
-
- return dh;
-}
-
-static unsigned char dh1024_p[] = {
- 0xDF,0x0A,0xB8,0xCD,0x84,0xBB,0x91,0xF7,0xA1,0x8F,0x75,0xBB,
- 0x20,0xC9,0x54,0x9D,0x50,0x89,0xC4,0x1A,0x0D,0xD5,0x40,0x6D,
- 0x66,0x76,0x02,0x5F,0xD7,0xB2,0xB4,0xB9,0x88,0xFB,0xF8,0xD5,
- 0xE9,0x6C,0xBB,0x17,0x51,0x9F,0x5B,0x7C,0xD1,0x0D,0x82,0x3F,
- 0xCD,0xA2,0xF5,0x16,0x01,0x3C,0x4A,0xDF,0xC7,0x6A,0x66,0x2B,
- 0x83,0x00,0x50,0x5D,0x81,0x93,0x16,0x1C,0xA5,0x92,0xA4,0x75,
- 0x8E,0x32,0x92,0xDF,0xCA,0x51,0x98,0x16,0xFB,0x37,0x06,0xD3,
- 0xFE,0x52,0xD8,0xBE,0x0F,0x4D,0xA8,0xA6,0xDF,0xF0,0x16,0x09,
- 0xD6,0x84,0xAB,0xF6,0x3E,0xDD,0x29,0x42,0x3C,0xE5,0xCA,0xEA,
- 0x70,0xFF,0x33,0x33,0x6C,0xEB,0x54,0xA2,0x28,0x58,0xFF,0xFC,
- 0x38,0xFE,0x70,0xC0,0xE8,0xA8,0x53,0x1B,
-};
-static unsigned char dh1024_g[] = {
- 0x02,
-};
-
-static DH *get_dh1024(void) {
- DH *dh;
-
- if (!(dh = DH_new()))
- return NULL;
-
- dh->p = BN_bin2bn(dh1024_p, sizeof(dh1024_p), NULL);
- dh->g = BN_bin2bn(dh1024_g, sizeof(dh1024_g), NULL);
- if (!(dh->p && dh->g)) {
- DH_free(dh);
- return NULL;
- }
-
- return dh;
-}
-
-DH *dh_512 = NULL;
-DH *dh_1024 = NULL;
-static DH *sx_ssl_tmp_dh_callback(SSL *ssl, int export, int keylength) {
- DH *dh_tmp = NULL;
- if (keylength == 512) {
- if (!dh_512)
- dh_512 = get_dh512();
- dh_tmp = dh_512;
- }
- else {
- if (!dh_1024)
- dh_1024 = get_dh1024();
- dh_tmp = dh_1024;
- }
- return dh_tmp;
-}
-
-EC_KEY *ec_256 = NULL;
-static EC_KEY *sx_ssl_tmp_ecdh_callback(SSL *ssl, int export, int keylength) {
- EC_KEY *ec_tmp = NULL;
- if (!ec_256) {
- ec_256 = EC_KEY_new();
- EC_KEY_set_group(ec_256, EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
- }
- ec_tmp = ec_256;
- return ec_tmp;
-}
-
 /** args: name, pemfile, cachain, mode */
 int sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, const char *cachain, int mode, const char *password) {
     xht contexts = (xht) p->private;
@@ -990,7 +955,10 @@ int sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, 
     SSL_CTX *tmp;
     STACK_OF(X509_NAME) *cert_names;
     X509_STORE * store;
-    int ret;
+    DH *dhparams;
+    EC_GROUP *ecparams;
+    EC_KEY *eckey = NULL;
+    int ret, nid;
 
     if(!sx_openssl_initialized) {
         _sx_debug(ZONE, "ssl plugin not initialised");
@@ -1016,10 +984,6 @@ int sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, 
         _sx_debug(ZONE, "ssl context creation failed; %s", ERR_error_string(ERR_get_error(), NULL));
         return 1;
     }
-
-     SSL_CTX_set_tmp_rsa_callback(ctx, sx_ssl_tmp_rsa_callback);
-     SSL_CTX_set_tmp_dh_callback(ctx, sx_ssl_tmp_dh_callback);
-     SSL_CTX_set_tmp_ecdh_callback(ctx, sx_ssl_tmp_ecdh_callback);
 
     // Set allowed ciphers
        if (SSL_CTX_set_cipher_list(ctx, "ECDHE-RSA-AES128-SHA256:AES128-GCM-SHA256:HIGH:!MD5:!LOW:!SSLv2:!EXP:!aNULL:!EDH:!RC4") != 1) {
@@ -1088,6 +1052,32 @@ int sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, 
 
     _sx_debug(ZONE, "setting ssl context '%s' verify mode to %02x", name, mode);
     SSL_CTX_set_verify(ctx, mode, _sx_ssl_verify_callback);
+
+    SSL_CTX_set_tmp_dh_callback(ctx, _sx_ssl_tmp_dh_callback);
+
+    /* try to read DH params from pem file */
+    if((dhparams = sx_ssl_get_DHparams(pemfile))) {
+        SSL_CTX_set_tmp_dh(ctx, dhparams);
+        _sx_debug(ZONE, "custom DH parameters loaded from certificate", BN_num_bits(dhparams->p));
+    }
+
+    /* try to read ECDH params from pem file */
+    if((ecparams = sx_ssl_get_ECPKParameters(pemfile)) && (nid = EC_GROUP_get_curve_name(ecparams)) && (eckey = EC_KEY_new_by_curve_name(nid))) {
+        SSL_CTX_set_tmp_ecdh(ctx, eckey);
+        _sx_debug(ZONE, "custom ECDH curve %s loaded from certificate", OBJ_nid2sn(nid));
+    }
+    else {
+#if defined(SSL_set_ecdh_auto)
+        /* otherwise configure auto curve */
+        SSL_CTX_set_ecdh_auto(myssl, 1);
+#else
+        /* ..or NIST P-256 */
+        _sx_debug(ZONE, "nist curve enabled");
+        eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+        SSL_CTX_set_tmp_ecdh(ctx, eckey);
+#endif
+    }
+    EC_KEY_free(eckey);
 
     /* create hash and create default context */
     if(contexts == NULL) {
