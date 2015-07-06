@@ -552,7 +552,7 @@ st_ret_t st_init(st_driver_t drv) {
     /* store the log context in case we panic */
     env->app_private = drv->st->log;
 
-    if((err = env->open(env, path, DB_INIT_LOCK | DB_INIT_MPOOL | DB_INIT_LOG | DB_INIT_TXN | DB_CREATE, 0)) != 0) {
+    if((err = env->open(env, path, DB_INIT_LOCK | DB_INIT_MPOOL | DB_INIT_LOG | DB_INIT_TXN | DB_CREATE | DB_RECOVER, 0)) != 0) {
         log_write(drv->st->log, LOG_ERR, "db: couldn't open environment: %s", db_strerror(err));
         env->close(env, 0);
         return st_FAILED;
