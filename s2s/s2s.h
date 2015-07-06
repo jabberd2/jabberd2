@@ -58,6 +58,9 @@ struct host_st {
 
     /** private key password */
     char                *host_private_key_password;    
+
+    /** list of TLS ciphers */
+    const char          *host_ciphers;
 };
 
 struct s2s_st {
@@ -72,6 +75,7 @@ struct s2s_st {
     const char          *router_pemfile;
     const char          *router_cachain;
     const char          *router_private_key_password;
+    const char          *router_ciphers;
     int                 router_default;
 
     /** mio context */
@@ -133,6 +137,9 @@ struct s2s_st {
 
     /** verify-mode  */
     int                 local_verify_mode;
+
+    /** list of TLS ciphers */
+    const char          *local_ciphers;
 
     /** hosts mapping */
     xht                 hosts;

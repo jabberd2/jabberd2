@@ -175,6 +175,7 @@ struct sm_st {
                                                  key for channel to the router */
     const char          *router_private_key_password;    /** password for private key if pemfile
                                                              key is encrypted */
+    const char          *router_ciphers;    /** TLS ciphers */
 
     mio_t               mio;                /**< mio context */
 

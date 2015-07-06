@@ -107,6 +107,7 @@ static void _s2s_config_expand(s2s_t s2s) {
     s2s->router_cachain = config_get_one(s2s->config, "router.cachain", 0);
 
     s2s->router_private_key_password = config_get_one(s2s->config, "router.private_key_password", 0);
+    s2s->router_ciphers = config_get_one(s2s->config, "router.ciphers", 0);
 
     s2s->retry_init = j_atoi(config_get_one(s2s->config, "router.retry.init", 0), 3);
     s2s->retry_lost = j_atoi(config_get_one(s2s->config, "router.retry.lost", 0), 3);
@@ -174,6 +175,7 @@ static void _s2s_config_expand(s2s_t s2s) {
     s2s->local_cachain = config_get_one(s2s->config, "local.cachain", 0);
     s2s->local_verify_mode = j_atoi(config_get_one(s2s->config, "local.verify-mode", 0), 0);
     s2s->local_private_key_password = config_get_one(s2s->config, "local.private_key_password", 0);
+    s2s->local_ciphers = config_get_one(s2s->config, "local.ciphers", 0);
 
     s2s->io_max_fds = j_atoi(config_get_one(s2s->config, "io.max_fds", 0), 1024);
 
@@ -245,16 +247,18 @@ static void _s2s_hosts_expand(s2s_t s2s)
 
 		host->host_private_key_password = j_attr((const char **) elem->attrs[i], "private-key-password");
 
+        host->host_ciphers = j_attr((const char **) elem->attrs[i], "ciphers");
+
 #ifdef HAVE_SSL
         if(host->host_pemfile != NULL) {
             if(s2s->sx_ssl == NULL) {
-                s2s->sx_ssl = sx_env_plugin(s2s->sx_env, sx_ssl_init, host->realm, host->host_pemfile, host->host_cachain, host->host_verify_mode, host->host_private_key_password);
+                s2s->sx_ssl = sx_env_plugin(s2s->sx_env, sx_ssl_init, host->realm, host->host_pemfile, host->host_cachain, host->host_verify_mode, host->host_private_key_password, host->host_ciphers);
                 if(s2s->sx_ssl == NULL) {
                     log_write(s2s->log, LOG_ERR, "failed to load %s SSL pemfile", host->realm);
                     host->host_pemfile = NULL;
                 }
             } else {
-                if(sx_ssl_server_addcert(s2s->sx_ssl, host->realm, host->host_pemfile, host->host_cachain, host->host_verify_mode, host->host_private_key_password) != 0) {
+                if(sx_ssl_server_addcert(s2s->sx_ssl, host->realm, host->host_pemfile, host->host_cachain, host->host_verify_mode, host->host_private_key_password, host->host_ciphers) != 0) {
                     log_write(s2s->log, LOG_ERR, "failed to load %s SSL pemfile", host->realm);
                     host->host_pemfile = NULL;
                 }
@@ -935,7 +939,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
 #ifdef HAVE_SSL
     /* get the ssl context up and running */
     if(s2s->local_pemfile != NULL) {
-        s2s->sx_ssl = sx_env_plugin(s2s->sx_env, sx_ssl_init, NULL, s2s->local_pemfile, s2s->local_cachain, s2s->local_verify_mode, s2s->local_private_key_password);
+        s2s->sx_ssl = sx_env_plugin(s2s->sx_env, sx_ssl_init, NULL, s2s->local_pemfile, s2s->local_cachain, s2s->local_verify_mode, s2s->local_private_key_password, s2s->local_ciphers);
 
         if(s2s->sx_ssl == NULL) {
             log_write(s2s->log, LOG_ERR, "failed to load local SSL pemfile, SSL will not be available to peers");
@@ -946,7 +950,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
 
     /* try and get something online, so at least we can encrypt to the router */
     if(s2s->sx_ssl == NULL && s2s->router_pemfile != NULL) {
-        s2s->sx_ssl = sx_env_plugin(s2s->sx_env, sx_ssl_init, NULL, s2s->router_pemfile, s2s->router_cachain, NULL, s2s->router_private_key_password);
+        s2s->sx_ssl = sx_env_plugin(s2s->sx_env, sx_ssl_init, NULL, s2s->router_pemfile, s2s->router_cachain, NULL, s2s->router_private_key_password, s2s->router_ciphers);
         if(s2s->sx_ssl == NULL) {
             log_write(s2s->log, LOG_ERR, "failed to load router SSL pemfile, channel to router will not be SSL encrypted");
             s2s->router_pemfile = NULL;
