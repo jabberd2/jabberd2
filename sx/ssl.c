@@ -1073,7 +1073,7 @@ int sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, 
     else {
 #if defined(SSL_set_ecdh_auto)
         /* otherwise configure auto curve */
-        SSL_CTX_set_ecdh_auto(myssl, 1);
+        SSL_CTX_set_ecdh_auto(ctx, 1);
 #else
         /* ..or NIST P-256 */
         _sx_debug(ZONE, "nist curve enabled");
