@@ -180,13 +180,15 @@ char *b64_encode(char *buf, int len) {
 }
 
 char *b64_decode(char *buf) {
+    int blen;
     int elen;
     char *out;
 
-    elen = apr_base64_decode_len(buf, -1);
+    blen = strlen(buf);
+    elen = apr_base64_decode_len(buf, blen);
     out = (char *) malloc(sizeof(char) * (elen + 1));
 
-    apr_base64_decode(out, buf, -1);
+    apr_base64_decode(out, buf, blen);
 
     return out;
 }
