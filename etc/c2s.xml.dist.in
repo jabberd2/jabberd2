@@ -140,6 +140,9 @@
          still be useful to allow clients to change their password. If
          you want this, add this attribute with any value, when you need
          registration disabled.
+
+         authreg-module
+         Use different authreg module than default one set in <authreg> section.
           -->
     <id register-enable='mu'>localhost.localdomain</id>
     <!-- or

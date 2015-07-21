@@ -143,6 +143,10 @@ struct host_st {
     /** list of TLS ciphers */
     const char          *host_ciphers;
 
+    /* authreg module if different than default */
+    const char          *ar_module_name;
+    authreg_t           ar;
+
     /** registration */
     int                 ar_register_enable;
     const char          *ar_register_instructions;
@@ -254,9 +258,12 @@ struct c2s_st {
 
     time_t              next_check;
 
-    /** auth/reg module */
+    /** default auth/reg module */
     const char          *ar_module_name;
     authreg_t           ar;
+
+    /** loaded auth/reg modules */
+    xht                 ar_modules;
 
     /** allowed mechanisms */
     int                 ar_mechanisms;
@@ -326,6 +333,7 @@ JABBERD2_API int    address_init(sx_env_t env, sx_plugin_t p, va_list args);
 struct authreg_st
 {
     c2s_t       c2s;
+    int         initialized;
 
     /** module private data */
     void        *private;

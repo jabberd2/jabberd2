@@ -574,8 +574,8 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
 
             /* call the session end callback to allow for authreg
              * module to cleanup private data */
-            if(sess->c2s->ar->sess_end != NULL)
-                (sess->c2s->ar->sess_end)(sess->c2s->ar, sess);
+            if(sess->host->ar->sess_end != NULL)
+                (sess->host->ar->sess_end)(sess->host->ar, sess);
 
             /* force free authreg_private if pointer is still set */
             if (sess->authreg_private != NULL) {
@@ -1228,8 +1228,8 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                        (NAD_AVAL_L(nad, action) == 6 && strncmp("create", NAD_AVAL(nad, action), 6) == 0)) {
 
                         /* create failed, so we need to remove them from authreg */
-                        if(NAD_AVAL_L(nad, action) == 6 && c2s->ar->delete_user != NULL) {
-                            if((c2s->ar->delete_user)(c2s->ar, sess, bres->jid->node, sess->host->realm) != 0)
+                        if(NAD_AVAL_L(nad, action) == 6 && sess->host->ar->delete_user != NULL) {
+                            if((sess->host->ar->delete_user)(sess->host->ar, sess, bres->jid->node, sess->host->realm) != 0)
                                 log_write(c2s->log, LOG_NOTICE, "[%d] user creation failed, and unable to delete user credentials: user=%s, realm=%s", sess->s->tag, bres->jid->node, sess->host->realm);
                             else
                                 log_write(c2s->log, LOG_NOTICE, "[%d] user creation failed, so deleted user credentials: user=%s, realm=%s", sess->s->tag, bres->jid->node, sess->host->realm);

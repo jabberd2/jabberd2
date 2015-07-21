@@ -44,6 +44,12 @@ authreg_t authreg_init(c2s_t c2s, const char *name) {
     authreg_t ar;
     void *handle;
 
+    /* return if already loaded */
+    ar = xhash_get(c2s->ar_modules, name);
+    if (ar) {
+        return ar->initialized ? ar : NULL;
+    }
+
     /* load authreg module */
     modules_path = config_get_one(c2s->config, "authreg.path", 0);
     if (modules_path != NULL)
@@ -86,9 +92,15 @@ authreg_t authreg_init(c2s_t c2s, const char *name) {
     }
 
     /* make a new one */
-    ar = (authreg_t) calloc(1, sizeof(struct authreg_st));
+    ar = (authreg_t) pmalloco(xhash_pool(c2s->ar_modules), sizeof(struct authreg_st));
+    if(!ar) {
+        log_write(c2s->log, LOG_ERR, "cannot allocate memory for new authreg, aborting");
+        exit(1);
+    }
 
     ar->c2s = c2s;
+
+    xhash_put(c2s->ar_modules, name, ar);
 
     /* call the initialiser */
     if((init_fn)(ar) != 0)
@@ -107,6 +119,7 @@ authreg_t authreg_init(c2s_t c2s, const char *name) {
     }
     
     /* its good */
+    ar->initialized = TRUE;
     log_write(c2s->log, LOG_NOTICE, "initialized auth module '%s'", name);
 
     return ar;
@@ -114,9 +127,8 @@ authreg_t authreg_init(c2s_t c2s, const char *name) {
 
 /** shutdown the authreg system */
 void authreg_free(authreg_t ar) {
-    if (ar) {
+    if (ar && ar->initialized) {
         if(ar->free != NULL) (ar->free)(ar);
-        free(ar);
     }
 }
 
@@ -172,7 +184,7 @@ static void _authreg_auth_get(c2s_t c2s, sess_t sess, nad_t nad) {
     }
     
     /* do we have the user? */
-    if((c2s->ar->user_exists)(c2s->ar, sess, username, sess->host->realm) == 0) {
+    if((sess->host->ar->user_exists)(sess->host->ar, sess, username, sess->host->realm) == 0) {
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_OLD_UNAUTH), 0));
         return;
     }
@@ -204,14 +216,14 @@ static void _authreg_auth_get(c2s_t c2s, sess_t sess, nad_t nad) {
     nad_append_elem(nad, ns, "resource", 2);
 
     /* fill out the packet with available auth mechanisms */
-    if(ar_mechs & AR_MECH_TRAD_PLAIN && (c2s->ar->get_password != NULL || c2s->ar->check_password != NULL))
+    if(ar_mechs & AR_MECH_TRAD_PLAIN && (sess->host->ar->get_password != NULL || sess->host->ar->check_password != NULL))
         nad_append_elem(nad, ns, "password", 2);
 
-    if(ar_mechs & AR_MECH_TRAD_DIGEST && c2s->ar->get_password != NULL)
+    if(ar_mechs & AR_MECH_TRAD_DIGEST && sess->host->ar->get_password != NULL)
         nad_append_elem(nad, ns, "digest", 2);
 
-    if (ar_mechs & AR_MECH_TRAD_CRAMMD5 && c2s->ar->create_challenge != NULL) {
-        err = (c2s->ar->create_challenge)(c2s->ar, sess, (char *) username, sess->host->realm,
+    if (ar_mechs & AR_MECH_TRAD_CRAMMD5 && sess->host->ar->create_challenge != NULL) {
+        err = (sess->host->ar->create_challenge)(sess->host->ar, sess, (char *) username, sess->host->realm,
                 (char *) sess->auth_challenge, sizeof(sess->auth_challenge));
         if (0 == err) { /* operation failed */
             sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_INTERNAL_SERVER_ERROR), 0));
@@ -291,19 +303,19 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
     }
     
     /* do we have the user? */
-    if((c2s->ar->user_exists)(c2s->ar, sess, username, sess->host->realm) == 0) {
+    if((sess->host->ar->user_exists)(sess->host->ar, sess, username, sess->host->realm) == 0) {
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_OLD_UNAUTH), 0));
         return;
     }
     
     /* handle CRAM-MD5 response */
-    if(!authd && ar_mechs & AR_MECH_TRAD_CRAMMD5 && c2s->ar->check_response != NULL)
+    if(!authd && ar_mechs & AR_MECH_TRAD_CRAMMD5 && sess->host->ar->check_response != NULL)
     {
         elem = nad_find_elem(nad, 1, ns, "crammd5", 1);
         if(elem >= 0)
         {
             snprintf(str, 1024, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
-            if((c2s->ar->check_response)(c2s->ar, sess, username, sess->host->realm, sess->auth_challenge, str) == 0)
+            if((sess->host->ar->check_response)(sess->host->ar, sess, username, sess->host->realm, sess->auth_challenge, str) == 0)
             {
                 log_debug(ZONE, "crammd5 auth (check) succeded");
                 authd = 1;
@@ -315,12 +327,12 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
     }
 
     /* digest auth */
-    if(!authd && ar_mechs & AR_MECH_TRAD_DIGEST && c2s->ar->get_password != NULL)
+    if(!authd && ar_mechs & AR_MECH_TRAD_DIGEST && sess->host->ar->get_password != NULL)
     {
         elem = nad_find_elem(nad, 1, ns, "digest", 1);
         if(elem >= 0)
         {
-            if((c2s->ar->get_password)(c2s->ar, sess, username, sess->host->realm, str) == 0)
+            if((sess->host->ar->get_password)(sess->host->ar, sess, username, sess->host->realm, str) == 0)
             {
                 snprintf(hash, 280, "%s%s", sess->s->id, str);
                 shahash_r(hash, hash);
@@ -338,12 +350,12 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
     }
 
     /* plaintext auth (compare) */
-    if(!authd && ar_mechs & AR_MECH_TRAD_PLAIN && c2s->ar->get_password != NULL)
+    if(!authd && ar_mechs & AR_MECH_TRAD_PLAIN && sess->host->ar->get_password != NULL)
     {
         elem = nad_find_elem(nad, 1, ns, "password", 1);
         if(elem >= 0)
         {
-            if((c2s->ar->get_password)(c2s->ar, sess, username, sess->host->realm, str) == 0 &&
+            if((sess->host->ar->get_password)(sess->host->ar, sess, username, sess->host->realm, str) == 0 &&
                     strlen(str) == NAD_CDATA_L(nad, elem) && strncmp(str, NAD_CDATA(nad, elem), NAD_CDATA_L(nad, elem)) == 0)
             {
                 log_debug(ZONE, "plaintext auth (compare) succeeded");
@@ -356,13 +368,13 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
     }
 
     /* plaintext auth (check) */
-    if(!authd && ar_mechs & AR_MECH_TRAD_PLAIN && c2s->ar->check_password != NULL)
+    if(!authd && ar_mechs & AR_MECH_TRAD_PLAIN && sess->host->ar->check_password != NULL)
     {
         elem = nad_find_elem(nad, 1, ns, "password", 1);
         if(elem >= 0)
         {
             snprintf(str, 1024, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
-            if((c2s->ar->check_password)(c2s->ar, sess, username, sess->host->realm, str) == 0)
+            if((sess->host->ar->check_password)(sess->host->ar, sess, username, sess->host->realm, str) == 0)
             {
                 log_debug(ZONE, "plaintext auth (check) succeded");
                 authd = 1;
@@ -425,7 +437,7 @@ static void _authreg_register_get(c2s_t c2s, sess_t sess, nad_t nad) {
     char id[128];
 
     /* registrations can happen if reg is enabled and we can create users and set passwords */
-    if(sess->active || !(c2s->ar->set_password != NULL && c2s->ar->create_user != NULL &&
+    if(sess->active || !(sess->host->ar->set_password != NULL && sess->host->ar->create_user != NULL &&
         (sess->host->ar_register_enable || sess->host->ar_register_oob))) {
 
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_NOT_ALLOWED), 0));
@@ -479,7 +491,7 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
     char username[1024], password[1024];
 
     /* if we're not configured for registration (or pw changes), or we can't set passwords, fail outright */
-    if(!(sess->host->ar_register_enable || sess->host->ar_register_password) || c2s->ar->set_password == NULL) {
+    if(!(sess->host->ar_register_enable || sess->host->ar_register_password) || sess->host->ar->set_password == NULL) {
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_NOT_ALLOWED), 0));
         return;
     }
@@ -497,13 +509,13 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
         log_debug(ZONE, "user remove requested");
 
         /* make sure we can delete them */
-        if(c2s->ar->delete_user == NULL) {
+        if(sess->host->ar->delete_user == NULL) {
             sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_NOT_ALLOWED), 0));
             return;
         }
 
         /* otherwise, delete them */
-        if((c2s->ar->delete_user)(c2s->ar, sess, sess->resources->jid->node, sess->host->realm) != 0) {
+        if((sess->host->ar->delete_user)(sess->host->ar, sess, sess->resources->jid->node, sess->host->realm) != 0) {
             log_debug(ZONE, "user delete failed");
             sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_INTERNAL_SERVER_ERROR), 0));
             return;
@@ -580,7 +592,7 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
     }
 
     /* if they exist, bounce */
-    else if((c2s->ar->user_exists)(c2s->ar, sess, username, sess->host->realm))
+    else if((sess->host->ar->user_exists)(sess->host->ar, sess, username, sess->host->realm))
     {
         log_debug(ZONE, "attempt to register %s, but they already exist", username);
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_CONFLICT), 0));
@@ -588,14 +600,14 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
     }
 
     /* make sure we can create them */
-    else if(c2s->ar->create_user == NULL)
+    else if(sess->host->ar->create_user == NULL)
     {
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_NOT_ALLOWED), 0));
         return;
     }
 
     /* otherwise, create them */
-    else if((c2s->ar->create_user)(c2s->ar, sess, username, sess->host->realm) != 0)
+    else if((sess->host->ar->create_user)(sess->host->ar, sess, username, sess->host->realm) != 0)
     {
         log_debug(ZONE, "user create failed");
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_INTERNAL_SERVER_ERROR), 0));
@@ -609,7 +621,7 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
     snprintf(password, 257, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
 
     /* change it */
-    if((c2s->ar->set_password)(c2s->ar, sess, username, sess->host->realm, password) != 0)
+    if((sess->host->ar->set_password)(sess->host->ar, sess, username, sess->host->realm, password) != 0)
     {
         log_debug(ZONE, "password store failed");
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_INTERNAL_SERVER_ERROR), 0));
