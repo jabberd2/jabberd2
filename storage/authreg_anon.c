@@ -31,17 +31,10 @@ static int _ar_anon_user_exists(authreg_t ar, sess_t sess, const char *username,
     return 1;
 }
 
-static int _ar_anon_check_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257])
-{
-    /* always correct */
-    return 0;
-}
-
 /** start me up */
 DLLEXPORT int ar_init(authreg_t ar)
 {
     ar->user_exists = _ar_anon_user_exists;
-    ar->check_password = _ar_anon_check_password;
 
     return 0;
 }
