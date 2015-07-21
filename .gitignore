@@ -31,6 +31,7 @@ c2s/c2s
 etc/*.conf
 etc/*.cfg.dist
 etc/*.xml.dist
+etc/*.service
 etc/templates/*.xml.dist
 man/c2s.8
 man/jabberd.8
