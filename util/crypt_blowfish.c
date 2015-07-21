@@ -43,6 +43,7 @@
  * hadn't seen his code).
  */
 
+#include <stdlib.h>
 #include <string.h>
 
 #include <errno.h>
