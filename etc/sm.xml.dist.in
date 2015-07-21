@@ -378,7 +378,14 @@
        Serveral modules have a presence in more than one chain. It is
        possible to remove a module from one chain but not others, but
        this may cause strange behaviour. Make sure you know what you're
-       doing. -->
+       doing.
+
+       When configuring sm for ANONYMOUS access, remove all instances
+       of the following modules:
+         active announce amp offline privacy
+         roster template-roster roster-publish pep vacation status
+         iq-last iq-private iq-vcard
+       and do not enable auto-create option. -->
   <modules>
     <!-- Dynamic sm modules path -->
     <path>@pkglibdir@</path>
