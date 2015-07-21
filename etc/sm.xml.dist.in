@@ -471,6 +471,7 @@
     <chain id='pkt-user'>
       <module>roster</module>           <!-- handle s10n responses -->
       <module>presence</module>         <!-- process and distribute incoming presence from external entities -->
+      <module>disco</module>            <!-- respond to disco queries -->
       <module>iq-vcard</module>         <!-- grab user vcards -->
       <module>amp</module>              <!-- advanced message processing -->
       <module>deliver</module>          <!-- deliver the packet to an active session if we can -->

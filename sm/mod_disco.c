@@ -319,27 +319,6 @@ static mod_ret_t _disco_pkt_sm_populate(mod_instance_t mi, pkt_t pkt)
     return mod_HANDLED;
 }
 
-/** respond to user quering its JID */
-static mod_ret_t _disco_in_sess_result(mod_instance_t mi, sess_t sess, pkt_t pkt)
-{
-    /* it has to have no to address or self bare jid */
-    if(pkt->to != NULL && strcmp(jid_user(sess->jid), jid_full(pkt->to)))
-    {
-        return mod_PASS;
-    }
-
-    /* identity */
-    nad_append_elem(pkt->nad, -1, "identity", 3);
-    nad_append_attr(pkt->nad, -1, "category", "account");
-    nad_append_attr(pkt->nad, -1, "type", "registered");
-
-    /* tell them */
-    nad_set_attr(pkt->nad, 1, -1, "type", "result", 6);
-    pkt_sess(pkt_tofrom(pkt), sess);
-
-    return mod_HANDLED;
-}
-
 /** build a disco items result, active sessions */
 static void _disco_sessions_result(module_t mod, disco_t d, pkt_t pkt) {
     int ns;
@@ -492,15 +471,40 @@ static mod_ret_t _disco_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     return -stanza_err_ITEM_NOT_FOUND;
 }
 
+/** response to quering user JID */
+static void _disco_user_result(pkt_t pkt, user_t user)
+{
+    /* identity */
+    nad_append_elem(pkt->nad, -1, "identity", 3);
+    nad_append_attr(pkt->nad, -1, "category", "account");
+    /* if user is logged in (has session) yet never logged in (no active time)
+       it is certainly an anonymous user */
+    log_debug(ZONE, "%s: top %p active %d", jid_full(user->jid), user->sessions, user->active);
+    nad_append_attr(pkt->nad, -1, "type", (user->sessions && !user->active) ? "anonymous" : "registered");
+
+    /* tell them */
+    nad_set_attr(pkt->nad, 1, -1, "type", "result", 6);
+}
+
 /** legacy support for agents requests from sessions */
 static mod_ret_t _disco_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     module_t mod = mi->mod;
     disco_t d = (disco_t) mod->private;
     pkt_t result;
 
-    /* disco info requests go to a seperate function */
+    /* disco info requests */
     if(pkt->type == pkt_IQ && pkt->ns == ns_DISCO_INFO)
-        return _disco_in_sess_result(mi, sess, pkt);
+    {
+        /* it has to have no to address or self bare jid */
+        if(pkt->to != NULL && strcmp(jid_user(sess->jid), jid_full(pkt->to)))
+        {
+            return mod_PASS;
+        }
+
+        _disco_user_result(pkt, sess->user);
+        pkt_sess(pkt_tofrom(pkt), sess);
+        return mod_HANDLED;
+    }
 
     /* we want agents gets */
     if(pkt->type != pkt_IQ || pkt->ns != ns_AGENTS || pkt->to != NULL)
@@ -523,6 +527,19 @@ static mod_ret_t _disco_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     pkt_sess(result, sess);
 
     return mod_HANDLED;
+}
+
+static mod_ret_t _disco_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
+    /* disco info requests */
+    if(pkt->type == pkt_IQ && pkt->ns == ns_DISCO_INFO)
+    {
+        _disco_user_result(pkt, user);
+        pkt_router(pkt_tofrom(pkt));
+        return mod_HANDLED;
+    }
+
+    /* pass everything else */
+    return mod_PASS;
 }
 
 /** update the table for component changes */
@@ -643,6 +660,7 @@ DLLEXPORT int module_init(mod_instance_t mi, const char *arg)
     /* our handlers */
     mod->pkt_sm = _disco_pkt_sm;
     mod->in_sess = _disco_in_sess;
+    mod->pkt_user = _disco_pkt_user;
     mod->pkt_router = _disco_pkt_router;
     mod->free = _disco_free;
 
