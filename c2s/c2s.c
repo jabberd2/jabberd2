@@ -574,7 +574,7 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
 
             /* call the session end callback to allow for authreg
              * module to cleanup private data */
-            if(sess->host->ar->sess_end != NULL)
+            if(sess->host && sess->host->ar->sess_end != NULL)
                 (sess->host->ar->sess_end)(sess->host->ar, sess);
 
             /* force free authreg_private if pointer is still set */
