@@ -38,6 +38,8 @@
 #ifdef HAVE_SSL
 /* We use OpenSSL's MD5 routines for the a1hash password type */
 #include <openssl/md5.h>
+#include <openssl/rand.h>
+#include <util/crypt_blowfish.h>
 #endif
 
 #define PGSQL_LU  1024   /* maximum length of username - should correspond to field length */
@@ -51,8 +53,13 @@ enum pgsql_pws_crypt {
 #endif
 #ifdef HAVE_SSL
     MPC_A1HASH,
+    MPC_BCRYPT,
 #endif
 };
+
+#ifdef HAVE_CRYPT
+static char salter[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ./";
+#endif
 
 typedef struct pgsqlcontext_st {
   PGconn * conn;
@@ -63,6 +70,9 @@ typedef struct pgsqlcontext_st {
   const char * sql_check_password;
   const char * field_password;
   enum pgsql_pws_crypt password_type;
+#ifdef HAVE_SSL
+  int bcrypt_cost;
+#endif
   } *pgsqlcontext_t;
 
 #ifdef HAVE_SSL
@@ -80,6 +90,42 @@ static void calc_a1hash(const char *username, const char *realm, const char *pas
     for(i=0; i<16; i++) {
         sprintf(a1hash+i*2, "%02hhx", md5digest[i]);
     }
+}
+
+static void bcrypt_hash(const char *password, int cost, char* hash)
+{
+    char salt[16];
+    if(!RAND_bytes(salt, 16))
+        ; //we've got a problem
+
+    char* gen = bcrypt_gensalt("$2y$", cost, salt, 16);
+    strcpy(hash, bcrypt(password, gen));
+}
+
+static int bcrypt_verify(const char *password, const char* hash)
+{
+    char *ret;
+    ret = bcrypt(password, hash);
+
+    if(strlen(ret) != strlen(hash))
+        return 1;
+
+    int status = 0;
+    int i = 0;
+    for(i; i < strlen(ret); i++)
+        status |= (ret[i] ^ hash[i]);
+    return status != 0;
+}
+
+static int bcrypt_needs_rehash(int current_cost, const char* hash)
+{
+    int hash_cost;
+    sscanf(hash, "$2y$%d$", &hash_cost);
+
+    if(current_cost != hash_cost)
+        return 1;
+
+    return 0;
 }
 #endif
 
@@ -128,18 +174,15 @@ static PGresult *_ar_pgsql_get_user_tuple(authreg_t ar, const char *username, co
 }
 
 static int _ar_pgsql_user_exists(authreg_t ar, sess_t sess, const char *username, const char *realm) {
-    if (ar->get_password) {
-        PGresult *res = _ar_pgsql_get_user_tuple(ar, username, realm);
+    /* check a user exists regardless of password type */
+    PGresult *res = _ar_pgsql_get_user_tuple(ar, username, realm);
 
-        if(res != NULL) {
-            PQclear(res);
-            return 1;
-        }
-
-        return 0;
-    } else {
-        return 1; // Try to check password later.
+    if(res != NULL) {
+        PQclear(res);
+        return 1;
     }
+
+    return 0;
 }
 
 static int _ar_pgsql_get_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257]) {
@@ -237,6 +280,69 @@ static int _ar_pgsql_dbcheck_password(authreg_t ar, sess_t sess, const char *use
     return retval;
 };
 
+
+static int _ar_pgsql_set_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257]) {
+    pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
+    PGconn *conn = ctx->conn;
+    char iuser[PGSQL_LU+1], irealm[PGSQL_LR+1];
+    char euser[PGSQL_LU*2+1], erealm[PGSQL_LR*2+1], epass[513], sql[1024+PGSQL_LU*2+PGSQL_LR*2+512+1];  /* query(1024) + euser + erealm + epass(512) + \0(1) */
+    PGresult *res;
+
+    snprintf(iuser, PGSQL_LU+1, "%s", username);
+    snprintf(irealm, PGSQL_LR+1, "%s", realm);
+
+#ifdef HAVE_CRYPT
+    if (ctx->password_type == MPC_CRYPT) {
+        char salt[39] = "$6$rounds=50000$";
+        int i;
+
+        srand(time(0));
+        for(i=0; i<22; i++)
+            salt[16+i] = salter[rand()%64];
+        salt[38] = '\0';
+        strcpy(password, crypt(password, salt));
+    }
+#endif
+
+#ifdef HAVE_SSL
+    if (ctx->password_type == MPC_A1HASH) {
+        calc_a1hash(username, realm, password, password);
+    } else if (ctx->password_type == MPC_BCRYPT) {
+        bcrypt_hash(password, ctx->bcrypt_cost, password);
+    }
+#endif
+
+    PQescapeString(euser, iuser, strlen(iuser));
+    PQescapeString(erealm, irealm, strlen(irealm));
+    PQescapeString(epass, password, strlen(password));
+
+    sprintf(sql, ctx->sql_setpassword, epass, euser, erealm);
+
+    log_debug(ZONE, "prepared sql: %s", sql);
+
+    res = PQexec(conn, sql);
+    if(PQresultStatus(res) != PGRES_COMMAND_OK && PQstatus(conn) != CONNECTION_OK) {
+        log_write(ar->c2s->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
+        PQclear(res);
+        PQreset(conn);
+
+        if(PQstatus(conn) != CONNECTION_OK) {
+            log_write(ar->c2s->log, LOG_ERR, "pgsql: connection to database failed, will retry later: %s", PQerrorMessage(conn));
+            return 1;
+        }
+        res = PQexec(conn, sql);
+    }
+    if(PQresultStatus(res) != PGRES_COMMAND_OK) {
+        log_write(ar->c2s->log, LOG_ERR, "pgsql: sql update failed: %s", PQresultErrorMessage(res));
+        PQclear(res);
+        return 1;
+    }
+
+    PQclear(res);
+
+    return 0;
+}
+
 static int _ar_pgsql_check_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257])
 {
     pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
@@ -281,8 +387,17 @@ static int _ar_pgsql_check_password(authreg_t ar, sess_t sess, const char *usern
                 calc_a1hash(username, realm, password, a1hash_pw);
                 ret = (strncmp(a1hash_pw, db_pw_value, 32) != 0);
                 break;
+        case MPC_BCRYPT:
+            ret = bcrypt_verify(password, db_pw_value);
+            if(ret == 0) {
+                if (bcrypt_needs_rehash(ctx->bcrypt_cost, db_pw_value)) {
+                    char tmp[257];
+                    strcpy(tmp, password);
+                    _ar_pgsql_set_password(ar, sess, username, realm, tmp);
+                }
+            }
+            break;
 #endif
-
         default:
         /* should never happen */
                 ret = 1;
@@ -291,47 +406,6 @@ static int _ar_pgsql_check_password(authreg_t ar, sess_t sess, const char *usern
     }
 
     return ret;
-}
-
-static int _ar_pgsql_set_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257]) {
-    pgsqlcontext_t ctx = (pgsqlcontext_t) ar->private;
-    PGconn *conn = ctx->conn;
-    char iuser[PGSQL_LU+1], irealm[PGSQL_LR+1];
-    char euser[PGSQL_LU*2+1], erealm[PGSQL_LR*2+1], epass[513], sql[1024+PGSQL_LU*2+PGSQL_LR*2+512+1];  /* query(1024) + euser + erealm + epass(512) + \0(1) */
-    PGresult *res;
-
-    snprintf(iuser, PGSQL_LU+1, "%s", username);
-    snprintf(irealm, PGSQL_LR+1, "%s", realm);
-
-    PQescapeString(euser, iuser, strlen(iuser));
-    PQescapeString(erealm, irealm, strlen(irealm));
-    PQescapeString(epass, password, strlen(password));
-
-    sprintf(sql, ctx->sql_setpassword, epass, euser, erealm);
-
-    log_debug(ZONE, "prepared sql: %s", sql);
-
-    res = PQexec(conn, sql);
-    if(PQresultStatus(res) != PGRES_COMMAND_OK && PQstatus(conn) != CONNECTION_OK) {
-        log_write(ar->c2s->log, LOG_ERR, "pgsql: lost connection to database, attempting reconnect");
-        PQclear(res);
-        PQreset(conn);
-
-        if(PQstatus(conn) != CONNECTION_OK) {
-            log_write(ar->c2s->log, LOG_ERR, "pgsql: connection to database failed, will retry later: %s", PQerrorMessage(conn));
-            return 1;
-        }
-        res = PQexec(conn, sql);
-    }
-    if(PQresultStatus(res) != PGRES_COMMAND_OK) {
-        log_write(ar->c2s->log, LOG_ERR, "pgsql: sql update failed: %s", PQresultErrorMessage(res));
-        PQclear(res);
-        return 1;
-    }
-
-    PQclear(res);
-
-    return 0;
 }
 
 static int _ar_pgsql_create_user(authreg_t ar, sess_t sess, const char *username, const char *realm) {
@@ -472,8 +546,8 @@ static const char * _ar_pgsql_check_template( const char * template, const char 
       if( c == '%' ) continue; /* ignore escaped precentages */
       if( c == types[ pType ] )
       {
-	/* we found the placeholder */
-	pType++;  /* search for the next type */
+    /* we found the placeholder */
+    pType++;  /* search for the next type */
         continue;
       }
 
@@ -523,17 +597,17 @@ int ar_init(authreg_t ar) {
 
     /* determine our field names and table name */
     username = _ar_pgsql_param( ar->c2s->config
-	       , "authreg.pgsql.field.username"
-	       , "username" );
+           , "authreg.pgsql.field.username"
+           , "username" );
     realm = _ar_pgsql_param( ar->c2s->config
-	       , "authreg.pgsql.field.realm"
-	       , "realm" );
+           , "authreg.pgsql.field.realm"
+           , "realm" );
     pgsqlcontext->field_password = _ar_pgsql_param( ar->c2s->config
-	       , "authreg.pgsql.field.password"
-	       , "password" );
+           , "authreg.pgsql.field.password"
+           , "password" );
     table = _ar_pgsql_param( ar->c2s->config
-	       , "authreg.pgsql.table"
-	       , "authreg" );
+           , "authreg.pgsql.table"
+           , "authreg" );
 
     /* get encryption type used in DB */
     if (config_get_one(ar->c2s->config, "authreg.pgsql.password_type.plaintext", 0)) {
@@ -545,6 +619,18 @@ int ar_init(authreg_t ar) {
 #ifdef HAVE_SSL
     } else if (config_get_one(ar->c2s->config, "authreg.pgsql.password_type.a1hash", 0)) {
         pgsqlcontext->password_type = MPC_A1HASH;
+    } else if (config_get_one(ar->c2s->config, "authreg.pgsql.password_type.bcrypt", 0)) {
+        pgsqlcontext->password_type = MPC_BCRYPT;
+        int cost;
+        if(cost = j_atoi(config_get_attr(ar->c2s->config, "authreg.pgsql.password_type.bcrypt", 0, "cost"), 0))
+        {
+            if (cost < 4 || cost > 31) {
+                log_write(ar->c2s->log, LOG_ERR, "bcrypt cost has to be higher than 3 and lower than 32.");
+                pgsqlcontext->bcrypt_cost = 10; // use default
+            } else {
+                pgsqlcontext->bcrypt_cost = cost;
+            }
+        }
 #endif
     } else {
         pgsqlcontext->password_type = MPC_PLAIN;
@@ -563,11 +649,11 @@ int ar_init(authreg_t ar) {
 
     template = "SELECT \"%s\" FROM \"%s\" WHERE \"%s\" = '%%s' AND \"%s\" = '%%s'";
     select = malloc( strlen( template )
-		     + strlen( pgsqlcontext->field_password )
-		     + strlentur );
+             + strlen( pgsqlcontext->field_password )
+             + strlentur );
     sprintf( select, template
-	     , pgsqlcontext->field_password
-	     , table, username, realm );
+         , pgsqlcontext->field_password
+         , table, username, realm );
 
     template = "UPDATE \"%s\" SET \"%s\" = '%%s' WHERE \"%s\" = '%%s' AND \"%s\" = '%%s'";
     setpassword = malloc( strlen( template ) + strlentur + strlen( pgsqlcontext->field_password ) );
@@ -579,22 +665,22 @@ int ar_init(authreg_t ar) {
 
     /* allow the default SQL statements to be overridden; also verify the statements format and length */
     pgsqlcontext->sql_create = strdup(_ar_pgsql_param( ar->c2s->config
-	       , "authreg.pgsql.sql.create"
+           , "authreg.pgsql.sql.create"
            , create ));
     if( _ar_pgsql_check_sql( ar, pgsqlcontext->sql_create, "ss" ) != 0 ) return 1;
 
     pgsqlcontext->sql_select = strdup(_ar_pgsql_param( ar->c2s->config
-	       , "authreg.pgsql.sql.select"
+           , "authreg.pgsql.sql.select"
            , select ));
     if( _ar_pgsql_check_sql( ar, pgsqlcontext->sql_select, "ss" ) != 0 ) return 1;
 
     pgsqlcontext->sql_setpassword = strdup(_ar_pgsql_param( ar->c2s->config
-	       , "authreg.pgsql.sql.setpassword"
+           , "authreg.pgsql.sql.setpassword"
            , setpassword ));
     if( _ar_pgsql_check_sql( ar, pgsqlcontext->sql_setpassword, "sss" ) != 0 ) return 1;
 
     pgsqlcontext->sql_delete = strdup(_ar_pgsql_param( ar->c2s->config
-	       , "authreg.pgsql.sql.delete"
+           , "authreg.pgsql.sql.delete"
            , delete ));
     if( _ar_pgsql_check_sql( ar, pgsqlcontext->sql_delete, "ss" ) != 0 ) return 1;
 
@@ -623,7 +709,7 @@ int ar_init(authreg_t ar) {
 
 #ifdef HAVE_SSL
     if(sx_openssl_initialized)
-	PQinitSSL(0);
+    PQinitSSL(0);
 #endif
 
     host = config_get_one(ar->c2s->config, "authreg.pgsql.host", 0);
