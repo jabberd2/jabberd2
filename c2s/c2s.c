@@ -105,37 +105,6 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 
             log_debug(ZONE, "read %d bytes", len);
 
-            /* If the first chars are "GET " then it's for HTTP (GET ....)
-               and if we configured http client forwarding to a real http server */
-            if (sess->c2s->http_forward && !sess->active && !sess->sasl_authd
-                && sess->result == NULL && len >= 4 && strncmp("GET ", buf->data, 4) == 0) {
-                char* http =
-                    "HTTP/1.0 301 Found\r\n"
-                    "Location: %s\r\n"
-                    "Server: " PACKAGE_STRING "\r\n"
-                    "Expires: Fri, 10 Oct 1997 10:10:10 GMT\r\n"
-                    "Pragma: no-cache\r\n"
-                    "Cache-control: private\r\n"
-                    "Connection: close\r\n\r\n";
-                char *answer;
-
-                len = strlen(sess->c2s->http_forward) + strlen(http);
-                answer = malloc(len * sizeof(char));
-                sprintf (answer, http, sess->c2s->http_forward);
-
-                log_write(sess->c2s->log, LOG_NOTICE, "[%d] bouncing HTTP request to %s", sess->fd->fd, sess->c2s->http_forward);
-
-                /* send HTTP answer */
-                len = send(sess->fd->fd, answer, len-1, 0);
-
-                free(answer);
-
-                /* close connection */
-                sx_kill(s);
-
-                return -1;
-            }
-
             buf->len = len;
 
             return len;
@@ -190,7 +159,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                 sx_error_extended(s, stream_err_SEE_OTHER_HOST, other_host);
                 free(other_host);
                 sx_close(s);
-                
+
                 return 0;
             }
 
@@ -771,7 +740,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 return len;
             }
 
-            if(MIO_WOULDBLOCK) 
+            if(MIO_WOULDBLOCK)
                 return 0;
 
             log_write(c2s->log, LOG_NOTICE, "[%d] [router] write error: %s (%d)", c2s->fd->fd, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
@@ -933,7 +902,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             }
 
             /* we want route */
-            if(NAD_ENAME_L(nad, 0) != 5 || strncmp("route", NAD_ENAME(nad, 0), 5) != 0) { 
+            if(NAD_ENAME_L(nad, 0) != 5 || strncmp("route", NAD_ENAME(nad, 0), 5) != 0) {
                 log_debug(ZONE, "wanted {component}route, dropping");
                 nad_free(nad);
                 return 0;
@@ -1274,8 +1243,8 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
                     /* and remember the SM that services us */
                     from = nad_find_attr(nad, 0, -1, "from", NULL);
-                    
-                    
+
+
                     smcomp = malloc(NAD_AVAL_L(nad, from) + 1);
                     snprintf(smcomp, NAD_AVAL_L(nad, from) + 1, "%.*s", NAD_AVAL_L(nad, from), NAD_AVAL(nad, from));
                     sess->smcomp = smcomp;

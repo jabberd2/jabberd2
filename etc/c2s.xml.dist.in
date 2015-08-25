@@ -276,6 +276,11 @@
     <compression/>
     -->
 
+    <!-- Enable WebSocket protocol support -->
+    <!--
+    <websocket/>
+    -->
+
     <!-- IP-based access controls. If a connection IP matches an allow
          rule, the connection will be accepted. If a connecting IP
          matches a deny rule, the connection will be refused. If the

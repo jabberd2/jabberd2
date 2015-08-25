@@ -14,3 +14,6 @@ c2s_LDADD = $(top_builddir)/sx/libsx.la \
 if USE_LIBSUBST
 c2s_LDADD += $(top_builddir)/subst/libsubst.la
 endif
+if USE_WEBSOCKET
+c2s_LDADD += -lhttp_parser
+endif

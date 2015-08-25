@@ -775,6 +775,19 @@ if test "x-$want_fs" = "x-yes" ; then
 fi
 AM_CONDITIONAL(STORAGE_FS, [test "x-$want_fs" = "x-yes"])
 
+# WebSocket support
+AC_ARG_ENABLE(websocket, AC_HELP_STRING([--enable-websocket], [enable WebSocket support on C2S port (no)]),
+              want_websocket=$enableval, want_websocket=no)
+if test "x-$want_websocket" = "x-yes" ; then
+    AC_CHECK_LIB([http_parser], [http_parser_init])
+    if test "x-$ac_cv_lib_http_parser_http_parser_init" != "x-yes" ; then
+        AC_MSG_ERROR([http_parser not found])
+    else
+        AC_DEFINE(USE_WEBSOCKET,1,[Define to 1 if you want to have WebSocket support in C2S.])
+    fi
+fi
+AM_CONDITIONAL(USE_WEBSOCKET, [test "x-$want_websocket" = "x-yes"])
+
 #
 # IPv6 checks
 AC_DEFUN([_IP6_INCLUDES],[[

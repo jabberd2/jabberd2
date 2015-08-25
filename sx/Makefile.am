@@ -14,3 +14,7 @@ endif
 if HAVE_LIBZ
 libsx_la_SOURCES += compress.c
 endif
+
+if USE_WEBSOCKET
+libsx_la_SOURCES += websocket.c
+endif

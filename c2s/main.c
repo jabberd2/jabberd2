@@ -156,6 +156,8 @@ static void _c2s_config_expand(c2s_t c2s)
 
     c2s->http_forward = config_get_one(c2s->config, "local.httpforward", 0);
 
+    c2s->websocket = (config_get(c2s->config, "io.websocket") != NULL);
+
     c2s->io_max_fds = j_atoi(config_get_one(c2s->config, "io.max_fds", 0), 1024);
 
     c2s->compression = (config_get(c2s->config, "io.compression") != NULL);
@@ -188,7 +190,7 @@ static void _c2s_config_expand(c2s_t c2s)
             // Note that to_address should be RFC 3986 compliant
             sr->to_address = to_address;
             sr->to_port = to_port;
-            
+
             xhash_put(c2s->stream_redirects, pstrdup(xhash_pool(c2s->stream_redirects), req_domain), sr);
         }
     }
@@ -778,6 +780,17 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
 
     c2s->sx_env = sx_env_new();
 
+#ifdef USE_WEBSOCKET
+    /* possibly wrap in websocket */
+    if(c2s->websocket) {
+        sx_env_plugin(c2s->sx_env, sx_websocket_init, c2s->http_forward);
+    }
+#else
+    if(c2s->http_forward) {
+        log_write(c2s->log, LOG_ERR, "httpforward available only with websocket support built-in");
+    }
+#endif
+
 #ifdef HAVE_SSL
     /* get the ssl context up and running */
     if(c2s->local_pemfile != NULL) {
@@ -886,7 +899,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
                         // Note that to_address should be RFC 3986 compliant
                         sr->to_address = to_address;
                         sr->to_port = to_port;
-                        
+
                         xhash_put(c2s->stream_redirects, pstrdup(xhash_pool(c2s->stream_redirects), req_domain), sr);
                     }
                 }

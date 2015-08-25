@@ -237,6 +237,9 @@ struct c2s_st {
     /** http forwarding URL */
     const char          *http_forward;
 
+    /** websocket support */
+    int                 websocket;
+
     /** PBX integration named pipe */
     const char          *pbx_pipe;
     int                 pbx_pipe_fd;
@@ -268,7 +271,7 @@ struct c2s_st {
     /** allowed mechanisms */
     int                 ar_mechanisms;
     int                 ar_ssl_mechanisms;
-    
+
     /** connection rates */
     int                 conn_rate_total;
     int                 conn_rate_seconds;
