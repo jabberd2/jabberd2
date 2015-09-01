@@ -234,10 +234,10 @@ void sx_server_init(sx_t s, unsigned int flags) {
     if(s->state != state_NONE)
         return;
 
-    _sx_debug(ZONE, "doing server init for sx %d", s->tag);
-
     s->type = type_SERVER;
     s->flags = flags;
+
+    _sx_debug(ZONE, "doing server init for sx %d %s", s->tag, _sx_flags(s));
 
     /* plugin */
     if(s->env != NULL)

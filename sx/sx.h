@@ -185,7 +185,8 @@ JABBERD2_API void                        sx_close(sx_t s);
 JABBERD2_API void                        sx_kill(sx_t s);
 
 
-/* internal functions */
+/* helper functions */
+JABBERD2_API char*                       _sx_flags(sx_t s);
 
 /* primary expat callbacks */
 JABBERD2_API void                        _sx_element_start(void *arg, const char *name, const char **atts);
@@ -335,9 +336,6 @@ struct _sx_st {
 
     /* security strength factor (in sasl parlance) - roughly equivalent to key strength */
     int                     ssf;
-
-    /* is stream compressed */
-    int                     compressed;
 };
 
 /** a plugin */

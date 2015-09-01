@@ -457,10 +457,9 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 
             /* they sasl auth'd, so we only want the new-style session start */
             else {
-                log_write(sess->c2s->log, LOG_NOTICE, "[%d] %s authentication succeeded: %s %s:%d%s%s",
+                log_write(sess->c2s->log, LOG_NOTICE, "[%d] %s authentication succeeded: %s %s:%d %s",
                     sess->s->tag, &sess->s->auth_method[5],
-                    sess->s->auth_id, sess->s->ip, sess->s->port,
-                    sess->s->ssf ? " TLS" : "", sess->s->compressed ? " ZLIB" : ""
+                    sess->s->auth_id, sess->s->ip, sess->s->port, _sx_flags(sess->s)
                 );
                 sess->sasl_authd = 1;
             }

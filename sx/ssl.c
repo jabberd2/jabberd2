@@ -195,7 +195,7 @@ static int _sx_ssl_process(sx_t s, sx_plugin_t p, nad_t nad) {
             }
 
             /* can't go on if we're on compressed stream */
-            if(s->compressed > 0) {
+            if(s->flags & SX_COMPRESS_WRAPPER) {
                 _sx_debug(ZONE, "starttls requested on already compressed channel, dropping packet");
                 return 0;
             }
@@ -275,7 +275,7 @@ static void _sx_ssl_features(sx_t s, sx_plugin_t p, nad_t nad) {
 
     /* if the session is already encrypted, or the app told us not to,
      * or session is compressed then we don't offer anything */
-    if(s->state > state_STREAM || s->ssf > 0 || !(s->flags & SX_SSL_STARTTLS_OFFER) || s->compressed)
+    if(s->state > state_STREAM || s->ssf > 0 || !(s->flags & SX_SSL_STARTTLS_OFFER) || (s->flags & SX_COMPRESS_WRAPPER))
         return;
 
     _sx_debug(ZONE, "offering starttls");
@@ -1124,7 +1124,7 @@ int sx_ssl_client_starttls(sx_plugin_t p, sx_t s, const char *pemfile, const cha
     }
 
     /* check if we're already encrypted or compressed */
-    if(s->ssf > 0 || s->compressed) {
+    if(s->ssf > 0 || (s->flags & SX_COMPRESS_WRAPPER)) {
         _sx_debug(ZONE, "encrypted channel already established");
         return 1;
     }

@@ -173,7 +173,6 @@ void _sx_reset(sx_t s) {
     temp.flags = s->flags;
     temp.reentry = s->reentry;
     temp.ssf = s->ssf;
-    temp.compressed = s->compressed;
     temp.wio = s->wio;
     temp.rio = s->rio;
     temp.wnad = s->wnad;
@@ -202,7 +201,6 @@ void _sx_reset(sx_t s) {
     s->flags = temp.flags;
     s->reentry = temp.reentry;
     s->ssf = temp.ssf;
-    s->compressed = temp.compressed;
     s->wio = temp.wio;
     s->rio = temp.rio;
     s->wnad = temp.wnad;
@@ -345,4 +343,12 @@ int __sx_event(const char *file, int line, sx_t s, sx_event_t e, void *data) {
     s->reentry--;
 
     return ret;
+}
+
+/** show sx flags as string - for logging */
+char *_sx_flags(sx_t s) {
+    static char flags[256];
+    flags[1] = '\0';
+    snprintf(flags, sizeof(flags), "%s%s", s->ssf ? ",TLS" : "", (s->flags & SX_COMPRESS_WRAPPER) ? ",ZLIB" : "");
+    return flags + 1;
 }

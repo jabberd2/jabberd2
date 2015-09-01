@@ -119,10 +119,10 @@ void sx_client_init(sx_t s, unsigned int flags, const char *ns, const char *to, 
     if(s->state != state_NONE)
         return;
 
-    _sx_debug(ZONE, "doing client init for sx %d", s->tag);
-
     s->type = type_CLIENT;
     s->flags = flags;
+
+    _sx_debug(ZONE, "doing client init for sx %d %s", s->tag, _sx_flags(s));
 
     if(ns != NULL) s->ns = strdup(ns);
     if(to != NULL) s->req_to = strdup(to);

@@ -51,7 +51,7 @@ static int _sx_compress_process(sx_t s, sx_plugin_t p, nad_t nad) {
             nad_free(nad);
 
             /* can't go on if we've been here before */
-            if(s->compressed) {
+            if(s->flags & SX_COMPRESS_WRAPPER) {
                 _sx_debug(ZONE, "compress requested on already compressed channel, dropping packet");
                 return 0;
             }
@@ -121,7 +121,7 @@ static void _sx_compress_features(sx_t s, sx_plugin_t p, nad_t nad) {
 
     /* if the session is already compressed, or the app told us not to,
 	 * or STARTTLS is required and stream is not encrypted yet, then we don't offer anything */
-    if(s->compressed || !(s->flags & SX_COMPRESS_OFFER) || ((s->flags & SX_SSL_STARTTLS_REQUIRE) && s->ssf == 0))
+    if((s->flags & SX_COMPRESS_WRAPPER) || !(s->flags & SX_COMPRESS_OFFER) || ((s->flags & SX_SSL_STARTTLS_REQUIRE) && s->ssf == 0))
         return;
 
     _sx_debug(ZONE, "offering compression");
@@ -138,7 +138,7 @@ static int _sx_compress_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     sx_error_t sxe;
 
     /* only bothering if they asked for wrappermode */
-    if(!(s->flags & SX_COMPRESS_WRAPPER) || !s->compressed)
+    if(!(s->flags & SX_COMPRESS_WRAPPER))
         return 1;
 
     _sx_debug(ZONE, "in _sx_compress_wio");
@@ -199,7 +199,7 @@ static int _sx_compress_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     sx_error_t sxe;
 
     /* only bothering if they asked for wrappermode */
-    if(!(s->flags & SX_COMPRESS_WRAPPER) || !s->compressed)
+    if(!(s->flags & SX_COMPRESS_WRAPPER))
         return 1;
 
     _sx_debug(ZONE, "in _sx_compress_rio");
@@ -264,10 +264,10 @@ static int _sx_compress_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
 }
 
 static void _sx_compress_new(sx_t s, sx_plugin_t p) {
-    _sx_compress_conn_t sc;
+    _sx_compress_conn_t sc = (_sx_compress_conn_t) s->plugin_data[p->index];
 
-    /* only bothering if they asked for wrappermode */
-    if(!(s->flags & SX_COMPRESS_WRAPPER) || s->compressed)
+    /* only bothering if they asked for wrappermode and not already active */
+    if(!(s->flags & SX_COMPRESS_WRAPPER) || sc)
         return;
 
     _sx_debug(ZONE, "preparing for compressed connect for %d", s->tag);
@@ -295,9 +295,6 @@ static void _sx_compress_new(sx_t s, sx_plugin_t p) {
 
     /* bring the plugin online */
     _sx_chain_io_plugin(s, p);
-
-    /* mark stream compressed */
-    s->compressed = 1;
 }
 
 /** cleanup */
@@ -354,7 +351,7 @@ int sx_compress_client_compress(sx_plugin_t p, sx_t s, const char *pemfile) {
     }
 
     /* check if we're already compressed */
-    if((s->flags & SX_COMPRESS_WRAPPER) || s->compressed) {
+    if((s->flags & SX_COMPRESS_WRAPPER)) {
         _sx_debug(ZONE, "channel already compressed");
         return 1;
     }
