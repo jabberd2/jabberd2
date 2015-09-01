@@ -306,6 +306,7 @@ struct _sx_st {
 
     /* bytes read from socket */
     int                      rbytes;
+    int                      rbytes_total;
 
     /* read bytes maximum */
     int                      rbytesmax;

@@ -84,15 +84,22 @@ static void _sx_server_element_start(void *arg, const char *name, const char **a
     if(s->fail) return;
 
     /* check element and namespace */
-    i = strlen(uri_STREAMS) + 7;
-    if(strlen(name) < i || strncmp(name, uri_STREAMS "|stream", i) != 0 || (name[i] != '\0' && name[i] != '|')) {
+    if (s->flags & SX_WEBSOCKET_WRAPPER) {
+        i = strlen(uri_XFRAMING) + 5;
+        r = strlen(name) < i || strncmp(name, uri_XFRAMING "|open", i) != 0 || (name[i] != '\0' && name[i] != '|');
+    } else {
+        i = strlen(uri_STREAMS) + 7;
+        r = strlen(name) < i || strncmp(name, uri_STREAMS "|stream", i) != 0 || (name[i] != '\0' && name[i] != '|');
+    }
+    if (r) {
         /* throw an error */
-        _sx_gen_error(sxe, SX_ERR_STREAM, "Stream error", "Expected stream start");
+        _sx_gen_error(sxe, SX_ERR_STREAM, "Stream error", "Expected stream open");
         _sx_event(s, event_ERROR, (void *) &sxe);
         _sx_error(s, stream_err_BAD_FORMAT, NULL);
         s->fail = 1;
         return;
     }
+
 
     /* pull interesting things out of the header */
     attr = atts;
@@ -152,7 +159,11 @@ static void _sx_server_element_start(void *arg, const char *name, const char **a
     _sx_debug(ZONE, "stream id is %s", id);
 
     /* build the response */
-    len = strlen(uri_STREAMS) + 99;
+    if (s->flags & SX_WEBSOCKET_WRAPPER) {
+        len = 55;
+    } else {
+        len = strlen(uri_STREAMS) + 99;
+    }
 
     if(s->ns != NULL) len += 9 + strlen(s->ns);
     if(s->res_to != NULL) len += 6 + strlen(s->res_to);
@@ -162,14 +173,23 @@ static void _sx_server_element_start(void *arg, const char *name, const char **a
     buf = _sx_buffer_new(NULL, len, _sx_server_notify_header, NULL);
 
     c = buf->data;
-    strcpy(c, "<?xml version='1.0'?><stream:stream xmlns:stream='" uri_STREAMS "'");
+    if (s->flags & SX_WEBSOCKET_WRAPPER) {
+        strcpy(c, "<open");
+    } else {
+        strcpy(c, "<?xml version='1.0'?><stream:stream xmlns:stream='" uri_STREAMS "'");
+    }
 
     if(s->ns != NULL) { c = strchr(c, '\0'); sprintf(c, " xmlns='%s'", s->ns); }
     if(s->res_to != NULL) { c = strchr(c, '\0'); sprintf(c, " to='%s'", s->res_to); }
     if(s->res_from != NULL) { c = strchr(c, '\0'); sprintf(c, " from='%s'", s->res_from); }
     if(s->res_version != NULL) { c = strchr(c, '\0'); sprintf(c, " version='%s'", s->res_version); }
 
-    c = strchr(c, '\0'); sprintf(c, " id='%s'>", id);
+    c = strchr(c, '\0'); sprintf(c, " id='%s'", id);
+    if (s->flags & SX_WEBSOCKET_WRAPPER) {
+        c = strchr(c, '\0'); strcpy(c, " />");
+    } else {
+        c = strchr(c, '\0'); strcpy(c, ">");
+    }
     assert(buf->len == strlen(buf->data) + 1); /* post-facto overrun detection */
     buf->len --;
 

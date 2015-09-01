@@ -467,12 +467,18 @@ static int _sx_websocket_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
             for (i = 0; i < buf->len; i++)
                 buf->data[i] ^= frame->mask[i % 4];
             _sx_debug(ZONE, "payload: %.*s", buf->len, buf->data);
+            /* hack unclosed stream */
+            if (buf->len >= 7 && strncmp(buf->data, "<open", 5) == 0 && strncmp(buf->data + buf->len - 2, "/>", 2) == 0) {
+                buf->len--;
+                buf->data[buf->len - 1] = '>';
+            }
             break;
-        case WS_OPCODE_CLOSE:  //close frame
+        case WS_OPCODE_CLOSE:
             libwebsock_close(s, sc);
             break;
         case WS_OPCODE_PING:
             libwebsock_send_fragment(s, sc, frame->rawdata + frame->payload_offset, frame->payload_len, WS_FRAGMENT_FIN | WS_OPCODE_PONG);
+            _sx_buffer_clear(buf);
             break;
         case WS_OPCODE_PONG:
             _sx_buffer_clear(buf);

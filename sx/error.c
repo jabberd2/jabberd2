@@ -54,32 +54,38 @@ void _sx_error(sx_t s, int err, const char *text) {
     int len = 0;
     sx_buf_t buf;
 
-    /* build the string */
-    if(s->state < state_STREAM) len = strlen(uri_STREAMS) + 61;
-    len += strlen(uri_STREAMS) + strlen(uri_STREAM_ERR) + strlen(_stream_errors[err]) + 58;
+    /* open stream if not already */
+    if(s->state < state_STREAM) {
+        if (s->flags & SX_WEBSOCKET_WRAPPER)
+            jqueue_push(s->wbufq, _sx_buffer_new("<open xmlns='" uri_XFRAMING "' version='1.0' />", sizeof(uri_XFRAMING) + 30, NULL, NULL), 0);
+        else
+            jqueue_push(s->wbufq, _sx_buffer_new("<stream:stream xmlns:stream='" uri_STREAMS "' version='1.0'>", sizeof(uri_STREAMS) + 44, NULL, NULL), 0);
+    }
+
+    /* build the error */
+    len = strlen(uri_STREAMS) + strlen(uri_STREAM_ERR) + strlen(_stream_errors[err]) + 58;
     if(text != NULL) len += strlen(uri_STREAM_ERR) + strlen(text) + 22;
 
     buf = _sx_buffer_new(NULL, len, NULL, NULL);
-    len = 0;
-
-    if(s->state < state_STREAM)
-        len = sprintf(buf->data, "<stream:stream xmlns:stream='" uri_STREAMS "' version='1.0'>");
 
     if(text == NULL)
-        len += sprintf(&(buf->data[len]), "<stream:error xmlns:stream='" uri_STREAMS "'><%s xmlns='" uri_STREAM_ERR "'/></stream:error>", _stream_errors[err]);
+        len = sprintf(buf->data, "<stream:error xmlns:stream='" uri_STREAMS "'><%s xmlns='" uri_STREAM_ERR "'/></stream:error>", _stream_errors[err]);
     else
-        len += sprintf(&(buf->data[len]), "<stream:error xmlns:stream='" uri_STREAMS "'><%s xmlns='" uri_STREAM_ERR "'/><text xmlns='" uri_STREAM_ERR "'>%s</text></stream:error>", _stream_errors[err], text);
-
-    if(s->state < state_STREAM)
-        len += sprintf(&(buf->data[len]), "</stream:stream>");
+        len = sprintf(buf->data, "<stream:error xmlns:stream='" uri_STREAMS "'><%s xmlns='" uri_STREAM_ERR "'/><text xmlns='" uri_STREAM_ERR "'>%s</text></stream:error>", _stream_errors[err], text);
 
     buf->len--;
     assert(len == buf->len);
 
     _sx_debug(ZONE, "prepared error: %.*s", buf->len, buf->data);
-
-    /* go */
     jqueue_push(s->wbufq, buf, 0);
+
+    /* close the stream if needed */
+    if(s->state < state_STREAM) {
+        if (s->flags & SX_WEBSOCKET_WRAPPER)
+            jqueue_push(s->wbufq, _sx_buffer_new("<close xmlns='" uri_XFRAMING "' />", sizeof(uri_XFRAMING) + 17, NULL, NULL), 0);
+        else
+            jqueue_push(s->wbufq, _sx_buffer_new("</stream:stream>", 16, NULL, NULL), 0);
+    }
 
     /* stuff to write */
     s->want_write = 1;

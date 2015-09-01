@@ -32,7 +32,7 @@ static void _sx_client_element_start(void *arg, const char *name, const char **a
     i = strlen(uri_STREAMS) + 7;
     if(strlen(name) < i || strncmp(name, uri_STREAMS "|stream", i) != 0 || (name[i] != '\0' && name[i] != '|')) {
         /* throw an error */
-        _sx_gen_error(sxe, SX_ERR_STREAM, "Stream error", "Expected stream start");
+        _sx_gen_error(sxe, SX_ERR_STREAM, "Stream error", "Expected stream open");
         _sx_event(s, event_ERROR, (void *) &sxe);
         _sx_error(s, stream_err_BAD_FORMAT, NULL);
         s->fail = 1;

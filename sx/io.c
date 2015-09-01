@@ -42,7 +42,8 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
             /* parse error */
             errstring = (char *) XML_ErrorString(XML_GetErrorCode(s->expat));
 
-            _sx_debug(ZONE, "XML parse error: %s; line: %d, column: %d, buffer: %.*s", errstring, XML_GetCurrentLineNumber(s->expat), XML_GetCurrentColumnNumber(s->expat), buf->len, buf->data);
+            _sx_debug(ZONE, "XML parse error: %s, character %d: %.*s",
+                      errstring, XML_GetCurrentByteIndex(s->expat) - s->rbytes_total, buf->len, buf->data);
             _sx_gen_error(sxe, SX_ERR_XML_PARSE, "XML parse error", errstring);
             _sx_event(s, event_ERROR, (void *) &sxe);
 
@@ -78,6 +79,9 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
 
         return;
     }
+
+    /* count bytes processed */
+    s->rbytes_total += buf->len;
 
     /* done with the buffer */
     _sx_buffer_free(buf);
@@ -134,6 +138,13 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
                 break;
             }
 
+            /* check for close */
+            if ((s->flags & SX_WEBSOCKET_WRAPPER) && NAD_ENS(nad, 0) >= 0 && NAD_NURI_L(nad, NAD_ENS(nad, 0)) == strlen(uri_XFRAMING) && strncmp(NAD_NURI(nad, NAD_ENS(nad, 0)), uri_XFRAMING, strlen(uri_XFRAMING)) == 0 && NAD_ENAME_L(nad, 0) == 5 && strncmp(NAD_ENAME(nad, 0), "close", 5) == 0) {
+                _sx_debug(ZONE, "<close/> frame @ depth %d", s->depth);
+                s->fail = 1;
+                break;
+            }
+
             /* run it by the plugins */
             if(_sx_chain_nad_read(s, nad) == 0)
                 return;
@@ -166,8 +177,12 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
     /* stream was closed */
     if(s->depth < 0 && s->state < state_CLOSING) {
         /* close the stream if necessary */
+
         if(s->state >= state_STREAM_SENT) {
-            jqueue_push(s->wbufq, _sx_buffer_new("</stream:stream>", 16, NULL, NULL), 0);
+            if (s->flags & SX_WEBSOCKET_WRAPPER)
+                jqueue_push(s->wbufq, _sx_buffer_new("<close xmlns='" uri_XFRAMING "' />", sizeof(uri_XFRAMING) + 17, NULL, NULL), 0);
+            else
+                jqueue_push(s->wbufq, _sx_buffer_new("</stream:stream>", 16, NULL, NULL), 0);
             s->want_write = 1;
         }
 
@@ -470,7 +485,10 @@ void sx_raw_write(sx_t s, const char *buf, int len) {
 void _sx_close(sx_t s) {
     /* close the stream if necessary */
     if(s->state >= state_STREAM_SENT) {
-        jqueue_push(s->wbufq, _sx_buffer_new("</stream:stream>", 16, NULL, NULL), 0);
+        if (s->flags & SX_WEBSOCKET_WRAPPER)
+            jqueue_push(s->wbufq, _sx_buffer_new("<close xmlns='" uri_XFRAMING "' />", sizeof(uri_XFRAMING) + 17, NULL, NULL), 0);
+        else
+            jqueue_push(s->wbufq, _sx_buffer_new("</stream:stream>", 16, NULL, NULL), 0);
         s->want_write = 1;
     }
 

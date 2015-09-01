@@ -27,6 +27,10 @@
 
 static void _sx_ack_header(sx_t s, sx_plugin_t p, sx_buf_t buf) {
 
+    /* WebSocket framing has own acks */
+    if (s->flags & SX_WEBSOCKET_WRAPPER)
+        return;
+
     log_debug(ZONE, "hacking ack namespace decl onto stream header");
 
     /* get enough space */
@@ -39,8 +43,8 @@ static void _sx_ack_header(sx_t s, sx_plugin_t p, sx_buf_t buf) {
 
 /** sx features callback */
 static void _sx_ack_features(sx_t s, sx_plugin_t p, nad_t nad) {
-    /* offer feature only when authenticated and not enabled yet */
-    if(s->state == state_OPEN && s->plugin_data[p->index] == NULL)
+    /* offer feature only when authenticated and not enabled yet and not on WebSocket framing */
+    if(s->state == state_OPEN && s->plugin_data[p->index] == NULL && !(s->flags & SX_WEBSOCKET_WRAPPER))
         nad_append_elem(nad, -1, "ack:ack", 1);
 }
 
@@ -48,8 +52,8 @@ static void _sx_ack_features(sx_t s, sx_plugin_t p, nad_t nad) {
 static int _sx_ack_process(sx_t s, sx_plugin_t p, nad_t nad) {
     int attr;
 
-    /* not interested if we're not a server */
-    if(s->type != type_SERVER)
+    /* not interested if we're not a server or have WebSocket framing */
+    if(s->type != type_SERVER || s->flags & SX_WEBSOCKET_WRAPPER)
         return 1;
 
     /* only want ack packets */

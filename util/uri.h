@@ -41,6 +41,7 @@
 #define uri_SASL        "urn:ietf:params:xml:ns:xmpp-sasl"
 #define uri_BIND        "urn:ietf:params:xml:ns:xmpp-bind"
 #define uri_XSESSION    "urn:ietf:params:xml:ns:xmpp-session"
+#define uri_XFRAMING    "urn:ietf:params:xml:ns:xmpp-framing"
 #define uri_COMPRESS    "http://jabber.org/protocol/compress"
 #define uri_COMPRESS_FEATURE "http://jabber.org/features/compress"
 #define uri_ACK         "http://www.xmpp.org/extensions/xep-0198.html#ns"
