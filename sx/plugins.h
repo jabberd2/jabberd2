@@ -31,6 +31,8 @@
 #define SX_COMPRESS_WRAPPER     (1<<4)
 #define SX_COMPRESS_OFFER       (1<<5)
 
+#define SX_WEBSOCKET_WRAPPER    (1<<6)    /** indicates stream over WebSocket connection */
+
 /** magic numbers, so plugins can find each other */
 #define SX_SSL_MAGIC        (0x01)
 

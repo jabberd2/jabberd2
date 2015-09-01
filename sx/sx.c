@@ -349,6 +349,10 @@ int __sx_event(const char *file, int line, sx_t s, sx_event_t e, void *data) {
 char *_sx_flags(sx_t s) {
     static char flags[256];
     flags[1] = '\0';
-    snprintf(flags, sizeof(flags), "%s%s", s->ssf ? ",TLS" : "", (s->flags & SX_COMPRESS_WRAPPER) ? ",ZLIB" : "");
+    snprintf(flags, sizeof(flags), "%s%s%s",
+             s->ssf ? ",TLS" : "",
+             (s->flags & SX_COMPRESS_WRAPPER) ? ",ZLIB" : "",
+             (s->flags & SX_WEBSOCKET_WRAPPER) ? ",WS" : ""
+            );
     return flags + 1;
 }

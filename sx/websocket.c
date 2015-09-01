@@ -317,87 +317,91 @@ static int _sx_websocket_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     sha1_state_t sha1;
     unsigned char hash[20];
 
-    /* look for HTTP handshake */
-    if(s->state == state_NONE && sc->state == websocket_PRE && buf->len >= 5 && strncmp("GET /", buf->data, 5) == 0) {
-        _sx_debug(ZONE, "got HTTP handshake");
-        sc->state = websocket_HEADERS;
-    }
-
-    /* pass buffers through http_parser */
-    if(s->state == state_NONE && sc->state == websocket_HEADERS) {
-        _sx_debug(ZONE, "parsing HTTP headers");
-        if(buf->len > 0) {
-            _sx_debug(ZONE, "loading %d bytes into http_parser %.*s", buf->len, buf->len, buf->data);
-
-            ret = http_parser_execute(&sc->parser, &settings, buf->data, buf->len);
-
-            if (sc->parser.upgrade) {
-                /* check for required websocket upgrade headers */
-                char *upgrade = xhash_get(sc->headers, "Upgrade");
-                char *connection = xhash_get(sc->headers, "Connection");
-                char *key = xhash_get(sc->headers, "Sec-WebSocket-Key");
-                char *proto = xhash_get(sc->headers, "Sec-WebSocket-Protocol");
-                int version = j_atoi(xhash_get(sc->headers, "Sec-WebSocket-Version"), -1);
-                if(j_strcmp(upgrade, "websocket") || j_strcmp(connection, "Upgrade") || j_strcmp(proto, "xmpp") || version != 13) {
-                    _sx_debug(ZONE, "Upgrade: %s", upgrade);
-                    _sx_debug(ZONE, "Connection: %s", connection);
-                    _sx_debug(ZONE, "Sec-WebSocket-Key: %s", key);
-                    _sx_debug(ZONE, "Sec-WebSocket-Protocol: %s", proto);
-                    _sx_debug(ZONE, "Sec-WebSocket-Version: %d", version);
-                    _sx_websocket_http_return(s, "400 Bad Request", "");
-                    sx_close(s);
-                    return -2;
-                }
-
-                /* we're good to go */
-
-                sha1_init(&sha1);
-                sha1_append(&sha1, key, j_strlen(key));
-                sha1_append(&sha1, websocket_guid, sizeof(websocket_guid) -1);
-                sha1_finish(&sha1, hash);
-                char * accept = b64_encode(hash, sizeof(hash));
-
-                /* switch protocols */
-                _sx_websocket_http_return(s, "101 Switching Protocols",
-                                          "Upgrade: websocket\r\n"
-                                          "Connection: Upgrade\r\n"
-                                          "Sec-WebSocket-Accept: %s\r\n"
-                                          "Sec-WebSocket-Protocol: xmpp\r\n",
-                                          accept);
-                free(accept);
-
-                /* and move past headers */
-                sc->state = websocket_ACTIVE;
-
-                return 0;
-            } else if (ret != buf->len) {
-                /* throw an error */
-                sx_error(s, stream_err_BAD_FORMAT, http_errno_description(sc->parser.http_errno));
-                sx_close(s);
-                return -2;
-            } else if (p->private) {
-                char *http_forward = p->private;
-                _sx_debug(ZONE, "bouncing HTTP request to %s", http_forward);
-                _sx_websocket_http_return(s, "301 Found", "Location: %s\r\nConnection: close\r\n", http_forward);
-                sx_close(s);
-                return -1;
-            }
-
-            _sx_debug(ZONE, "unhandling HTTP request");
-            sx_kill(s);
-            return -2;
-
+    /* if not wrapped yet */
+    if(!(s->flags & SX_WEBSOCKET_WRAPPER)) {
+        /* look for HTTP handshake */
+        if(s->state == state_NONE && sc->state == websocket_PRE && buf->len >= 5 && strncmp("GET /", buf->data, 5) == 0) {
+            _sx_debug(ZONE, "got HTTP handshake");
+            sc->state = websocket_HEADERS;
         }
 
-        _sx_buffer_clear(buf);
-        /* flag we want to read */
-        s->want_read = 1;
+        /* pass buffers through http_parser */
+        if(s->state == state_NONE && sc->state == websocket_HEADERS) {
+            _sx_debug(ZONE, "parsing HTTP headers");
+            if(buf->len > 0) {
+                _sx_debug(ZONE, "loading %d bytes into http_parser %.*s", buf->len, buf->len, buf->data);
 
-        return 0;
+                ret = http_parser_execute(&sc->parser, &settings, buf->data, buf->len);
+
+                if (sc->parser.upgrade) {
+                    /* check for required websocket upgrade headers */
+                    char *upgrade = xhash_get(sc->headers, "Upgrade");
+                    char *connection = xhash_get(sc->headers, "Connection");
+                    char *key = xhash_get(sc->headers, "Sec-WebSocket-Key");
+                    char *proto = xhash_get(sc->headers, "Sec-WebSocket-Protocol");
+                    int version = j_atoi(xhash_get(sc->headers, "Sec-WebSocket-Version"), -1);
+                    if(j_strcmp(upgrade, "websocket") || j_strcmp(connection, "Upgrade") || j_strcmp(proto, "xmpp") || version != 13) {
+                        _sx_debug(ZONE, "Upgrade: %s", upgrade);
+                        _sx_debug(ZONE, "Connection: %s", connection);
+                        _sx_debug(ZONE, "Sec-WebSocket-Key: %s", key);
+                        _sx_debug(ZONE, "Sec-WebSocket-Protocol: %s", proto);
+                        _sx_debug(ZONE, "Sec-WebSocket-Version: %d", version);
+                        _sx_websocket_http_return(s, "400 Bad Request", "");
+                        sx_close(s);
+                        return -2;
+                    }
+
+                    /* we're good to go */
+
+                    sha1_init(&sha1);
+                    sha1_append(&sha1, key, j_strlen(key));
+                    sha1_append(&sha1, websocket_guid, sizeof(websocket_guid) -1);
+                    sha1_finish(&sha1, hash);
+                    char * accept = b64_encode(hash, sizeof(hash));
+
+                    /* switch protocols */
+                    _sx_websocket_http_return(s, "101 Switching Protocols",
+                                              "Upgrade: websocket\r\n"
+                                              "Connection: Upgrade\r\n"
+                                              "Sec-WebSocket-Accept: %s\r\n"
+                                              "Sec-WebSocket-Protocol: xmpp\r\n",
+                                              accept);
+                    free(accept);
+
+                    /* and move past headers */
+                    sc->state = websocket_ACTIVE;
+                    s->flags |= SX_WEBSOCKET_WRAPPER;
+
+                    return 0;
+                } else if (ret != buf->len) {
+                    /* throw an error */
+                    sx_error(s, stream_err_BAD_FORMAT, http_errno_description(sc->parser.http_errno));
+                    sx_close(s);
+                    return -2;
+                } else if (p->private) {
+                    char *http_forward = p->private;
+                    _sx_debug(ZONE, "bouncing HTTP request to %s", http_forward);
+                    _sx_websocket_http_return(s, "301 Found", "Location: %s\r\nConnection: close\r\n", http_forward);
+                    sx_close(s);
+                    return -1;
+                }
+
+                _sx_debug(ZONE, "unhandling HTTP request");
+                sx_kill(s);
+                return -2;
+
+            }
+
+            _sx_buffer_clear(buf);
+            /* flag we want to read */
+            s->want_read = 1;
+
+            return 0;
+        }
     }
 
     /* only bothering if it is active websocket */
-    if(sc->state != websocket_ACTIVE)
+    if(!(s->flags & SX_WEBSOCKET_WRAPPER) || sc->state != websocket_ACTIVE)
         return 1;
 
     _sx_debug(ZONE, "Unwraping WebSocket frame");
@@ -496,7 +500,7 @@ static int _sx_websocket_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     _sx_websocket_conn_t sc = (_sx_websocket_conn_t) s->plugin_data[p->index];
 
     /* only bothering if it is active websocket */
-    if(sc->state != websocket_ACTIVE)
+    if(!(s->flags & SX_WEBSOCKET_WRAPPER))
         return 1;
 
     _sx_debug(ZONE, "in _sx_websocket_wio");
@@ -516,7 +520,10 @@ static int _sx_websocket_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
 }
 
 static void _sx_websocket_new(sx_t s, sx_plugin_t p) {
-    _sx_websocket_conn_t sc;
+    _sx_websocket_conn_t sc = (_sx_websocket_conn_t) s->plugin_data[p->index];
+
+    if(sc != NULL)
+        return;
 
     _sx_debug(ZONE, "preparing for HTTP websocket connect for %d", s->tag);
 
