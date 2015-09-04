@@ -1,0 +1,23 @@
+project('jabberd', 'c')
+add_global_arguments('-DHAVE_CONFIG_H', '-DCONFIG_DIR="/etc/jabberd"', '-DLIBRARY_DIR="/usr/lib/jabberd"', language : 'c')
+add_global_arguments('-std=gnu99', language : 'c')
+
+expat_dep = dependency('expat')
+idn_dep = dependency('libidn', version : '>= 1.0')
+gsasl_dep = dependency('libgsasl', version : '>=1.4.0')
+ssl_dep = dependency('openssl')
+zlib_dep = dependency('zlib')
+sqlite_dep = dependency('sqlite3')
+udns_dep = find_library('udns')
+http_parser_dep = find_library('http_parser')
+
+inc = include_directories('.')
+
+subdir('util')
+subdir('sx')
+subdir('mio')
+subdir('storage')
+subdir('c2s')
+subdir('router')
+subdir('s2s')
+subdir('sm')
