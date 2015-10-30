@@ -1,4 +1,4 @@
-EXTRA_DIST = Doxyfile.in README.win32 README.protocol README.config contrib docs win32
+EXTRA_DIST = Doxyfile.in README.md README.win32 README.protocol README.config contrib docs win32
 
 LIBTOOL += --quiet
 
