@@ -839,20 +839,20 @@ fi
 # mio backend selection
 
 AC_ARG_ENABLE(mio, AC_HELP_STRING([--enable-mio=BACKENDS], [use one of BACKENDS to drive MIO (select poll epoll kqueue)]),
-              mio_check=$enableval, mio_check='kqueue epoll poll select')
+              mio_check=$enableval, mio_check='select poll epoll kqueue')
 
 mio_backend=''
 for backend in $mio_check ; do
     case x-$backend in
 
-		x-kqueue)
-		AC_CHECK_HEADERS(sys/event.h)
-		if test "x-$ac_cv_header_sys_event_h" = "x-yes" ; then
-			AC_CHECK_FUNCS(kqueue,[
-				mio_backend='kqueue'
-				AC_DEFINE(MIO_KQUEUE,1,[Define to 1 if you want to use 'kqueue' for non-blocking I/O.])])
-		fi
-		;;
+        x-kqueue)
+        AC_CHECK_HEADERS(sys/event.h)
+        if test "x-$ac_cv_header_sys_event_h" = "x-yes" ; then
+            AC_CHECK_FUNCS(kqueue,[
+                mio_backend='kqueue'
+                AC_DEFINE(MIO_KQUEUE,1,[Define to 1 if you want to use 'kqueue' for non-blocking I/O.])])
+        fi
+        ;;
 
         x-epoll)
             AC_CHECK_HEADERS(sys/epoll.h)
@@ -897,6 +897,8 @@ done
 
 if test "x-$mio_backend" = "x-" ; then
     AC_MSG_ERROR([no MIO backend available out of: $mio_check])
+else
+    AC_MSG_NOTICE([using MIO backend: $mio_backend])
 fi
 
 # use libc function substitution library?
