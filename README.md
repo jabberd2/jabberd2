@@ -38,6 +38,8 @@ get you started. Complete documentation is available at http://jabberd2.org/
      http://www.linux-pam.org/  (for Linux)
  - SQLite (3.0 or higher)
      http://www.sqlite.org/
+ - http-parser
+     http://github.com/nodejs/http-parser
 
 
 ## Build:
