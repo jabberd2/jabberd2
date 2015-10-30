@@ -2,6 +2,29 @@ This file contains news, important changes
 and upgrade instructions between different versions of jabberd2.
 
 
+* 2.3.3 to 2.3.4 upgrade:
+
+What changed:
+- Rewrite TLS ephemeral key + cipher handling
+- Recover Berkeley DB before opening it
+- bcrypt support for PostgreSQL
+- Option to set authreg module per realm
+- AuthReg ANONYMOUS does not offer password check
+- Answer to disco#info queries to user JID
+- WebSocket C2S SX plugin
+
+ANONYMOUS login was extended and fixed, so make sure it still
+works for you if you were using it in its semi-broken state before.
+See sm.xml for notes on configuring ANONYMOUS login and apply
+accordingly.
+
+Notice additional module in pkt-user chain in sm.xml.
+
+C2S support for WebSocket connections is documented in c2s.xml.
+Notice changes to HTTP-Forward option - it requires enabled
+WebSocket support.
+
+
 * 2.3.2 to 2.3.3 upgrade:
 
 What changed:
