@@ -54,7 +54,7 @@
 /* Just to make sure the prototypes match the actual definitions */
 #include "crypt_blowfish.h"
 
-if defined(__x86_64__) || defined(__alpha__) || defined(__hppa__)
+if defined(__i386__) || defined(__x86_64__) || defined(__alpha__) || defined(__hppa__)
 #define BF_SCALE			1
 #else
 #define BF_SCALE			0
