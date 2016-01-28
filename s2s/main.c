@@ -22,6 +22,9 @@
 
 #include <stringprep.h>
 #include <unistd.h>
+#ifdef HAVE_SSL
+#include <openssl/rand.h>
+#endif
 
 static sig_atomic_t s2s_shutdown = 0;
 sig_atomic_t s2s_lost_router = 0;
@@ -159,12 +162,24 @@ static void _s2s_config_expand(s2s_t s2s) {
     if(config_get(s2s->config, "local.secret") != NULL)
         s2s->local_secret = strdup(config_get_one(s2s->config, "local.secret", 0));
     else {
+#ifdef HAVE_SSL
+        if (!RAND_bytes(secret, 40)) {
+            log_write(s2s->log, LOG_ERR, "Failed to pull 40 RAND_bytes");
+            exit(1);
+        }
+#else
+#       warning "Using unsecure random number generator for dialback keys"
+        log_write(s2s->log, LOG_WARNING, "Using unsecure random number generator for dialback keys - set local.secret to a random string!");
+#endif
         for(i = 0; i < 40; i++) {
+#ifdef HAVE_SSL
+            r = (int) (36.0 * secret[i] / 255);
+#else
             r = (int) (36.0 * rand() / RAND_MAX);
+#endif
             secret[i] = (r >= 0 && r <= 9) ? (r + 48) : (r + 87);
         }
         secret[40] = '\0';
-
         s2s->local_secret = strdup(secret);
     }
 
