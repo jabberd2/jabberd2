@@ -146,6 +146,7 @@ struct _sx_buf_st {
 #define stream_err_UNSUPPORTED_VERSION      (22)
 #define stream_err_XML_NOT_WELL_FORMED      (23)
 #define stream_err_LAST                     (24)
+/** if you change these, reflect your changes in the table in error.c */
 
 /* exported functions */
 

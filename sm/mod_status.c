@@ -157,7 +157,7 @@ static mod_ret_t _status_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     st_ret_t ret;
 
     /* only handle presence */
-    if(!(pkt->type & pkt_PRESENCE))
+    if(!(pkt->type == pkt_PRESENCE))
         return mod_PASS;
 
     ret = storage_get(sess->user->sm->st, "status", jid_user(sess->jid), NULL, &os);

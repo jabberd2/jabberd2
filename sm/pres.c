@@ -198,8 +198,16 @@ void pres_update(sess_t sess, pkt_t pkt) {
 
             break;
 
+        case pkt_PRESENCE_PROBE:
+            log_debug(ZONE, "probe presence for session %s", jid_full(sess->jid));
+            jid_reset(pkt->from, jid_full(sess->jid), -1);
+            if (pkt->to) jid_free(pkt->to);
+            pkt->to = jid_new(jid_user(sess->jid), -1);
+            pres_in(sess->user, pkt);
+            return;
+
         default:
-            log_debug(ZONE, "pres_update got packet type 0x%X, this shouldn't happen", pkt->type);
+            log_write(sess->user->sm->log, LOG_ERR, "pres_update got packet type 0x%X, this shouldn't happen - dropping it", pkt->type);
             pkt_free(pkt);
             return;
     }
@@ -241,6 +249,9 @@ void pres_in(user_t user, pkt_t pkt) {
                     nad_set_attr(pres->nad, 1, -1, "type", "unavailable", 11);
                     pkt_router(pkt_dup(pres, jid_full(pkt->from), jid_user(user->jid)));
                     pkt_free(pres);
+                }
+                else {
+                    pkt_router(pkt_create(user->sm, "presence", "unavailable", jid_full(pkt->from), jid_full(pkt->to)));
                 }
                 os_free(os);
             }
@@ -306,6 +317,14 @@ void pres_deliver(sess_t sess, pkt_t pkt) {
     if(jid_full(pkt->to) == NULL) {
         log_debug(ZONE, "invalid jid in directed presence packet");
         pkt_free(pkt);
+        return;
+    }
+
+    if(jid_compare_user(pkt->from, sess->jid) == 0) {
+        /* this is a presence for ourselves */
+        log_debug(ZONE, "delivering directed presence to self");
+        jid_reset(pkt->from, jid_full(sess->jid), -1);
+        pres_in(sess->user, pkt);
         return;
     }
 
