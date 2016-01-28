@@ -2,6 +2,28 @@ This file contains news, important changes
 and upgrade instructions between different versions of jabberd2.
 
 
+* 2.3.4 to 2.3.5 upgrade:
+
+What changed:
+- Module to verify users using e-mail
+- Reordered MIO backends priority
+- Skip non-existing blowfish i386 assembler code
+- Use CSPRNG for dialback keys
+- Allow presence probing own connections
+- Use OpenSSL functions for base64 en/decoding when available
+- Option to dump packet-filter matched packets to file
+
+mod_verify requires CREATE TABLE "verify" in DB. Make sure you
+created it before enabling the module in sm.xml.
+
+MIO backends are prioritized from best to worst now, so if you
+do not enforce a backend with ./configure it may change
+in new build.
+
+jabberd2 is now leaning strongly against OpenSSL. It is still
+possible to use without, but not advisable.
+
+
 * 2.3.3 to 2.3.4 upgrade:
 
 What changed:
