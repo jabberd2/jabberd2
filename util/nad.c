@@ -313,10 +313,12 @@ int nad_find_scoped_namespace(nad_t nad, const char *uri, const char *prefix)
  *          "name/name" for a sub child (recurses)
  *          "?attrib" to match the first tag with that attrib defined
  *          "?attrib=value" to match the first tag with that attrib and value
+ *          "!attrib" to match the first tag without that attrib defined
+ *          "!attrib=value" to match the first tag without that attrib and value
  *          or any combination: "name/name/?attrib", etc
  */
 int nad_find_elem_path(nad_t nad, int elem, int ns, const char *name) {
-    char *str, *slash, *qmark, *equals;
+    char *str, *slash, *qmark, *excl, *equals;
 
     _nad_ptr_check(__func__, nad);
 
@@ -324,12 +326,13 @@ int nad_find_elem_path(nad_t nad, int elem, int ns, const char *name) {
     if(elem >= nad->ecur || name == NULL) return -1;
 
     /* if it's plain name just search children */
-    if(strstr(name, "/") == NULL && strstr(name,"?") == NULL)
+    if(strstr(name, "/") == NULL && strstr(name,"?") == NULL && strstr(name,"!") == NULL)
         return nad_find_elem(nad, elem, ns, name, 1);
 
     str = strdup(name);
     slash = strstr(str, "/");
     qmark = strstr(str, "?");
+    excl  = strstr(str, "!");
     equals = strstr(str, "=");
 
     /* no / in element name part */
@@ -351,6 +354,31 @@ int nad_find_elem_path(nad_t nad, int elem, int ns, const char *name) {
             }
             else {
                 if(nad_find_attr(nad, elem, ns, qmark, equals) >= 0) break;
+            }
+        }
+
+        free(str);
+        return elem;
+    }
+
+    if(excl != NULL && (slash == NULL || excl < slash))
+    { /* of type !attrib */
+
+        *excl = '\0';
+        excl++;
+        if(equals != NULL)
+        {
+            *equals = '\0';
+            equals++;
+        }
+
+        for(elem = nad_find_elem(nad, elem, ns, str, 1); ; elem = nad_find_elem(nad, elem, ns, str, 0)) {
+            if(elem < 0) break;
+            if(strcmp(excl, "xmlns") == 0) {
+                if(nad_find_namespace(nad, elem, equals, NULL) < 0) break;
+            }
+            else {
+                if(nad_find_attr(nad, elem, ns, excl, equals) < 0) break;
             }
         }
 

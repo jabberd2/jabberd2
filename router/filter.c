@@ -33,6 +33,7 @@ void filter_unload(router_t r) {
         if(acl->to != NULL) free(acl->to);
         if(acl->what != NULL) free(acl->what);
         if(acl->redirect != NULL) free(acl->redirect);
+        if(acl->dump != NULL) free(acl->dump);
         free(acl);
         acl = tmp;
     }
@@ -45,7 +46,7 @@ int filter_load(router_t r) {
     long size;
     char *buf;
     nad_t nad;
-    int i, nfilters, filter, from, to, what, redirect, error, log;
+    int i, nfilters, filter, from, to, what, redirect, error, log, dump;
     acl_t list_tail, acl;
 
     log_debug(ZONE, "loading filter");
@@ -101,6 +102,7 @@ int filter_load(router_t r) {
         redirect = nad_find_attr(nad, filter, -1, "redirect", NULL);
         error = nad_find_attr(nad, filter, -1, "error", NULL);
         log = nad_find_attr(nad, filter, -1, "log", NULL);
+        dump = nad_find_attr(nad, filter, -1, "dump", NULL);
 
         acl = (acl_t) calloc(1, sizeof(struct acl_s));
 
@@ -150,6 +152,14 @@ int filter_load(router_t r) {
         if(log >= 0) {
             acl->log = ! strncasecmp(NAD_AVAL(nad, log), "YES", NAD_AVAL_L(nad, log));
             acl->log |= ! strncasecmp(NAD_AVAL(nad, log), "ON", NAD_AVAL_L(nad, log));
+        }
+        if(dump >= 0) {
+            if (NAD_AVAL_L(nad, dump) == 0)
+                acl->dump = NULL;
+            else {
+                acl->dump = (char *) malloc(sizeof(char) * (NAD_AVAL_L(nad, dump) + 1));
+                sprintf(acl->dump, "%.*s", NAD_AVAL_L(nad, dump), NAD_AVAL(nad, dump));
+            }
         }
 
         if(list_tail != NULL) {
@@ -216,6 +226,23 @@ int filter_packet(router_t r, nad_t nad) {
         if( to != NULL && acl->to != NULL && fnmatch(acl->to, to, 0) != 0 ) continue;
         if( acl->what != NULL && nad_find_elem_path(nad, 0, -1, acl->what) < 0 ) continue;        /* match packet type */
         log_debug(ZONE, "matched packet %s->%s vs rule (%s %s->%s)", from, to, acl->what, acl->from, acl->to);
+        if( acl->dump != NULL ) {
+            const char *out;
+            int len;
+            FILE *fd;
+            fd = fopen(acl->dump, "a");
+            if (fd == NULL) {
+                log_write(r->log, LOG_ERR, "filter: cannot open dump file %s: \"%s\", disabling dump for this rule.", acl->dump, strerror(errno));
+                free(acl->dump);
+                acl->dump = NULL;
+            } else {
+                nad_print(nad, 1, &out, &len);
+                fwrite(out, len, 1, fd);
+                /* Add newlines between the stanzas to improve human readability. */
+                fwrite("\n", 1, 1, fd);
+                fclose(fd);
+            }
+        }
         if (acl->log) {
             if (acl->redirect) log_write(r->log, LOG_NOTICE, "filter: redirect packet from=%s to=%s - rule (from=%s to=%s what=%s), new to=%s", from, to, acl->from, acl->to, acl->what, acl->redirect);
             else log_write(r->log, LOG_NOTICE, "filter: %s packet from=%s to=%s - rule (from=%s to=%s what=%s)",(acl->error?"deny":"allow"), from, to, acl->from, acl->to, acl->what);

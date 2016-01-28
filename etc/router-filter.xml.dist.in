@@ -9,6 +9,8 @@
      error    - none given means allow, if given means deny
                 this is an XMPP RFC defined error condition
      log      - if set, the matched packets will be logged in router log
+     dump     - if set, raw XML of the packet will be dumped
+                to the given file.
 
      Rules are matched in order of apperance. First match is efffective.
 -->
@@ -33,6 +35,10 @@
 
   <!-- I don't want evil to read my data -->
   <!-- <rule error="forbidden" from="*@evil.gov" to="admin@example.org" what="iq/vCard" log="on"/> -->
+
+  <!-- Spy on a certain JID -->
+  <!-- <rule from="user@evil.gov" to="*" dump="/tmp/evil.xml"/> -->
+  <!-- <rule from="*" to="user@evil.gov" dump="/tmp/evil.xml"/> -->
 
   <!-- and finally, let's blind the world with some exceptions -->
   <!--
