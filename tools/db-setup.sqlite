@@ -240,3 +240,15 @@ CREATE TABLE "status" (
     "last-login" INTEGER DEFAULT '0',
     "last-logout" INTEGER DEFAULT '0',
     "xml" TEXT );
+
+--
+-- Email verification information
+-- Used by: mod_verify
+--
+CREATE TABLE "verify" (
+    "collection-owner" text NOT NULL,
+    "object-sequence" INTEGER PRIMARY KEY,
+    "email" text NOT NULL,
+    "code" text,
+    "state" INTEGER DEFAULT 0);
+

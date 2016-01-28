@@ -423,6 +423,7 @@
       <module>amp</module>              <!-- advanced message processing -->
       <module>offline</module>          <!-- if we're coming online for the first time, deliver queued messages -->
       <module>announce</module>         <!-- deliver motd -->
+      <!-- <module>verify</module>      <!- - verify user by e-mail -->
       <module>presence</module>         <!-- process and distribute presence updates -->
       <module>deliver</module>          <!-- deliver packets with full jids directly -->
     </chain>
@@ -504,6 +505,7 @@
       <module>roster-publish</module>   <!-- load the published roster -->
       <module>privacy</module>          <!-- load privacy lists -->
       <module>vacation</module>         <!-- load vacation settings -->
+      <!-- <module>verify</module>      <!- - verify user by e-mail -->
     </chain>
 
     <!-- user-unload. The modules in this chain are called right
@@ -535,6 +537,7 @@
       <module>iq-last</module>          <!-- delete last logout time -->
       <module>iq-private</module>       <!-- delete private data -->
       <module>iq-vcard</module>         <!-- delete vcard -->
+      <!-- <module>verify</module>      <!- - verify user by e-mail -->
     </chain>
 
     <!-- disco-extend. The modules in this chain are called when a disco
