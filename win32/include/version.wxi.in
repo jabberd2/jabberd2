@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<Include Id="VersionInclude">
-	<?define ProductRevision = "$WCREV$" ?>
-	<?define ProductVersion = "2.2svn$WCREV$" ?>
-	<?define ProductFileVersion = "1.0.$WCREV$" ?>
-	<?define ProductURL = "$WCURL$" ?>
-</Include>
