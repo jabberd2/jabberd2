@@ -13,6 +13,7 @@ Makefile.in
 /ltmain.sh
 /m4/
 /missing
+/*.pro.user
 *~
 *.bak
 *.swp
