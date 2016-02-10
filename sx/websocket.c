@@ -25,6 +25,37 @@
 #include "sx.h"
 #include <stdarg.h>
 #include <string.h>
+#include <arpa/inet.h>
+#include <http_parser.h>
+#include <gc.h>
+#include <lib/xhash.h>
+#include <lib/serial.h>
+#include <lib/str.h>
+#include <lib/sha1.h>
+#include <lib/base64.h>
+
+/** websocket state */
+typedef enum {
+    websocket_PRE,
+    websocket_HEADERS,      /* parsing HTTP headers */
+    websocket_ACTIVE,       /* active websocket connection */
+    websocket_CLOSING       /* shutdown in progress */
+} _sx_websocket_state_t;
+
+/** a single conn */
+typedef struct _sx_websocket_conn_st {
+    http_parser             parser;
+    _sx_websocket_state_t   state;
+    int                     header_value;
+    char                    *field;
+    int                     field_length;
+    int                     field_dest;
+    char                    *value;
+    int                     value_length;
+    int                     value_dest;
+    xht                     *headers;
+    void                    *frame;
+} _sx_websocket_conn_t;
 
 static const char websocket_guid[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
@@ -56,26 +87,26 @@ static http_parser_settings settings;
 #define WS_CLOSE_UNEXPECTED_ERROR 1011
 
 enum WS_FRAME_STATE {
-        sw_start = 0,
-        sw_got_two,
-        sw_got_short_len,
-        sw_got_full_len,
-        sw_loaded_mask
+    sw_start = 0,
+    sw_got_two,
+    sw_got_short_len,
+    sw_got_full_len,
+    sw_loaded_mask
 };
 
 typedef struct _libwebsock_frame {
-        unsigned int fin;
-        unsigned int opcode;
-        unsigned int mask_offset;
-        unsigned int payload_offset;
-        unsigned int rawdata_idx;
-        unsigned int rawdata_sz;
-        unsigned int size;
-        unsigned int payload_len_short;
-        unsigned int payload_len;
-        char *rawdata;
-        unsigned char mask[4];
-        enum WS_FRAME_STATE state;
+    unsigned int fin;
+    unsigned int opcode;
+    unsigned int mask_offset;
+    unsigned int payload_offset;
+    unsigned int rawdata_idx;
+    unsigned int rawdata_sz;
+    unsigned int size;
+    unsigned int payload_len_short;
+    unsigned int payload_len;
+    char *rawdata;
+    unsigned char mask[4];
+    enum WS_FRAME_STATE state;
 } libwebsock_frame;
 
 static inline int libwebsock_read_header(libwebsock_frame *frame) {
@@ -104,7 +135,7 @@ static inline int libwebsock_read_header(libwebsock_frame *frame) {
             frame->mask_offset += 2;
             frame->payload_offset = frame->mask_offset + MASK_LENGTH;
             frame->payload_len = ntohs(
-                    *((unsigned short int *) (frame->rawdata + 2)));
+                        *((unsigned short int *) (frame->rawdata + 2)));
             frame->state = sw_got_full_len;
             break;
         case 127:
@@ -141,7 +172,7 @@ static inline int libwebsock_read_header(libwebsock_frame *frame) {
             new_size |= new_size >> 16;
             new_size++;
             frame->rawdata_sz = new_size;
-            frame->rawdata = (char *) realloc(frame->rawdata, new_size);
+            frame->rawdata = (char *) GC_REALLOC(frame->rawdata, new_size);
         }
         return 1;
     case sw_loaded_mask:
@@ -150,7 +181,7 @@ static inline int libwebsock_read_header(libwebsock_frame *frame) {
     return 0;
 }
 
-sx_buf_t libwebsock_fragment_buffer(const char *data, unsigned int len, int flags) {
+sx_buf_t *libwebsock_fragment_buffer(const char *data, unsigned int len, int flags) {
     unsigned int *payload_len_32_be;
     unsigned short int *payload_len_short_be;
     unsigned char finNopcode, payload_len_small;
@@ -171,12 +202,10 @@ sx_buf_t libwebsock_fragment_buffer(const char *data, unsigned int len, int flag
         payload_len_small = 127;
         payload_offset += 8;
     } else {
-        _sx_debug(ZONE,
-                "libwebsock does not support frame payload sizes over %u bytes long\n",
-                0xfffffff0);
+        _sx_debug("libwebsock does not support frame payload sizes over %u bytes long", 0xfffffff0);
         return NULL;
     }
-    sx_buf_t buf = _sx_buffer_new(NULL, frame_size, NULL, NULL);
+    sx_buf_t *buf = _sx_buffer_new(NULL, frame_size, NULL, NULL);
     frame = buf->data;
     payload_len_small &= 0x7f;
     *frame = finNopcode;
@@ -196,10 +225,10 @@ sx_buf_t libwebsock_fragment_buffer(const char *data, unsigned int len, int flag
     return buf;
 }
 
-int libwebsock_close_with_reason(sx_t s, _sx_websocket_conn_t sc, unsigned short code, const char *reason);
+int libwebsock_close_with_reason(sx_t *s, _sx_websocket_conn_t *sc, unsigned short code, const char *reason);
 
-int libwebsock_send_fragment(sx_t s, _sx_websocket_conn_t sc, const char *data, unsigned int len, int flags) {
-    sx_buf_t buf = libwebsock_fragment_buffer(data, len, flags);
+int libwebsock_send_fragment(sx_t *s, _sx_websocket_conn_t *sc, const char *data, unsigned int len, int flags) {
+    sx_buf_t *buf = libwebsock_fragment_buffer(data, len, flags);
     if (buf == NULL) {
         return libwebsock_close_with_reason(s, sc, WS_CLOSE_UNEXPECTED_ERROR, "Internal server error");
     }
@@ -208,7 +237,7 @@ int libwebsock_send_fragment(sx_t s, _sx_websocket_conn_t sc, const char *data, 
     return _sx_event(s, event_WANT_WRITE, NULL);
 }
 
-int libwebsock_close_with_reason(sx_t s, _sx_websocket_conn_t sc, unsigned short code, const char *reason)
+int libwebsock_close_with_reason(sx_t *s, _sx_websocket_conn_t *sc, unsigned short code, const char *reason)
 {
     unsigned int len;
     unsigned short code_be;
@@ -227,17 +256,17 @@ int libwebsock_close_with_reason(sx_t s, _sx_websocket_conn_t sc, unsigned short
     return ret;
 }
 
-int libwebsock_close(sx_t s, _sx_websocket_conn_t sc)
+int libwebsock_close(sx_t *s, _sx_websocket_conn_t *sc)
 {
     return libwebsock_close_with_reason(s, sc, WS_CLOSE_NORMAL, NULL);
 }
 
-void libwebsock_fail_connection(sx_t s, _sx_websocket_conn_t sc, unsigned short close_code) {
+void libwebsock_fail_connection(sx_t *s, _sx_websocket_conn_t *sc, unsigned short close_code) {
     char close_frame[4] = { 0x88, 0x02, 0x00, 0x00 };
     unsigned short *code_be = (unsigned short *) &close_frame[2];
     *code_be = htobe16(WS_CLOSE_PROTOCOL_ERROR);
 
-    sx_buf_t buf = _sx_buffer_new(NULL, sizeof(close_frame), NULL, NULL);
+    sx_buf_t *buf = _sx_buffer_new(NULL, sizeof(close_frame), NULL, NULL);
     memcpy(buf->data, close_frame, buf->len);
 
     sc->state = websocket_CLOSING;
@@ -248,35 +277,44 @@ void libwebsock_fail_connection(sx_t s, _sx_websocket_conn_t sc, unsigned short 
 }
 
 static int _sx_websocket_http_header_field(http_parser *parser, const char *chars, size_t length) {
-    _sx_debug(ZONE, "HTTP header field '%.*s'", length, chars);
-    _sx_websocket_conn_t sc = (_sx_websocket_conn_t) parser->data;
-    if(sc->header_value) {
+    _sx_debug("HTTP header field '%.*s'", length, chars);
+    _sx_websocket_conn_t *sc = (_sx_websocket_conn_t*) parser->data;
+    if (sc->header_value) {
         // new field incoming
-        xhash_put(sc->headers,
-                  strunescape(sc->p, spool_print(sc->field)),
-                  strunescape(sc->p, spool_print(sc->value)));
+        xhash_put(sc->headers, sc->field, sc->value);
+        sc->field = NULL;
+        sc->value = NULL;
         sc->header_value = 0;
-        sc->field = spool_new(sc->p);
     }
-    spool_escape(sc->field, chars, length);
+    if (!sc->field) {
+        sc->field_length = 128;
+        sc->field = GC_MALLOC_ATOMIC(sc->field_length);
+        sc->field_dest = 0;
+    }
+    ser_string_setx(chars, length, &sc->field_dest, &sc->field, &sc->field_length);
     return 0;
 }
 
 static int _sx_websocket_http_header_value(http_parser *parser, const char *chars, size_t length) {
-    _sx_debug(ZONE, "HTTP header value '%.*s'", length, chars);
-    _sx_websocket_conn_t sc = (_sx_websocket_conn_t) parser->data;
-    if(!sc->header_value) {
+    _sx_debug("HTTP header value '%.*s'", length, chars);
+    _sx_websocket_conn_t *sc = (_sx_websocket_conn_t*) parser->data;
+    if (!sc->header_value) {
         // field name complete
         sc->header_value = 1;
-        sc->value = spool_new(sc->p);
+        sc->value = NULL;
     }
-    spool_escape(sc->value, chars, length);
+    if (!sc->value) {
+        sc->value_length = 128;
+        sc->value = GC_MALLOC_ATOMIC(sc->value_length);
+        sc->value_dest = 0;
+    }
+    ser_string_setx(chars, length, &sc->value_dest, &sc->value, &sc->value_length);
     return 0;
 }
 
 static int _sx_websocket_http_headers_complete(http_parser *parser) {
-    _sx_websocket_conn_t sc = (_sx_websocket_conn_t) parser->data;
-    _sx_debug(ZONE, "HTTP headers complete: %d %s HTTP/%d.%d", parser->status_code, http_method_str(parser->method), parser->http_major, parser->http_minor);
+    _sx_websocket_conn_t *sc = (_sx_websocket_conn_t*) parser->data;
+    _sx_debug("HTTP headers complete: %d %s HTTP/%d.%d", parser->status_code, http_method_str(parser->method), parser->http_major, parser->http_minor);
     if (sc->header_value) {
         /* pull last value by switching to field parser */
         _sx_websocket_http_header_field(parser, "", 0);
@@ -284,7 +322,7 @@ static int _sx_websocket_http_headers_complete(http_parser *parser) {
     return 1;
 }
 
-static void _sx_websocket_http_return(sx_t s, char *status, char *headers_format, ...) {
+static void _sx_websocket_http_return(sx_t *s, char *status, char *headers_format, ...) {
     char* http =
         "HTTP/1.1 %s\r\n"
         "%s"
@@ -302,7 +340,7 @@ static void _sx_websocket_http_return(sx_t s, char *status, char *headers_format
     va_end(args);
 
     /* build HTTP answer */
-    sx_buf_t buf = _sx_buffer_new(NULL, j_strlen(http) + j_strlen(status) + j_strlen(headers), NULL, NULL);
+    sx_buf_t *buf = _sx_buffer_new(NULL, j_strlen(http) + j_strlen(status) + j_strlen(headers), NULL, NULL);
     buf->len = sprintf(buf->data, http, status, headers);
     jqueue_push(s->wbufq, buf, 0);
 
@@ -311,25 +349,25 @@ static void _sx_websocket_http_return(sx_t s, char *status, char *headers_format
     _sx_event(s, event_WANT_WRITE, NULL);
 }
 
-static int _sx_websocket_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
-    _sx_websocket_conn_t sc = (_sx_websocket_conn_t) s->plugin_data[p->index];
+static int _sx_websocket_rio(sx_t *s, sx_plugin_t *p, sx_buf_t *buf) {
+    _sx_websocket_conn_t *sc = (_sx_websocket_conn_t*) s->plugin_data[p->index];
     int i, ret, err;
     sha1_state_t sha1;
     unsigned char hash[20];
 
     /* if not wrapped yet */
-    if(!(s->flags & SX_WEBSOCKET_WRAPPER)) {
+    if (!(s->flags & SX_WEBSOCKET_WRAPPER)) {
         /* look for HTTP handshake */
-        if(s->state == state_NONE && sc->state == websocket_PRE && buf->len >= 5 && strncmp("GET /", buf->data, 5) == 0) {
-            _sx_debug(ZONE, "got HTTP handshake");
+        if (s->state == state_NONE && sc->state == websocket_PRE && buf->len >= 5 && strncmp("GET /", buf->data, 5) == 0) {
+            _sx_debug("got HTTP handshake");
             sc->state = websocket_HEADERS;
         }
 
         /* pass buffers through http_parser */
-        if(s->state == state_NONE && sc->state == websocket_HEADERS) {
-            _sx_debug(ZONE, "parsing HTTP headers");
-            if(buf->len > 0) {
-                _sx_debug(ZONE, "loading %d bytes into http_parser %.*s", buf->len, buf->len, buf->data);
+        if (s->state == state_NONE && sc->state == websocket_HEADERS) {
+            _sx_debug("parsing HTTP headers");
+            if (buf->len > 0) {
+                _sx_debug("loading %d bytes into http_parser %.*s", buf->len, buf->len, buf->data);
 
                 ret = http_parser_execute(&sc->parser, &settings, buf->data, buf->len);
 
@@ -340,12 +378,12 @@ static int _sx_websocket_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
                     char *key = xhash_get(sc->headers, "Sec-WebSocket-Key");
                     char *proto = xhash_get(sc->headers, "Sec-WebSocket-Protocol");
                     int version = j_atoi(xhash_get(sc->headers, "Sec-WebSocket-Version"), -1);
-                    if(j_strcmp(upgrade, "websocket") || j_strcmp(connection, "Upgrade") || j_strcmp(proto, "xmpp") || version != 13) {
-                        _sx_debug(ZONE, "Upgrade: %s", upgrade);
-                        _sx_debug(ZONE, "Connection: %s", connection);
-                        _sx_debug(ZONE, "Sec-WebSocket-Key: %s", key);
-                        _sx_debug(ZONE, "Sec-WebSocket-Protocol: %s", proto);
-                        _sx_debug(ZONE, "Sec-WebSocket-Version: %d", version);
+                    if (j_strcmp(upgrade, "websocket") || j_strcmp(connection, "Upgrade") || j_strcmp(proto, "xmpp") || version != 13) {
+                        _sx_debug("Upgrade: %s", upgrade);
+                        _sx_debug("Connection: %s", connection);
+                        _sx_debug("Sec-WebSocket-Key: %s", key);
+                        _sx_debug("Sec-WebSocket-Protocol: %s", proto);
+                        _sx_debug("Sec-WebSocket-Version: %d", version);
                         _sx_websocket_http_return(s, "400 Bad Request", "");
                         sx_close(s);
                         return -2;
@@ -357,7 +395,7 @@ static int _sx_websocket_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
                     sha1_append(&sha1, key, j_strlen(key));
                     sha1_append(&sha1, websocket_guid, sizeof(websocket_guid) -1);
                     sha1_finish(&sha1, hash);
-                    char * accept = b64_encode(hash, sizeof(hash));
+                    char * accept = b64_encode((char*)hash, sizeof(hash));
 
                     /* switch protocols */
                     _sx_websocket_http_return(s, "101 Switching Protocols",
@@ -366,7 +404,7 @@ static int _sx_websocket_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
                                               "Sec-WebSocket-Accept: %s\r\n"
                                               "Sec-WebSocket-Protocol: xmpp\r\n",
                                               accept);
-                    free(accept);
+                    GC_FREE(accept);
 
                     /* and move past headers */
                     sc->state = websocket_ACTIVE;
@@ -380,13 +418,13 @@ static int _sx_websocket_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
                     return -2;
                 } else if (p->private) {
                     char *http_forward = p->private;
-                    _sx_debug(ZONE, "bouncing HTTP request to %s", http_forward);
+                    _sx_debug("bouncing HTTP request to %s", http_forward);
                     _sx_websocket_http_return(s, "301 Found", "Location: %s\r\nConnection: close\r\n", http_forward);
                     sx_close(s);
                     return -1;
                 }
 
-                _sx_debug(ZONE, "unhandling HTTP request");
+                _sx_debug("unhandling HTTP request");
                 sx_kill(s);
                 return -2;
 
@@ -401,19 +439,19 @@ static int _sx_websocket_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     }
 
     /* only bothering if it is active websocket */
-    if(!(s->flags & SX_WEBSOCKET_WRAPPER) || sc->state != websocket_ACTIVE)
+    if (!(s->flags & SX_WEBSOCKET_WRAPPER) || sc->state != websocket_ACTIVE)
         return 1;
 
-    _sx_debug(ZONE, "Unwraping WebSocket frame");
+    _sx_debug("Unwraping WebSocket frame");
 
     char *data = buf->data;
     for (i = 0; i < buf->len;) {
         libwebsock_frame *frame;
         if (sc->frame == NULL) {
-            frame = (libwebsock_frame *) calloc(1, sizeof(libwebsock_frame));
+            frame = (libwebsock_frame *) GC_MALLOC_ATOMIC(sizeof(libwebsock_frame));
             frame->payload_len = -1;
             frame->rawdata_sz = FRAME_CHUNK_LENGTH;
-            frame->rawdata = (char *) malloc(FRAME_CHUNK_LENGTH);
+            frame->rawdata = (char *) GC_MALLOC_ATOMIC(FRAME_CHUNK_LENGTH);
             sc->frame = frame;
         } else {
             frame = sc->frame;
@@ -451,13 +489,13 @@ static int _sx_websocket_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
         }
 
         //have full frame at this point
-        _sx_debug(ZONE, "FIN: %d", frame->fin);
-        _sx_debug(ZONE, "Opcode: %d", frame->opcode);
-        _sx_debug(ZONE, "mask_offset: %d", frame->mask_offset);
-        _sx_debug(ZONE, "payload_offset: %d", frame->payload_offset);
-        _sx_debug(ZONE, "rawdata_idx: %d", frame->rawdata_idx);
-        _sx_debug(ZONE, "rawdata_sz: %d", frame->rawdata_sz);
-        _sx_debug(ZONE, "payload_len: %u", frame->payload_len);
+        _sx_debug("FIN: %d", frame->fin);
+        _sx_debug("Opcode: %d", frame->opcode);
+        _sx_debug("mask_offset: %d", frame->mask_offset);
+        _sx_debug("payload_offset: %d", frame->payload_offset);
+        _sx_debug("rawdata_idx: %d", frame->rawdata_idx);
+        _sx_debug("rawdata_sz: %d", frame->rawdata_sz);
+        _sx_debug("payload_len: %u", frame->payload_len);
 
         switch (frame->opcode) {
         case WS_OPCODE_TEXT:
@@ -466,7 +504,7 @@ static int _sx_websocket_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
             /* unmask content */
             for (i = 0; i < buf->len; i++)
                 buf->data[i] ^= frame->mask[i % 4];
-            _sx_debug(ZONE, "payload: %.*s", buf->len, buf->data);
+            _sx_debug("payload: %.*s", buf->len, buf->data);
             /* hack unclosed stream */
             if (buf->len >= 7 && strncmp(buf->data, "<open", 5) == 0 && strncmp(buf->data + buf->len - 2, "/>", 2) == 0) {
                 buf->len--;
@@ -489,8 +527,8 @@ static int _sx_websocket_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
             break;
         }
 
-        free(frame->rawdata);
-        free(frame);
+        GC_FREE(frame->rawdata);
+        GC_FREE(frame);
         sc->frame = NULL;
 
         if (sc->state == websocket_CLOSING) {
@@ -502,43 +540,40 @@ static int _sx_websocket_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     return 1;
 }
 
-static int _sx_websocket_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
-    _sx_websocket_conn_t sc = (_sx_websocket_conn_t) s->plugin_data[p->index];
+static int _sx_websocket_wio(sx_t *s, sx_plugin_t *p, sx_buf_t *buf) {
+    _sx_websocket_conn_t *sc = (_sx_websocket_conn_t*) s->plugin_data[p->index];
 
     /* only bothering if it is active websocket */
-    if(!(s->flags & SX_WEBSOCKET_WRAPPER))
+    if (!(s->flags & SX_WEBSOCKET_WRAPPER))
         return 1;
 
-    _sx_debug(ZONE, "in _sx_websocket_wio");
+    _sx_debug("in _sx_websocket_wio");
 
-    if(buf->len > 0) {
-        _sx_debug(ZONE, "wrapping %d bytes in WebSocket frame", buf->len);
-        sx_buf_t frame = libwebsock_fragment_buffer(buf->data, buf->len, WS_FRAGMENT_FIN | WS_OPCODE_TEXT);
+    if (buf->len > 0) {
+        _sx_debug("wrapping %d bytes in WebSocket frame", buf->len);
+        sx_buf_t *frame = libwebsock_fragment_buffer(buf->data, buf->len, WS_FRAGMENT_FIN | WS_OPCODE_TEXT);
         if (frame == NULL) {
             return libwebsock_close_with_reason(s, sc, WS_CLOSE_UNEXPECTED_ERROR, "Internal server error");
         }
         _sx_buffer_set(buf, frame->data, frame->len, frame->data);
-        free(frame);
+        GC_FREE(frame);
     }
-    _sx_debug(ZONE, "passing %d bytes frame", buf->len);
+    _sx_debug("passing %d bytes frame", buf->len);
 
     return 1;
 }
 
-static void _sx_websocket_new(sx_t s, sx_plugin_t p) {
-    _sx_websocket_conn_t sc = (_sx_websocket_conn_t) s->plugin_data[p->index];
+static void _sx_websocket_new(sx_t *s, sx_plugin_t *p) {
+    _sx_websocket_conn_t *sc = (_sx_websocket_conn_t*) s->plugin_data[p->index];
 
-    if(sc != NULL)
+    if (sc != NULL)
         return;
 
-    _sx_debug(ZONE, "preparing for HTTP websocket connect for %d", s->tag);
+    _sx_debug("preparing for HTTP websocket connect for %d", s->tag);
 
-    sc = (_sx_websocket_conn_t) calloc(1, sizeof(struct _sx_websocket_conn_st));
+    sc = (_sx_websocket_conn_t*) GC_MALLOC(sizeof(_sx_websocket_conn_t));
 
     sc->state   = websocket_PRE;
-    sc->p       = pool_new();
-    sc->field   = spool_new(sc->p);
-    sc->value   = spool_new(sc->p);
     sc->headers = xhash_new(11);
     sc->parser.data = sc;
 
@@ -552,27 +587,25 @@ static void _sx_websocket_new(sx_t s, sx_plugin_t p) {
 }
 
 /** cleanup */
-static void _sx_websocket_free(sx_t s, sx_plugin_t p) {
-    _sx_websocket_conn_t sc = (_sx_websocket_conn_t) s->plugin_data[p->index];
+static void _sx_websocket_free(sx_t *s, sx_plugin_t *p) {
+    _sx_websocket_conn_t *sc = (_sx_websocket_conn_t*) s->plugin_data[p->index];
 
-    if(sc == NULL)
+    if (sc == NULL)
         return;
 
-    log_debug(ZONE, "cleaning up websocket state");
+    _sx_debug("cleaning up websocket state");
 
-    pool_free(sc->p);
-
-    if (sc->frame) free(((libwebsock_frame *)sc->frame)->rawdata);
-    free(sc->frame);
-    free(sc);
+    if (sc->frame) GC_FREE(((libwebsock_frame *)sc->frame)->rawdata);
+    GC_FREE(sc->frame);
+    GC_FREE(sc);
 
     s->plugin_data[p->index] = NULL;
 }
 
 /** args: none */
-int sx_websocket_init(sx_env_t env, sx_plugin_t p, va_list args) {
+int sx_websocket_init(sx_env_t *env, sx_plugin_t *p, va_list args) {
 
-    _sx_debug(ZONE, "initialising websocket plugin");
+    _sx_debug("initialising websocket plugin");
 
     p->server = _sx_websocket_new;
     p->rio = _sx_websocket_rio;

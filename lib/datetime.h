@@ -54,7 +54,7 @@ typedef enum {
     dt_LEGACY   = 4
 } datetime_t;
 
-JABBERD2_API time_t  datetime_in(char *date);
-JABBERD2_API void    datetime_out(time_t t, datetime_t type, const char *date, int datelen);
+JABBERD2_API time_t  datetime_in(const char * const date);
+JABBERD2_API void    datetime_out(time_t t, datetime_t type, char * const date, int datelen);
 
 #endif

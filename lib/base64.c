@@ -10,7 +10,7 @@
 #include <openssl/bio.h>
 #include <openssl/buffer.h>
 
-#include "util.h"
+#include <string.h>
 
 static const char gdtable[] =
 {
@@ -163,7 +163,7 @@ int apr_base64_decode(char *bufplain, const char *bufcoded, int buflen)
 }
 
 int apr_base64_decode_binary(unsigned char *bufplain,
-				   const char *bufcoded, int buflen)
+                   const char *bufcoded, int buflen)
 {
     int nbytesdecoded;
     register const unsigned char *bufin;
@@ -179,28 +179,28 @@ int apr_base64_decode_binary(unsigned char *bufplain,
     bufin = (const unsigned char *) bufcoded;
 
     while (nprbytes > 4) {
-	*(bufout++) =
-	    (unsigned char) (pr2six[*bufin] << 2 | pr2six[bufin[1]] >> 4);
-	*(bufout++) =
-	    (unsigned char) (pr2six[bufin[1]] << 4 | pr2six[bufin[2]] >> 2);
-	*(bufout++) =
-	    (unsigned char) (pr2six[bufin[2]] << 6 | pr2six[bufin[3]]);
-	bufin += 4;
-	nprbytes -= 4;
+    *(bufout++) =
+        (unsigned char) (pr2six[*bufin] << 2 | pr2six[bufin[1]] >> 4);
+    *(bufout++) =
+        (unsigned char) (pr2six[bufin[1]] << 4 | pr2six[bufin[2]] >> 2);
+    *(bufout++) =
+        (unsigned char) (pr2six[bufin[2]] << 6 | pr2six[bufin[3]]);
+    bufin += 4;
+    nprbytes -= 4;
     }
 
     /* Note: (nprbytes == 1) would be an error, so just ingore that case */
     if (nprbytes > 1) {
-	*(bufout++) =
-	    (unsigned char) (pr2six[*bufin] << 2 | pr2six[bufin[1]] >> 4);
+    *(bufout++) =
+        (unsigned char) (pr2six[*bufin] << 2 | pr2six[bufin[1]] >> 4);
     }
     if (nprbytes > 2) {
-	*(bufout++) =
-	    (unsigned char) (pr2six[bufin[1]] << 4 | pr2six[bufin[2]] >> 2);
+    *(bufout++) =
+        (unsigned char) (pr2six[bufin[1]] << 4 | pr2six[bufin[2]] >> 2);
     }
     if (nprbytes > 3) {
-	*(bufout++) =
-	    (unsigned char) (pr2six[bufin[2]] << 6 | pr2six[bufin[3]]);
+    *(bufout++) =
+        (unsigned char) (pr2six[bufin[2]] << 6 | pr2six[bufin[3]]);
     }
 
     nbytesdecoded -= (4 - (int)nprbytes) & 3;
@@ -230,25 +230,25 @@ int apr_base64_encode_binary(char *encoded,
 
     p = encoded;
     for (i = 0; i < len - 2; i += 3) {
-	*p++ = basis_64[(string[i] >> 2) & 0x3F];
-	*p++ = basis_64[((string[i] & 0x3) << 4) |
-	                ((int) (string[i + 1] & 0xF0) >> 4)];
-	*p++ = basis_64[((string[i + 1] & 0xF) << 2) |
-	                ((int) (string[i + 2] & 0xC0) >> 6)];
-	*p++ = basis_64[string[i + 2] & 0x3F];
+    *p++ = basis_64[(string[i] >> 2) & 0x3F];
+    *p++ = basis_64[((string[i] & 0x3) << 4) |
+                    ((int) (string[i + 1] & 0xF0) >> 4)];
+    *p++ = basis_64[((string[i + 1] & 0xF) << 2) |
+                    ((int) (string[i + 2] & 0xC0) >> 6)];
+    *p++ = basis_64[string[i + 2] & 0x3F];
     }
     if (i < len) {
-	*p++ = basis_64[(string[i] >> 2) & 0x3F];
-	if (i == (len - 1)) {
-	    *p++ = basis_64[((string[i] & 0x3) << 4)];
-	    *p++ = '=';
-	}
-	else {
-	    *p++ = basis_64[((string[i] & 0x3) << 4) |
-	                    ((int) (string[i + 1] & 0xF0) >> 4)];
-	    *p++ = basis_64[((string[i + 1] & 0xF) << 2)];
-	}
-	*p++ = '=';
+    *p++ = basis_64[(string[i] >> 2) & 0x3F];
+    if (i == (len - 1)) {
+        *p++ = basis_64[((string[i] & 0x3) << 4)];
+        *p++ = '=';
+    }
+    else {
+        *p++ = basis_64[((string[i] & 0x3) << 4) |
+                        ((int) (string[i + 1] & 0xF0) >> 4)];
+        *p++ = basis_64[((string[i + 1] & 0xF) << 2)];
+    }
+    *p++ = '=';
     }
 
     *p++ = '\0';
@@ -257,11 +257,11 @@ int apr_base64_encode_binary(char *encoded,
 #endif /* HAVE_SSL */
 
 /* convenience functions for j2 */
-char *b64_encode(char *buf, int len) {
+char *b64_encode(char *buf, size_t len) {
     int elen;
     char *out;
 
-    if(len == 0)
+    if (len == 0)
         len = strlen(buf);
 
     elen = apr_base64_encode_len(len);

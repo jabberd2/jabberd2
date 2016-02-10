@@ -20,33 +20,36 @@
 
 #include "sx.h"
 
-sx_env_t sx_env_new(void) {
-    sx_env_t env;
+#include <assert.h>
+#include <gc.h>
 
-    env = (sx_env_t) calloc(1, sizeof(struct _sx_env_st));
+sx_env_t *sx_env_new(void) {
+    sx_env_t *env;
+
+    env = (sx_env_t*) GC_MALLOC(sizeof(struct sx_env_st));
 
     return env;
 }
 
-void sx_env_free(sx_env_t env) {
-    int i;
+void sx_env_free(sx_env_t *env) {
+    size_t i;
 
     assert((int) (env != NULL));
 
     /* !!! usage counts */
 
-    for(i = 0; i < env->nplugins; i++) {
-        if(env->plugins[i]->unload != NULL)
+    for (i = 0; i < env->nplugins; i++) {
+        if (env->plugins[i]->unload != NULL)
             (env->plugins[i]->unload)(env->plugins[i]);
-        free(env->plugins[i]);
+        GC_FREE(env->plugins[i]);
     }
 
-    free(env->plugins);
-    free(env);
+    GC_FREE(env->plugins);
+    GC_FREE(env);
 }
 
-sx_plugin_t sx_env_plugin(sx_env_t env, sx_plugin_init_t init, ...) {
-    sx_plugin_t p;
+sx_plugin_t *sx_env_plugin(sx_env_t *env, sx_plugin_init_t init, ...) {
+    sx_plugin_t *p;
     int ret;
     va_list args;
 
@@ -55,7 +58,7 @@ sx_plugin_t sx_env_plugin(sx_env_t env, sx_plugin_init_t init, ...) {
 
     va_start(args, init);
 
-    p = (sx_plugin_t) calloc(1, sizeof(struct _sx_plugin_st));
+    p = (sx_plugin_t*) GC_MALLOC(sizeof(struct sx_plugin_st));
 
     p->env = env;
     p->index = env->nplugins;
@@ -63,16 +66,16 @@ sx_plugin_t sx_env_plugin(sx_env_t env, sx_plugin_init_t init, ...) {
     ret = (init)(env, p, args);
     va_end(args);
 
-    if(ret != 0) {
-        free(p);
+    if (ret != 0) {
+        GC_FREE(p);
         return NULL;
     }
 
-    env->plugins = (sx_plugin_t *) realloc(env->plugins, sizeof(sx_plugin_t) * (env->nplugins + 1));
+    env->plugins = (sx_plugin_t**) GC_REALLOC(env->plugins, sizeof(sx_plugin_t*) * (env->nplugins + 1));
     env->plugins[env->nplugins] = p;
     env->nplugins++;
 
-    _sx_debug(ZONE, "plugin initialised (index %d)", p->index);
+    _sx_debug("plugin initialised (index %d)", p->index);
 
     return p;
 }

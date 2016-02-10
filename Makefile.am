@@ -2,7 +2,7 @@ EXTRA_DIST = Doxyfile.in README.md doc
 
 LIBTOOL += --quiet
 
-SUBDIRS = etc lib src
+SUBDIRS = etc lib sx src
 if ENABLE_TESTS
 SUBDIRS += tests
 endif

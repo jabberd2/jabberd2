@@ -4,7 +4,7 @@
 # include <config.h>
 #endif
 
-#include "util/util.h"
+#include "lib/util.h"
 
 #ifdef CONFIGEXPAND_GUARDED
 #define GUARD(S) (S + strlen(S) + 1)
@@ -41,7 +41,7 @@ START_TEST (check_config_expand)
     config_t c = config_new();
     fail_unless (c != 0);
     int r = config_load(c, "test_config.xml");
-    
+
     ck_assert_int_eq (0, r);
 
     ck_assert_ptr_eq ((config_elem_t)0, config_get(c, "non.existing.key"));

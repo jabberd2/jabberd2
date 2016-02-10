@@ -24,10 +24,18 @@
  */
 
 #include "sx.h"
+#include <lib/uri.h>
+#include <lib/log.h>
+#include <lib/xhash.h>
 #include <openssl/x509_vfy.h>
 #include <openssl/dh.h>
 #include <openssl/bn.h>
+#include <string.h>
+#include <assert.h>
+#include <gc.h>
 
+#define LOG_CATEGORY "sx.ssl"
+static log4c_category_t *log;
 
 /* code stolen from SSL_CTX_set_verify(3) */
 static int _sx_ssl_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
@@ -44,9 +52,9 @@ static int _sx_ssl_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
      * Ignore errors when we can't get CRLs in the certificate
      */
     if (!preverify_ok && err == X509_V_ERR_UNABLE_TO_GET_CRL) {
-    	_sx_debug(ZONE, "ignoring verify error:num=%d:%s:depth=%d:%s\n", err,
-    	                 X509_verify_cert_error_string(err), depth, buf);
-    	preverify_ok = 1;
+        LOG_DEBUG(log, "ignoring verify error:num=%d:%s:depth=%d:%s\n", err,
+                         X509_verify_cert_error_string(err), depth, buf);
+        preverify_ok = 1;
     }
 
     /*
@@ -56,12 +64,12 @@ static int _sx_ssl_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
     X509_NAME_oneline(X509_get_subject_name(err_cert), buf, 256);
 
     if (!preverify_ok) {
-        _sx_debug(ZONE, "verify error:num=%d:%s:depth=%d:%s\n", err,
+        LOG_DEBUG(log, "verify error:num=%d:%s:depth=%d:%s\n", err,
                  X509_verify_cert_error_string(err), depth, buf);
     }
     else
     {
-        _sx_debug(ZONE, "OK! depth=%d:%s", depth, buf);
+        LOG_DEBUG(log, "OK! depth=%d:%s", depth, buf);
     }
 
     /*
@@ -71,13 +79,13 @@ static int _sx_ssl_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
     if (!preverify_ok && (err == X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT))
     {
       X509_NAME_oneline(X509_get_issuer_name(ctx->current_cert), buf, 256);
-      _sx_debug(ZONE, "issuer= %s\n", buf);
+      LOG_DEBUG(log, "issuer= %s\n", buf);
     }
 
     return preverify_ok;
  }
 
-static int _sx_pem_passwd_callback(char *buf, int size, int rwflag, void *password)
+static int _sx_pem_passwd_callback(char *buf, int size, __attribute__ ((unused)) int rwflag, void *password)
 {
     strncpy(buf, (char *)(password), size);
     buf[size - 1] = '\0';
@@ -151,56 +159,56 @@ static DH *_sx_ssl_tmp_dh_callback(SSL *ssl, int export, int keylen) {
     return NULL;
 }
 
-static void _sx_ssl_starttls_notify_proceed(sx_t s, void *arg) {
+static void _sx_ssl_starttls_notify_proceed(sx_t *s, __attribute__ ((unused)) void *arg) {
     char *to = NULL;
-    _sx_debug(ZONE, "preparing for starttls");
+    LOG_DEBUG(log, "preparing for starttls");
 
     /* store the destination so we can select an ssl context */
-    if(s->req_to != NULL) to = strdup(s->req_to);
+    if (s->req_to != NULL) to = GC_STRDUP(s->req_to);
 
     _sx_reset(s);
 
     /* restore destination */
-    if(s->req_to == NULL)
+    if (s->req_to == NULL)
         s->req_to = to;
     else /* ? */
-        free(to);
+        GC_FREE(to);
 
     /* start listening */
     sx_server_init(s, s->flags | SX_SSL_WRAPPER);
 }
 
-static int _sx_ssl_process(sx_t s, sx_plugin_t p, nad_t nad) {
+static int _sx_ssl_process(sx_t *s, sx_plugin_t *p, nad_t *nad) {
     int flags;
     char *ns = NULL, *to = NULL, *from = NULL, *version = NULL;
     sx_error_t sxe;
 
     /* not interested if we're a server and we never offered it */
-    if(s->type == type_SERVER && !(s->flags & SX_SSL_STARTTLS_OFFER))
+    if (s->type == type_SERVER && !(s->flags & SX_SSL_STARTTLS_OFFER))
         return 1;
 
     /* only want tls packets */
-    if(NAD_ENS(nad, 0) < 0 || NAD_NURI_L(nad, NAD_ENS(nad, 0)) != strlen(uri_TLS) || strncmp(NAD_NURI(nad, NAD_ENS(nad, 0)), uri_TLS, strlen(uri_TLS)) != 0)
+    if (NAD_ENS(nad, 0) < 0 || NAD_NURI_L(nad, NAD_ENS(nad, 0)) != strlen(uri_TLS) || strncmp(NAD_NURI(nad, NAD_ENS(nad, 0)), uri_TLS, strlen(uri_TLS)) != 0)
         return 1;
 
     /* starttls from client */
-    if(s->type == type_SERVER) {
-        if(NAD_ENAME_L(nad, 0) == 8 && strncmp(NAD_ENAME(nad, 0), "starttls", 8) == 0) {
+    if (s->type == type_SERVER) {
+        if (NAD_ENAME_L(nad, 0) == 8 && strncmp(NAD_ENAME(nad, 0), "starttls", 8) == 0) {
             nad_free(nad);
 
             /* can't go on if we've been here before */
-            if(s->ssf > 0) {
-                _sx_debug(ZONE, "starttls requested on already encrypted channel, dropping packet");
+            if (s->ssf > 0) {
+                LOG_DEBUG(log, "starttls requested on already encrypted channel, dropping packet");
                 return 0;
             }
 
             /* can't go on if we're on compressed stream */
-            if(s->flags & SX_COMPRESS_WRAPPER) {
-                _sx_debug(ZONE, "starttls requested on already compressed channel, dropping packet");
+            if (s->flags & SX_COMPRESS_WRAPPER) {
+                LOG_DEBUG(log, "starttls requested on already compressed channel, dropping packet");
                 return 0;
             }
 
-            _sx_debug(ZONE, "starttls requested, setting up");
+            LOG_DEBUG(log, "starttls requested, setting up");
 
             /* go ahead */
             jqueue_push(s->wbufq, _sx_buffer_new("<proceed xmlns='" uri_TLS "'/>", strlen(uri_TLS) + 19, _sx_ssl_starttls_notify_proceed, NULL), 0);
@@ -211,52 +219,52 @@ static int _sx_ssl_process(sx_t s, sx_plugin_t p, nad_t nad) {
         }
     }
 
-    else if(s->type == type_CLIENT) {
+    else if (s->type == type_CLIENT) {
         /* kick off the handshake */
-        if(NAD_ENAME_L(nad, 0) == 7 && strncmp(NAD_ENAME(nad, 0), "proceed", 7) == 0) {
+        if (NAD_ENAME_L(nad, 0) == 7 && strncmp(NAD_ENAME(nad, 0), "proceed", 7) == 0) {
             nad_free(nad);
 
             /* save interesting bits */
             flags = s->flags;
 
-            if(s->ns != NULL) ns = strdup(s->ns);
+            if (s->ns != NULL) ns = GC_STRDUP(s->ns);
 
-            if(s->req_to != NULL) to = strdup(s->req_to);
-            if(s->req_from != NULL) from = strdup(s->req_from);
-            if(s->req_version != NULL) version = strdup(s->req_version);
+            if (s->req_to != NULL) to = GC_STRDUP(s->req_to);
+            if (s->req_from != NULL) from = GC_STRDUP(s->req_from);
+            if (s->req_version != NULL) version = GC_STRDUP(s->req_version);
 
             /* reset state */
             _sx_reset(s);
 
-            _sx_debug(ZONE, "server ready for ssl, starting");
+            LOG_DEBUG(log, "server ready for ssl, starting");
 
             /* second time round */
             sx_client_init(s, flags | SX_SSL_WRAPPER, ns, to, from, version);
 
             /* free bits */
-            if(ns != NULL) free(ns);
-            if(to != NULL) free(to);
-            if(from != NULL) free(from);
-            if(version != NULL) free(version);
+            if (ns != NULL) GC_FREE(ns);
+            if (to != NULL) GC_FREE(to);
+            if (from != NULL) GC_FREE(from);
+            if (version != NULL) GC_FREE(version);
 
             return 0;
         }
 
         /* busted server */
-        if(NAD_ENAME_L(nad, 0) == 7 && strncmp(NAD_ENAME(nad, 0), "failure", 7) == 0) {
+        if (NAD_ENAME_L(nad, 0) == 7 && strncmp(NAD_ENAME(nad, 0), "failure", 7) == 0) {
             nad_free(nad);
 
             /* free the pemfile arg */
-            if(s->plugin_data[p->index] != NULL) {
-                if( ((_sx_ssl_conn_t)s->plugin_data[p->index])->pemfile != NULL )
-                    free(((_sx_ssl_conn_t)s->plugin_data[p->index])->pemfile);
-                if( ((_sx_ssl_conn_t)s->plugin_data[p->index])->private_key_password != NULL )
-                    free(((_sx_ssl_conn_t)s->plugin_data[p->index])->private_key_password);
-                free(s->plugin_data[p->index]);
+            if (s->plugin_data[p->index] != NULL) {
+                if ( ((_sx_ssl_conn_t)s->plugin_data[p->index])->pemfile != NULL )
+                    GC_FREE(((_sx_ssl_conn_t)s->plugin_data[p->index])->pemfile);
+                if ( ((_sx_ssl_conn_t)s->plugin_data[p->index])->private_key_password != NULL )
+                    GC_FREE(((_sx_ssl_conn_t)s->plugin_data[p->index])->private_key_password);
+                GC_FREE(s->plugin_data[p->index]);
                 s->plugin_data[p->index] = NULL;
             }
 
-            _sx_debug(ZONE, "server can't handle ssl, business as usual");
+            LOG_DEBUG(log, "server can't handle ssl, business as usual");
 
             _sx_gen_error(sxe, SX_ERR_STARTTLS_FAILURE, "STARTTLS failure", "Server was unable to prepare for the TLS handshake");
             _sx_event(s, event_ERROR, (void *) &sxe);
@@ -265,30 +273,30 @@ static int _sx_ssl_process(sx_t s, sx_plugin_t p, nad_t nad) {
         }
     }
 
-    _sx_debug(ZONE, "unknown starttls namespace element '%.*s', dropping packet", NAD_ENAME_L(nad, 0), NAD_ENAME(nad, 0));
+    LOG_DEBUG(log, "unknown starttls namespace element '%.*s', dropping packet", NAD_ENAME_L(nad, 0), NAD_ENAME(nad, 0));
     nad_free(nad);
     return 0;
 }
 
-static void _sx_ssl_features(sx_t s, sx_plugin_t p, nad_t nad) {
+static void _sx_ssl_features(sx_t *s, __attribute__ ((unused)) sx_plugin_t *p, nad_t *nad) {
     int ns;
 
     /* if the session is already encrypted, or the app told us not to,
      * or session is compressed then we don't offer anything */
-    if(s->state > state_STREAM || s->ssf > 0 || !(s->flags & SX_SSL_STARTTLS_OFFER) || (s->flags & SX_COMPRESS_WRAPPER))
+    if (s->state > state_STREAM || s->ssf > 0 || !(s->flags & SX_SSL_STARTTLS_OFFER) || (s->flags & SX_COMPRESS_WRAPPER))
         return;
 
-    _sx_debug(ZONE, "offering starttls");
+    LOG_DEBUG(log, "offering starttls");
 
     ns = nad_add_namespace(nad, uri_TLS, NULL);
     nad_append_elem(nad, ns, "starttls", 1);
 
-    if(s->flags & SX_SSL_STARTTLS_REQUIRE)
+    if (s->flags & SX_SSL_STARTTLS_REQUIRE)
         nad_append_elem(nad, ns, "required", 2);
 }
 
 /* Extract id-on-xmppAddr from the certificate */
-static void _sx_ssl_get_external_id(sx_t s, _sx_ssl_conn_t sc) {
+static void _sx_ssl_get_external_id(sx_t *s, _sx_ssl_conn_t sc) {
     X509 *cert;
     X509_NAME *name;
     X509_NAME_ENTRY *entry;
@@ -305,135 +313,135 @@ static void _sx_ssl_get_external_id(sx_t s, _sx_ssl_conn_t sc) {
     int i, j, count,  id = 0, len;
 
     /* If there's not peer cert, quit */
-	if ((cert = SSL_get_peer_certificate(sc->ssl) ) == NULL)
-		return;
-	_sx_debug(ZONE, "external_id: Got peer certificate");
+    if ((cert = SSL_get_peer_certificate(sc->ssl) ) == NULL)
+        return;
+    LOG_DEBUG(log, "external_id: Got peer certificate");
 
-	/* Allocate new id-on-xmppAddr object. See rfc3921bis 15.2.1.2 */
-	id_on_xmppAddr_nid = OBJ_create("1.3.6.1.5.5.7.8.5", "id-on-xmppAddr", "XMPP Address Identity");
-	id_on_xmppAddr_obj = OBJ_nid2obj(id_on_xmppAddr_nid);
-	_sx_debug(ZONE, "external_id: Created id-on-xmppAddr SSL object");
+    /* Allocate new id-on-xmppAddr object. See rfc3921bis 15.2.1.2 */
+    id_on_xmppAddr_nid = OBJ_create("1.3.6.1.5.5.7.8.5", "id-on-xmppAddr", "XMPP Address Identity");
+    id_on_xmppAddr_obj = OBJ_nid2obj(id_on_xmppAddr_nid);
+    LOG_DEBUG(log, "external_id: Created id-on-xmppAddr SSL object");
 
-	/* Iterate through all subjectAltName x509v3 extensions. Get id-on-xmppAddr and dDnsName */
-	for (i = X509_get_ext_by_NID(cert, NID_subject_alt_name, -1);
-		 i != -1;
-		 i = X509_get_ext_by_NID(cert, NID_subject_alt_name, i)) {
-		// Get this subjectAltName x509v3 extension
-		if ((extension = X509_get_ext(cert, i)) == NULL) {
-			_sx_debug(ZONE, "external_id: Can't get subjectAltName. Possibly malformed cert.");
-			goto end;
-		}
-		// Get the collection of AltNames
-		if ((altnames = X509V3_EXT_d2i(extension)) == NULL) {
-			_sx_debug(ZONE, "external_id: Can't get all AltNames. Possibly malformed cert.");
-			goto end;
-		}
-		/* Iterate through all altNames and get id-on-xmppAddr and dNSName */
-		count = sk_GENERAL_NAME_num(altnames);
-		for (j = 0; j < count; j++) {
-			if ((altname = sk_GENERAL_NAME_value(altnames, j)) == NULL) {
-				_sx_debug(ZONE, "external_id: Can't get AltName. Possibly malformed cert.");
-				goto end;
-			}
-			/* Check if its otherName id-on-xmppAddr */
-			if (altname->type == GEN_OTHERNAME &&
-				OBJ_cmp(altname->d.otherName->type_id, id_on_xmppAddr_obj) == 0) {
-				othername = altname->d.otherName;
-				len = ASN1_STRING_to_UTF8((unsigned char **) &buff, othername->value->value.utf8string);
-				if (len <= 0)
-					continue;
-				sc->external_id[id] = (char *) malloc(sizeof(char) *  (len + 1));
-				memcpy(sc->external_id[id], buff, len);
-				sc->external_id[id][len] = '\0'; // just to make sure
-				_sx_debug(ZONE, "external_id: Found(%d) subjectAltName/id-on-xmppAddr: '%s'", id, sc->external_id[id]);
-				id++;
-				OPENSSL_free(buff);
-			} else if (altname->type == GEN_DNS) {
-				len = ASN1_STRING_length(altname->d.dNSName);
-				sc->external_id[id] = (char *) malloc(sizeof(char) *  (len + 1));
-				memcpy(sc->external_id[id], ASN1_STRING_data(altname->d.dNSName), len);
-				sc->external_id[id][len] = '\0'; // just to make sure
-				_sx_debug(ZONE, "external_id: Found(%d) subjectAltName/dNSName: '%s'", id, sc->external_id[id]);
-				id++;
-			}
-			/* Check if we're not out of space */
-			if (id == SX_CONN_EXTERNAL_ID_MAX_COUNT) {
-				sk_GENERAL_NAME_pop_free(altnames, GENERAL_NAME_free);
-				goto end;
-			}
-		}
+    /* Iterate through all subjectAltName x509v3 extensions. Get id-on-xmppAddr and dDnsName */
+    for (i = X509_get_ext_by_NID(cert, NID_subject_alt_name, -1);
+         i != -1;
+         i = X509_get_ext_by_NID(cert, NID_subject_alt_name, i)) {
+        // Get this subjectAltName x509v3 extension
+        if ((extension = X509_get_ext(cert, i)) == NULL) {
+            LOG_DEBUG(log, "external_id: Can't get subjectAltName. Possibly malformed cert.");
+            goto end;
+        }
+        // Get the collection of AltNames
+        if ((altnames = X509V3_EXT_d2i(extension)) == NULL) {
+            LOG_DEBUG(log, "external_id: Can't get all AltNames. Possibly malformed cert.");
+            goto end;
+        }
+        /* Iterate through all altNames and get id-on-xmppAddr and dNSName */
+        count = sk_GENERAL_NAME_num(altnames);
+        for (j = 0; j < count; j++) {
+            if ((altname = sk_GENERAL_NAME_value(altnames, j)) == NULL) {
+                LOG_DEBUG(log, "external_id: Can't get AltName. Possibly malformed cert.");
+                goto end;
+            }
+            /* Check if its otherName id-on-xmppAddr */
+            if (altname->type == GEN_OTHERNAME &&
+                OBJ_cmp(altname->d.otherName->type_id, id_on_xmppAddr_obj) == 0) {
+                othername = altname->d.otherName;
+                len = ASN1_STRING_to_UTF8((unsigned char **) &buff, othername->value->value.utf8string);
+                if (len <= 0)
+                    continue;
+                sc->external_id[id] = (char *) GC_MALLOC_ATOMIC(sizeof(char) *  (len + 1));
+                memcpy(sc->external_id[id], buff, len);
+                sc->external_id[id][len] = '\0'; // just to make sure
+                LOG_DEBUG(log, "external_id: Found(%d) subjectAltName/id-on-xmppAddr: '%s'", id, sc->external_id[id]);
+                id++;
+                OPENSSL_free(buff);
+            } else if (altname->type == GEN_DNS) {
+                len = ASN1_STRING_length(altname->d.dNSName);
+                sc->external_id[id] = (char *) GC_MALLOC_ATOMIC(sizeof(char) *  (len + 1));
+                memcpy(sc->external_id[id], ASN1_STRING_data(altname->d.dNSName), len);
+                sc->external_id[id][len] = '\0'; // just to make sure
+                LOG_DEBUG(log, "external_id: Found(%d) subjectAltName/dNSName: '%s'", id, sc->external_id[id]);
+                id++;
+            }
+            /* Check if we're not out of space */
+            if (id == SX_CONN_EXTERNAL_ID_MAX_COUNT) {
+                sk_GENERAL_NAME_pop_free(altnames, GENERAL_NAME_free);
+                goto end;
+            }
+        }
 
-		sk_GENERAL_NAME_pop_free(altnames, GENERAL_NAME_free);
-	}
-	/* Get CNs */
-	name = X509_get_subject_name(cert);
-	for (i = X509_NAME_get_index_by_NID(name, NID_commonName, -1);
-		 i != -1;
-		 i = X509_NAME_get_index_by_NID(name, NID_commonName, i)) {
-		// Get the commonName entry
-		if ((entry = X509_NAME_get_entry(name, i)) == NULL) {
-			_sx_debug(ZONE, "external_id: Can't get commonName(%d). Possibly malformed cert. Continuing.", i);
-			continue;
-		}
-		// Get the commonName as UTF8 string
-		len = ASN1_STRING_to_UTF8((unsigned char **) &buff, X509_NAME_ENTRY_get_data(entry));
-		if (len <= 0) {
-			continue;
-		}
-		sc->external_id[id] = (char *) malloc(sizeof(char) *  (len + 1));
-		memcpy(sc->external_id[id], buff, len);
-		sc->external_id[id][len] = '\0'; // just to make sure
-		_sx_debug(ZONE, "external_id: Found(%d) commonName: '%s'", id, sc->external_id[id]);
-		OPENSSL_free(buff);
-		/* Check if we're not out of space */
-		if (id == SX_CONN_EXTERNAL_ID_MAX_COUNT)
-			goto end;
-	}
+        sk_GENERAL_NAME_pop_free(altnames, GENERAL_NAME_free);
+    }
+    /* Get CNs */
+    name = X509_get_subject_name(cert);
+    for (i = X509_NAME_get_index_by_NID(name, NID_commonName, -1);
+         i != -1;
+         i = X509_NAME_get_index_by_NID(name, NID_commonName, i)) {
+        // Get the commonName entry
+        if ((entry = X509_NAME_get_entry(name, i)) == NULL) {
+            LOG_DEBUG(log, "external_id: Can't get commonName(%d). Possibly malformed cert. Continuing.", i);
+            continue;
+        }
+        // Get the commonName as UTF8 string
+        len = ASN1_STRING_to_UTF8((unsigned char **) &buff, X509_NAME_ENTRY_get_data(entry));
+        if (len <= 0) {
+            continue;
+        }
+        sc->external_id[id] = (char *) GC_MALLOC_ATOMIC(sizeof(char) *  (len + 1));
+        memcpy(sc->external_id[id], buff, len);
+        sc->external_id[id][len] = '\0'; // just to make sure
+        LOG_DEBUG(log, "external_id: Found(%d) commonName: '%s'", id, sc->external_id[id]);
+        OPENSSL_free(buff);
+        /* Check if we're not out of space */
+        if (id == SX_CONN_EXTERNAL_ID_MAX_COUNT)
+            goto end;
+    }
 
 end:
     X509_free(cert);
     return;
 }
 
-static int _sx_ssl_handshake(sx_t s, _sx_ssl_conn_t sc) {
+static int _sx_ssl_handshake(sx_t *s, _sx_ssl_conn_t sc) {
     int ret, err;
     char *errstring;
     sx_error_t sxe;
 
     /* work on establishing the channel */
     while(!SSL_is_init_finished(sc->ssl)) {
-        _sx_debug(ZONE, "secure channel not established, handshake in progress");
+        LOG_DEBUG(log, "secure channel not established, handshake in progress");
 
         /* we can't handshake if they want to read, but there's nothing to read */
-        if(sc->last_state == SX_SSL_STATE_WANT_READ && BIO_pending(sc->rbio) == 0)
+        if (sc->last_state == SX_SSL_STATE_WANT_READ && BIO_pending(sc->rbio) == 0)
             return 0;
 
         /* more handshake */
-        if(s->type == type_CLIENT)
+        if (s->type == type_CLIENT)
             ret = SSL_connect(sc->ssl);
         else
             ret = SSL_accept(sc->ssl);
 
         /* check if we're done */
-        if(ret == 1) {
-            _sx_debug(ZONE, "secure channel established");
+        if (ret == 1) {
+            LOG_DEBUG(log, "secure channel established");
             sc->last_state = SX_SSL_STATE_NONE;
 
             s->ssf = SSL_get_cipher_bits(sc->ssl, NULL);
 
-            _sx_debug(ZONE, "using cipher %s (%d bits)", SSL_get_cipher_name(sc->ssl), s->ssf);
+            LOG_DEBUG(log, "using cipher %s (%d bits)", SSL_get_cipher_name(sc->ssl), s->ssf);
             _sx_ssl_get_external_id(s, sc);
 
             return 1;
         }
 
         /* error checking */
-        else if(ret <= 0) {
+        else if (ret <= 0) {
             err = SSL_get_error(sc->ssl, ret);
 
-            if(err == SSL_ERROR_WANT_READ)
+            if (err == SSL_ERROR_WANT_READ)
                 sc->last_state = SX_SSL_STATE_WANT_READ;
-            else if(err == SSL_ERROR_WANT_WRITE)
+            else if (err == SSL_ERROR_WANT_WRITE)
                 sc->last_state = SX_SSL_STATE_WANT_WRITE;
 
             else {
@@ -441,10 +449,10 @@ static int _sx_ssl_handshake(sx_t s, _sx_ssl_conn_t sc) {
                 sc->last_state = SX_SSL_STATE_ERROR;
 
                 errstring = ERR_error_string(ERR_get_error(), NULL);
-                _sx_debug(ZONE, "openssl error: %s", errstring);
+                LOG_DEBUG(log, "openssl error: %s", errstring);
 
                 /* do not throw an error if in wrapper mode and pre-stream */
-                if(!(s->state < state_STREAM && s->flags & SX_SSL_WRAPPER)) {
+                if (!(s->state < state_STREAM && s->flags & SX_SSL_WRAPPER)) {
                     _sx_gen_error(sxe, SX_ERR_SSL, "SSL handshake error", errstring);
                     _sx_event(s, event_ERROR, (void *) &sxe);
                     sx_error(s, stream_err_UNDEFINED_CONDITION, errstring);
@@ -462,22 +470,22 @@ static int _sx_ssl_handshake(sx_t s, _sx_ssl_conn_t sc) {
     return 1;
 }
 
-static int _sx_ssl_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
+static int _sx_ssl_wio(sx_t *s, sx_plugin_t *p, sx_buf_t *buf) {
     _sx_ssl_conn_t sc = (_sx_ssl_conn_t) s->plugin_data[p->index];
     int est, ret, err;
-    sx_buf_t wbuf;
+    sx_buf_t *wbuf;
     char *errstring;
     sx_error_t sxe;
 
     /* do not encrypt when error */
-    if(sc->last_state == SX_SSL_STATE_ERROR)
+    if (sc->last_state == SX_SSL_STATE_ERROR)
         return 1;
 
-    _sx_debug(ZONE, "in _sx_ssl_wio");
+    LOG_DEBUG(log, "in _sx_ssl_wio");
 
     /* queue the buffer */
-    if(buf->len > 0) {
-        _sx_debug(ZONE, "queueing buffer for write");
+    if (buf->len > 0) {
+        LOG_DEBUG(log, "queueing buffer for write");
 
         jqueue_push(sc->wq, _sx_buffer_new(buf->data, buf->len, buf->notify, buf->notify_arg), 0);
         _sx_buffer_clear(buf);
@@ -487,20 +495,20 @@ static int _sx_ssl_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
 
     /* handshake */
     est = _sx_ssl_handshake(s, sc);
-    if(est < 0)
+    if (est < 0)
         return -2;  /* fatal error */
 
     /* channel established, do some real writing */
     wbuf = NULL;
-    if(est > 0 && jqueue_size(sc->wq) > 0) {
-        _sx_debug(ZONE, "preparing queued buffer for write");
+    if (est > 0 && jqueue_size(sc->wq) > 0) {
+        LOG_DEBUG(log, "preparing queued buffer for write");
 
         wbuf = jqueue_pull(sc->wq);
 
         ret = SSL_write(sc->ssl, wbuf->data, wbuf->len);
-        if(ret <= 0) {
+        if (ret <= 0) {
             /* something's wrong */
-            _sx_debug(ZONE, "write failed, requeuing buffer");
+            LOG_DEBUG(log, "write failed, requeuing buffer");
 
             /* requeue the buffer */
             jqueue_push(sc->wq, wbuf, (sc->wq->front != NULL) ? sc->wq->front->priority + 1 : 0);
@@ -508,14 +516,14 @@ static int _sx_ssl_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
             /* error checking */
             err = SSL_get_error(sc->ssl, ret);
 
-            if(err == SSL_ERROR_ZERO_RETURN) {
+            if (err == SSL_ERROR_ZERO_RETURN) {
                 /* ssl channel closed, we're done */
                 _sx_close(s);
             }
 
-            if(err == SSL_ERROR_WANT_READ) {
+            if (err == SSL_ERROR_WANT_READ) {
                 /* we'll be renegotiating next time */
-                _sx_debug(ZONE, "renegotiation started");
+                LOG_DEBUG(log, "renegotiation started");
                 sc->last_state = SX_SSL_STATE_WANT_READ;
             }
 
@@ -524,10 +532,10 @@ static int _sx_ssl_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
 
                 /* something very bad */
                 errstring = ERR_error_string(ERR_get_error(), NULL);
-                _sx_debug(ZONE, "openssl error: %s", errstring);
+                LOG_DEBUG(log, "openssl error: %s", errstring);
 
                 /* do not throw an error if in wrapper mode and pre-stream */
-                if(!(s->state < state_STREAM && s->flags & SX_SSL_WRAPPER)) {
+                if (!(s->state < state_STREAM && s->flags & SX_SSL_WRAPPER)) {
                     _sx_gen_error(sxe, SX_ERR_SSL, "SSL handshake error", errstring);
                     _sx_event(s, event_ERROR, (void *) &sxe);
                     sx_error(s, stream_err_UNDEFINED_CONDITION, errstring);
@@ -543,7 +551,7 @@ static int _sx_ssl_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     }
 
     /* prepare the buffer with stuff to write */
-    if(BIO_pending(sc->wbio) > 0) {
+    if (BIO_pending(sc->wbio) > 0) {
         int bytes_pending = BIO_pending(sc->wbio);
         assert(buf->len == 0);
         _sx_buffer_alloc_margin(buf, 0, bytes_pending);
@@ -551,37 +559,37 @@ static int _sx_ssl_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
         buf->len += bytes_pending;
 
         /* restore notify and clean up */
-        if(wbuf != NULL) {
+        if (wbuf != NULL) {
             buf->notify = wbuf->notify;
             buf->notify_arg = wbuf->notify_arg;
             _sx_buffer_free(wbuf);
         }
 
-        _sx_debug(ZONE, "prepared %d ssl bytes for write", buf->len);
+        LOG_DEBUG(log, "prepared %d ssl bytes for write", buf->len);
     }
 
     /* flag if we want to read */
-    if(sc->last_state == SX_SSL_STATE_WANT_READ || sc->last_state == SX_SSL_STATE_NONE)
+    if (sc->last_state == SX_SSL_STATE_WANT_READ || sc->last_state == SX_SSL_STATE_NONE)
         s->want_read = 1;
 
     return 1;
 }
 
-static int _sx_ssl_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
+static int _sx_ssl_rio(sx_t *s, sx_plugin_t *p, sx_buf_t *buf) {
     _sx_ssl_conn_t sc = (_sx_ssl_conn_t) s->plugin_data[p->index];
     int est, ret, err, pending;
     char *errstring;
     sx_error_t sxe;
 
     /* sanity */
-    if(sc->last_state == SX_SSL_STATE_ERROR)
+    if (sc->last_state == SX_SSL_STATE_ERROR)
         return -1;
 
-    _sx_debug(ZONE, "in _sx_ssl_rio");
+    LOG_DEBUG(log, "in _sx_ssl_rio");
 
     /* move the data into the ssl read buffer */
-    if(buf->len > 0) {
-        _sx_debug(ZONE, "loading %d bytes into ssl read buffer", buf->len);
+    if (buf->len > 0) {
+        LOG_DEBUG(log, "loading %d bytes into ssl read buffer", buf->len);
 
         BIO_write(sc->rbio, buf->data, buf->len);
 
@@ -590,14 +598,14 @@ static int _sx_ssl_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
 
     /* handshake */
     est = _sx_ssl_handshake(s, sc);
-    if(est < 0)
+    if (est < 0)
         return -1;  /* fatal error */
 
     /* channel is up, slurp up the read buffer */
-    if(est > 0) {
+    if (est > 0) {
 
         pending = SSL_pending(sc->ssl);
-        if(pending == 0)
+        if (pending == 0)
             pending = BIO_pending(sc->rbio);
 
         /* get it all */
@@ -630,21 +638,21 @@ static int _sx_ssl_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
                 _sx_buffer_clear(buf);
 
 
-                if(err == SSL_ERROR_ZERO_RETURN) {
+                if (err == SSL_ERROR_ZERO_RETURN) {
                     /* ssl channel closed, we're done */
                     _sx_close(s);
                 }
 
                 return -1;
             }
-            else if(ret < 0) {
+            else if (ret < 0) {
                 /* ret will be negative if the SSL stream needs
                    more data, or if there was a SSL error.
                    (See the SSL_read manpage.) */
                 err = SSL_get_error(sc->ssl, ret);
 
                 /* ssl block incomplete, need more */
-                if(err == SSL_ERROR_WANT_READ) {
+                if (err == SSL_ERROR_WANT_READ) {
                     sc->last_state = SX_SSL_STATE_WANT_READ;
 
                     break;
@@ -659,10 +667,10 @@ static int _sx_ssl_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
                 sc->last_state = SX_SSL_STATE_ERROR;
 
                 errstring = ERR_error_string(ERR_get_error(), NULL);
-                _sx_debug(ZONE, "openssl error: %s", errstring);
+                LOG_DEBUG(log, "openssl error: %s", errstring);
 
                 /* do not throw an error if in wrapper mode and pre-stream */
-                if(!(s->state < state_STREAM && s->flags & SX_SSL_WRAPPER)) {
+                if (!(s->state < state_STREAM && s->flags & SX_SSL_WRAPPER)) {
                     _sx_gen_error(sxe, SX_ERR_SSL, "SSL handshake error", errstring);
                     _sx_event(s, event_ERROR, (void *) &sxe);
                     sx_error(s, stream_err_UNDEFINED_CONDITION, errstring);
@@ -680,20 +688,20 @@ static int _sx_ssl_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     }
 
     /* flag if stuff to write */
-    if(BIO_pending(sc->wbio) > 0 || (est > 0 && jqueue_size(sc->wq) > 0))
+    if (BIO_pending(sc->wbio) > 0 || (est > 0 && jqueue_size(sc->wq) > 0))
         s->want_write = 1;
 
     /* flag if we want to read */
-    if(sc->last_state == SX_SSL_STATE_WANT_READ || sc->last_state == SX_SSL_STATE_NONE)
+    if (sc->last_state == SX_SSL_STATE_WANT_READ || sc->last_state == SX_SSL_STATE_NONE)
         s->want_read = 1;
 
-    if(buf->len == 0)
+    if (buf->len == 0)
         return 0;
 
     return 1;
 }
 
-static void _sx_ssl_client(sx_t s, sx_plugin_t p) {
+static void _sx_ssl_client(sx_t *s, sx_plugin_t *p) {
     _sx_ssl_conn_t sc;
     SSL_CTX *ctx;
     char *pemfile = NULL;
@@ -701,22 +709,22 @@ static void _sx_ssl_client(sx_t s, sx_plugin_t p) {
     char *pemfile_password = NULL;
 
     /* only bothering if they asked for wrappermode */
-    if(!(s->flags & SX_SSL_WRAPPER) || s->ssf > 0)
+    if (!(s->flags & SX_SSL_WRAPPER) || s->ssf > 0)
         return;
 
-    _sx_debug(ZONE, "preparing for ssl connect for %d from %s", s->tag, s->req_from);
+    LOG_DEBUG(log, "preparing for ssl connect for %s:%d from %s", s->ip, s->port, s->req_from);
 
     /* find the ssl context for this source */
-    ctx = xhash_get((xht) p->private, s->req_from);
-    if(ctx == NULL) {
-        _sx_debug(ZONE, "using default ssl context for %d", s->tag);
-        ctx = xhash_get((xht) p->private, "*");
+    ctx = xhash_get((xht*) p->private, s->req_from);
+    if (ctx == NULL) {
+        LOG_DEBUG(log, "using default ssl context for %s:%d", s->ip, s->port);
+        ctx = xhash_get((xht*) p->private, "*");
     } else {
-        _sx_debug(ZONE, "using configured ssl context for %d", s->tag);
+        LOG_DEBUG(log, "using configured ssl context for %s:%d", s->ip, s->port);
     }
     assert((int) (ctx != NULL));
 
-    sc = (_sx_ssl_conn_t) calloc(1, sizeof(struct _sx_ssl_conn_st));
+    sc = (_sx_ssl_conn_t) GC_MALLOC(sizeof(struct _sx_ssl_conn_st));
 
     /* create the buffers */
     sc->rbio = BIO_new(BIO_s_mem());
@@ -735,27 +743,27 @@ static void _sx_ssl_client(sx_t s, sx_plugin_t p) {
 
     /* empty external_id */
     for (i = 0; i < SX_CONN_EXTERNAL_ID_MAX_COUNT; i++)
-    	sc->external_id[i] = NULL;
+        sc->external_id[i] = NULL;
 
     /* alternate pemfile */
     /* !!! figure out how to error correctly here - just returning will cause
      *     us to send a normal unencrypted stream start while the server is
      *     waiting for ClientHelo. the server will flag an error, but it won't
      *     help the admin at all to figure out what happened */
-    if(s->plugin_data[p->index] != NULL) {
+    if (s->plugin_data[p->index] != NULL) {
         pemfile = ((_sx_ssl_conn_t)s->plugin_data[p->index])->pemfile;
         pemfile_password = ((_sx_ssl_conn_t)s->plugin_data[p->index])->private_key_password;
-        free(s->plugin_data[p->index]);
+        GC_FREE(s->plugin_data[p->index]);
         s->plugin_data[p->index] = NULL;
     }
-    if(pemfile != NULL) {
+    if (pemfile != NULL) {
         /* load the certificate */
         ret = SSL_use_certificate_file(sc->ssl, pemfile, SSL_FILETYPE_PEM);
-        if(ret != 1) {
-            _sx_debug(ZONE, "couldn't load alternate certificate from %s", pemfile);
+        if (ret != 1) {
+            LOG_DEBUG(log, "couldn't load alternate certificate from %s", pemfile);
             SSL_free(sc->ssl);
-            free(sc);
-            free(pemfile);
+            GC_FREE(sc);
+            GC_FREE(pemfile);
             return;
         }
 
@@ -765,27 +773,27 @@ static void _sx_ssl_client(sx_t s, sx_plugin_t p) {
 
         /* load the private key */
         ret = SSL_use_PrivateKey_file(sc->ssl, pemfile, SSL_FILETYPE_PEM);
-        if(ret != 1) {
-            _sx_debug(ZONE, "couldn't load alternate private key from %s", pemfile);
+        if (ret != 1) {
+            LOG_DEBUG(log, "couldn't load alternate private key from %s", pemfile);
             SSL_free(sc->ssl);
-            free(sc);
-            free(pemfile);
+            GC_FREE(sc);
+            GC_FREE(pemfile);
             return;
         }
 
         /* check the private key matches the certificate */
         ret = SSL_check_private_key(sc->ssl);
-        if(ret != 1) {
-            _sx_debug(ZONE, "private key does not match certificate public key");
+        if (ret != 1) {
+            LOG_DEBUG(log, "private key does not match certificate public key");
             SSL_free(sc->ssl);
-            free(sc);
-            free(pemfile);
+            GC_FREE(sc);
+            GC_FREE(pemfile);
             return;
         }
 
-        _sx_debug(ZONE, "loaded alternate pemfile %s", pemfile);
+        LOG_DEBUG(log, "loaded alternate pemfile %s", pemfile);
 
-        free(pemfile);
+        GC_FREE(pemfile);
     }
 
     /* buffer queue */
@@ -797,28 +805,28 @@ static void _sx_ssl_client(sx_t s, sx_plugin_t p) {
     _sx_chain_io_plugin(s, p);
 }
 
-static void _sx_ssl_server(sx_t s, sx_plugin_t p) {
+static void _sx_ssl_server(sx_t *s, sx_plugin_t *p) {
     _sx_ssl_conn_t sc;
     SSL_CTX *ctx;
     int i;
 
     /* only bothering if they asked for wrappermode */
-    if(!(s->flags & SX_SSL_WRAPPER) || s->ssf > 0)
+    if (!(s->flags & SX_SSL_WRAPPER) || s->ssf > 0)
         return;
 
-    _sx_debug(ZONE, "preparing for ssl accept for %d to %s", s->tag, s->req_to);
+    LOG_DEBUG(log, "preparing for ssl accept for %s:%d to %s", s->ip, s->port, s->req_to);
 
     /* find the ssl context for this destination */
-    ctx = xhash_get((xht) p->private, s->req_to);
-    if(ctx == NULL) {
-        _sx_debug(ZONE, "using default ssl context for %d", s->tag);
-        ctx = xhash_get((xht) p->private, "*");
+    ctx = xhash_get((xht*) p->private, s->req_to);
+    if (ctx == NULL) {
+        LOG_DEBUG(log, "using default ssl context for %s:%d", s->ip, s->port);
+        ctx = xhash_get((xht*) p->private, "*");
     } else {
-        _sx_debug(ZONE, "using configured ssl context for %d", s->tag);
+        LOG_DEBUG(log, "using configured ssl context for %s:%d", s->ip, s->port);
     }
     assert((int) (ctx != NULL));
 
-    sc = (_sx_ssl_conn_t) calloc(1, sizeof(struct _sx_ssl_conn_st));
+    sc = (_sx_ssl_conn_t) GC_MALLOC(sizeof(struct _sx_ssl_conn_st));
 
     /* create the buffers */
     sc->rbio = BIO_new(BIO_s_mem());
@@ -832,7 +840,7 @@ static void _sx_ssl_server(sx_t s, sx_plugin_t p) {
 
     /* empty external_id */
     for (i = 0; i < SX_CONN_EXTERNAL_ID_MAX_COUNT; i++)
-    	sc->external_id[i] = NULL;
+        sc->external_id[i] = NULL;
 
     /* buffer queue */
     sc->wq = jqueue_new();
@@ -844,50 +852,50 @@ static void _sx_ssl_server(sx_t s, sx_plugin_t p) {
 }
 
 /** cleanup */
-static void _sx_ssl_free(sx_t s, sx_plugin_t p) {
+static void _sx_ssl_free(sx_t *s, sx_plugin_t *p) {
     _sx_ssl_conn_t sc = (_sx_ssl_conn_t) s->plugin_data[p->index];
-    sx_buf_t buf;
+    sx_buf_t *buf;
     int i;
 
-    if(sc == NULL)
+    if (sc == NULL)
         return;
 
-    log_debug(ZONE, "cleaning up conn state");
+    LOG_DEBUG(log, "cleaning up conn state");
 
-    if(s->type == type_NONE) {
-        free(sc);
+    if (s->type == type_NONE) {
+        GC_FREE(sc);
         return;
     }
 
     for (i = 0; i < SX_CONN_EXTERNAL_ID_MAX_COUNT; i++)
-    	if(sc->external_id[i] != NULL)
-    		free(sc->external_id[i]);
-    	else
-    		break;
+        if (sc->external_id[i] != NULL)
+            free(sc->external_id[i]);
+        else
+            break;
 
-    if(sc->pemfile != NULL) free(sc->pemfile);
+    if (sc->pemfile != NULL) GC_FREE(sc->pemfile);
 
-    if(sc->private_key_password != NULL) free(sc->private_key_password);
+    if (sc->private_key_password != NULL) GC_FREE(sc->private_key_password);
 
-    if(sc->ssl != NULL) SSL_free(sc->ssl);      /* frees wbio and rbio too */
+    if (sc->ssl != NULL) SSL_free(sc->ssl);      /* frees wbio and rbio too */
 
-    if(sc->wq != NULL) {
+    if (sc->wq != NULL) {
         while((buf = jqueue_pull(sc->wq)) != NULL)
             _sx_buffer_free(buf);
 
         jqueue_free(sc->wq);
     }
 
-    free(sc);
+    GC_FREE(sc);
 
     s->plugin_data[p->index] = NULL;
 }
 
-static void _sx_ssl_unload(sx_plugin_t p) {
-    xht contexts = (xht) p->private;
+static void _sx_ssl_unload(sx_plugin_t *p) {
+    xht *contexts = (xht*) p->private;
     void *ctx;
 
-    if(xhash_iter_first(contexts))
+    if (xhash_iter_first(contexts))
         do {
             xhash_iter_get(contexts, NULL, NULL, &ctx);
             SSL_CTX_free((SSL_CTX *) ctx);
@@ -901,19 +909,20 @@ static void _sx_ssl_unload(sx_plugin_t p) {
 int sx_openssl_initialized = 0;
 
 /** args: name, pemfile, cachain, mode */
-int sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args) {
+int sx_ssl_init(sx_env_t *env, sx_plugin_t *p, va_list args) {
     const char *name, *pemfile, *cachain, *password, *ciphers;
     int ret;
     int mode;
 
-    _sx_debug(ZONE, "initialising ssl plugin");
+    log = log4c_category_get(LOG_CATEGORY);
+    LOG_INFO(log, "initialising ssl sx plugin");
 
     name = va_arg(args, const char *);
     pemfile = va_arg(args, const char *);
-    if(pemfile == NULL)
+    if (pemfile == NULL)
         return 1;
 
-    if(p->private != NULL)
+    if (p->private != NULL)
         return 1;
 
     cachain = va_arg(args, const char *);
@@ -924,14 +933,14 @@ int sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args) {
     /* !!! output openssl error messages to the debug log */
 
     /* openssl startup */
-    if(!sx_openssl_initialized) {
+    if (!sx_openssl_initialized) {
         SSL_library_init();
         SSL_load_error_strings();
     }
     sx_openssl_initialized = 1;
 
     ret = sx_ssl_server_addcert(p, name, pemfile, cachain, mode, password, ciphers);
-    if(ret)
+    if (ret)
         return 1;
 
     p->magic = SX_SSL_MAGIC;
@@ -950,8 +959,8 @@ int sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args) {
 }
 
 /** args: name, pemfile, cachain, mode */
-int sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, const char *cachain, int mode, const char *password, const char *ciphers) {
-    xht contexts = (xht) p->private;
+int sx_ssl_server_addcert(sx_plugin_t *p, const char *name, const char *pemfile, const char *cachain, int mode, const char *password, const char *ciphers) {
+    xht *contexts = (xht*) p->private;
     SSL_CTX *ctx;
     SSL_CTX *tmp;
     STACK_OF(X509_NAME) *cert_names;
@@ -961,15 +970,15 @@ int sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, 
     EC_KEY *eckey = NULL;
     int ret, nid;
 
-    if(!sx_openssl_initialized) {
-        _sx_debug(ZONE, "ssl plugin not initialised");
+    if (!sx_openssl_initialized) {
+        LOG_DEBUG(log, "ssl plugin not initialised");
         return 1;
     }
 
-    if(name == NULL)
+    if (name == NULL)
         name = "*";
 
-    if(pemfile == NULL)
+    if (pemfile == NULL)
         return 1;
 
     /* begin with fresh error stack */
@@ -981,17 +990,17 @@ int sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, 
 #else
     ctx = SSL_CTX_new(SSLv23_method());
 #endif
-    if(ctx == NULL) {
-        _sx_debug(ZONE, "ssl context creation failed; %s", ERR_error_string(ERR_get_error(), NULL));
+    if (ctx == NULL) {
+        LOG_DEBUG(log, "ssl context creation failed; %s", ERR_error_string(ERR_get_error(), NULL));
         return 1;
     }
 
     // Set allowed ciphers. if non set, at least always disable NULL and export
     if (!ciphers)
         ciphers = "!aNULL:!eNULL:!EXP:" SSL_DEFAULT_CIPHER_LIST;
-    _sx_debug(ZONE, "Restricting TLS ciphers to %s", ciphers);
+    LOG_DEBUG(log, "Restricting TLS ciphers to %s", ciphers);
     if (SSL_CTX_set_cipher_list(ctx, ciphers) != 1) {
-        _sx_debug(ZONE, "Can't set cipher list for SSL context: %s", ERR_error_string(ERR_get_error(), NULL));
+        LOG_DEBUG(log, "Can't set cipher list for SSL context: %s", ERR_error_string(ERR_get_error(), NULL));
         SSL_CTX_free(ctx);
         return 1;
     }
@@ -999,26 +1008,26 @@ int sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, 
     /* Load the CA chain, if configured */
     if (cachain != NULL) {
         ret = SSL_CTX_load_verify_locations (ctx, cachain, NULL);
-        if(ret != 1) {
-            _sx_debug(ZONE, "WARNING: couldn't load CA chain: %s; %s", cachain, ERR_error_string(ERR_get_error(), NULL));
+        if (ret != 1) {
+            LOG_DEBUG(log, "WARNING: couldn't load CA chain: %s; %s", cachain, ERR_error_string(ERR_get_error(), NULL));
         } else {
-        	_sx_debug(ZONE, "Loaded CA verify location chain: %s", cachain);
+            LOG_DEBUG(log, "Loaded CA verify location chain: %s", cachain);
         }
         cert_names = SSL_load_client_CA_file(cachain);
         if (cert_names != NULL) {
-        	SSL_CTX_set_client_CA_list(ctx, cert_names);
-        	_sx_debug(ZONE, "Loaded client CA chain: %s", cachain);
+            SSL_CTX_set_client_CA_list(ctx, cert_names);
+            LOG_DEBUG(log, "Loaded client CA chain: %s", cachain);
         } else {
-        	_sx_debug(ZONE, "WARNING: couldn't load client CA chain: %s", cachain);
+            LOG_DEBUG(log, "WARNING: couldn't load client CA chain: %s", cachain);
         }
     } else {
-    	/* Load the default OpenlSSL certs from /etc/ssl/certs
-    	 We must assume that the client certificate's CA is there
+        /* Load the default OpenlSSL certs from /etc/ssl/certs
+         We must assume that the client certificate's CA is there
 
-    	 Note: We don't send client_CA_list here. Will possibly break some clients.
-    	 */
-    	SSL_CTX_set_default_verify_paths(ctx);
-    	_sx_debug(ZONE, "No CA chain specified. Loading SSL default CA certs: /etc/ssl/certs");
+         Note: We don't send client_CA_list here. Will possibly break some clients.
+         */
+        SSL_CTX_set_default_verify_paths(ctx);
+        LOG_DEBUG(log, "No CA chain specified. Loading SSL default CA certs: /etc/ssl/certs");
     }
     /* Add server CRL verificaition */
     store = SSL_CTX_get_cert_store(ctx);
@@ -1028,8 +1037,8 @@ int sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, 
 
     /* load the certificate */
     ret = SSL_CTX_use_certificate_chain_file(ctx, pemfile);
-    if(ret != 1) {
-        _sx_debug(ZONE, "couldn't load certificate from %s; %s", pemfile, ERR_error_string(ERR_get_error(), NULL));
+    if (ret != 1) {
+        LOG_DEBUG(log, "couldn't load certificate from %s; %s", pemfile, ERR_error_string(ERR_get_error(), NULL));
         SSL_CTX_free(ctx);
         return 1;
     }
@@ -1040,21 +1049,21 @@ int sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, 
 
     /* load the private key */
     ret = SSL_CTX_use_PrivateKey_file(ctx, pemfile, SSL_FILETYPE_PEM);
-    if(ret != 1) {
-        _sx_debug(ZONE, "couldn't load private key from %s; %s", pemfile, ERR_error_string(ERR_get_error(), NULL));
+    if (ret != 1) {
+        LOG_DEBUG(log, "couldn't load private key from %s; %s", pemfile, ERR_error_string(ERR_get_error(), NULL));
         SSL_CTX_free(ctx);
         return 1;
     }
 
     /* check the private key matches the certificate */
     ret = SSL_CTX_check_private_key(ctx);
-    if(ret != 1) {
-        _sx_debug(ZONE, "private key does not match certificate public key; %s", ERR_error_string(ERR_get_error(), NULL));
+    if (ret != 1) {
+        LOG_DEBUG(log, "private key does not match certificate public key; %s", ERR_error_string(ERR_get_error(), NULL));
         SSL_CTX_free(ctx);
         return 1;
     }
 
-    _sx_debug(ZONE, "setting ssl context '%s' verify mode to %02x", name, mode);
+    LOG_DEBUG(log, "setting ssl context '%s' verify mode to %02x", name, mode);
     SSL_CTX_set_verify(ctx, mode, _sx_ssl_verify_callback);
 
     SSL_CTX_set_tmp_dh_callback(ctx, _sx_ssl_tmp_dh_callback);
@@ -1062,13 +1071,13 @@ int sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, 
     /* try to read DH params from pem file */
     if((dhparams = sx_ssl_get_DHparams(pemfile))) {
         SSL_CTX_set_tmp_dh(ctx, dhparams);
-        _sx_debug(ZONE, "custom DH parameters loaded from certificate", BN_num_bits(dhparams->p));
+        LOG_DEBUG(log, "custom DH parameters %d loaded from certificate", BN_num_bits(dhparams->p));
     }
 
     /* try to read ECDH params from pem file */
     if((ecparams = sx_ssl_get_ECPKParameters(pemfile)) && (nid = EC_GROUP_get_curve_name(ecparams)) && (eckey = EC_KEY_new_by_curve_name(nid))) {
         SSL_CTX_set_tmp_ecdh(ctx, eckey);
-        _sx_debug(ZONE, "custom ECDH curve %s loaded from certificate", OBJ_nid2sn(nid));
+        LOG_DEBUG(log, "custom ECDH curve %s loaded from certificate", OBJ_nid2sn(nid));
     }
     else {
 #if defined(SSL_set_ecdh_auto)
@@ -1076,7 +1085,7 @@ int sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, 
         SSL_CTX_set_ecdh_auto(ctx, 1);
 #else
         /* ..or NIST P-256 */
-        _sx_debug(ZONE, "nist curve enabled");
+        LOG_DEBUG(log, "nist curve enabled");
         eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
         SSL_CTX_set_tmp_ecdh(ctx, eckey);
 #endif
@@ -1084,15 +1093,15 @@ int sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, 
     EC_KEY_free(eckey);
 
     /* create hash and create default context */
-    if(contexts == NULL) {
+    if (contexts == NULL) {
         contexts = xhash_new(1021);
         p->private = (void *) contexts;
 
         /* this is the first context, if it's not the default then make a copy of it as the default */
-        if(!(name[0] == '*' && name[1] == 0)) {
+        if (!(name[0] == '*' && name[1] == 0)) {
             int ret = sx_ssl_server_addcert(p, "*", pemfile, cachain, mode, password, NULL);
 
-            if(ret) {
+            if (ret) {
                 /* uh-oh */
                 xhash_free(contexts);
                 p->private = NULL;
@@ -1101,11 +1110,11 @@ int sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, 
         }
     }
 
-    _sx_debug(ZONE, "ssl context '%s' initialised; certificate and key loaded from %s", name, pemfile);
+    LOG_DEBUG(log, "ssl context '%s' initialised; certificate and key loaded from %s", name, pemfile);
 
     /* remove an existing context with the same name before replacing it */
     tmp = xhash_get(contexts, name);
-    if(tmp != NULL)
+    if (tmp != NULL)
         SSL_CTX_free((SSL_CTX *) tmp);
 
     xhash_put(contexts, name, ctx);
@@ -1113,32 +1122,32 @@ int sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, 
     return 0;
 }
 
-int sx_ssl_client_starttls(sx_plugin_t p, sx_t s, const char *pemfile, const char *private_key_password) {
+int sx_ssl_client_starttls(sx_plugin_t *p, sx_t *s, const char *pemfile, const char *private_key_password) {
     assert((int) (p != NULL));
     assert((int) (s != NULL));
 
     /* sanity */
-    if(s->type != type_CLIENT || s->state != state_STREAM) {
-        _sx_debug(ZONE, "wrong conn type or state for client starttls");
+    if (s->type != type_CLIENT || s->state != state_STREAM) {
+        LOG_DEBUG(log, "wrong conn type or state for client starttls");
         return 1;
     }
 
     /* check if we're already encrypted or compressed */
-    if(s->ssf > 0 || (s->flags & SX_COMPRESS_WRAPPER)) {
-        _sx_debug(ZONE, "encrypted channel already established");
+    if (s->ssf > 0 || (s->flags & SX_COMPRESS_WRAPPER)) {
+        LOG_DEBUG(log, "encrypted channel already established");
         return 1;
     }
 
-    _sx_debug(ZONE, "initiating starttls sequence");
+    LOG_DEBUG(log, "initiating starttls sequence");
 
     /* save the given pemfile for later */
-    if(pemfile != NULL) {
-        s->plugin_data[p->index] = (_sx_ssl_conn_t) calloc(1, sizeof(struct _sx_ssl_conn_st));
-        ((_sx_ssl_conn_t)s->plugin_data[p->index])->pemfile = strdup(pemfile);
+    if (pemfile != NULL) {
+        s->plugin_data[p->index] = (_sx_ssl_conn_t) GC_MALLOC(sizeof(struct _sx_ssl_conn_st));
+        ((_sx_ssl_conn_t)s->plugin_data[p->index])->pemfile = GC_STRDUP(pemfile);
 
          /* save the given password for later */
-         if(private_key_password != NULL)
-             ((_sx_ssl_conn_t)s->plugin_data[p->index])->private_key_password = strdup(private_key_password);
+         if (private_key_password != NULL)
+             ((_sx_ssl_conn_t)s->plugin_data[p->index])->private_key_password = GC_STRDUP(private_key_password);
     }
 
     /* go */

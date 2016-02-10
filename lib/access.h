@@ -18,26 +18,37 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
-#ifndef INCL_UTIL_INADDR_H
-#define INCL_UTIL_INADDR_H
+#ifndef INCL_UTIL_ACCESS_H
+#define INCL_UTIL_ACCESS_H 1
 
 #include "util.h"
-
-#include <string.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#include "inaddr.h"
 
 /*
- * helpers for ip addresses
+ * IP-based access controls
  */
 
-JABBERD2_API int         j_inet_pton(const char *src, struct sockaddr_storage *dst);
-JABBERD2_API const char *j_inet_ntop(struct sockaddr_storage* src, char* dst, size_t size);
-JABBERD2_API int         j_inet_getport(struct sockaddr_storage *sa);
-JABBERD2_API int	     j_inet_setport(struct sockaddr_storage *sa, in_port_t port);
-JABBERD2_API socklen_t   j_inet_addrlen(struct sockaddr_storage *sa);
+typedef struct access_rule_st
+{
+    struct sockaddr_storage ip;
+    int            mask;
+} access_rule_t;
 
-#endif    /* INCL_UTIL_H */
+typedef struct access_st
+{
+    int             order;      /* 0 = allow,deny  1 = deny,allow */
 
+    access_rule_t  *allow;
+    int             nallow;
 
+    access_rule_t  *deny;
+    int             ndeny;
+} access_t;
+
+JABBERD2_API access_t *  access_new(int order);
+JABBERD2_API void        access_free(access_t *access);
+JABBERD2_API int         access_allow(access_t *access, const char *ip, const char *mask);
+JABBERD2_API int         access_deny(access_t *access, const char *ip, const char *mask);
+JABBERD2_API int         access_check(access_t *access, const char *ip);
+
+#endif

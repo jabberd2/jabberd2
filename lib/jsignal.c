@@ -4,7 +4,7 @@
  */
 
 #include <signal.h>
-#include "util.h"
+#include "jsignal.h"
 
 #ifdef _WIN32
 /* Those routines define Windows jabberd2 services */
@@ -33,7 +33,7 @@ jsighandler_t *jabber_term_handler = NULL;
 jsighandler_t* jabber_signal(int signo, jsighandler_t *func)
 {
 #ifdef _WIN32
-    if(signo == SIGTERM) jabber_term_handler = func;
+    if (signo == SIGTERM) jabber_term_handler = func;
     return NULL;
 #else
     struct sigaction act, oact;
@@ -55,7 +55,7 @@ jsighandler_t* jabber_signal(int signo, jsighandler_t *func)
 #ifdef _WIN32
 BOOL WINAPI jabber_ctrl_handler(DWORD dwCtrlType)
 {
-    if(jabber_term_handler) jabber_term_handler(0);
+    if (jabber_term_handler) jabber_term_handler(0);
     return TRUE;
 }
 
@@ -67,25 +67,25 @@ int jabber_wrap_service(int argc, char** argv, jmainhandler_t *wrapper, LPCTSTR 
     jabber_service_description = description;
     jabber_service_depends = depends;
 
-    if((argc == 2) && !strcmp(argv[1], "-I"))
+    if ((argc == 2) && !strcmp(argv[1], "-I"))
     {
         // Jabber service installation requested
-        if(jabber_install_service())
+        if (jabber_install_service())
             printf("Service %s installed sucessfully.\n", jabber_service_name);
         else
             printf("Error installing service %s.\n", jabber_service_name);
         return 0;
     }
-    if((argc == 2) && !strcmp(argv[1], "-U"))
+    if ((argc == 2) && !strcmp(argv[1], "-U"))
     {
         // Jabber service removal requested
-        if(jabber_delete_service())
+        if (jabber_delete_service())
             printf("Service %s uninstalled sucessfully.\n", jabber_service_name);
         else
             printf("Error uninstalling service %s.\n", jabber_service_name);
         return 0;
     }
-    if((argc == 2) && !strcmp(argv[1], "-S"))
+    if ((argc == 2) && !strcmp(argv[1], "-S"))
     {
         TCHAR szPathName[MAX_PATH]; LPTSTR slash = NULL;
         SERVICE_TABLE_ENTRY DispatchTable[] = {{(LPTSTR)jabber_service_name, jabber_service_main}, {NULL, NULL}};
@@ -93,7 +93,7 @@ int jabber_wrap_service(int argc, char** argv, jmainhandler_t *wrapper, LPCTSTR 
         GetModuleFileName(NULL, szPathName, sizeof(szPathName));
 
         // Set working directory to the service path
-        if(slash = strrchr(szPathName, '\\'))
+        if (slash = strrchr(szPathName, '\\'))
         {
             *slash = 0;
             SetCurrentDirectory(szPathName);
@@ -107,7 +107,7 @@ int jabber_wrap_service(int argc, char** argv, jmainhandler_t *wrapper, LPCTSTR 
     SetConsoleCtrlHandler(jabber_ctrl_handler, TRUE);
 
     // Wrap original main function
-    if(jabber_service_wrapper) return jabber_service_wrapper(argc, argv);
+    if (jabber_service_wrapper) return jabber_service_wrapper(argc, argv);
     return 0;
 }
 
@@ -131,7 +131,7 @@ void WINAPI jabber_service_main(DWORD argc, LPTSTR *argv)
     jabber_service_status.dwWaitHint           = 0;
     SetServiceStatus(jabber_service_status_handle, &jabber_service_status);
 
-    if(jabber_service_wrapper) jabber_service_wrapper(argc, argv);
+    if (jabber_service_wrapper) jabber_service_wrapper(argc, argv);
 
     jabber_service_status.dwWin32ExitCode      = 0;
     jabber_service_status.dwCurrentState       = SERVICE_STOPPED;
@@ -159,7 +159,7 @@ void WINAPI jabber_service_ctrl_handler(DWORD Opcode)
             SetServiceStatus(jabber_service_status_handle, &jabber_service_status);
 
             // Call int signal
-            if(jabber_term_handler) jabber_term_handler(0);
+            if (jabber_term_handler) jabber_term_handler(0);
             break;
 
         case SERVICE_CONTROL_INTERROGATE:
@@ -223,10 +223,10 @@ BOOL jabber_delete_service()
     if (hService == NULL)
         return FALSE;
 
-    if(DeleteService(hService)==0)
+    if (DeleteService(hService)==0)
         return FALSE;
 
-    if(CloseServiceHandle(hService)==0)
+    if (CloseServiceHandle(hService)==0)
         return FALSE;
     else
         return TRUE;
