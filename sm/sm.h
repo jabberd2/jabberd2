@@ -22,8 +22,6 @@
   * @brief data structures and prototypes for the session manager
   * @author Jeremie Miller
   * @author Robert Norris
-  * $Date: 2005/09/09 05:34:13 $
-  * $Revision: 1.62 $
   */
 
 #ifdef HAVE_CONFIG_H

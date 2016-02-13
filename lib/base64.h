@@ -21,8 +21,6 @@
 /** @file util/base64.h
   * @brief Base64 encoding
   * @author Apache Software Foundation
-  * $Date: 2004/05/17 05:03:13 $
-  * $Revision: 1.1 $
   */
 
 #ifndef INCL_UTIL_BASE64_H

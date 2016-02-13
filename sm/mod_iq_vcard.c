@@ -23,8 +23,6 @@
 /** @file sm/mod_iq_vcard.c
   * @brief user profiles (vcard)
   * @author Robert Norris
-  * $Date: 2005/08/17 07:48:28 $
-  * $Revision: 1.25 $
   */
 
 #define uri_VCARD    "vcard-temp"

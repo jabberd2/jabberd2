@@ -23,8 +23,6 @@
 /** @file sm/mod_session.c
   * @brief session control
   * @author Robert Norris
-  * $Date: 2006/03/09 09:08:14 $
-  * $Revision: 1.12 $
   */
 
 /** session packet handling

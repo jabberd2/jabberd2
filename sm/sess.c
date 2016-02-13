@@ -23,8 +23,6 @@
 /** @file sm/sess.c
   * @brief session management
   * @author Robert Norris
-  * $Date: 2005/07/25 20:38:06 $
-  * $Revision: 1.37 $
   */
 
 /** send a packet to the client for this session */

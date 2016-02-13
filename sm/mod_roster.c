@@ -23,8 +23,6 @@
 /** @file sm/mod_roster.c
   * @brief roster managment & subscriptions
   * @author Robert Norris
-  * $Date: 2005/09/09 05:34:13 $
-  * $Revision: 1.61 $
   */
 
 typedef struct _mod_roster_st {

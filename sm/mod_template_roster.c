@@ -23,8 +23,6 @@
 /** @file sm/mod_template_roster.c
   * @brief user auto-population - roster
   * @author Robert Norris
-  * $Date: 2005/08/17 07:48:28 $
-  * $Revision: 1.11 $
   */
 
 /* user template - roster */

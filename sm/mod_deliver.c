@@ -23,8 +23,6 @@
 /** @file sm/mod_deliver.c
   * @brief packet delivery
   * @author Robert Norris
-  * $Date: 2005/08/17 07:48:28 $
-  * $Revision: 1.18 $
   */
 
 static mod_ret_t _deliver_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)

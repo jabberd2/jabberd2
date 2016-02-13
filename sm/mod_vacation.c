@@ -23,8 +23,6 @@
 /** @file sm/mod_vacation.c
   * @brief vacation messages
   * @author Robert Norris
-  * $Date: 2005/08/17 07:48:28 $
-  * $Revision: 1.13 $
   */
 
 #define uri_VACATION    "http://jabber.org/protocol/vacation"

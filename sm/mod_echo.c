@@ -23,8 +23,6 @@
 /** @file sm/mod_echo.c
   * @brief message echo
   * @author Robert Norris
-  * $Date: 2005/08/17 07:48:28 $
-  * $Revision: 1.9 $
   */
 
 static mod_ret_t _echo_pkt_sm(mod_instance_t mi, pkt_t pkt)

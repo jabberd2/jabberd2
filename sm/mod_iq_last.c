@@ -23,8 +23,6 @@
 /** @file sm/mod_iq_last.c
   * @brief last activity
   * @author Robert Norris
-  * $Date: 2005/08/17 07:48:28 $
-  * $Revision: 1.18 $
   */
 
 #define uri_LAST    "jabber:iq:last"

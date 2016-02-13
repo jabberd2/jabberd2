@@ -21,8 +21,6 @@
 /** @file sm/storage_mysql.c
   * @brief mysql storage module
   * @author Robert Norris
-  * $Date: 2005/06/22 20:31:22 $
-  * $Revision: 1.22 $
   */
 
 #include "storage.h"

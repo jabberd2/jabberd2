@@ -26,8 +26,6 @@
 /** @file sm/mod_help.c
   * @brief forward messages to administrators
   * @author Robert Norris
-  * $Date: 2005/08/17 07:48:28 $
-  * $Revision: 1.9 $
   */
 
 /* XEP-0157 serverinfo fields */

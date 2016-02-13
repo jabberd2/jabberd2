@@ -27,7 +27,6 @@
 /** @file sm/mod_amp.c
   * @brief Advanced Message Processing (JEP-0079) module
   * @author Cedric Vivier
-  * $Date: 2004/10/28 14:38:35 $
   */
 
 typedef struct _mod_amp_config_st {

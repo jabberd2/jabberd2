@@ -23,8 +23,6 @@
 /** @file sm/sm.c
   * @brief stream / io callbacks
   * @author Robert Norris
-  * $Date: 2005/08/17 07:48:28 $
-  * $Revision: 1.51 $
   */
 
 sig_atomic_t sm_lost_router = 0;

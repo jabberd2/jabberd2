@@ -23,8 +23,6 @@
 /** @file storage/object.c
   * @brief object sets
   * @author Robert Norris
-  * $Date: 2005/06/02 04:48:24 $
-  * $Revision: 1.10 $
   */
 
 /* union for xhash_iter_get to comply with strict-alias rules for gcc3 */

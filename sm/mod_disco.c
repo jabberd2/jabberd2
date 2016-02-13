@@ -23,8 +23,6 @@
 /** @file sm/mod_disco.c
   * @brief service discovery
   * @author Robert Norris
-  * $Date: 2005/09/09 05:34:13 $
-  * $Revision: 1.35 $
   */
 
 #define ACTIVE_SESSIONS_NAME "Active sessions"

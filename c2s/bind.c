@@ -21,8 +21,6 @@
 /** @file c2s/bind.c
   * @brief xmpp resource binding
   * @author Robert Norris
-  * $Date: 2005/06/02 04:48:24 $
-  * $Revision: 1.9 $
   */
 
 #include "c2s.h"

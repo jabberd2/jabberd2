@@ -30,8 +30,6 @@
 /** @file sm/mm.c
   * @brief module manager
   * @author Robert Norris
-  * $Date: 2005/08/17 07:48:28 $
-  * $Revision: 1.40 $
   */
 
 /* these functions implement a multiplexor to get calls to the correct module

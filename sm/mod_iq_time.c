@@ -23,8 +23,6 @@
 /** @file sm/mod_iq_time.c
   * @brief entity time
   * @author Robert Norris
-  * $Date: 2005/08/17 07:48:28 $
-  * $Revision: 1.14 $
   */
 
 #ifdef ENABLE_SUPERSEDED

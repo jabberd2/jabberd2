@@ -23,8 +23,6 @@
 /** @file sm/aci.c
   * @brief access control manager
   * @author Robert Norris
-  * $Date: 2005/09/10 10:23:50 $
-  * $Revision: 1.16 $
   */
 
 xht aci_load(sm_t sm)

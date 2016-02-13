@@ -21,8 +21,6 @@
 /** @file storage/storage.c
   * @brief storage manager
   * @author Robert Norris
-  * $Date: 2005/06/02 06:31:10 $
-  * $Revision: 1.21 $
   */
 
 #include "storage.h"

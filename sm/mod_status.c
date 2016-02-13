@@ -20,8 +20,6 @@
 /** @file sm/mod_status.c
   * @brief status info management
   * @author Lucas Nussbaum 
-  * $Date: 2004/09/01 $
-  * $Revision: 1.3 $
   */
 
 /* for strndup */

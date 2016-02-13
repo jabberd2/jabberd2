@@ -21,8 +21,6 @@
 /** @file sm/storage_pgsql.c
   * @brief postgresql storage module
   * @author Robert Norris
-  * $Date: 2005/06/02 04:48:25 $
-  * $Revision: 1.25 $
   */
 
 #include "storage.h"

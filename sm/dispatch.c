@@ -23,8 +23,6 @@
 /** @file sm/dispatch.c
   * @brief packet dispatcher
   * @author Robert Norris
-  * $Date: 2005/09/09 05:31:04 $
-  * $Revision: 1.18 $
   */
 
 /** main packet dispatcher */

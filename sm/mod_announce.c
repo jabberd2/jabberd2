@@ -24,8 +24,6 @@
 /** @file sm/mod_announce.c
   * @brief announce (broadcast) messages
   * @author Robert Norris
-  * $Date: 2005/08/17 07:48:28 $
-  * $Revision: 1.23 $
   */
 
 /*

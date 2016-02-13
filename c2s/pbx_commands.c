@@ -21,8 +21,6 @@
 /** @file c2s/pbx_commands.c
   * @brief PBX integration commands interpreter
   * @author Tomasz Sterna
-  * $Date$
-  * $Revision$
   */
 
 /**

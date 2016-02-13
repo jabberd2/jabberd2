@@ -23,8 +23,6 @@
 /** @file sm/mod_presence.c
   * @brief presence tracker driver
   * @author Robert Norris
-  * $Date: 2005/08/17 07:48:28 $
-  * $Revision: 1.17 $
   */
 
 /** presence from the session */

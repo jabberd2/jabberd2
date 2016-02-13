@@ -309,9 +309,7 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
     time_t pool_time = 0;
 #endif
 
-#ifdef HAVE_UMASK
     umask((mode_t) 0027);
-#endif
 
     srand(time(NULL));
 

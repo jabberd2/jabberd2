@@ -21,8 +21,6 @@
 /** @file sm/storage_fs.c
   * @brief filesystem storage module
   * @author Robert Norris
-  * $Date: 2005/06/02 04:48:25 $
-  * $Revision: 1.15 $
   */
 
 /*

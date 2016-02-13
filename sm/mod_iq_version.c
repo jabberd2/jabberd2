@@ -23,8 +23,6 @@
 /** @file sm/mod_iq_version.c
   * @brief software version
   * @author Robert Norris
-  * $Date: 2005/08/17 07:48:28 $
-  * $Revision: 1.16 $
   */
 
 #ifdef HAVE_SYS_UTSNAME_H

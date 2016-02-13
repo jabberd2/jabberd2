@@ -23,8 +23,6 @@
 /** @file sm/user.c
   * @brief user management
   * @author Robert Norris
-  * $Date: 2005/06/02 04:48:25 $
-  * $Revision: 1.23 $
   */
 
 /** make a new one */

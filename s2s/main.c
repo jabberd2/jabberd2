@@ -846,9 +846,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
     time_t check_time = 0, now = 0;
     const char *cli_id = 0;
 
-#ifdef HAVE_UMASK
     umask((mode_t) 0027);
-#endif
 
     srand(time(NULL));
 

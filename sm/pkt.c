@@ -23,8 +23,6 @@
 /** @file sm/pkt.c
   * @brief packet abstraction
   * @author Robert Norris
-  * $Date: 2005/09/09 05:34:13 $
-  * $Revision: 1.35 $
   */
 
 pkt_t pkt_error(pkt_t pkt, int err) {

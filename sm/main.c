@@ -24,8 +24,6 @@
 /** @file sm/main.c
   * @brief initialisation
   * @author Robert Norris
-  * $Date: 2005/08/17 07:48:28 $
-  * $Revision: 1.57 $
   */
 
 static sig_atomic_t sm_shutdown = 0;
@@ -221,9 +219,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
 #endif
     const char *cli_id = 0;
 
-#ifdef HAVE_UMASK
     umask((mode_t) 0027);
-#endif
 
     srand(time(NULL));
 

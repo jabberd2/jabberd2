@@ -23,8 +23,6 @@
 /** @file sm/mod_privacy.c
   * @brief XEP-0016 Privacy Lists and XEP-0191 Simple Comunications Blocking
   * @author Robert Norris
-  * $Date: 2005/08/17 07:48:28 $
-  * $Revision: 1.32 $
   */
 
 static int ns_PRIVACY = 0;

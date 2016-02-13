@@ -24,8 +24,6 @@
 /** @file sm/pres.c
   * @brief presence tracker
   * @author Robert Norris
-  * $Date: 2005/06/02 04:48:25 $
-  * $Revision: 1.41 $
   */
 
 /*

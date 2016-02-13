@@ -21,8 +21,6 @@
 /** @file c2s/pbx.c
   * @brief PBX integration
   * @author Tomasz Sterna
-  * $Date$
-  * $Revision$
   */
 
 #include "c2s.h"

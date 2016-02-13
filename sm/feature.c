@@ -23,8 +23,6 @@
 /** @file sm/feature.c
   * @brief feature registration
   * @author Robert Norris
-  * $Date: 2005/08/17 11:10:12 $
-  * $Revision: 1.9 $
   */
 
 /*

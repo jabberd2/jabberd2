@@ -23,8 +23,6 @@
 /** @file sm/mod_iq_ping.c
   * @brief xmpp ping
   * @author Tomasz Sieprawski
-  * $Date: 2007/04/06 xx:xx:xx $
-  * $Revision: 1.0 $
   */
 
 static int ns_PING = 0;

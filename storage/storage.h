@@ -21,8 +21,6 @@
 /** @file storage/storage.h
   * @brief data structures and prototypes for the storage manager
   * @author Eugene Agafonov
-  * $Date:  $
-  * $Revision: $
   */
 
 #ifndef _STORAGE_H_

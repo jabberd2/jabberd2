@@ -21,8 +21,6 @@
 /** @file util/datetime.h
   * @brief ISO 8610 / JEP 82 date/time manipulation
   * @author Robert Norris
-  * $Date: 2004/05/05 23:49:38 $
-  * $Revision: 1.1 $
   */
 
 #ifndef INCL_UTIL_DATETIME_H

@@ -23,8 +23,6 @@
 /** @file sm/mod_offline.c
   * @brief offline storage
   * @author Robert Norris
-  * $Date: 2005/08/17 07:48:28 $
-  * $Revision: 1.26 $
   */
 
 typedef struct _mod_offline_st {
