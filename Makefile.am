@@ -11,6 +11,9 @@ ACLOCAL_AMFLAGS = -I m4
 
 .PHONY: doc
 
+libtool: $(LIBTOOL_DEPS)
+	$(SHELL) ./config.status libtool
+
 doc: Doxyfile
 	@doxygen
 

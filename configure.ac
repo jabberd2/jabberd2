@@ -2,13 +2,15 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([jabberd], [3.x.dev], [jabberd2@lists.xiaoka.com], [jabberd], [http://github.com/jabberd2])
+AC_INIT([jabberd],[3.x.dev],[jabberd2@lists.xiaoka.com],[jabberd],[http://github.com/jabberd2])
 AC_CONFIG_SRCDIR([src/main.c])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIRS([m4])
 AM_INIT_AUTOMAKE
 AM_SILENT_RULES([yes])
-AC_DISABLE_STATIC
+LT_PREREQ([2.4.6])
+LT_INIT([shared disable-static dlopen])
+AC_SUBST([LIBTOOL_DEPS])
 
 # Quit if it is an in-source build
 if test ${srcdir} == "." ; then
@@ -16,18 +18,12 @@ if test ${srcdir} == "." ; then
 fi
 
 # Checks for programs.
-AC_PROG_CXX
-AC_PROG_AWK
 AC_PROG_CC
 AC_PROG_CC_STDC
 AC_PROG_CPP
 AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_MAKE_SET
-AC_PROG_RANLIB
-AC_PROG_LIBTOOL
-AC_LIBTOOL_DLOPEN
-PKG_PROG_PKG_CONFIG
 
 # Colorized build output
 AX_CHECK_COMPILE_FLAG([-fdiagnostics-color], [CFLAGS="${CFLAGS} -fdiagnostics-color"],
@@ -85,7 +81,7 @@ AC_FUNC_REALLOC
 AC_CHECK_FUNCS([dup2 gethostname getpagesize gettimeofday inet_ntoa memchr memmove memset mkdir mkfifo regcomp strcasecmp strchr strcspn strdup strerror strncasecmp strndup strrchr strspn strstr strtol tzset uname utime])
 
 # conditional features
-AC_ARG_ENABLE(websocket, AC_HELP_STRING([--enable-websocket], [enable WebSocket support on C2S port (no)]),
+AC_ARG_ENABLE(websocket, AS_HELP_STRING([--enable-websocket],[enable WebSocket support on C2S port (no)]),
               want_websocket=$enableval, want_websocket=no)
 if test "x-$want_websocket" = "x-yes" ; then
     AC_CHECK_LIB([http_parser], [http_parser_init])
@@ -97,27 +93,27 @@ if test "x-$want_websocket" = "x-yes" ; then
 fi
 AM_CONDITIONAL(USE_WEBSOCKET, [test "x-$want_websocket" = "x-yes"])
 
-AC_ARG_ENABLE(superseded, AC_HELP_STRING([--enable-superseded], [enable superseded XEP support (yes)]),
+AC_ARG_ENABLE(superseded, AS_HELP_STRING([--enable-superseded],[enable superseded XEP support (yes)]),
               want_superseded=$enableval, want_superseded=no)
 if test "x-$want_superseded" = "x-yes" ; then
     AC_DEFINE(ENABLE_SUPERSEDED,1,[Define to 1 if you want to compile-in superseded XEP handlers.])
 fi
 
-AC_ARG_ENABLE(experimental, AC_HELP_STRING([--enable-experimental], [enable experimental features (yes)]),
+AC_ARG_ENABLE(experimental, AS_HELP_STRING([--enable-experimental],[enable experimental features (yes)]),
               want_experimental=$enableval, want_experimental=no)
 if test "x-$want_experimental" = "x-yes" ; then
     AC_DEFINE(ENABLE_EXPERIMENTAL,1,[Define to 1 if you want to compile-in experimental features.])
 fi
 AM_CONDITIONAL(ENABLE_EXPERIMENTAL, [test "x-$want_experimental" = "x-yes"])
 
-AC_ARG_ENABLE(tests, AC_HELP_STRING([--enable-tests], [enable tests (yes)]),
+AC_ARG_ENABLE(tests, AS_HELP_STRING([--enable-tests],[enable tests (yes)]),
               want_tests=$enableval, want_tests=yes)
 if test "x-$want_tests" = "x-yes" ; then
     PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [want_tests=yes], [want_tests=no])
 fi
 AM_CONDITIONAL(ENABLE_TESTS, [test "x-$want_tests" = "x-yes"])
 
-AC_ARG_ENABLE([werror], AC_HELP_STRING([--enable-werror], [Treat all warnings as error]),
+AC_ARG_ENABLE([werror], AS_HELP_STRING([--enable-werror],[Treat all warnings as error]),
               CFLAGS="-Wall -Werror $CFLAGS")
 
 AC_CONFIG_FILES([Makefile
@@ -125,5 +121,6 @@ AC_CONFIG_FILES([Makefile
                  etc/templates/Makefile
                  lib/Makefile
                  sx/Makefile
-                 src/Makefile])
+                 src/Makefile
+                 tests/Makefile])
 AC_OUTPUT

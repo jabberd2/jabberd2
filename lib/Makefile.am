@@ -7,4 +7,4 @@ noinst_HEADERS = access.h base64.h crypt_blowfish.h datetime.h hex.h inaddr.h ji
 
 libutil_la_SOURCES = access.c base64.c crypt_blowfish.c datetime.c hex.c inaddr.c jid.c jqueue.c jsignal.c md5.c miniz.c nad.c rate.c serial.c sha1.c stanza.c str.c xconfig.c xhash.c
 
-libutil_la_LIBADD = @LDFLAGS@
+libutil_la_LIBADD = @LDFLAGS@ $(EXPAT_LIBS) $(GC_LIBS) $(IDN_LIBS) $(LOG4C_LIBS) $(SSL_LIBS)
