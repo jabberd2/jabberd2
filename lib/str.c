@@ -25,6 +25,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <errno.h>
 #include <gc.h>
 
 #define BLOCKSIZE 128
@@ -118,8 +119,10 @@ int j_atoi(const char *a, int def)
 {
     if (a == NULL)
         return def;
-    else
-        return atoi(a);
+
+    errno = 0;
+    long temp = strtol(a, NULL, 10);
+    return errno ? def : (int)temp;
 }
 
 char *j_attr(const char** atts, const char *attr)
@@ -144,21 +147,4 @@ char *j_strnchr(const char *s, int c, int n) {
             return &((char *)s)[count];
 
     return NULL;
-}
-
-/** convenience (originally by Thomas Muldowney) */
-void shahash_r(const char* str, char hashbuf[41]) {
-    unsigned char hashval[20];
-
-    shahash_raw(str, hashval);
-    hex_from_raw(hashval, 20, hashbuf);
-}
-void shahash_raw(const char* str, unsigned char hashval[20]) {
-#ifdef HAVE_SSL
-    /* use OpenSSL functions when available */
-#   include <openssl/sha.h>
-    SHA1((unsigned char *)str, strlen(str), hashval);
-#else
-    sha1_hash((unsigned char *)str, strlen(str), hashval);
-#endif
 }

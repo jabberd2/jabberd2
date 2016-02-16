@@ -1,6 +1,7 @@
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
+#include "sha1.h"
+#include "hex.h"
+#include <string.h>
+
 #ifndef HAVE_SSL
 #warning OpenSSL functions for sha1 not available
 /*
@@ -151,3 +152,20 @@ static void sha1_hashblock(sha1_state_t *ctx) {
   ctx->H[4] += E;
 }
 #endif /* HAVE_SSL */
+
+/** convenience (originally by Thomas Muldowney) */
+void shahash_r(const char* str, char hashbuf[41]) {
+    unsigned char hashval[20];
+
+    shahash_raw(str, hashval);
+    hex_from_raw(hashval, 20, hashbuf);
+}
+void shahash_raw(const char* str, unsigned char hashval[20]) {
+#ifdef HAVE_SSL
+    /* use OpenSSL functions when available */
+#   include <openssl/sha.h>
+    SHA1((unsigned char *)str, strlen(str), hashval);
+#else
+    sha1_hash((unsigned char *)str, strlen(str), hashval);
+#endif
+}

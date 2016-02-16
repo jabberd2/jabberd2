@@ -45,8 +45,4 @@ JABBERD2_API int j_atoi(const char *a, int def); /* checks for NULL and uses def
 JABBERD2_API char *j_attr(const char** atts, const char *attr); /* decode attr's (from expat) */
 JABBERD2_API char *j_strnchr(const char *s, int c, int n); /* like strchr, but only searches n chars */
 
-/** old convenience function, now in str.c */
-JABBERD2_API void shahash_r(const char* str, char hashbuf[41]);
-JABBERD2_API void shahash_raw(const char* str, unsigned char hashval[20]);
-
 #endif

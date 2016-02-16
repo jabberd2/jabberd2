@@ -25,6 +25,10 @@
 
 #include "util.h"
 
+/** old convenience functions */
+JABBERD2_API void shahash_r(const char* str, char hashbuf[41]);
+JABBERD2_API void shahash_raw(const char* str, unsigned char hashval[20]);
+
 /* use OpenSSL functions when available */
 #ifdef HAVE_SSL
 #include <openssl/sha.h>

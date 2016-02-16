@@ -20,6 +20,7 @@
 
 #include "jid.h"
 #include "str.h"
+#include "sha1.h"
 #include <gc.h>
 #include <stringprep.h>
 #include <assert.h>
