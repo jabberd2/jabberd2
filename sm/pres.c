@@ -320,7 +320,7 @@ void pres_deliver(sess_t sess, pkt_t pkt) {
         return;
     }
 
-    if(jid_compare_user(pkt->from, sess->jid) == 0) {
+    if(jid_compare_user(pkt->to, sess->jid) == 0) {
         /* this is a presence for ourselves */
         log_debug(ZONE, "delivering directed presence to self");
         jid_reset(pkt->from, jid_full(sess->jid), -1);
