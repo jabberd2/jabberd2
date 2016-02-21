@@ -30,7 +30,8 @@
 static mod_ret_t _deliver_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)
 {
     /* ensure from is set correctly if not already by client */
-    if(pkt->from == NULL || jid_compare_user(pkt->from, sess->jid) != 0) {
+    if(pkt->from == NULL || jid_compare_user(pkt->from, sess->jid) != 0
+       || (!(pkt->type & pkt_PRESENCE) && jid_compare_full(pkt->from, sess->jid) != 0)) {
         if(pkt->from != NULL)
             jid_free(pkt->from);
 
