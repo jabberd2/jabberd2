@@ -182,6 +182,9 @@ typedef struct _sx_websocket_conn_st {
     spool                   field, value;
     xht                     headers;
     void                    *frame;
+    unsigned int            opcode;
+    char                    *buf;
+    size_t                  buf_len;
 } *_sx_websocket_conn_t;
 #endif
 

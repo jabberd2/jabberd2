@@ -313,7 +313,8 @@ static void _sx_websocket_http_return(sx_t s, char *status, char *headers_format
 
 static int _sx_websocket_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     _sx_websocket_conn_t sc = (_sx_websocket_conn_t) s->plugin_data[p->index];
-    int i, ret, err;
+    int i, j, ret, err;
+    char *newbuf;
     sha1_state_t sha1;
     unsigned char hash[20];
 
@@ -404,7 +405,7 @@ static int _sx_websocket_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     if(!(s->flags & SX_WEBSOCKET_WRAPPER) || sc->state != websocket_ACTIVE)
         return 1;
 
-    _sx_debug(ZONE, "Unwraping WebSocket frame");
+    _sx_debug(ZONE, "Unwraping WebSocket frame: %d bytes", buf->len);
 
     char *data = buf->data;
     for (i = 0; i < buf->len;) {
@@ -436,41 +437,50 @@ static int _sx_websocket_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
         }
 
         if (frame->rawdata_idx < frame->size) {
-            if (buf->len - i >= frame->size - frame->rawdata_idx) { //remaining in current vector completes frame.  Copy remaining frame size
+            if (buf->len - i >= frame->size - frame->rawdata_idx) {
+                //remaining in current vector completes frame.  Copy remaining frame size
                 memcpy(frame->rawdata + frame->rawdata_idx, data,
                        frame->size - frame->rawdata_idx);
                 data += frame->size - frame->rawdata_idx;
                 i += frame->size - frame->rawdata_idx;
                 frame->rawdata_idx = frame->size;
-            } else { //not complete frame, copy the rest of this vector into frame.
+            } else {
+                //not complete frame, copy the rest of this vector into frame.
                 memcpy(frame->rawdata + frame->rawdata_idx, data, buf->len - i);
                 frame->rawdata_idx += buf->len - i;
                 i = buf->len;
+                _sx_debug(ZONE, "more frame data to come");
                 continue;
             }
         }
 
         //have full frame at this point
         _sx_debug(ZONE, "FIN: %d", frame->fin);
-        _sx_debug(ZONE, "Opcode: %d", frame->opcode);
+        _sx_debug(ZONE, "Opcode: %x", frame->opcode);
         _sx_debug(ZONE, "mask_offset: %d", frame->mask_offset);
         _sx_debug(ZONE, "payload_offset: %d", frame->payload_offset);
         _sx_debug(ZONE, "rawdata_idx: %d", frame->rawdata_idx);
         _sx_debug(ZONE, "rawdata_sz: %d", frame->rawdata_sz);
         _sx_debug(ZONE, "payload_len: %u", frame->payload_len);
 
-        switch (frame->opcode) {
+        if (frame->opcode != WS_OPCODE_CONTINUE) {
+            sc->opcode = frame->opcode;
+        }
+
+        switch (sc->opcode) {
         case WS_OPCODE_TEXT:
-            _sx_buffer_set(buf, frame->rawdata + frame->payload_offset, frame->payload_len, frame->rawdata);
-            frame->rawdata = NULL;
             /* unmask content */
-            for (i = 0; i < buf->len; i++)
-                buf->data[i] ^= frame->mask[i % 4];
-            _sx_debug(ZONE, "payload: %.*s", buf->len, buf->data);
-            /* hack unclosed stream */
-            if (buf->len >= 7 && strncmp(buf->data, "<open", 5) == 0 && strncmp(buf->data + buf->len - 2, "/>", 2) == 0) {
-                buf->len--;
-                buf->data[buf->len - 1] = '>';
+            for (j = 0; j < frame->payload_len; j++)
+                frame->rawdata[frame->payload_offset + j] ^= frame->mask[j % 4];
+            _sx_debug(ZONE, "payload: %.*s", frame->payload_len, frame->rawdata + frame->payload_offset);
+            sc->buf = realloc(sc->buf, sc->buf_len + frame->payload_len);
+            newbuf = sc->buf + sc->buf_len;
+            strncpy(newbuf, frame->rawdata + frame->payload_offset, frame->payload_len);
+            sc->buf_len += frame->payload_len;
+            /* hack unclose <open ... /> */
+            if (frame->payload_len >= 7 && strncmp(newbuf, "<open", 5) == 0 && strncmp(newbuf + frame->payload_len - 2, "/>", 2) == 0) {
+                sc->buf_len--;
+                sc->buf[sc->buf_len - 1] = '>';
             }
             break;
         case WS_OPCODE_CLOSE:
@@ -478,14 +488,11 @@ static int _sx_websocket_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
             break;
         case WS_OPCODE_PING:
             libwebsock_send_fragment(s, sc, frame->rawdata + frame->payload_offset, frame->payload_len, WS_FRAGMENT_FIN | WS_OPCODE_PONG);
-            _sx_buffer_clear(buf);
             break;
         case WS_OPCODE_PONG:
-            _sx_buffer_clear(buf);
             s->want_read = 1;
-            return 0;
         default:
-            libwebsock_fail_connection(s, sc, WS_CLOSE_PROTOCOL_ERROR);
+            _sx_debug(ZONE, "unhandled opcode: %x", frame->opcode);
             break;
         }
 
@@ -498,6 +505,10 @@ static int _sx_websocket_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
             return 0;
         }
     }
+
+    _sx_debug(ZONE, "passing buffer: %.*s", sc->buf_len, sc->buf);
+    _sx_buffer_set(buf, sc->buf, sc->buf_len, NULL);
+    sc->buf_len = 0;
 
     return 1;
 }
@@ -540,6 +551,7 @@ static void _sx_websocket_new(sx_t s, sx_plugin_t p) {
     sc->field   = spool_new(sc->p);
     sc->value   = spool_new(sc->p);
     sc->headers = xhash_new(11);
+    sc->buf     = malloc(1024);
     sc->parser.data = sc;
 
     /* initialize parser */
