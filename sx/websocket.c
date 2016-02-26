@@ -341,7 +341,7 @@ static int _sx_websocket_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
                     char *key = xhash_get(sc->headers, "Sec-WebSocket-Key");
                     char *proto = xhash_get(sc->headers, "Sec-WebSocket-Protocol");
                     int version = j_atoi(xhash_get(sc->headers, "Sec-WebSocket-Version"), -1);
-                    if(j_strcmp(upgrade, "websocket") || j_strcmp(connection, "Upgrade") || j_strcmp(proto, "xmpp") || version != 13) {
+                    if(j_strcmp(upgrade, "websocket") || connection == NULL || strcasestr(connection, "Upgrade") == NULL || j_strcmp(proto, "xmpp") || version != 13) {
                         _sx_debug(ZONE, "Upgrade: %s", upgrade);
                         _sx_debug(ZONE, "Connection: %s", connection);
                         _sx_debug(ZONE, "Sec-WebSocket-Key: %s", key);
