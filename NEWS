@@ -2,6 +2,17 @@ This file contains news, important changes
 and upgrade instructions between different versions of jabberd2.
 
 
+* 2.3.5 to 2.3.6 upgrade:
+
+What changed:
+- Support WebSocket fragmented packets
+- Fixed delivering directed presence (to self)
+- Reset in-sess 'from' to FullJID on non-Presence packets
+
+This is mainly a bugfix release.
+The main change is that WebSocket connections work stable now.
+
+
 * 2.3.4 to 2.3.5 upgrade:
 
 What changed:
