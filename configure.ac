@@ -10,6 +10,7 @@ AM_SILENT_RULES([yes])
 
 # Checks for programs.
 AC_PROG_CC
+AC_PROG_CC_STDC
 AM_PROG_CC_C_O
 AC_PROG_CPP
 AC_PROG_INSTALL
@@ -23,13 +24,6 @@ AC_PROG_LIBTOOL
 if test "x-$lt_cv_dlopen_libs" != "x-" ; then
     LIBS="$LIBS $lt_cv_dlopen_libs"
 fi
-
-# check for optimisation level
-AC_MSG_CHECKING([CFLAGS optimization level])
-[if echo $CFLAGS | grep '.*-O[3s].*' >/dev/null 2>&1; then]
-    AC_MSG_ERROR([maximum allowed optimization level is -O2])
-fi
-AC_MSG_RESULT([fine])
 
 # extra paths
 AC_ARG_WITH([extra_include_path], AC_HELP_STRING([--with-extra-include-path],
