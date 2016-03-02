@@ -117,8 +117,9 @@ void _sx_element_end(void *arg, const char *name) {
         jqueue_push(s->rnadq, s->nad, 0);
         s->nad = NULL;
 
-        /* and reset read bytes counter */
+        /* and reset bytes counters */
         s->rbytes = 0;
+        s->pbytes = 0;
     }
 
     /* close received */

@@ -257,12 +257,12 @@ struct _sx_st {
     /* tag, for logging */
     int                      tag;
 
-	/* IP address of the connection */
-	/* pointing to sess.ip and owned by sess structure */
-	const char              *ip;
+    /* IP address of the connection */
+    /* pointing to sess.ip and owned by sess structure */
+    const char              *ip;
 
-	/* TCP port of the connection */
-	/* pointing to sess.port and owned by sess structure */
+    /* TCP port of the connection */
+    /* pointing to sess.port and owned by sess structure */
     int                     port;
 
     /* callback */
@@ -307,7 +307,10 @@ struct _sx_st {
 
     /* bytes read from socket */
     int                      rbytes;
-    int                      rbytes_total;
+    /* bytes parsed by parser */
+    int                      pbytes;
+    /* total bytes processed */
+    int                      tbytes;
 
     /* read bytes maximum */
     int                      rbytesmax;

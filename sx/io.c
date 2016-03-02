@@ -32,8 +32,8 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
        the socket but the plugin didn't return anything to us (e.g. a
        SSL packet was split across a tcp segment boundary) */
 
-    /* count bytes read */
-    s->rbytes += buf->len;
+    /* count bytes parsed */
+    s->pbytes += buf->len;
 
     /* parse it */
     if(XML_Parse(s->expat, buf->data, buf->len, 0) == 0) {
@@ -43,7 +43,7 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
             errstring = (char *) XML_ErrorString(XML_GetErrorCode(s->expat));
 
             _sx_debug(ZONE, "XML parse error: %s, character %d: %.*s",
-                      errstring, XML_GetCurrentByteIndex(s->expat) - s->rbytes_total, buf->len, buf->data);
+                      errstring, XML_GetCurrentByteIndex(s->expat) - s->tbytes, buf->len, buf->data);
             _sx_gen_error(sxe, SX_ERR_XML_PARSE, "XML parse error", errstring);
             _sx_event(s, event_ERROR, (void *) &sxe);
 
@@ -63,9 +63,9 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
     }
 
     /* check if the stanza size limit is exceeded (it wasn't reset by parser) */
-    if(s->rbytesmax && s->rbytes > s->rbytesmax) {
+    if(s->rbytesmax && s->pbytes > s->rbytesmax) {
         /* parse error */
-        _sx_debug(ZONE, "maximum stanza size (%d) exceeded by reading %d bytes", s->rbytesmax, s->rbytes);
+        _sx_debug(ZONE, "maximum stanza size (%d) exceeded by reading %d bytes", s->rbytesmax, s->pbytes);
 
         errstring = (char *) XML_ErrorString(XML_GetErrorCode(s->expat));
 
@@ -81,7 +81,7 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
     }
 
     /* count bytes processed */
-    s->rbytes_total += buf->len;
+    s->tbytes += buf->len;
 
     /* done with the buffer */
     _sx_buffer_free(buf);
@@ -102,7 +102,7 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
                 errstring = NULL;
 
                 /* get text error description if available - XMPP 4.7.2 */
-                if((ns = nad_find_scoped_namespace(nad, uri_STREAM_ERR, NULL)) >= 0) 
+                if((ns = nad_find_scoped_namespace(nad, uri_STREAM_ERR, NULL)) >= 0)
                     if((elem = nad_find_elem(nad, 0, ns, "text", 1)) >= 0)
                         if(NAD_CDATA_L(nad, elem) > 0) {
                             errstring = (char *) malloc(sizeof(char) * (NAD_CDATA_L(nad, elem) + 1));
@@ -230,11 +230,22 @@ int sx_can_read(sx_t s) {
     } else {
         _sx_debug(ZONE, "passed %d read bytes", in->len);
 
+        /* count bytes read */
+        s->rbytes += in->len;
+
         /* make a copy for processing */
         out = _sx_buffer_new(in->data, in->len, in->notify, in->notify_arg);
 
         /* run it by the plugins */
         ret = _sx_chain_io_read(s, out);
+
+        /* check if the stanza size limit is exceeded (it wasn't reset by parser) */
+        if(s->rbytesmax && s->rbytes > s->rbytesmax) {
+            _sx_debug(ZONE, "maximum stanza size (%d) exceeded by reading %d bytes", s->rbytesmax, s->pbytes);
+            /* make it fail */
+            ret = -1;
+        }
+
         if(ret <= 0) {
             if(ret < 0) {
                 /* permanent failure, its all over */
