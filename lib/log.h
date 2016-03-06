@@ -3,8 +3,11 @@
 
 #include <log4c.h>
 
-#define __LOG_PRIO(prio, cat, msg, args...) \
-    if (log4c_category_is_priority_enabled(cat, prio)) { \
+typedef log4c_category_t    log_t;
+
+#define log_get(...)        log4c_category_get(__VA_ARGS__)
+
+#define __LOG_PRIO(prio, cat, msg, args...) { \
         const log4c_location_info_t locinfo = LOG4C_LOCATION_INFO_INITIALIZER(NULL); \
         log4c_category_log_locinfo(cat, &locinfo, prio, msg, ##args); \
     }

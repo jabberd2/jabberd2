@@ -23,35 +23,45 @@
 
 #include "nad.h"
 #include "xhash.h"
+#include "log.h"
 
-/* config files */
-typedef struct xconfig_elem_st   xconfig_elem_t;
-typedef struct xconfig_st        xconfig_t;
+typedef struct xconfig_st           xconfig_t;
+typedef struct xconfig_elem_st      xconfig_elem_t;
+typedef struct xconfig_callback_st  xconfig_callback_t;
+typedef void (xconfig_callback)(const char *key, const xconfig_elem_t *elem, const char *value, void *data);
 
 /** holder for the config hash and nad */
 struct xconfig_st
 {
     xht                 *hash;
-    nad_t               *nad;
+    log_t               *log;
 };
 
-/** a single element */
+/** a single config element */
 struct xconfig_elem_st
 {
     const char          **values;
     int                 nvalues;
     const char          ***attrs;
+    nad_t               *nad;
+    int                 nad_elem;
+    xconfig_callback_t  *subs;
 };
 
-JABBERD2_API xconfig_t       *xconfig_new(void);
-JABBERD2_API int              xconfig_load(xconfig_t *c, const char *file);
-JABBERD2_API int              xconfig_load_with_id(xconfig_t *c, const char *file, const char *id);
+JABBERD2_API xconfig_t       *xconfig_new(int prime, log_t *log);
+JABBERD2_API int              xconfig_load_file(xconfig_t *c, const char *prefix, const char *file);
+JABBERD2_API int              xconfig_load_nad(xconfig_t *c, const char *prefix, const nad_t *nad);
+JABBERD2_API int              xconfig_load_id(xconfig_t *c, const char *id);
 JABBERD2_API xconfig_elem_t  *xconfig_get(xconfig_t *c, const char *key);
-JABBERD2_API const char      *xconfig_get_one(xconfig_t *c, const char *key, int num);
-JABBERD2_API const char      *xconfig_get_one_default(xconfig_t *c, const char *key, int num, const char *default_value);
+JABBERD2_API const char      *xconfig_get_one(xconfig_t *c, const char *key, int num, const char *default_value);
 JABBERD2_API int              xconfig_count(xconfig_t *c, const char *key);
 JABBERD2_API char            *xconfig_get_attr(xconfig_t *c, const char *key, int num, const char *attr);
+JABBERD2_API xconfig_elem_t  *xconfig_set(xconfig_t *c, const char *key, const char **values, int num);
+JABBERD2_API xconfig_elem_t  *xconfig_set_one(xconfig_t *c, const char *key, int num, const char *value);
+JABBERD2_API xconfig_elem_t  *xconfig_set_attr(xconfig_t *c, const char *key, int num, const char *attr, const char *value);
 JABBERD2_API char            *xconfig_expand(xconfig_t *c, const char *value); //! Replaces $(some.value) with config_get_one(c, "some.value", 0)
+JABBERD2_API void             xconfig_subscribe(xconfig_t *c, const char *key, xconfig_callback *handler, void *data);
+JABBERD2_API void             xconfig_unsubscribe(xconfig_t *c, xconfig_callback *handler, void *data);
 JABBERD2_API void             xconfig_free(xconfig_t* c);
 
 #endif

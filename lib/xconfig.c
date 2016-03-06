@@ -19,21 +19,20 @@
  */
 
 #include "xconfig.h"
+#include "sds.h"
 #include "str.h"
 #include <gc.h>
 #include <expat.h>
 #include <stddef.h>
-#include <stdio.h>
 #include <string.h>
 #include <errno.h>
 
-/** new config structure */
-xconfig_t *xconfig_new(void)
+/** holder for callback and its default value */
+struct xconfig_callback_st
 {
-    xconfig_t *c = (xconfig_t*) GC_MALLOC(sizeof(xconfig_t));
-    c->hash = xhash_new(501);
-    return c;
-}
+    xconfig_callback    *callback;
+    void                *data;
+};
 
 struct build_data
 {
@@ -72,29 +71,44 @@ static void _config_charData(void *arg, const char *str, int len)
 
 static char *_config_expandx(xconfig_t *c, const char *value, int l);
 
-/** turn an xml file into a config hash */
-int xconfig_load(xconfig_t *c, const char *file)
+/** new config structure */
+xconfig_t *xconfig_new(int prime, log_t *log)
 {
-    return xconfig_load_with_id(c, file, 0);
+    xconfig_t *c = (xconfig_t*) GC_MALLOC(sizeof(xconfig_t));
+    c->hash = xhash_new(prime ? prime : 501);
+    c->log = log;
+    return c;
 }
 
 /** turn an xml file into a config hash */
-int xconfig_load_with_id(xconfig_t *c, const char *file, const char *id)
+int xconfig_load_id(xconfig_t *c, const char *id)
 {
+    if (!id)
+        return 1;
+
+    xconfig_elem_t *elem = GC_MALLOC(sizeof(xconfig_elem_t));
+    xhash_put(c->hash, GC_STRDUP("id"), elem);
+    elem->values = GC_MALLOC(sizeof(char *));
+    elem->values[0] = GC_STRDUP(id);
+    elem->nvalues = 1;
+
+    return 0;
+}
+
+/** turn an xml file into a config hash */
+int xconfig_load_file(xconfig_t *c, const char *prefix, const char *file)
+{
+    int done, len;
+    char buf[1024];
     struct build_data bd;
     FILE *f;
     XML_Parser p;
-    int done, len, end, i, j, attr;
-    char buf[1024], *next;
-    struct nad_elem_st **path;
-    xconfig_elem_t *elem;
-    int rv = 0;
 
     /* open the file */
     f = fopen(file, "r");
     if (f == NULL)
     {
-        fprintf(stderr, "config_load: couldn't open %s for reading: %s\n", file, strerror(errno));
+        LOG_ERROR(c->log, "couldn't open %s for reading: %s", file, strerror(errno));
         return 1;
     }
 
@@ -102,7 +116,7 @@ int xconfig_load_with_id(xconfig_t *c, const char *file, const char *id)
     p = XML_ParserCreate(NULL);
     if (p == NULL)
     {
-        fprintf(stderr, "config_load: couldn't allocate XML parser\n");
+        LOG_ERROR(c->log, "couldn't allocate XML parser");
         fclose(f);
         return 1;
     }
@@ -122,7 +136,7 @@ int xconfig_load_with_id(xconfig_t *c, const char *file, const char *id)
         len = fread(buf, 1, 1024, f);
         if (ferror(f))
         {
-            fprintf(stderr, "config_load: read error: %s\n", strerror(errno));
+            LOG_ERROR(c->log, "read error: %s", strerror(errno));
             XML_ParserFree(p);
             fclose(f);
             nad_free(bd.nad);
@@ -133,7 +147,7 @@ int xconfig_load_with_id(xconfig_t *c, const char *file, const char *id)
         /* parse it */
         if (!XML_Parse(p, buf, len, done))
         {
-            fprintf(stderr, "config_load: parse error at line %llu: %s\n", (unsigned long long) XML_GetCurrentLineNumber(p), XML_ErrorString(XML_GetErrorCode(p)));
+            LOG_ERROR(c->log, "parse error at line %llu: %s", (unsigned long long) XML_GetCurrentLineNumber(p), XML_ErrorString(XML_GetErrorCode(p)));
             XML_ParserFree(p);
             fclose(f);
             nad_free(bd.nad);
@@ -148,37 +162,46 @@ int xconfig_load_with_id(xconfig_t *c, const char *file, const char *id)
     XML_ParserFree(p);
     fclose(f);
 
-    // Put id if specified
-    if (id) {
-        elem = GC_MALLOC(sizeof(xconfig_elem_t));
-        xhash_put(c->hash, GC_STRDUP("id"), elem);
-        elem->values = GC_MALLOC_ATOMIC(sizeof(char *));
-        elem->values[0] = GC_STRDUP(id);
-        elem->nvalues = 1;
+    return xconfig_load_nad(c, prefix, bd.nad);
+}
+
+int xconfig_load_nad(xconfig_t *c, const char *prefix, const nad_t *nad)
+{
+    int len, end, i, j, attr;
+    sds buf;
+    char *next;
+    struct nad_elem_st **path;
+    xconfig_elem_t *elem;
+    int rv = 0;
+
+    buf = sdsnew(prefix);
+    if (prefix) {
+        buf = sdscat(buf, ".");
     }
 
-    /* now, turn the nad into a config hash */
+    /* turn the nad into a config hash */
     path = NULL;
     len = 0, end = 0;
     /* start at 1, so we skip the root element */
-    for (i = 1; i < bd.nad->ecur && rv == 0; i++)
+    for (i = 1; i < nad->ecur && rv == 0; i++)
     {
         /* make sure we have enough room to add this element to our path */
-        if (end <= bd.nad->elems[i].depth)
+        if (end <= nad->elems[i].depth)
         {
-            end = bd.nad->elems[i].depth + 1;
+            end = nad->elems[i].depth + 1;
             path = (struct nad_elem_st **) GC_REALLOC((void *) path, sizeof(struct nad_elem_st *) * end);
         }
 
         /* save this path element */
-        path[bd.nad->elems[i].depth] = &bd.nad->elems[i];
-        len = bd.nad->elems[i].depth + 1;
+        path[nad->elems[i].depth] = &nad->elems[i];
+        len = nad->elems[i].depth + 1;
 
         /* construct the key from the current path */
-        next = buf;
+        next = buf + sdslen(buf);
         for (j = 1; j < len; j++)
         {
-            strncpy(next, bd.nad->cdata + path[j]->iname, path[j]->lname);
+            sdsgrowzero(buf, (next - buf) + path[j]->lname);
+            strncpy(next, nad->cdata + path[j]->iname, path[j]->lname);
             next = next + path[j]->lname;
             *next = '.';
             next++;
@@ -198,10 +221,10 @@ int xconfig_load_with_id(xconfig_t *c, const char *file, const char *id)
         elem->values = GC_REALLOC((void *) elem->values, sizeof(char *) * (elem->nvalues + 1));
 
         /* and copy it in */
-        if (NAD_CDATA_L(bd.nad, i) > 0) {
+        if (NAD_CDATA_L(nad, i) > 0) {
             // Expand values
 
-            const char *val = _config_expandx(c, NAD_CDATA(bd.nad, i), NAD_CDATA_L(bd.nad, i));
+            const char *val = _config_expandx(c, NAD_CDATA(nad, i), NAD_CDATA_L(nad, i));
 
             if (!val) {
                 rv = 1;
@@ -218,21 +241,21 @@ int xconfig_load_with_id(xconfig_t *c, const char *file, const char *id)
         elem->attrs[elem->nvalues] = NULL;
 
         /* count the attributes */
-        for (attr = bd.nad->elems[i].attr, j = 0; attr >= 0; attr = bd.nad->attrs[attr].next, j++);
+        for (attr = nad->elems[i].attr, j = 0; attr >= 0; attr = nad->attrs[attr].next, j++);
 
         /* make space */
-        elem->attrs[elem->nvalues] = GC_MALLOC_ATOMIC(sizeof(char *) * (j * 2 + 2));
+        elem->attrs[elem->nvalues] = GC_MALLOC(sizeof(char *) * (j * 2 + 2));
 
         /* if we have some */
         if (j > 0)
         {
             /* copy them in */
             j = 0;
-            attr = bd.nad->elems[i].attr;
+            attr = nad->elems[i].attr;
             while(attr >= 0)
             {
-                elem->attrs[elem->nvalues][j] = GC_STRNDUP(NAD_ANAME(bd.nad, attr), NAD_ANAME_L(bd.nad, attr));
-                elem->attrs[elem->nvalues][j + 1] = GC_STRNDUP(NAD_AVAL(bd.nad, attr), NAD_AVAL_L(bd.nad, attr));
+                elem->attrs[elem->nvalues][j] = GC_STRNDUP(NAD_ANAME(nad, attr), NAD_ANAME_L(nad, attr));
+                elem->attrs[elem->nvalues][j + 1] = GC_STRNDUP(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr));
 
         /*
          * pstrdupx(blob, 0) returns NULL - which means that later
@@ -240,13 +263,13 @@ int xconfig_load_with_id(xconfig_t *c, const char *file, const char *id)
          * as empty, or just not defined. This fixes that by creating
          * an empty string for attributes which are defined empty
          */
-                if (NAD_AVAL_L(bd.nad, attr)==0) {
+                if (NAD_AVAL_L(nad, attr)==0) {
                     elem->attrs[elem->nvalues][j + 1] = GC_STRDUP("");
                 } else {
-                    elem->attrs[elem->nvalues][j + 1] = GC_STRNDUP(NAD_AVAL(bd.nad, attr), NAD_AVAL_L(bd.nad, attr));
+                    elem->attrs[elem->nvalues][j + 1] = GC_STRNDUP(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr));
                 }
                 j += 2;
-                attr = bd.nad->attrs[attr].next;
+                attr = nad->attrs[attr].next;
             }
         }
 
@@ -254,27 +277,27 @@ int xconfig_load_with_id(xconfig_t *c, const char *file, const char *id)
         elem->attrs[elem->nvalues][j] = NULL;
         elem->attrs[elem->nvalues][j + 1] = NULL;
 
+        /* insert nad reference */
+        elem->nad = (nad_t*)nad;
+        elem->nad_elem = i;
+
         elem->nvalues++;
     }
 
     if (path != NULL)
         GC_FREE(path);
 
-    if (c->nad != NULL)
-        nad_free(c->nad);
-    c->nad = bd.nad;
-
     return rv;
 }
 
 /** get the config element for this key */
-xconfig_elem_t *xconfig_get(xconfig_t *c, const char *key)
+inline xconfig_elem_t *xconfig_get(xconfig_t *c, const char *key)
 {
     return xhash_get(c->hash, key);
 }
 
 /** get config value n for this key */
-const char *xconfig_get_one(xconfig_t *c, const char* key, int num)
+const char *xconfig_get_one(xconfig_t *c, const char *key, int num, const char *default_value)
 {
     xconfig_elem_t *elem = xhash_get(c->hash, key);
 
@@ -284,20 +307,13 @@ const char *xconfig_get_one(xconfig_t *c, const char* key, int num)
     if (num >= elem->nvalues)
         return NULL;
 
-    return elem->values[num];
-}
-
-/** get config value n for this key, returns default_value if not found */
-const char *xconfig_get_one_default(xconfig_t *c, const char *key, int num, const char *default_value)
-{
-    const char *rv = xconfig_get_one(c, key, num);
+    const char *rv = elem->values[num];
 
     if (!rv)
         rv = default_value;
 
     return rv;
-};
-
+}
 
 /** how many values for this key? */
 int xconfig_count(xconfig_t *c, const char *key)
@@ -328,6 +344,9 @@ static void _config_reaper(const char *key, int keylen, void *val, void *arg)
 
     GC_FREE(elem->values);
     GC_FREE(elem->attrs);
+    GC_FREE(elem->subs);
+    /* and we cannot free elem->nad here, as no single elem owns it
+     * Yay for GC! - it will take care of it eventually. */
 }
 
 char *xconfig_expand(xconfig_t *c, const char *value)
@@ -341,13 +360,13 @@ static char *_config_expandx(xconfig_t *c, const char *value, int l)
     static char guard[] = "deadbeaf";
 #endif
 
-//     fprintf(stderr, "config_expand: Expanding '%s'\n", value);
+    LOG_DEBUG(c->log, "Expanding '%.*s'", l, value);
     char *s = GC_STRNDUP(value, l);
 
     char *var_start, *var_end;
 
     while ((var_start = strstr(s, "${")) != 0) {
-//         fprintf(stderr, "config_expand: processing '%s'\n", s);
+        LOG_TRACE(c->log, "processing '%s'", s);
         var_end = strstr(var_start + 2, "}");
 
         if (var_end) {
@@ -355,9 +374,9 @@ static char *_config_expandx(xconfig_t *c, const char *value, int l)
             char *var = var_start + 2;
             *var_end = 0;
 
-//             fprintf(stderr, "config_expand: Var '%s', tail is '%s'\n", var, tail);
+            LOG_TRACE(c->log, "config_expand: Var '%s', tail is '%s'", var, tail);
 
-            const char *var_value = xconfig_get_one(c, var, 0);
+            const char *var_value = xconfig_get_one(c, var, 0, NULL);
 
             if (var_value) {
                 int len = (var_start - s) + strlen(tail) + strlen(var_value) + 1;
@@ -384,13 +403,13 @@ static char *_config_expandx(xconfig_t *c, const char *value, int l)
                 GC_FREE(s);
                 s = expanded_str;
             } else {
-                fprintf(stderr, "config_expand: Have no '%s' defined\n", var);
+                LOG_NOTICE(c->log, "config_expand: Have no '%s' defined", var);
                 GC_FREE(s);
                 s = 0;
                 break;
             }
         } else {
-            fprintf(stderr, "config_expand: } missmatch\n");
+            LOG_NOTICE(c->log, "config_expand: } missmatch");
             GC_FREE(s);
             s = 0;
             break;
@@ -406,11 +425,140 @@ static char *_config_expandx(xconfig_t *c, const char *value, int l)
     }
 }
 
+void xconfig_subscribe(xconfig_t *c, const char *key, xconfig_callback *handler, void *data)
+{
+    int n;
+    xconfig_callback_t *subs;
+
+    xconfig_elem_t *elem = xhash_get(c->hash, key);
+
+    if (elem == NULL) {
+        elem = xconfig_set(c, key, NULL, 0);
+    }
+
+    if (elem->subs != NULL) {
+        for (subs = elem->subs; subs->callback != NULL; subs++) {
+            if (subs->callback == handler) {
+                /* already subscribed */
+                subs->data = data;
+                return;
+            }
+        }
+        n = subs - elem->subs;
+    } else {
+        LOG_TRACE(c->log, "allocating %zd bytes", sizeof(xconfig_callback_t));
+        elem->subs = GC_MALLOC(sizeof(xconfig_callback_t));
+        LOG_TRACE(c->log, "got %p", elem->subs);
+        n = 0;
+    }
+
+    n++; /* space for new item */
+    LOG_TRACE(c->log, "realloc elem '%s' to %d subs", key, n);
+    n++; /* space for terminating NUL item */
+    elem->subs = GC_REALLOC(elem->subs, n * sizeof(xconfig_callback_t));
+    elem->subs[--n].callback = NULL;
+    xconfig_callback_t *sub = &elem->subs[--n];
+    sub->callback = handler;
+    sub->data = data;
+
+    LOG_DEBUG(c->log, "subscribed handler %p:%p for elem '%s'", handler, data, key);
+
+    /* call newly added callback with current value */
+    (*handler)(key, elem, xconfig_get_one(c, key, 0, NULL), data);
+}
+
+struct _unsubscribe_walker_data {
+    xconfig_callback *handler;
+    void *data;
+};
+
+static void _unsubscribe_walker(__attribute__ ((unused)) const char *key, __attribute__ ((unused)) int keylen, void *val, void *arg)
+{
+    xconfig_callback_t *subs, *subsrm = NULL;
+    xconfig_elem_t * const elem = val;
+    struct _unsubscribe_walker_data * const wd = arg;
+
+    if (elem->subs != NULL) {
+        for (subs = elem->subs; subs->callback != NULL; subs++) {
+            if ((wd->handler == NULL || subs->callback == wd->handler)
+             && (wd->data == NULL || subs->data == wd->data)) {
+                subsrm = subs;
+            }
+        }
+        if (subsrm != NULL) {
+            /* replace found mod_instance with last one and NULLify last one */
+            subs--;
+            *subsrm = *subs;
+            subs->callback = NULL;
+        }
+    }
+}
+
+void xconfig_unsubscribe(xconfig_t *c, xconfig_callback *handler, void *data)
+{
+    LOG_DEBUG(c->log, "unsubscribing handler %p(%p) from all elems", handler, data);
+    struct _unsubscribe_walker_data walker_data;
+    walker_data.handler = handler;
+    walker_data.data = data;
+    xhash_walk(c->hash, _unsubscribe_walker, &walker_data);
+}
+
+static void _call_subs(xconfig_t *c, const char *key, xconfig_elem_t *elem)
+{
+    xconfig_callback_t *subs;
+    for (subs = elem->subs; subs != NULL && subs->callback != NULL; subs++) {
+        (*subs->callback)(key, elem, xconfig_get_one(c, key, 0, NULL), subs->data);
+    }
+}
+
+xconfig_elem_t *xconfig_set(xconfig_t *c, const char *key, const char **values, int num)
+{
+    LOG_DEBUG(c->log, "setting '%s' with %d values %p", key, num, values);
+
+    xconfig_elem_t *elem = xhash_get(c->hash, key);
+
+    if (elem == NULL) {
+        elem = GC_MALLOC(sizeof(xconfig_elem_t));
+        xhash_put(c->hash, GC_STRDUP(key), elem);
+    }
+
+    GC_FREE(elem->values);
+    elem->values = values;
+    elem->nvalues = num;
+
+    _call_subs(c, key, elem);
+
+    return elem;
+}
+
+xconfig_elem_t *xconfig_set_one(xconfig_t *c, const char *key, int num, const char *value)
+{
+    LOG_DEBUG(c->log, "setting '%s'[%d] with value '%s'", key, num, value);
+
+    xconfig_elem_t *elem = xhash_get(c->hash, key);
+
+    if (elem == NULL) {
+        elem = GC_MALLOC(sizeof(xconfig_elem_t));
+        xhash_put(c->hash, GC_STRDUP(key), elem);
+    }
+
+    if (elem->nvalues <= num) {
+        elem->nvalues = num + 1;
+        elem->values = GC_REALLOC((void *) elem->values, sizeof(char *) * (elem->nvalues));
+    }
+
+    elem->values[num] = value;
+
+    _call_subs(c, key, elem);
+
+    return elem;
+}
+
+
 /** cleanup */
 void xconfig_free(xconfig_t *c)
 {
     xhash_walk(c->hash, _config_reaper, NULL);
     xhash_free(c->hash);
-    nad_free(c->nad);
     GC_FREE(c);
 }

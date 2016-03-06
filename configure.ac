@@ -33,7 +33,7 @@ AX_CHECK_COMPILE_FLAG([-fdiagnostics-color], [CFLAGS="${CFLAGS} -fdiagnostics-co
 PKG_CHECK_MODULES([EXPAT], [expat >= 2])
 PKG_CHECK_MODULES([IDN], [libidn >= 0.3.0])
 PKG_CHECK_MODULES([GSASL], [libgsasl >= 1.4.0])
-PKG_CHECK_MODULES([LOG4C], [log4c])
+PKG_CHECK_MODULES([LOG4C], [log4c >= 1.2.4])
 PKG_CHECK_MODULES([UV], [libuv])
 PKG_CHECK_MODULES([GC], [bdw-gc])
 PKG_CHECK_MODULES([NANOMSG], [libnanomsg >= 4])
@@ -122,5 +122,6 @@ AC_CONFIG_FILES([Makefile
                  lib/Makefile
                  sx/Makefile
                  src/Makefile
+                 mod/Makefile
                  tests/Makefile])
 AC_OUTPUT
