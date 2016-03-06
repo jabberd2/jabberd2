@@ -1,4 +1,5 @@
 bin_PROGRAMS = jabberd
+AM_CFLAGS = -rdynamic
 AM_CPPFLAGS = -I@top_srcdir@
 
 noinst_HEADERS = conf.h module.h

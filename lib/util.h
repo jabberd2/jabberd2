@@ -40,4 +40,6 @@
   #define SM_API
 #endif
 
+#define NELEMS(x)  (sizeof(x) / sizeof((x)[0]))
+
 #endif    /* INCL_UTIL_H */

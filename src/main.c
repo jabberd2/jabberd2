@@ -12,6 +12,7 @@
  * The project web page: http://jabberd2.org/
  */
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -21,10 +22,13 @@
 #include <string.h>
 #include <uv.h>
 #include <gc.h>
+#include <execinfo.h>
+#include <signal.h>
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
+#include <lib/util.h>
 #include <lib/log.h>
 #include <lib/xhash.h>
 #include "conf.h"
@@ -40,7 +44,7 @@ const char *modules_path = NULL; /* reachable via extern */
 static xht *modules;
 
 
-/** store the process id */
+
 static void _save_pidfile(const char *pidfile)
 {
     if (pidfile == NULL)
@@ -84,18 +88,56 @@ static void _garbage_collect_enable(uv_check_t *handle)
 
 static void _signal_handler(uv_signal_t* handle __attribute__ ((unused)), int signum)
 {
-    LOG_NOTICE(log_main, "Received signal %d", signum);
+    LOG_NOTICE(log_main, "Received signal %d - shutting down", signum);
     uv_stop(uv_default_loop());
+}
+
+static void _crash_sigaction(int signum, siginfo_t *info, void *ucontext)
+{
+    void *array[64];
+    int size;
+    char path[PATH_MAX];
+
+    fprintf(stderr, "=== SIGNAL %d (%s), ADDR %p\n",
+            signum, strsignal(signum), info->si_addr);
+
+    fprintf(stderr, "=== CWD %s\n", getcwd(path, PATH_MAX));
+
+    size = backtrace(array, NELEMS(array));
+
+    /* skip first two stack frames (points here and sigaction) */
+    backtrace_symbols_fd(array + 2, size - 3, STDERR_FILENO);
+
+    fprintf(stderr, "=== Please report this crash to " PACKAGE_BUGREPORT "\n");
+
+    /* restore default handler and return to call it */
+    signal(signum, SIG_DFL);
 }
 
 int main(int argc, char * const _argv[])
 {
+    /* first things first - setup crash handler */
+    struct sigaction sigact;
+
+    sigact.sa_sigaction = _crash_sigaction;
+    sigact.sa_flags = SA_RESTART | SA_SIGINFO;
+
+    int sigs[] = {SIGILL, SIGABRT, SIGBUS, SIGFPE, SIGSEGV};
+    for (int i = 0; i < NELEMS(sigs); i++) {
+        if (sigaction(sigs[i], &sigact, (struct sigaction *)NULL) != 0) {
+            fprintf(stderr, "error setting signal handler for %d (%s)\n",
+                    sigs[i], strsignal(sigs[i]));
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    /* before logging, as it may create files */
+    umask((mode_t) 0027);
+
     if (log4c_init()) {
         fprintf(stderr, "log4c init failed\n");
         exit(EXIT_FAILURE);
     }
-
-    umask((mode_t) 0027);
 
     srand(time(NULL));
 
@@ -151,11 +193,11 @@ int main(int argc, char * const _argv[])
             break;
         case 'v':
             fprintf(stdout,  PACKAGE_STRING "\n"
-                    " Web: " PACKAGE_URL "\n"
-                    "Bugs: " PACKAGE_BUGREPORT "\n");
+                    "   Web: " PACKAGE_URL "\n"
+                    "  Bugs: " PACKAGE_BUGREPORT "\n");
             exit(EXIT_SUCCESS);
         case 'h':
-            fprintf(stdout, "Usage: %s [-h] [-v]"
+            fprintf(stdout, PACKAGE_NAME " usage:\n%s [-h] [-v]"
                     " [-o opt=val [...]]"
                     " [-c path=config.xml]"
                     " [-f id=/path/to/script]"
