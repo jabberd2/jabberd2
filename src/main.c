@@ -42,7 +42,7 @@ static const char *CONF_CORE_MODULES_PATH = "core.modules_path";
 const char *modules_path = NULL; /* reachable via extern */
 
 static xht *modules;
-
+static xht *modules_instances;
 
 
 static void _save_pidfile(const char *pidfile)
@@ -72,6 +72,11 @@ static void _save_pidfile(const char *pidfile)
 static void _config_modules_path(const char *key, const xconfig_elem_t *elem, const char *value, void *data)
 {
     CONFIG_VAL_STRING(key, value, CONF_CORE_MODULES_PATH, modules_path)}
+}
+
+static void _module_reaper(const char *key, int keylen, void *val, void *arg)
+{
+    module_free(val);
 }
 
 static void _garbage_collect(uv_idle_t *handle)
@@ -153,6 +158,7 @@ int main(int argc, char * const _argv[])
 
     /* loaded modules hash */
     modules = xhash_new(59);
+    modules_instances = xhash_new(59);
 
     /* initialize configuration subsystem */
     config_init(1021);
@@ -225,11 +231,19 @@ int main(int argc, char * const _argv[])
         } else {
             mod = module_load(modules, optarg);
             if (mod) {
-                mod_instance_t *mi = module_new(mod, token);
+                mod_instance_t *mi = xhash_get(modules_instances, optarg);
+                if (mi) {
+                    fprintf(stderr, "%s: module instance '%s' already exists\n", argv[0], mi->id);
+                    exit(EXIT_FAILURE);
+                }
+
+                mi = module_new(mod, token);
                 if (!mi) {
                     fprintf(stderr, "%s: error instanitating '%s' module instance '%s'\n", argv[0], mi->mod->name, mi->id);
                     exit(EXIT_FAILURE);
                 }
+
+                xhash_put(modules_instances, optarg, mi);
             }
         }
         if (!mod) {
@@ -275,6 +289,9 @@ int main(int argc, char * const _argv[])
     uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
     LOG_INFO(log_main, "Exiting " PACKAGE_STRING " [%s:%d]", argv[0], getpid());
+
+    /* free instanitated modules */
+    xhash_walk(modules_instances, _module_reaper, NULL);
 
     /* shutdown logging system - should be last before exit! */
     if (log4c_fini()) {
