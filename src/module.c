@@ -101,14 +101,17 @@ int module_unload(xht *modules, const char *name)
     return 0;
 }
 
-mod_instance_t *module_new(module_t *mod, const char *id)
+mod_instance_t *module_new(module_t *mod, const char *id, const char *confprefixes)
 {
     assert(mod);
     assert(mod->instanitate);
-    mod_instance_t *mi = mod->instanitate(mod);
+    mod_instance_t *mi = GC_MALLOC(sizeof(mod_instance_t));
     assert(mi);
     mi->mod = mod;
     mi->id = id;
+    mi->confprefixes = confprefixes;
+    mi = mod->instanitate(mi);
+    assert(mi);
     return mi;
 }
 

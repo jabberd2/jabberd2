@@ -107,7 +107,7 @@ int j_strncasecmp(const char *a, const char *b, int i)
         return strncasecmp(a, b, i);
 }
 
-int j_strlen(const char *a)
+size_t j_strlen(const char *a)
 {
     if (a == NULL)
         return 0;

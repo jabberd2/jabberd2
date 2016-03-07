@@ -69,7 +69,7 @@ static void _save_pidfile(const char *pidfile)
     LOG_INFO(log_main, "process id is %d, written to %s", pid, pidfile);
 }
 
-static void _config_modules_path(const char *key, const xconfig_elem_t *elem, const char *value, void *data)
+static void _config_modules_path(const char *key, const char *value, void *data)
 {
     CONFIG_VAL_STRING(key, value, CONF_CORE_MODULES_PATH, modules_path)}
 }
@@ -164,7 +164,7 @@ int main(int argc, char * const _argv[])
     config_init(1021);
 
     /* subscribe to modules_path config */
-    config_register(CONF_CORE_MODULES_PATH, NULL, _config_modules_path);
+    config_register(CONF_CORE_MODULES_PATH, NULL, NULL, _config_modules_path, NULL);
 
     /* parse command line */
     int opt;
@@ -229,15 +229,16 @@ int main(int argc, char * const _argv[])
         if (optarg == NULL) {
             mod = module_load(modules, token);
         } else {
-            mod = module_load(modules, optarg);
+            char *name = strsep(&optarg, ":");
+            mod = module_load(modules, name);
             if (mod) {
-                mod_instance_t *mi = xhash_get(modules_instances, optarg);
+                mod_instance_t *mi = xhash_get(modules_instances, token);
                 if (mi) {
                     fprintf(stderr, "%s: module instance '%s' already exists\n", argv[0], mi->id);
                     exit(EXIT_FAILURE);
                 }
 
-                mi = module_new(mod, token);
+                mi = module_new(mod, token, optarg);
                 if (!mi) {
                     fprintf(stderr, "%s: error instanitating '%s' module instance '%s'\n", argv[0], mi->mod->name, mi->id);
                     exit(EXIT_FAILURE);

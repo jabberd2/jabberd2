@@ -40,7 +40,7 @@ JABBERD2_API int j_strcmp(const char *a, const char *b); /* provides NULL safe s
 JABBERD2_API int j_strcasecmp(const char *a, const char *b); /* provides NULL safe strcasecmp wrapper */
 JABBERD2_API int j_strncmp(const char *a, const char *b, int i); /* provides NULL safe strncmp wrapper */
 JABBERD2_API int j_strncasecmp(const char *a, const char *b, int i); /* provides NULL safe strncasecmp wrapper */
-JABBERD2_API int j_strlen(const char *a); /* provides NULL safe strlen wrapper */
+JABBERD2_API size_t j_strlen(const char *a); /* provides NULL safe strlen wrapper */
 JABBERD2_API int j_atoi(const char *a, int def); /* checks for NULL and uses default instead, convienence */
 JABBERD2_API char *j_attr(const char** atts, const char *attr); /* decode attr's (from expat) */
 JABBERD2_API char *j_strnchr(const char *s, int c, int n); /* like strchr, but only searches n chars */

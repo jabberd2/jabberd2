@@ -12,7 +12,7 @@
 
 typedef struct module_st module_t;
 typedef struct mod_instance_st mod_instance_t;
-typedef mod_instance_t *(mod_instanitate)(module_t *mod);
+typedef mod_instance_t *(mod_instanitate)(mod_instance_t *mi);
 typedef bool (mod_recycle)(mod_instance_t *mi);
 
 /**
@@ -32,14 +32,16 @@ struct module_st
  */
 struct mod_instance_st
 {
-    module_t        *mod;       /**< module this is an instance of */
-    const char      *id;        /**< unique id of the instance */
+    module_t    *mod;           /**< module this is an instance of */
+    const char  *id;            /**< unique id of the instance */
+    const char  *confprefixes;  /**< list of configuration prefixes, separated with colon ":" */
 };
 
+#define MI(mi) ((mod_instance_t*)mi)
 
 module_t *module_load(xht *modules, const char *name);
 int module_unload(xht *modules, const char *name);
-mod_instance_t *module_new(module_t *mod, const char *id);
+mod_instance_t *module_new(module_t *mod, const char *id, const char *confprefixes);
 int module_free(mod_instance_t *mi);
 
 #endif

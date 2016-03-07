@@ -19,39 +19,56 @@ void config_init(int prime)
     configuration = xconfig_new(prime, log_config);
 }
 
-static void _config_regunreg(bool reg, const char *key, const char *default_value, config_callback *handler)
-{
-    if (handler == NULL || (reg && key == NULL)) return;
+struct _config_data {
+    bool            ready;
+    const char      *key;
+    const char      *default_value;
+    config_callback *callback;
+    void            *data;
+};
 
-    int count, i;
-    sds *tokens, full_key;
-    tokens = sdssplitlen(key, j_strlen(key), ":", 1, &count);
-    for (i = 0; i < count; i++) {
-        if (count == 1) {
-            full_key = sdsnew(key);
-        } else {
-            if (i == count - 1) break;
-            full_key = sdsnew(tokens[i]);
+void _config_callback(const char *key, const xconfig_elem_t *elem, const char *value, void *data)
+{
+    struct _config_data * const cd = (struct _config_data *) data;
+    if (cd->ready) (cd->callback)(cd->key, (value ? value : cd->default_value), cd->data);
+}
+
+void *config_register(const char *key, const char *prefixes, const char *default_value, config_callback *handler, void *data)
+{
+    if (handler == NULL || key == NULL) return NULL;
+
+    LOG_DEBUG(log_config, "registering %p:%p for %s:%s=%s", handler, data, (prefixes ? prefixes : ""), key, default_value);
+
+    struct _config_data *cd = GC_MALLOC(sizeof(struct _config_data));
+    cd->key = key;
+    cd->default_value = default_value;
+    cd->callback = handler;
+    cd->data = data;
+
+    size_t plen = j_strlen(prefixes);
+    if (plen == 0) {
+        cd->ready = true;
+        xconfig_subscribe(configuration, key, _config_callback, cd);
+    }
+    else {
+        int count;
+        sds *tokens = sdssplitlen(prefixes, plen, ":", 1, &count);
+        for (int i = 0; i < count; i++) {
+            sds full_key = sdsnew(tokens[i]);
             full_key = sdscat(full_key, ".");
             full_key = sdscat(full_key, key);
+            if (i == count - 1) cd->ready = true;
+            xconfig_subscribe(configuration, full_key, _config_callback, cd);
         }
-        if (reg)
-            xconfig_subscribe(configuration, key, handler, (void *)default_value);
-        else
-            xconfig_unsubscribe(configuration, handler, NULL);
+        sdsfreesplitres(tokens, count);
     }
 
-    sdsfreesplitres(tokens, count);
+    return cd;
 }
 
-void config_register(const char *key, const char *default_value, config_callback *handler)
+void config_unregister(void *id)
 {
-    _config_regunreg(true, key, default_value, handler);
-}
-
-void config_unregister(config_callback *handler)
-{
-    _config_regunreg(false, NULL, NULL, handler);
+    xconfig_unsubscribe(configuration, _config_callback, id);
 }
 
 void config_set(const char *key, const char *value)

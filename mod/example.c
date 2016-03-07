@@ -1,3 +1,4 @@
+#include <src/conf.h>
 #include <src/module.h>
 #include <lib/log.h>
 
@@ -19,6 +20,12 @@ typedef struct mod_example_instance_st
 
 } mod_example_instance_t;
 
+static void _conf_debug(const char *key, const char *value, void *data)
+{
+    mod_example_instance_t * const mi = (mod_example_instance_t *) data;
+    LOG_DEBUG(mi->log, "got configuration, key '%s' value '%s'", key, value);
+}
+
 
 DLLEXPORT char *module_name = MOD_NAME;
 
@@ -33,15 +40,18 @@ DLLEXPORT bool module_recycle(mod_instance_t *_mi)
     return false;
 }
 
-DLLEXPORT mod_instance_t *module_instanitate(module_t *mod __attribute__ ((unused)))
+DLLEXPORT mod_instance_t *module_instanitate(mod_instance_t *_mi)
 {
-    mod_example_instance_t *mi = (mod_example_instance_t *) GC_MALLOC(sizeof(mod_example_instance_t));
+    mod_example_instance_t *mi = (mod_example_instance_t *) GC_REALLOC(_mi, sizeof(mod_example_instance_t));
     assert(mi);
 
     mi->log = log_get("mod." MOD_NAME);
     assert(mi->log);
 
     /* other module instance members initialization */
+
+    /* example configuration subscription */
+    config_register("test.foo.bar", MI(mi)->confprefixes, NULL, _conf_debug, mi);
 
     LOG_TRACE(mi->log, "module " MOD_NAME "[%p] instanitated", mi)
     return (mod_instance_t *) mi;
