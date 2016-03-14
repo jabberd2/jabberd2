@@ -464,9 +464,7 @@ void xconfig_subscribe(xconfig_t *c, const char *key, xconfig_callback *handler,
         }
         n = subs - elem->subs;
     } else {
-        LOG_TRACE(c->log, "allocating %zd bytes", sizeof(xconfig_callback_t));
         elem->subs = GC_MALLOC(sizeof(xconfig_callback_t));
-        LOG_TRACE(c->log, "got %p", elem->subs);
         n = 0;
     }
 

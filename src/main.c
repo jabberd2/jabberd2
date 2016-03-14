@@ -91,6 +91,11 @@ static void _garbage_collect_enable(uv_check_t *handle)
     uv_idle_start((uv_idle_t*) handle->data, _garbage_collect);
 }
 
+static void* _GC_calloc(size_t count, size_t size)
+{
+    return GC_malloc(count * size);
+}
+
 static void _signal_handler(uv_signal_t* handle __attribute__ ((unused)), int signum)
 {
     LOG_NOTICE(log_main, "Received signal %d - shutting down", signum);
@@ -136,24 +141,29 @@ int main(int argc, char * const _argv[])
         }
     }
 
+    srand(time(NULL));
+
     /* before logging, as it may create files */
     umask((mode_t) 0027);
+
+    /* Initialize Garbage Collector */
+
+    GC_INIT();
+    GC_enable_incremental();
+
+    /* make libuv use GC memory management */
+    uv_replace_allocator(GC_malloc, GC_realloc, _GC_calloc, GC_free);
+
+    /* and pass cmdline to libuv */
+    char **argv = uv_setup_args(argc, (char **) _argv);
 
     if (log4c_init()) {
         fprintf(stderr, "log4c init failed\n");
         exit(EXIT_FAILURE);
     }
-
-    srand(time(NULL));
-
-    char **argv = uv_setup_args(argc, (char **) _argv);
-
     log_main = log4c_category_get(PACKAGE_NAME ".daemon");
     LOG_INFO(log_main, "Starting " PACKAGE_STRING " [%s:%d]", argv[0], getpid());
 
-    /* Initialize Garbage Collector */
-    GC_INIT();
-    GC_enable_incremental();
     log_gc = log4c_category_get(PACKAGE_NAME ".gc");
 
     /* loaded modules hash */

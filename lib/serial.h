@@ -4,7 +4,7 @@
 #include "util.h"
 #include <stddef.h>
 
-/*
+/**
  * serialisation helper functions
  */
 

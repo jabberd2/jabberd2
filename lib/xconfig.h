@@ -41,7 +41,7 @@ struct xconfig_st
 struct xconfig_elem_st
 {
     const char          **values;
-    int                 nvalues;
+    unsigned int        nvalues;
     const char          ***attrs;
     nad_t               *nad;
     int                 nad_elem;

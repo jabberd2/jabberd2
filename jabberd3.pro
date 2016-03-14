@@ -21,4 +21,4 @@ OTHER_FILES += configure.ac \
                $$files(etc/*) \
                Doxyfile.in \
                NEWS \
-               README.md \
+               README.md
