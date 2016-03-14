@@ -69,7 +69,7 @@ static void _save_pidfile(const char *pidfile)
     LOG_INFO(log_main, "process id is %d, written to %s", pid, pidfile);
 }
 
-static void _config_modules_path(const char *key, const char *value, void *data)
+static void _config_modules_path(const char *key, const char *value, void *data, xconfig_elem_t *elem)
 {
     CONFIG_VAL_STRING(key, value, CONF_CORE_MODULES_PATH, modules_path)}
 }
@@ -218,6 +218,7 @@ int main(int argc, char * const _argv[])
         }
     }
 
+    /* go go go modules */
     while (optind < argc) {
         optarg = argv[optind];
         LOG_DEBUG(log_main, "Loading module %s", optarg);

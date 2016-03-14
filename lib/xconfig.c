@@ -299,11 +299,16 @@ inline xconfig_elem_t *xconfig_get(xconfig_t *c, const char *key)
 /** get config value n for this key */
 const char *xconfig_get_one(xconfig_t *c, const char *key, int num, const char *default_value)
 {
-    xconfig_elem_t *elem = xhash_get(c->hash, key);
+    xconfig_elem_t *elem = xconfig_get(c, key);
 
     if (elem == NULL)
         return NULL;
 
+    return xconfig_elem_get_one(elem, num, default_value);
+}
+
+const char *xconfig_elem_get_one(xconfig_elem_t *elem, int num, const char *default_value)
+{
     if (num >= elem->nvalues)
         return NULL;
 
@@ -323,14 +328,27 @@ int xconfig_count(xconfig_t *c, const char *key)
     if (elem == NULL)
         return 0;
 
+    return xconfig_elem_count(elem);
+}
+
+inline int xconfig_elem_count(xconfig_elem_t *elem)
+{
     return elem->nvalues;
 }
 
 /** get an attr for this value */
-char *xconfig_get_attr(xconfig_t *c, const char *key, int num, const char *attr)
+const char *xconfig_get_attr(xconfig_t *c, const char *key, int num, const char *attr)
 {
     xconfig_elem_t *elem = xhash_get(c->hash, key);
 
+    if (elem == NULL)
+        return 0;
+
+    return xconfig_elem_get_attr(elem, num, attr);
+}
+
+const char *xconfig_elem_get_attr(xconfig_elem_t *elem, int num, const char *attr)
+{
     if (num >= elem->nvalues || elem->attrs == NULL || elem->attrs[num] == NULL)
         return NULL;
 
@@ -464,7 +482,7 @@ void xconfig_subscribe(xconfig_t *c, const char *key, xconfig_callback *handler,
     LOG_DEBUG(c->log, "subscribed handler %p:%p for elem '%s'", handler, data, key);
 
     /* call newly added callback with current value */
-    (*handler)(key, elem, xconfig_get_one(c, key, 0, NULL), data);
+    (*handler)(key, elem, data);
 }
 
 struct _unsubscribe_walker_data {
@@ -507,7 +525,7 @@ static void _call_subs(xconfig_t *c, const char *key, xconfig_elem_t *elem)
 {
     xconfig_callback_t *subs;
     for (subs = elem->subs; subs != NULL && subs->callback != NULL; subs++) {
-        (*subs->callback)(key, elem, xconfig_get_one(c, key, 0, NULL), subs->data);
+        (*subs->callback)(key, elem, subs->data);
     }
 }
 

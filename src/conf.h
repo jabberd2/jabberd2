@@ -5,7 +5,7 @@
 #include <lib/str.h>
 #include <stdbool.h>
 
-typedef void (config_callback)(const char *key, const char *value, void *data);
+typedef void (config_callback)(const char *key, const char *value, void *data, xconfig_elem_t *elem);
 
 bool config_load(const char *path, const char *file);   /** loads configuration file at given path */
 void *config_register(const char *key, const char *prefixes, const char *default_value, config_callback *handler, void *data);  /**< registers function to listen for config value and changes */

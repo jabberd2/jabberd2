@@ -27,10 +27,10 @@ struct _config_data {
     void            *data;
 };
 
-void _config_callback(const char *key, const xconfig_elem_t *elem, const char *value, void *data)
+void _config_callback(const char *key, xconfig_elem_t *elem, void *data)
 {
     struct _config_data * const cd = (struct _config_data *) data;
-    if (cd->ready) (cd->callback)(cd->key, (value ? value : cd->default_value), cd->data);
+    if (cd->ready) (cd->callback)(cd->key, xconfig_elem_get_one(elem, 0, cd->default_value), cd->data, elem);
 }
 
 void *config_register(const char *key, const char *prefixes, const char *default_value, config_callback *handler, void *data)
