@@ -1,6 +1,7 @@
 # jabberd2
 Jabber Open Source Server (2.x)
 
+[![Build Status](https://travis-ci.org/jabberd2/jabberd2.svg?branch=master)](https://travis-ci.org/jabberd2/jabberd2)
 [![Gitter](https://badges.gitter.im/Join Chat.svg)](https://gitter.im/jabberd2/jabberd2?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 Thanks for downloading jabberd2. Below are some basic instructions to
