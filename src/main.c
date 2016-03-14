@@ -108,7 +108,7 @@ static void _crash_sigaction(int signum, siginfo_t *info, void *ucontext)
 
     fprintf(stderr, "=== CWD %s\n", getcwd(path, PATH_MAX));
 
-    size = backtrace(array, NELEMS(array));
+    size = backtrace(array, COUNT_OF(array));
 
     /* skip first two stack frames (points here and sigaction) */
     backtrace_symbols_fd(array + 2, size - 3, STDERR_FILENO);
@@ -128,7 +128,7 @@ int main(int argc, char * const _argv[])
     sigact.sa_flags = SA_RESTART | SA_SIGINFO;
 
     int sigs[] = {SIGILL, SIGABRT, SIGBUS, SIGFPE, SIGSEGV};
-    for (int i = 0; i < NELEMS(sigs); i++) {
+    for (int i = 0; i < COUNT_OF(sigs); i++) {
         if (sigaction(sigs[i], &sigact, (struct sigaction *)NULL) != 0) {
             fprintf(stderr, "error setting signal handler for %d (%s)\n",
                     sigs[i], strsignal(sigs[i]));
