@@ -780,17 +780,6 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
 
     c2s->sx_env = sx_env_new();
 
-#ifdef USE_WEBSOCKET
-    /* possibly wrap in websocket */
-    if(c2s->websocket) {
-        sx_env_plugin(c2s->sx_env, sx_websocket_init, c2s->http_forward);
-    }
-#else
-    if(c2s->http_forward) {
-        log_write(c2s->log, LOG_ERR, "httpforward available only with websocket support built-in");
-    }
-#endif
-
 #ifdef HAVE_SSL
     /* get the ssl context up and running */
     if(c2s->local_pemfile != NULL) {
@@ -811,10 +800,22 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     }
 #endif
 
+#ifdef USE_WEBSOCKET
+    /* possibly wrap in websocket */
+    if(c2s->websocket) {
+        sx_env_plugin(c2s->sx_env, sx_websocket_init, c2s->http_forward);
+    }
+#else
+    if(c2s->http_forward) {
+        log_write(c2s->log, LOG_ERR, "httpforward available only with websocket support built-in");
+    }
+#endif
+
 #ifdef HAVE_LIBZ
     /* get compression up and running */
-    if(c2s->compression)
+    if(c2s->compression) {
         sx_env_plugin(c2s->sx_env, sx_compress_init);
+    }
 #endif
 
     /* get stanza ack up */
