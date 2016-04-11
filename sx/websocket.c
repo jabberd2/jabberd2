@@ -388,9 +388,9 @@ static int _sx_websocket_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
                 }
 
                 _sx_debug(ZONE, "unhandling HTTP request");
-                sx_kill(s);
-                return -2;
-
+                _sx_websocket_http_return(s, "403 Forbidden", "Connection: close\r\n");
+                sx_close(s);
+                return -1;
             }
 
             _sx_buffer_clear(buf);
