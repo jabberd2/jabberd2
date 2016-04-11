@@ -31,7 +31,8 @@ static mod_ret_t _deliver_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)
 {
     /* ensure from is set correctly if not already by client */
     if(pkt->from == NULL || jid_compare_user(pkt->from, sess->jid) != 0
-       || (!(pkt->type & pkt_PRESENCE) && jid_compare_full(pkt->from, sess->jid) != 0)) {
+       || (!(pkt->type & pkt_PRESENCE) && !(pkt->type & pkt_S10N)
+           && jid_compare_full(pkt->from, sess->jid) != 0)) {
         if(pkt->from != NULL)
             jid_free(pkt->from);
 
@@ -87,7 +88,7 @@ static mod_ret_t _deliver_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt)
 
         } else if(pkt->type & pkt_IQ)
             return -stanza_err_SERVICE_UNAVAILABLE;
-        
+
         /* unmatched messages will fall through (XMPP-IM r20 s11 rule 2) */
     }
 
