@@ -439,6 +439,15 @@
       <!-- Database name -->
       <dbname>@localstatedir@/@package@/db/sqlite.db</dbname>
 
+    <!-- Use this to pass any SQL statements to the database immediately
+	  after opening it. This is typically used to set pragmas for
+	  performance tuning. -->
+      <sql>
+	<!-- This will cause the database to sync less often but it will
+             still sync at the most critical moments.
+             Default is FULL. -->
+	PRAGMA synchronous = NORMAL;
+      </sql>
 
       <!-- SQLite busy-timeout in milliseconds. -->
       <busy-timeout>2000</busy-timeout>

@@ -622,13 +622,17 @@ static void _st_sqlite_free (st_driver_t drv) {
 DLLEXPORT st_ret_t st_init(st_driver_t drv) {
 
     const char *dbname;
+    const char *sql_stmt;
     sqlite3 *db;
     drvdata_t data;
     int ret;
     const char *busy_timeout;
+    char *err_msg = NULL;
 
     dbname = config_get_one (drv->st->config,
 			     "storage.sqlite.dbname", 0);
+    sql_stmt = config_get_one (drv->st->config,
+                             "storage.sqlite.sql", 0);
     if (dbname == NULL) {
 	log_write (drv->st->log, LOG_ERR,
 		   "sqlite: invalid driver config");
@@ -640,6 +644,17 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv) {
 	log_write (drv->st->log, LOG_ERR,
 		   "sqlite: can't open database '%s'", dbname);
 	return st_FAILED;
+    }
+
+    if (sql_stmt != NULL) {
+	log_write (drv->st->log, LOG_INFO, "sqlite: %s", sql_stmt);
+    	ret = sqlite3_exec (db, sql_stmt, NULL, NULL, &err_msg);
+	if (ret != SQLITE_OK) {
+	    log_write (drv->st->log, LOG_ERR,
+			"sqlite: %s", err_msg);
+	    sqlite3_free(err_msg);
+	    return st_FAILED;
+	}
     }
 
     data = (drvdata_t) calloc (1, sizeof (struct drvdata_st));

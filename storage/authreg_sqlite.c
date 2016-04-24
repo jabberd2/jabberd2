@@ -387,8 +387,10 @@ ar_init(authreg_t ar)
     int ret;
     sqlite3 *db;
     moddata_t data;
+    char *err_msg = NULL;
     const char *busy_timeout;
     const char *dbname = config_get_one(ar->c2s->config, "authreg.sqlite.dbname", 0);
+    const char *sql_stmt = config_get_one (ar->c2s->config, "authreg.sqlite.sql", 0);
 
     log_debug(ZONE, "sqlite (authreg): start init");
 
@@ -403,6 +405,17 @@ ar_init(authreg_t ar)
 	log_write(ar->c2s->log, LOG_ERR,
 		  "sqlite (authreg): can't open database.");
 	return 1;
+    }
+
+    if (sql_stmt != NULL) {
+        log_write (ar->c2s->log, LOG_INFO, "sqlite (authreg): %s", sql_stmt);
+        ret = sqlite3_exec (db, sql_stmt, NULL, NULL, &err_msg);
+        if (ret != SQLITE_OK) {
+            log_write (ar->c2s->log, LOG_ERR,
+                        "sqlite (authreg): %s", err_msg);
+            sqlite3_free(err_msg);
+            return 1;
+        }
     }
 
     data = (moddata_t) calloc(1, sizeof(struct moddata_st));
