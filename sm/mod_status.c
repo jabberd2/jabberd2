@@ -19,7 +19,7 @@
 
 /** @file sm/mod_status.c
   * @brief status info management
-  * @author Lucas Nussbaum 
+  * @author Lucas Nussbaum
   * $Date: 2004/09/01 $
   * $Revision: 1.3 $
   */
@@ -50,7 +50,7 @@ static void _status_store(storage_t st, const char *jid, pkt_t pkt, time_t *last
     char *show;
     int show_free = 0;
 
-    switch(pkt->type) 
+    switch(pkt->type)
     {
         int elem;
         case pkt_PRESENCE_UN:
@@ -63,7 +63,7 @@ static void _status_store(storage_t st, const char *jid, pkt_t pkt, time_t *last
                 show = "";
             }
             else
-            {    
+            {
                 if (NAD_CDATA_L(pkt->nad, elem) <= 0 || NAD_CDATA_L(pkt->nad, elem) > 19)
                     show = "";
                 else
@@ -96,17 +96,17 @@ static int _status_sess_start(mod_instance_t mi, sess_t sess) {
         {
             o = os_iter_object(os);
             os_object_get_time(os, o, "last-logout", &lastlogout);
-	    os_object_get_nad(os, o, "xml", &nad);
-	    nad = nad_copy(nad);
+        os_object_get_nad(os, o, "xml", &nad);
+        nad = nad_copy(nad);
         }
         os_free(os);
     }
     else
     {
         lastlogout = (time_t) 0;
-	nad = NULL;
+    nad = NULL;
     }
-    
+
     t = time(NULL);
     _status_os_replace(sess->user->sm->st, jid_user(sess->jid), "online", "", &t, &lastlogout, nad);
 
@@ -120,7 +120,7 @@ static void _status_sess_end(mod_instance_t mi, sess_t sess) {
     os_t os;
     os_object_t o;
     st_ret_t ret;
-    nad_t nad;
+    nad_t nad = NULL;
 
     /* not interested if there is other top session */
     if(sess->user->top != NULL && sess != sess->user->top)
@@ -133,15 +133,14 @@ static void _status_sess_end(mod_instance_t mi, sess_t sess) {
         {
             o = os_iter_object(os);
             os_object_get_time(os, o, "last-login", &lastlogin);
-	    os_object_get_nad(os, o, "xml", &nad);
-	    nad = nad_copy(nad);
+            os_object_get_nad(os, o, "xml", &nad);
+            nad = nad_copy(nad);
         }
         os_free(os);
     }
     else
     {
         lastlogin = (time_t) 0;
-	nad = NULL;
     }
 
     t = time(NULL);
@@ -196,7 +195,7 @@ static mod_ret_t _status_pkt_sm(mod_instance_t mi, pkt_t pkt) {
         log_debug(ZONE, "storing presence from %s", jid_full(pkt->from));
 
         t = (time_t) 0;
-        
+
         _status_store(mod->mm->sm->st, jid_user(pkt->from), pkt, &t, &t);
     }
 
