@@ -102,7 +102,7 @@ static void _announce_load(module_t mod, moddata_t data, const char *domain) {
                 telem[0] = timestamp[15];
                 telem[1] = timestamp[16];
                 tm.tm_sec = atoi(telem);
-            
+
                 data->t = timegm(&tm);
             }
         }
@@ -157,10 +157,9 @@ static mod_ret_t _announce_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
         nad_set_attr(nad, 1, -1, "to", jid_full(sess->jid), strlen(jid_full(sess->jid)));
         nad_set_attr(nad, 1, -1, "from", sess->user->jid->domain, strlen(sess->user->jid->domain));
 
-        motd = pkt_new(mod->mm->sm, nad);
+        motd = pkt_new(mod->mm->sm, nad); // pkt_new takes ownership of given nad
         if(motd == NULL) {
             log_debug(ZONE, "invalid stored motd, not delivering");
-            nad_free(nad);
         } else
             pkt_router(motd);
 
@@ -228,7 +227,7 @@ static mod_ret_t _announce_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     /* we want messages addressed to /announce */
     if(!(pkt->type & pkt_MESSAGE) || strlen(pkt->to->resource) < 8 || strncmp(pkt->to->resource, data->announce_resource, 8) != 0)
         return mod_PASS;
-    
+
     /* make sure they're allowed */
     if(!aci_check(mod->mm->sm->acls, "broadcast", pkt->from)) {
         log_debug(ZONE, "not allowing broadcast from %s", jid_full(pkt->from));
