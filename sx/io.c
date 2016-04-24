@@ -131,7 +131,7 @@ void _sx_process_read(sx_t s, sx_buf_t buf) {
                     _sx_state(s, state_CLOSING);
                 }
 
-                if(errstring != NULL) free(errstring);
+                free(errstring);
 
                 nad_free(nad);
 
