@@ -613,8 +613,14 @@ int nad_insert_nad(nad_t dest, int delem, nad_t src, int selem) {
                 } else
                     dest->elems[first + i].my_ns = nad_add_namespace(dest, uri, NULL);
 
-                if(uri != buri) free(uri);
-                if(prefix != bprefix) free(prefix);
+                if(uri != buri) {
+                    free(uri);
+                    uri = buri;
+                }
+                if(prefix != bprefix) {
+                    free(prefix);
+                    prefix = bprefix;
+                }
             }
         }
 
@@ -641,8 +647,14 @@ int nad_insert_nad(nad_t dest, int delem, nad_t src, int selem) {
                 } else
                     nad_add_namespace(dest, uri, NULL);
 
-                if(uri != buri) free(uri);
-                if(prefix != bprefix) free(prefix);
+                if(uri != buri) {
+                    free(uri);
+                    uri = buri;
+                }
+                if(prefix != bprefix) {
+                    free(prefix);
+                    prefix = bprefix;
+                }
             }
         }
 
