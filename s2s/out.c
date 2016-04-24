@@ -538,14 +538,24 @@ int out_route(s2s_t s2s, const char *route, int routelen, conn_t *out, int allow
             for (i = 0; i < s2s->origin_nips; i++) {
                 // only bother with mio_connect if the src and dst IPs are of the same type
                 if ((ip_is_v6 && (strchr(s2s->origin_ips[i], ':') != NULL)) ||          // both are IPv6
-                            (! ip_is_v6 && (strchr(s2s->origin_ips[i], ':') == NULL)))  // both are IPv4
-                    (*out)->fd = mio_connect(s2s->mio, port, ip, s2s->origin_ips[i], _out_mio_callback, (void *) *out);
+                            (! ip_is_v6 && (strchr(s2s->origin_ips[i], ':') == NULL))) {// both are IPv4
 
-                if ((*out)->fd != NULL) break;
+                    (*out)->fd = mio_connect(s2s->mio, port, ip, s2s->origin_ips[i], _out_mio_callback, (void *) *out);
+                    if ((*out)->fd != NULL) break;
+                    log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] [origin: %s] mio_connect error: %s (%d)", -1, (*out)->ip, (*out)->port, s2s->origin_ips[i], MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+                }
+            }
+
+            /* fallback to connecting using local.ip */
+            if ((*out)->fd == NULL) {
+                (*out)->fd = mio_connect(s2s->mio, port, ip, s2s->local_ip, _out_mio_callback, (void *) *out);
+                if ((*out)->fd == NULL) {
+                    log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] [local: %s] mio_connect error: %s (%d)", -1, (*out)->ip, (*out)->port, s2s->local_ip, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+                }
             }
 
             if ((*out)->fd == NULL) {
-                log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] mio_connect error: %s (%d)", -1, (*out)->ip, (*out)->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+                log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] unable to connect host", -1, (*out)->ip, (*out)->port);
 
                 _out_dns_mark_bad(*out);
 

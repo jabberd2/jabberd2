@@ -139,22 +139,12 @@ static void _s2s_config_expand(s2s_t s2s) {
 
     s2s->packet_stats = config_get_one(s2s->config, "stats.packet", 0);
 
-    /*
-     * If no origin IP is specified, use local IP as the originating one:
-     * it makes most sense, at least for SSL'ized connections.
-     * APPLE: make origin an array of addresses so that both IPv4 and IPv6 can be specified.
-     */
     s2s->local_ip = config_get_one(s2s->config, "local.ip", 0);
     if(s2s->local_ip == NULL)
         s2s->local_ip = "0.0.0.0";
     if((elem = config_get(s2s->config, "local.origins.ip")) != NULL) {
         s2s->origin_ips = elem->values;
         s2s->origin_nips = elem->nvalues;
-    }
-    if (s2s->origin_nips == 0) {
-        s2s->origin_ips = (const char **)malloc(sizeof(s2s->origin_ips));
-        s2s->origin_ips[0] = strdup(s2s->local_ip);
-        s2s->origin_nips = 1;
     }
 
     s2s->local_port = j_atoi(config_get_one(s2s->config, "local.port", 0), 0);
@@ -260,7 +250,7 @@ static void _s2s_hosts_expand(s2s_t s2s)
 
         host->host_verify_mode = j_atoi(j_attr((const char **) elem->attrs[i], "verify-mode"), 0);
 
-		host->host_private_key_password = j_attr((const char **) elem->attrs[i], "private-key-password");
+        host->host_private_key_password = j_attr((const char **) elem->attrs[i], "private-key-password");
 
         host->host_ciphers = j_attr((const char **) elem->attrs[i], "ciphers");
 
@@ -649,7 +639,7 @@ int _s2s_populate_whitelist_domains(s2s_t s2s, const char **values, int nvalues)
     int i, j;
     int elem_len;
     s2s->whitelist_domains = (char **)malloc(sizeof(char*) * (nvalues));
-    memset(s2s->whitelist_domains, 0, (sizeof(char *) * (nvalues)));    
+    memset(s2s->whitelist_domains, 0, (sizeof(char *) * (nvalues)));
     for (i = 0, j = 0; i < nvalues; i++) {
         elem_len = strlen(values[i]);
         if (elem_len > MAX_DOMAIN_LEN) {
@@ -682,7 +672,7 @@ int s2s_domain_in_whitelist(s2s_t s2s, const char *in_domain) {
     int dotcount;
     char **segments = NULL;
     char **dst = NULL;
-    char *seg_tmp = NULL;    
+    char *seg_tmp = NULL;
     int seg_tmp_len;
     char matchstr[MAX_DOMAIN_LEN + 1];
     int domain_index;
@@ -728,7 +718,7 @@ int s2s_domain_in_whitelist(s2s_t s2s, const char *in_domain) {
         if (domain[x] == '.')
             dotcount++;
     }
-        
+
     segments = (char **)malloc(sizeof(char*) * (dotcount + 1));
     if (segments == NULL) {
         log_write(s2s->log, LOG_ERR, "s2s_domain_in_whitelist: malloc() error");
@@ -766,7 +756,7 @@ int s2s_domain_in_whitelist(s2s_t s2s, const char *in_domain) {
             for (x = 0; x < segcount; x++) {
                 free(segments[x]);
                 segments[x] = NULL;
-            }   
+            }
             free(segments);
             segments = NULL;
             return 0;
@@ -776,7 +766,7 @@ int s2s_domain_in_whitelist(s2s_t s2s, const char *in_domain) {
         if (*dst != NULL) {
             strncpy(*dst, seg_tmp, seg_tmp_len + 1);
             (*dst)[seg_tmp_len] = '\0';
-        } else { 
+        } else {
             if (seg_tmp != NULL) {
                 free(seg_tmp);
                 seg_tmp = NULL;
@@ -784,7 +774,7 @@ int s2s_domain_in_whitelist(s2s_t s2s, const char *in_domain) {
             for (x = 0; x < segcount; x++) {
                 free(segments[x]);
                 segments[x] = NULL;
-            }   
+            }
             free(segments);
             segments = NULL;
             log_write(s2s->log, LOG_ERR, "s2s_domain_in_whitelist: malloc() error");
@@ -812,12 +802,12 @@ int s2s_domain_in_whitelist(s2s_t s2s, const char *in_domain) {
                     for (x = 0; x < segcount; x++) {
                         free(segments[x]);
                         segments[x] = NULL;
-                    }   
+                    }
                     free(segments);
                     segments = NULL;
                     return 1;
-                } 
-                else { 
+                }
+                else {
                     //log_debug(ZONE, "matchstr: %s (len %d) does not match whitelist_domains[%d]: %s (len %d)", &matchstr, strlen((const char *)&matchstr), wl_index, s2s->whitelist_domains[wl_index], strlen(s2s->whitelist_domains[wl_index]));
                 }
             }
@@ -826,11 +816,11 @@ int s2s_domain_in_whitelist(s2s_t s2s, const char *in_domain) {
     for (x = 0; x < segcount; x++) {
         free(segments[x]);
         segments[x] = NULL;
-    }   
+    }
     free(segments);
     segments = NULL;
 
-    return 0;    
+    return 0;
 }
 
 JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to Server", "jabberd2router\0")
