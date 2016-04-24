@@ -242,7 +242,7 @@ int _ldapfull_base64_decode( const char *src, const unsigned char **ret, int *rl
         return 0;
     }
     tlen+=i;
-    EVP_DecodeFinal(&EVP_ctx, (unsigned char*)text, &i); 
+    EVP_DecodeFinal(&EVP_ctx, (unsigned char*)text, &i);
 
     *ret = text;
     if (rlen != NULL) {
@@ -264,9 +264,9 @@ static int _ldapfull_base64_encode( const unsigned char *src, int srclen, char *
 
     EVP_EncodeInit(&EVP_ctx);
     EVP_EncodeUpdate(&EVP_ctx, text, &tlen, src, srclen);
-    EVP_EncodeFinal(&EVP_ctx, text, &tlen); 
+    EVP_EncodeFinal(&EVP_ctx, text, &tlen);
 
-    *ret = (char*)text; 
+    *ret = (char*)text;
     if (rlen != NULL) {
         *rlen = tlen;
     }
@@ -327,6 +327,7 @@ int _ldapfull_set_hashed(moddata_t data, const char *scheme, const char *prefix,
         if( !RAND_bytes(salt,saltlen) ) {
             EVP_MD_CTX_cleanup(&mdctx);
             free(salt);
+            return 0;
         }
         EVP_DigestUpdate(&mdctx, salt, saltlen);
     }
