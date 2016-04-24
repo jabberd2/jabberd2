@@ -110,7 +110,7 @@ static creds_t _ar_db_fetch_user(authreg_t ar, const char *username, const char 
 
     memset(&key, 0, sizeof(DBT));
     memset(&val, 0, sizeof(DBT));
-    
+
     key.data = (void*)username;
     key.size = strlen(username);
 
@@ -146,7 +146,7 @@ static int _ar_db_store_user(authreg_t ar, creds_t creds)
 
     memset(&key, 0, sizeof(DBT));
     memset(&val, 0, sizeof(DBT));
-    
+
     key.data = creds->username;
     key.size = strlen(creds->username);
 
@@ -190,7 +190,8 @@ static int _ar_db_set_password(authreg_t ar, sess_t sess, const char *username, 
     if((creds = _ar_db_fetch_user(ar, username, realm)) == NULL)
         return 1;
 
-    strcpy(creds->password, password);
+    strncpy(creds->password, password, 256);
+    creds->password[256] = 0;
 
     if(_ar_db_store_user(ar, creds) != 0)
         return 1;
@@ -267,7 +268,7 @@ static void _ar_db_free(authreg_t ar)
 
     /* remove db environment files if no longer required */
     if (db_env_create(&env, 0) == 0)
-        env->remove(env, data->path, 0); 
+        env->remove(env, data->path, 0);
 
     free(data);
 }
