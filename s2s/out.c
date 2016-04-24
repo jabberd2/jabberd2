@@ -415,6 +415,10 @@ int out_route(s2s_t s2s, const char *route, int routelen, conn_t *out, int allow
     from_len = c - route;
     c++;
     c_len = routelen - (c - route);
+    if (c_len > 1023) {
+        /* domain name too long */
+        return -1;
+    }
     dkey = strndup(c, c_len);
 
     log_debug(ZONE, "trying to find connection for '%s'", dkey);
