@@ -76,6 +76,11 @@ static int _template_roster_reload(template_roster_t tr) {
     fseek(f, 0, SEEK_END);
     size = ftell(f);
     fseek(f, 0, SEEK_SET);
+    if(size == 0) {
+        log_write(tr->sm->log, LOG_ERR, "empty roster template %s", tr->filename);
+        fclose(f);
+        return 1;
+    }
 
     buf = (char *) malloc(sizeof(char) * size);
 
@@ -109,7 +114,7 @@ static int _template_roster_reload(template_roster_t tr) {
             log_write(tr->sm->log, LOG_ERR, "roster template has item with no jid, skipping");
             continue;
         }
-        
+
         item = (item_t) pmalloco(xhash_pool(tr->items), sizeof(struct item_st));
 
         item->jid = jid_new(NAD_AVAL(nad, ajid), NAD_AVAL_L(nad, ajid));
@@ -155,7 +160,7 @@ static int _template_roster_reload(template_roster_t tr) {
         log_debug(ZONE, "loaded roster template item %s, %d groups", jid_full(item->jid), item->ngroups);
 
         nitems++;
-        
+
         eitem = nad_find_elem(nad, eitem, NAD_ENS(nad, 0), "item", 0);
     }
 
@@ -199,7 +204,7 @@ static void _template_roster_save_item(sm_t sm, jid_t jid, item_t item) {
     }
 
     os = os_new();
-    
+
     for(i = 0; i < item->ngroups; i++) {
         o = os_object_new(os);
 
