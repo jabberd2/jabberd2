@@ -414,15 +414,6 @@ ar_init(authreg_t ar)
 
     data->db = db;
 
-    if (config_get_one(ar->c2s->config,
-		       "authreg.sqlite.transactions", 0) != NULL) {
-	data->txn = 1;
-    } else {
-	log_write(ar->c2s->log, LOG_WARNING,
-		  "sqlite (authreg): transactions disabled");
-	data->txn = 0;
-    }
-
     busy_timeout = config_get_one(ar->c2s->config,
 				  "authreg.sqlite.busy-timeout", 0);
 

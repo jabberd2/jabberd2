@@ -141,11 +141,6 @@
       <!-- Database name -->
       <dbname>@localstatedir@/@package@/db/sqlite.db</dbname>
 
-      <!-- Transaction support. If this is commented out, transactions
-           will be disabled. This might make database accesses faster,
-           but data may be lost if jabberd crashes. -->
-      <transactions/>
-
       <!-- SQLite busy-timeout in milliseconds. -->
       <busy-timeout>2000</busy-timeout>
     </sqlite>
