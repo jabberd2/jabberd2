@@ -31,7 +31,7 @@ int user_table_load(router_t r) {
     int nusers, user, name, secret;
 
     log_debug(ZONE, "loading user table");
-    
+
     if(r->users != NULL)
         xhash_free(r->users);
 
@@ -50,6 +50,11 @@ int user_table_load(router_t r) {
     fseek(f, 0, SEEK_END);
     size = ftell(f);
     fseek(f, 0, SEEK_SET);
+    if(size == 0) {
+        log_write(r->log, LOG_ERR, "empty user table file %s", userfile);
+        fclose(f);
+        return 1;
+    }
 
     buf = (char *) malloc(sizeof(char) * size);
 
@@ -87,7 +92,7 @@ int user_table_load(router_t r) {
         xhash_put(r->users, pstrdupx(xhash_pool(r->users), NAD_CDATA(nad, name), NAD_CDATA_L(nad, name)), pstrdupx(xhash_pool(r->users), NAD_CDATA(nad, secret), NAD_CDATA_L(nad, secret)));
 
         nusers++;
-        
+
         user = nad_find_elem(nad, user, -1, "user", 0);
     }
 
@@ -104,7 +109,7 @@ void user_table_unload(router_t r) {
 
     if(r->users != NULL)
         xhash_free(r->users);
-	r->users = NULL;
+    r->users = NULL;
 
     return;
-} 
+}
