@@ -209,8 +209,10 @@ static int _ar_db_create_user(authreg_t ar, sess_t sess, const char *username, c
 
     creds = (creds_t) calloc(1, sizeof(struct creds_st));
 
-    strcpy(creds->username, username);
-    strcpy(creds->realm, realm);
+    strncpy(creds->username, username, 256);
+    creds->username[256] = 0;
+    strncpy(creds->realm, realm, 256);
+    creds->realm[256] = 0;
 
     ret = _ar_db_store_user(ar, creds);
 
