@@ -248,8 +248,8 @@ mm_t mm_new(sm_t sm) {
                     mm->nindex--;
 
                     melem = nad_find_elem(sm->config->nad, melem, -1, "module", 0);
-                    continue;
                 }
+                continue;
             }
 
             mod->init++;
