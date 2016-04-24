@@ -102,17 +102,17 @@ _get_stmt(authreg_t ar, sqlite3 *db, sqlite3_stmt **stmt, const char *sql)
 {
     int res;
     if (*stmt == NULL) {
-	res = sqlite3_prepare(db, sql, -1, stmt, 0);
-	if (res != SQLITE_OK) {
-	    log_write(ar->c2s->log, LOG_ERR, "sqlite (authreg): %s", sqlite3_errmsg(db));
-	    return NULL;
-	}
+    res = sqlite3_prepare(db, sql, -1, stmt, 0);
+    if (res != SQLITE_OK) {
+        log_write(ar->c2s->log, LOG_ERR, "sqlite (authreg): %s", sqlite3_errmsg(db));
+        return NULL;
+    }
     }
     return *stmt;
 }
 
 /**
- * @return 1 if the user exists, 0 if not 
+ * @return 1 if the user exists, 0 if not
  */
 static int
 _ar_sqlite_user_exists(authreg_t ar, sess_t sess, const char *username, const char *realm)
@@ -120,15 +120,15 @@ _ar_sqlite_user_exists(authreg_t ar, sess_t sess, const char *username, const ch
 
     sqlite3_stmt *stmt;
     char *sql =
-	"SELECT username FROM authreg WHERE username = ? AND realm = ?";
+    "SELECT username FROM authreg WHERE username = ? AND realm = ?";
     moddata_t data = (moddata_t) ar->private;
     int res, ret = 0;
-    
-    log_debug(ZONE, "sqlite (authreg): user exists");
-    
+
+    log_debug(ZONE, "sqlite (authreg): %s", sql);
+
     stmt = _get_stmt(ar, data->db, &data->user_exists_stmt, sql);
     if (stmt == NULL) {
-	return 0;
+    return 0;
     }
 
     sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
@@ -136,43 +136,43 @@ _ar_sqlite_user_exists(authreg_t ar, sess_t sess, const char *username, const ch
 
     res = sqlite3_step(stmt);
     if (res == SQLITE_ROW) {
-	log_debug(ZONE, "sqlite (authreg): user exists : yes");
-	ret = 1;
+    log_debug(ZONE, "sqlite (authreg): user exists : yes");
+    ret = 1;
     } else {
-	log_debug(ZONE, "sqlite (authreg): user exists : no");
+    log_debug(ZONE, "sqlite (authreg): user exists : no");
     }
     sqlite3_reset(stmt);
     return ret;
 }
 
 /**
- * @return 0 is password is populated, 1 if not 
+ * @return 0 is password is populated, 1 if not
  */
 static int
 _ar_sqlite_get_password(authreg_t ar, sess_t sess, const char *username, const char *realm,
-			char password[257])
+            char password[257])
 {
 
     sqlite3_stmt *stmt;
     char *sql =
-	"SELECT password FROM authreg WHERE username = ? and realm = ?";
+    "SELECT password FROM authreg WHERE username = ? and realm = ?";
     moddata_t data = (moddata_t) ar->private;
     int res, ret=1;
-    
-    log_debug(ZONE, "sqlite (authreg): get password");
-    
+
+    log_debug(ZONE, "sqlite (authreg): %s", sql);
+
     stmt = _get_stmt (ar, data->db, &data->get_password_stmt, sql);
     if (stmt == NULL) {
-	return 1;
+    return 1;
     }
 
     sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 2, realm, -1, SQLITE_STATIC);
-    
+
     res = sqlite3_step(stmt);
     if (res == SQLITE_ROW) {
-	strcpy(password, (char *) sqlite3_column_text(stmt, 0));
-	ret = 0;
+    strcpy(password, (char *) sqlite3_column_text(stmt, 0));
+    ret = 0;
     }
     sqlite3_reset(stmt);
     return ret;
@@ -183,7 +183,7 @@ _ar_sqlite_get_password(authreg_t ar, sess_t sess, const char *username, const c
  */
 static int
 _ar_sqlite_check_password(authreg_t ar, sess_t sess, const char *username, const char *realm,
-			  char password[257])
+              char password[257])
 {
 
     char db_pw_value[257];
@@ -246,7 +246,7 @@ _ar_sqlite_check_password(authreg_t ar, sess_t sess, const char *username, const
  */
 static int
 _ar_sqlite_set_password(authreg_t ar, sess_t sess, const char *username, const char *realm,
-			char password[257])
+            char password[257])
 {
 
     sqlite3_stmt *stmt;
@@ -254,9 +254,9 @@ _ar_sqlite_set_password(authreg_t ar, sess_t sess, const char *username, const c
     int res, ret = 0;
 
     char *sql =
-	"UPDATE authreg SET password = ? WHERE username = ? AND realm = ?";
-    
-    log_debug(ZONE, "sqlite (authreg): set password");
+    "UPDATE authreg SET password = ? WHERE username = ? AND realm = ?";
+
+    log_debug(ZONE, "sqlite (authreg): %s", sql);
 
 #ifdef HAVE_CRYPT
     if (data->password_type == MPC_CRYPT) {
@@ -278,17 +278,17 @@ _ar_sqlite_set_password(authreg_t ar, sess_t sess, const char *username, const c
 
     stmt = _get_stmt(ar, data->db, &data->set_password_stmt, sql);
     if (stmt == NULL) {
-	return 1;
+    return 1;
     }
 
     sqlite3_bind_text(stmt, 1, password, -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 2, username, -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 3, realm, -1, SQLITE_STATIC);
-    
+
     res = sqlite3_step(stmt);
     if (res != SQLITE_DONE) {
-	log_write(ar->c2s->log, LOG_ERR, "sqlite (authreg): %s", sqlite3_errmsg (data->db));
-	ret = 1;
+    log_write(ar->c2s->log, LOG_ERR, "sqlite (authreg): %s", sqlite3_errmsg (data->db));
+    ret = 1;
     }
     sqlite3_reset(stmt);
     return ret;
@@ -305,22 +305,22 @@ _ar_sqlite_create_user(authreg_t ar, sess_t sess, const char *username, const ch
     int res, ret = 0;
 
     char *sql =
-	"INSERT INTO authreg ( username, realm ) VALUES ( ?, ? )";
-    
-    log_debug(ZONE, "sqlite (authreg): create user");
-    
+    "INSERT INTO authreg ( username, realm ) VALUES ( ?, ? )";
+
+    log_debug(ZONE, "sqlite (authreg): %s", sql);
+
     stmt = _get_stmt(ar, data->db, &data->create_user_stmt, sql);
     if (stmt == NULL) {
-	return 1;
+    return 1;
     }
 
     sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 2, realm, -1, SQLITE_STATIC);
-    
+
     res = sqlite3_step(stmt);
     if (res != SQLITE_DONE) {
-	log_write(ar->c2s->log, LOG_ERR, "sqlite (authreg): %s", sqlite3_errmsg (data->db));
-	ret = 1;
+    log_write(ar->c2s->log, LOG_ERR, "sqlite (authreg): %s", sqlite3_errmsg (data->db));
+    ret = 1;
     }
     sqlite3_reset(stmt);
     return ret;
@@ -337,24 +337,24 @@ _ar_sqlite_delete_user(authreg_t ar, sess_t sess, const char *username, const ch
     int res, ret = 0;
 
     char *sql = "DELETE FROM authreg WHERE username = ? AND realm = ?";
-    
-    log_debug(ZONE, "sqlite (authreg): delete user");
-    
+
+    log_debug(ZONE, "sqlite (authreg): %s", sql);
+
     stmt = _get_stmt(ar, data->db, &data->delete_user_stmt, sql);
     if (stmt == NULL) {
-	return 1;
+    return 1;
     }
 
     sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 2, realm, -1, SQLITE_STATIC);
-    
+
     res = sqlite3_step(stmt);
     if (res != SQLITE_DONE) {
-	log_write(ar->c2s->log, LOG_ERR, "sqlite (authreg): %s", sqlite3_errmsg (data->db));
-	ret = 1;
+    log_write(ar->c2s->log, LOG_ERR, "sqlite (authreg): %s", sqlite3_errmsg (data->db));
+    ret = 1;
     }
     sqlite3_reset(stmt);
-    
+
     return ret;
 }
 
@@ -376,7 +376,7 @@ _ar_sqlite_free(authreg_t ar)
     sqlite3_finalize(data->delete_user_stmt);
 
     sqlite3_close(data->db);
-    
+
     free(data);
 }
 
@@ -395,16 +395,16 @@ ar_init(authreg_t ar)
     log_debug(ZONE, "sqlite (authreg): start init");
 
     if (dbname == NULL) {
-	log_write(ar->c2s->log, LOG_ERR,
-		  "sqlite (authreg): invalid driver config.");
-	return 1;
+    log_write(ar->c2s->log, LOG_ERR,
+          "sqlite (authreg): invalid driver config.");
+    return 1;
     }
 
     ret = sqlite3_open(dbname, &db);
     if (ret != SQLITE_OK) {
-	log_write(ar->c2s->log, LOG_ERR,
-		  "sqlite (authreg): can't open database.");
-	return 1;
+    log_write(ar->c2s->log, LOG_ERR,
+          "sqlite (authreg): can't open database.");
+    return 1;
     }
 
     if (sql_stmt != NULL) {
@@ -420,18 +420,18 @@ ar_init(authreg_t ar)
 
     data = (moddata_t) calloc(1, sizeof(struct moddata_st));
     if (!data) {
-	log_write(ar->c2s->log, LOG_ERR,
-		  "sqlite (authreg): memory error.");
-	return 1;
+    log_write(ar->c2s->log, LOG_ERR,
+          "sqlite (authreg): memory error.");
+    return 1;
     }
 
     data->db = db;
 
     busy_timeout = config_get_one(ar->c2s->config,
-				  "authreg.sqlite.busy-timeout", 0);
+                  "authreg.sqlite.busy-timeout", 0);
 
     if (busy_timeout != NULL) {
-	sqlite3_busy_timeout(db, atoi(busy_timeout));
+    sqlite3_busy_timeout(db, atoi(busy_timeout));
     }
 
 
