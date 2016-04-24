@@ -50,7 +50,7 @@ int filter_load(router_t r) {
     acl_t list_tail, acl;
 
     log_debug(ZONE, "loading filter");
-    
+
     if(r->filter != NULL)
         filter_unload(r);
 
@@ -68,6 +68,11 @@ int filter_load(router_t r) {
     fseek(f, 0, SEEK_END);
     size = ftell(f);
     fseek(f, 0, SEEK_SET);
+    if(size == 0) {
+        log_write(r->log, LOG_NOTICE, "empty filter file %s", filterfile);
+        fclose(f);
+        return 1;
+    }
 
     buf = (char *) malloc(sizeof(char) * size);
 
@@ -172,7 +177,7 @@ int filter_load(router_t r) {
            r->filter = acl;
            list_tail = acl;
         }
-        
+
         log_debug(ZONE, "added %s rule: from=%s, to=%s, what=%s, redirect=%s, error=%d, log=%s", (acl->error?"deny":"allow"), acl->from, acl->to, acl->what, acl->redirect, acl->error, (acl->log?"yes":"no"));
 
         nfilters++;
