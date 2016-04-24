@@ -1291,11 +1291,9 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
                 /* sm is bouncing something */
                 if(nad_find_attr(nad, 1, ns, "failed", NULL) >= 0) {
-                    if(s) {
-                        /* there's really no graceful way to handle this */
-                        sx_error(s, stream_err_INTERNAL_SERVER_ERROR, "session manager failed control action");
-                        sx_close(s);
-                    }
+                    /* there's really no graceful way to handle this */
+                    sx_error(s, stream_err_INTERNAL_SERVER_ERROR, "session manager failed control action");
+                    sx_close(s);
 
                     nad_free(nad);
                     return 0;
