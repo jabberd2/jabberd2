@@ -51,7 +51,7 @@ static size_t _st_pgsql_realloc(char **oblocks, size_t len) {
 #elif defined(_SC_PAGESIZE)
         block_size = sysconf(_SC_PAGESIZE);
 #elif defined(_SC_PAGE_SIZE)
-        block_size = sysconf(_SC_PAGE_SIZE);    
+        block_size = sysconf(_SC_PAGE_SIZE);
 #else
         block_size = FALLBACK_BLOCKSIZE;
 #endif
@@ -225,7 +225,7 @@ static st_ret_t _st_pgsql_put_guts(st_driver_t drv, const char *type, const char
                             break;
 
                         case os_type_UNKNOWN:
-                            break;
+                            continue;
                     }
 
                     log_debug(ZONE, "key %s val %s", key, cval);
@@ -241,7 +241,7 @@ static st_ret_t _st_pgsql_put_guts(st_driver_t drv, const char *type, const char
 
             PGSQL_SAFE(left, lleft + strlen(right) + 3, lleft);
             sprintf(&left[nleft], "%s );", right);
-    
+
             log_debug(ZONE, "prepared sql: %s", left);
 
             res = PQexec(data->conn, left);
