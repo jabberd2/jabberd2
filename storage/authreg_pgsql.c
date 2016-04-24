@@ -392,7 +392,8 @@ static int _ar_pgsql_check_password(authreg_t ar, sess_t sess, const char *usern
             if(ret == 0) {
                 if (bcrypt_needs_rehash(ctx->bcrypt_cost, db_pw_value)) {
                     char tmp[257];
-                    strcpy(tmp, password);
+                    strncpy(tmp, password, 256);
+                    tmp[256] = 0;
                     _ar_pgsql_set_password(ar, sess, username, realm, tmp);
                 }
             }
