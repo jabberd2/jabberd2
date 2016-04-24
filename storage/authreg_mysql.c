@@ -133,7 +133,7 @@ static MYSQL_RES *_ar_mysql_get_user_tuple(authreg_t ar, const char *username, c
     char iuser[MYSQL_LU+1], irealm[MYSQL_LR+1];
     char euser[MYSQL_LU*2+1], erealm[MYSQL_LR*2+1], sql[1024 + MYSQL_LU*2 + MYSQL_LR*2 + 1];  /* query(1024) + euser + erealm + \0(1) */
     MYSQL_RES *res;
-    
+
     if(mysql_ping(conn) != 0) {
         log_write(ar->c2s->log, LOG_ERR, "mysql: connection to database lost");
         return NULL;
@@ -250,7 +250,7 @@ static int _ar_mysql_set_password(authreg_t ar, sess_t sess, const char *usernam
         bcrypt_hash(password, ctx->bcrypt_cost, password);
     }
 #endif
-    
+
     password[256]= '\0';
 
     mysql_real_escape_string(conn, euser, iuser, strlen(iuser));
@@ -317,7 +317,8 @@ static int _ar_mysql_check_password(authreg_t ar, sess_t sess, const char *usern
         if(ret == 0) {
             if(bcrypt_needs_rehash(ctx->bcrypt_cost, db_pw_value)) {
                 char tmp[257];
-                strcpy(tmp, password);
+                strncpy(tmp, password, 256);
+                tmp[256] = 0;
                 _ar_mysql_set_password(ar, sess, username, realm, tmp);
             }
         }
@@ -434,13 +435,13 @@ static char * _ar_mysql_check_template( const char * template, const char * type
     char c;
 
     /* check that it's 1K or less */
-    if( strlen( template ) > 1024 ) return "longer than 1024 characters";  
+    if( strlen( template ) > 1024 ) return "longer than 1024 characters";
 
     /* count the parameter placeholders */
     while( pScan < strlen( template ) )
     {
       if( template[ pScan++ ] != '%' ) continue;
-      
+
       c = template[ pScan++ ];
       if( c == '%' ) continue; /* ignore escaped precentages */
       if( c == types[ pType ] )
@@ -457,7 +458,7 @@ static char * _ar_mysql_check_template( const char * template, const char * type
     if( pType < strlen( types ) )
       return "contained too few placeholders";
     else
-      return 0;  
+      return 0;
 }
 
 /* Ensure the SQL template is less than 1K long and contains the */
@@ -493,16 +494,16 @@ DLLEXPORT int ar_init(authreg_t ar) {
     /* determine our field names and table name */
     username = _ar_mysql_param( ar->c2s->config
                , "authreg.mysql.field.username"
-               , "username" ); 
+               , "username" );
     realm = _ar_mysql_param( ar->c2s->config
                , "authreg.mysql.field.realm"
-               , "realm" ); 
+               , "realm" );
     mysqlcontext->field_password = _ar_mysql_param( ar->c2s->config
                , "authreg.mysql.field.password"
-               , "password" ); 
+               , "password" );
     table = _ar_mysql_param( ar->c2s->config
                , "authreg.mysql.table"
-               , "authreg" ); 
+               , "authreg" );
 
     /* get encryption type used in DB */
     if (config_get_one(ar->c2s->config, "authreg.mysql.password_type.plaintext", 0)) {
@@ -539,23 +540,23 @@ DLLEXPORT int ar_init(authreg_t ar) {
     strlentur = strlen( table ) + strlen( username) + strlen( realm );  /* avoid repetition */
 
     template = "INSERT INTO `%s` ( `%s`, `%s` ) VALUES ( '%%s', '%%s' )";
-    create = malloc( strlen( template ) + strlentur ); 
+    create = malloc( strlen( template ) + strlentur );
     sprintf( create, template, table, username, realm );
 
     template = "SELECT `%s` FROM `%s` WHERE `%s` = '%%s' AND `%s` = '%%s'";
     select = malloc( strlen( template )
                      + strlen( mysqlcontext->field_password )
-                     + strlentur ); 
+                     + strlentur );
     sprintf( select, template
              , mysqlcontext->field_password
              , table, username, realm );
 
     template = "UPDATE `%s` SET `%s` = '%%s' WHERE `%s` = '%%s' AND `%s` = '%%s'";
-    setpassword = malloc( strlen( template ) + strlentur + strlen( mysqlcontext->field_password ) ); 
+    setpassword = malloc( strlen( template ) + strlentur + strlen( mysqlcontext->field_password ) );
     sprintf( setpassword, template, table, mysqlcontext->field_password, username, realm );
 
     template = "DELETE FROM `%s` WHERE `%s` = '%%s' AND `%s` = '%%s'";
-    delete = malloc( strlen( template ) + strlentur ); 
+    delete = malloc( strlen( template ) + strlentur );
     sprintf( delete, template, table, username, realm );
 
     /* allow the default SQL statements to be overridden; also verify the statements format and length */
