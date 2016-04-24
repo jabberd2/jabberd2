@@ -87,7 +87,7 @@ jid_t jid_new(const char *id, int len) {
     ret = jid_reset(jid, id, len);
     if(ret == NULL) {
         if(len < 0) {
-           log_debug(ZONE, "invalid jid: %s", id);   
+           log_debug(ZONE, "invalid jid: %s", id);
         } else {
            log_debug(ZONE, "invalid jid: %.*s", len, id);
         }
@@ -229,7 +229,7 @@ static jid_t jid_reset_components_internal(jid_t jid, const char *node, const ch
 
     if(resource_l > MAXLEN_JID_COMP)
         resource_l = MAXLEN_JID_COMP;
-    
+
     if(dataStatic) {
         /* use static buffer */
         jid->jid_data = staticTmpBuf;
@@ -244,7 +244,7 @@ static jid_t jid_reset_components_internal(jid_t jid, const char *node, const ch
     jid->node = jid->jid_data;
     strncpy(jid->node, node, node_l);
     jid->node[node_l] = 0;
-    
+
     jid->domain = jid->node + node_l + 1;
     strncpy(jid->domain, domain, domain_l);
     jid->domain[domain_l] = 0;
@@ -256,7 +256,7 @@ static jid_t jid_reset_components_internal(jid_t jid, const char *node, const ch
     /* Free old data buffer. Postponed to this point so that arguments may point (in)to old jid data. */
     if((!dataStatic) && (olddata != NULL))
         free(olddata);
-    
+
     if(prepare) {
         if(jid_prep(jid) != 0)
             return NULL;
@@ -291,15 +291,14 @@ void jid_free(jid_t jid)
         free(jid->_user);
     if (jid->_full != NULL )
         free(jid->_full);
-    if (jid != NULL )
-        free(jid);
+    free(jid);
 }
 
 /** build user and full if they're out of date */
 void jid_expand(jid_t jid)
 {
     int nlen, dlen, rlen, ulen;
-    
+
     if((!jid->dirty) && (jid->_full))
         return; /* Not dirty & already expanded */
 
