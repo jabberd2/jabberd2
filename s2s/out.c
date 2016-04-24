@@ -633,12 +633,9 @@ int out_packet(s2s_t s2s, pkt_t pkt) {
             (pkt->to->domain != NULL) &&
             (s2s_domain_in_whitelist(s2s, pkt->to->domain) == 0)) {
         log_write(s2s->log, LOG_NOTICE, "sending a packet to domain not in the whitelist, dropping it");
-        if (pkt->to != NULL)
-            jid_free(pkt->to);
-        if (pkt->from != NULL)
-            jid_free(pkt->from);
-        if (pkt->nad != NULL)
-            nad_free(pkt->nad);
+        jid_free(pkt->to);
+        jid_free(pkt->from);
+        nad_free(pkt->nad);
         free(pkt);
 
         return 0;
