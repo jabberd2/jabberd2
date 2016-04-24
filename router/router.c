@@ -135,10 +135,10 @@ static void _router_process_handshake(component_t comp, nad_t nad) {
         sx_nad_write(comp->s, nad);
 
         sx_auth(comp->s, "handshake", comp->s->req_to);
-        
+
         return;
     }
-    
+
     log_debug(ZONE, "auth failed");
 
     free(hash);
@@ -165,7 +165,7 @@ static int _route_add(xht hroutes, const char *name, component_t comp, route_typ
         routes->name = strdup(name);
         routes->rtype = rtype;
     }
-    routes->comp = (component_t *) realloc(routes->comp, sizeof(component_t *) * (routes->ncomp + 1));
+    routes->comp = (component_t *) realloc(routes->comp, sizeof(component_t) * (routes->ncomp + 1));
     routes->comp[routes->ncomp] = comp;
     routes->ncomp++;
     xhash_put(hroutes, routes->name, (void *) routes);
@@ -316,7 +316,7 @@ static void _router_process_bind(component_t comp, nad_t nad) {
         if(strcmp(alias->target, name->domain) == 0) {
             _route_add(comp->r->routes, name->domain, comp, route_MULTI_TO);
             xhash_put(comp->routes, pstrdup(xhash_pool(comp->routes), alias->name), (void *) comp);
-            
+
             log_write(comp->r->log, LOG_NOTICE, "[%s] online (alias of '%s', bound to %s, port %d)", alias->name, name->domain, comp->ip, comp->port);
 
             /* advertise name */
@@ -445,7 +445,7 @@ static void _router_process_route(component_t comp, nad_t nad) {
             _router_comp_write(comp, nad);
             return;
         }
-        
+
         log_debug(ZONE, "unicast route from %s to %s", from->domain, to->domain);
 
         /* check the from */
@@ -536,9 +536,9 @@ static void _router_process_route(component_t comp, nad_t nad) {
                 unsigned char hashval[20];
                 unsigned int *val;
                 int i;
-                
+
                 shahash_raw(jid_user(to), hashval);
-                
+
                 val = (unsigned int *) hashval;
                 dest = *val;
                 for(i=1; i < 20 / (sizeof(unsigned int)/sizeof(unsigned char)); i++, val++) {
@@ -573,7 +573,7 @@ static void _router_process_route(component_t comp, nad_t nad) {
             jid_t jid_route_from = NULL;
             jid_t jid_route_to = NULL;
 
-            if ((NAD_ENAME_L(nad, 1) == 7 && strncmp("message", NAD_ENAME(nad, 1), 7) == 0) &&		// has a "message" element 
+            if ((NAD_ENAME_L(nad, 1) == 7 && strncmp("message", NAD_ENAME(nad, 1), 7) == 0) &&		// has a "message" element
                 ((attr_route_from = nad_find_attr(nad, 0, -1, "from", NULL)) >= 0) &&
                 ((attr_route_to = nad_find_attr(nad, 0, -1, "to", NULL)) >= 0) &&
                 ((strncmp(NAD_AVAL(nad, attr_route_to), "c2s", 3)) != 0) &&							// ignore messages to "c2s" or we'd have dups
@@ -581,7 +581,7 @@ static void _router_process_route(component_t comp, nad_t nad) {
                 ((jid_route_to = jid_new(NAD_AVAL(nad, attr_route_to), NAD_AVAL_L(nad, attr_route_to))) != NULL) &&		// has valid JID destination in route
                 ((attr_msg_from = nad_find_attr(nad, 1, -1, "from", NULL)) >= 0) &&
                 ((attr_msg_to = nad_find_attr(nad, 1, -1, "to", NULL)) >= 0) &&
-                ((jid_msg_from = jid_new(NAD_AVAL(nad, attr_msg_from), NAD_AVAL_L(nad, attr_msg_from))) != NULL) &&	// has valid JID source in message 
+                ((jid_msg_from = jid_new(NAD_AVAL(nad, attr_msg_from), NAD_AVAL_L(nad, attr_msg_from))) != NULL) &&	// has valid JID source in message
                 ((jid_msg_to = jid_new(NAD_AVAL(nad, attr_msg_to), NAD_AVAL_L(nad, attr_msg_to))) != NULL))			// has valid JID dest in message
             {
                 message_log(nad, comp->r, jid_full(jid_msg_from), jid_full(jid_msg_to));
@@ -609,7 +609,7 @@ static void _router_process_route(component_t comp, nad_t nad) {
             _router_comp_write(comp, nad);
             return;
         }
-        
+
         log_debug(ZONE, "broadcast route from %s", from->domain);
 
         /* check the from */
@@ -723,7 +723,7 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             /* no limit, just read as much as we can */
             else
                 rlen = buf->len;
-            
+
             /* do the read */
             len = recv(comp->fd->fd, buf->data, rlen, 0);
 
@@ -742,7 +742,7 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 log_debug(ZONE, "read failed: %s", strerror(errno));
 
                 sx_kill(comp->s);
-                
+
                 return -1;
             }
 
@@ -772,9 +772,9 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 return 0;
 
             log_debug(ZONE, "write failed: %s", strerror(errno));
-        
+
             sx_kill(comp->s);
-        
+
             return -1;
 
         case event_ERROR:
@@ -784,7 +784,7 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             break;
 
         case event_STREAM:
-            
+
             /* legacy check */
             if(s->ns == NULL || strcmp("jabber:component:accept", s->ns) != 0)
                 return 0;
@@ -798,7 +798,7 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 sx_close(s);
                 return 0;
             }
-            
+
             /* sanity */
             if(s->req_to == NULL) {
                 sx_error(s, stream_err_HOST_UNKNOWN, "no 'to' attribute on stream header");
@@ -809,7 +809,7 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             break;
 
         case event_OPEN:
-            
+
             log_write(comp->r->log, LOG_NOTICE, "[%s, port=%d] authenticated as %s", comp->ip, comp->port, comp->s->auth_id);
 
             /* make a route for legacy components */
@@ -840,7 +840,7 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     if(strcmp(alias->target, s->req_to) == 0) {
                         _route_add(comp->r->routes, alias->name, comp, route_MULTI_FROM);
                         xhash_put(comp->routes, pstrdup(xhash_pool(comp->routes), alias->name), (void *) comp);
-            
+
                         log_write(comp->r->log, LOG_NOTICE, "[%s] online (alias of '%s', bound to %s, port %d)", alias->name, s->req_to, comp->ip, comp->port);
 
                         /* advertise name */
@@ -864,7 +864,7 @@ static int _router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 }
 
                 /* watch for handshake requests */
-                if(NAD_ENAME_L(nad, 0) != 9 || strncmp("handshake", NAD_ENAME(nad, 0), NAD_ENAME_L(nad, 0)) != 0) { 
+                if(NAD_ENAME_L(nad, 0) != 9 || strncmp("handshake", NAD_ENAME(nad, 0), NAD_ENAME_L(nad, 0)) != 0) {
                     log_debug(ZONE, "unknown preauth packet %.*s, dropping", NAD_ENAME_L(nad, 0), NAD_ENAME(nad, 0));
 
                     nad_free(nad);
