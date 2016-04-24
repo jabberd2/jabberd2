@@ -134,13 +134,13 @@ static int _sx_sasl_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
         _sx_event(s, event_ERROR, (void *) &sxe);
         return -1;
     }
-    
+
     /* replace the buffer */
     _sx_buffer_set(buf, out, len, NULL);
     free(out);
 
     _sx_debug(ZONE, "%d bytes encoded for sasl channel", buf->len);
-    
+
     return 1;
 }
 
@@ -162,13 +162,13 @@ static int _sx_sasl_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
         _sx_event(s, event_ERROR, (void *) &sxe);
         return -1;
     }
-    
+
     /* replace the buffer */
     _sx_buffer_set(buf, out, len, NULL);
     free(out);
 
     _sx_debug(ZONE, "%d bytes decoded from sasl channel", len);
-    
+
     return 1;
 }
 
@@ -261,9 +261,9 @@ static void _sx_sasl_features(sx_t s, sx_plugin_t p, nad_t nad) {
         return;
     }
 #endif
-    
+
     _sx_debug(ZONE, "offering sasl mechanisms");
-    
+
     ret = gsasl_server_mechlist(ctx->gsasl_ctx, &mechs);
     if(ret != GSASL_OK) {
         _sx_debug(ZONE, "gsasl_server_mechlist failed (%d): %s, not offering sasl for this conn", ret, gsasl_strerror (ret));
@@ -294,7 +294,7 @@ static void _sx_sasl_features(sx_t s, sx_plugin_t p, nad_t nad) {
         else
             mech = ++c;
     }
-    
+
     free(mechs);
 }
 
@@ -343,7 +343,7 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, co
         if(ctx->cb != NULL)
             (ctx->cb)(sx_sasl_cb_GET_REALM, NULL, (void **) &realm, s, ctx->cbarg);
 
-        /* cleanup any existing session context */ 
+        /* cleanup any existing session context */
         sctx = gsasl_session_hook_get(sd);
         if (sctx != NULL) free(sctx);
 
@@ -511,15 +511,15 @@ static void _sx_sasl_server_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, co
 
     if (ret == GSASL_OK) {
         _sx_debug(ZONE, "decoded data: %.*s", buflen, buf);
-    
+
         /* process the data */
         ret = gsasl_step(sd, buf, buflen, &out, &outlen);
         if(buf != NULL) free(buf); buf = NULL;
-    
+
         /* in progress */
         if(ret == GSASL_OK || ret == GSASL_NEEDS_MORE) {
             _sx_debug(ZONE, "sasl handshake in progress (response: %.*s)", outlen, out);
-    
+
             /* encode the response */
             ret = gsasl_base64_to(out, outlen, &buf, &buflen);
 
@@ -529,7 +529,7 @@ static void _sx_sasl_server_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, co
 
             if(out != NULL) free(out);
             if(buf != NULL) free(buf);
-    
+
             return;
         }
     }
@@ -616,7 +616,7 @@ static int _sx_sasl_process(sx_t s, sx_plugin_t p, nad_t nad) {
             return 0;
         }
     }
-    
+
     /* packets from the server */
     else if(s->type == type_CLIENT) {
         if(sd == NULL) {
@@ -744,7 +744,7 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
             return GSASL_OK;
 
         case GSASL_HOSTNAME:
-            { 
+            {
                 char hostname[256];
                 /* get hostname */
                 hostname[0] = '\0';
@@ -839,6 +839,7 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
 static void _sx_sasl_unload(sx_plugin_t p) {
     _sx_sasl_t ctx = (_sx_sasl_t) p->private;
     int i;
+    assert(ctx);
 
     if (ctx->gsasl_ctx != NULL) gsasl_done (ctx->gsasl_ctx);
     if (ctx->appname != NULL) free(ctx->appname);
@@ -848,7 +849,7 @@ static void _sx_sasl_unload(sx_plugin_t p) {
         else
             break;
 
-    if (ctx != NULL) free(ctx);
+    free(ctx);
 }
 
 /** args: appname, callback, cb arg */
@@ -926,7 +927,7 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, const char *appname, const char *mech, c
         _sx_debug(ZONE, "need client in stream state for sasl auth");
         return 1;
      }
-    
+
     /* handshake start */
     ret = gsasl_client_start(ctx->gsasl_ctx, mech, &sd);
     if(ret != GSASL_OK) {
@@ -940,7 +941,7 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, const char *appname, const char *mech, c
     gethostname(hostname, 256);
     hostname[255] = '\0';
 
-    /* cleanup any existing session context */ 
+    /* cleanup any existing session context */
     sctx = gsasl_session_hook_get(sd);
     if (sctx != NULL) free(sctx);
 
