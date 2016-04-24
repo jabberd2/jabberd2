@@ -3,6 +3,9 @@
 --
 --     sqlite3 db/sqlite.db < tools/db-setup.sqlite
 --
+PRAGMA page_size = 4096;
+PRAGMA journal_mode = WAL;
+BEGIN;
 
 --
 -- c2s authentication/registration table
@@ -27,6 +30,9 @@ CREATE TABLE "active" (
     "collection-owner" TEXT NOT NULL,
     "object-sequence" INTEGER PRIMARY KEY,
     "time" INTEGER NOT NULL DEFAULT 0 );
+
+CREATE INDEX IF NOT EXISTS i_active_collection_owner
+    ON "active"("collection-owner");
 
 --
 -- Logout times
@@ -252,3 +258,4 @@ CREATE TABLE "verify" (
     "code" text,
     "state" INTEGER DEFAULT 0);
 
+COMMIT;
