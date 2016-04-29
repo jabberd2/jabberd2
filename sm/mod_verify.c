@@ -107,6 +107,7 @@ static void send_email(verify_t *v, user_t user, pkt_t res, char *message)
                 "code: %s\n"
                 ".\n", v->email, v->code) < 0) {
         log_write(user->sm->log, LOG_ERR, "Error writing sendmail to %s. %d:%s", v->email, errno, strerror(errno));
+        pclose(pipe);
         goto error;
     }
     if (pclose(pipe) == -1) {
