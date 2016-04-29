@@ -516,7 +516,7 @@ int ar_init(authreg_t ar)
 
     if((data->flags & AR_LDAP_FLAGS_STARTTLS) && (data->flags & AR_LDAP_FLAGS_SSL)) {
         log_write(ar->c2s->log, LOG_ERR, "ldap: not possible to use both SSL and starttls");
-        return 1;
+        goto error;
     }
 
     if (l>0)
@@ -548,12 +548,10 @@ int ar_init(authreg_t ar)
         data->query = NULL;
 
     data->ar = ar;
-    
+
     if(_ldap_connect(data))
     {
-        xhash_free(data->basedn);
-        free(data);
-        return 1;
+        goto error;
     }
 
     xhash_put(domains, data->host, data);
@@ -571,4 +569,9 @@ int ar_init(authreg_t ar)
     ar->free = _ldap_free;
 
     return 0;
+
+error:
+    xhash_free(data->basedn);
+    free(data);
+    return 1;
 }
