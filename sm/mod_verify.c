@@ -204,7 +204,8 @@ static mod_ret_t _verify_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)
     log_debug(ZONE, "body: %d", body);
     if (body >= 0) {
         size_t len = NAD_CDATA_L(nad, body);
-        cdata = strncpy(malloc(len+1), NAD_CDATA(nad, body), len);
+        cdata = malloc(len+1);
+        strncpy(cdata, NAD_CDATA(nad, body), len);
         cdata[len] = '\0';
         log_debug(ZONE, "---> %s <---", cdata);
         res = pkt_create(mi->mod->mm->sm, "message", NULL, jid_full(sess->jid),
@@ -217,6 +218,7 @@ static mod_ret_t _verify_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)
             print_instructions(res);
         }
         pkt_router(res);
+        free(cdata);
     }
     pkt_free(pkt);
 
