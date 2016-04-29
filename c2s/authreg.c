@@ -98,6 +98,7 @@ authreg_t authreg_init(c2s_t c2s, const char *name) {
         exit(1);
     }
 
+    ar->handle = handle;
     ar->c2s = c2s;
 
     xhash_put(c2s->ar_modules, name, ar);

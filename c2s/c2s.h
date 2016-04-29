@@ -338,6 +338,9 @@ struct authreg_st
     c2s_t       c2s;
     int         initialized;
 
+    /**< loaded module handle */
+    void        *handle;
+
     /** module private data */
     void        *private;
 
