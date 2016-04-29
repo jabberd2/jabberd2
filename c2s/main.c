@@ -806,6 +806,9 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
         sx_env_plugin(c2s->sx_env, sx_websocket_init, c2s->http_forward);
     }
 #else
+    if(c2s->websocket) {
+        log_write(c2s->log, LOG_ERR, "websocket support not built-in - not enabling");
+    }
     if(c2s->http_forward) {
         log_write(c2s->log, LOG_ERR, "httpforward available only with websocket support built-in");
     }
