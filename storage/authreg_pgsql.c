@@ -590,6 +590,7 @@ int ar_init(authreg_t ar) {
     int strlentur; /* string length of table, user, and realm strings */
     PGconn *conn;
     pgsqlcontext_t pgsqlcontext;
+    int fail = 0;
 
     /* configure the database context with field names and SQL statements */
     pgsqlcontext = (pgsqlcontext_t) calloc(1, sizeof( struct pgsqlcontext_st ) );
@@ -668,22 +669,22 @@ int ar_init(authreg_t ar) {
     pgsqlcontext->sql_create = strdup(_ar_pgsql_param( ar->c2s->config
            , "authreg.pgsql.sql.create"
            , create ));
-    if( _ar_pgsql_check_sql( ar, pgsqlcontext->sql_create, "ss" ) != 0 ) return 1;
+    if( _ar_pgsql_check_sql( ar, pgsqlcontext->sql_create, "ss" ) != 0 ) fail = 1;
 
     pgsqlcontext->sql_select = strdup(_ar_pgsql_param( ar->c2s->config
            , "authreg.pgsql.sql.select"
            , select ));
-    if( _ar_pgsql_check_sql( ar, pgsqlcontext->sql_select, "ss" ) != 0 ) return 1;
+    if( _ar_pgsql_check_sql( ar, pgsqlcontext->sql_select, "ss" ) != 0 ) fail = 1;
 
     pgsqlcontext->sql_setpassword = strdup(_ar_pgsql_param( ar->c2s->config
            , "authreg.pgsql.sql.setpassword"
            , setpassword ));
-    if( _ar_pgsql_check_sql( ar, pgsqlcontext->sql_setpassword, "sss" ) != 0 ) return 1;
+    if( _ar_pgsql_check_sql( ar, pgsqlcontext->sql_setpassword, "sss" ) != 0 ) fail = 1;
 
     pgsqlcontext->sql_delete = strdup(_ar_pgsql_param( ar->c2s->config
            , "authreg.pgsql.sql.delete"
            , delete ));
-    if( _ar_pgsql_check_sql( ar, pgsqlcontext->sql_delete, "ss" ) != 0 ) return 1;
+    if( _ar_pgsql_check_sql( ar, pgsqlcontext->sql_delete, "ss" ) != 0 ) fail = 1;
 
     // Check password is optional
     const char *sql_check_password = _ar_pgsql_param( ar->c2s->config, "authreg.pgsql.sql.checkpassword", 0);
@@ -691,7 +692,7 @@ int ar_init(authreg_t ar) {
     if (sql_check_password) {
         ar->check_password = _ar_pgsql_dbcheck_password;
         pgsqlcontext->sql_check_password = strdup(sql_check_password);
-        if( _ar_pgsql_check_sql( ar, pgsqlcontext->sql_check_password, "sss" ) != 0 ) return 1;
+        if( _ar_pgsql_check_sql( ar, pgsqlcontext->sql_check_password, "sss" ) != 0 ) fail = 1;
     }
     else
         ar->check_password = _ar_pgsql_check_password;
@@ -707,6 +708,8 @@ int ar_init(authreg_t ar) {
     free(select);
     free(setpassword);
     free(delete);
+
+    if (fail) return fail;
 
 #ifdef HAVE_SSL
     if(sx_openssl_initialized)
