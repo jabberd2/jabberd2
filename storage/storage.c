@@ -155,6 +155,7 @@ st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
         /* make a new driver structure */
         drv = (st_driver_t) calloc(1, sizeof(struct st_driver_st));
 
+        drv->handle = handle;
         drv->st = st;
 
         log_debug(ZONE, "calling driver initializer");

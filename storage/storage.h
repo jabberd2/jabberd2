@@ -162,7 +162,6 @@ typedef struct st_driver_st *st_driver_t;
 
 /** storage manager data */
 struct storage_st {
-//    sm_t        sm;             /**< sm context */
     config_t    config;         /**< config */
     log_t       log;            /**< log context */
 
@@ -179,11 +178,9 @@ struct st_driver_st {
 
     char        *name;          /**< name of driver */
 
-#ifdef __cplusplus
-    void        *_private;       /**< driver private data */
-#else
+    void        *handle;        /**< loaded module handle */
+
     void        *private;       /**< driver private data */
-#endif
 
     /** called to find out if this driver can handle a particular type */
     st_ret_t    (*add_type)(st_driver_t drv, const char *type);
