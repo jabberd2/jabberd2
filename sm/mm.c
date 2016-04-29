@@ -213,6 +213,9 @@ mm_t mm_new(sm_t sm) {
                       if (mod->handle != NULL)
                           FreeLibrary((HMODULE) mod->handle);
                     #endif
+                    free(mod->name);
+                    free(mod);
+                    mod = NULL;
 
                     melem = nad_find_elem(sm->config->nad, melem, -1, "module", 0);
                     continue;
