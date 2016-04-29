@@ -314,12 +314,15 @@ static int _sx_get_pending_write(sx_t s) {
     /* run it by the plugins */
     ret = _sx_chain_io_write(s, out);
     if(ret <= 0) {
-    /* TODO/!!!: Are we leaking the 'out' buffer here? How about the 'in' buffer? */
         if(ret == -1) {
             /* temporary failure, push it back on the queue */
             jqueue_push(s->wbufq, in, (s->wbufq->front != NULL) ? s->wbufq->front->priority : 0);
             s->want_write = 1;
-        } else if(ret == -2) {
+        } else {
+            _sx_buffer_free(in);
+        }
+
+        if(ret == -2) {
             /* permanent failure, its all over */
             /* !!! shut down */
             s->want_read = s->want_write = 0;
