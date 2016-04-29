@@ -6,6 +6,7 @@
 *.so
 *~
 *.swp
+jabberd2.pro.*
 Makefile
 Makefile.in
 aclocal.m4
