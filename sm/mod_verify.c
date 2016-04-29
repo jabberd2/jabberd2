@@ -72,6 +72,7 @@ static void send_email(verify_t *v, user_t user, pkt_t res, char *message)
     }
     if (fgets(v->code, 11, pipe) == NULL) {
         log_write(user->sm->log, LOG_ERR, "Error getting email code for %s from 'pwgen'. %d:%s", v->email, errno, strerror(errno));
+        pclose(pipe);
         goto error;
     }
     if (pclose(pipe) == -1) {
