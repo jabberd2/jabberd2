@@ -1179,6 +1179,7 @@ int message_log(nad_t nad, router_t r, const char *msg_from, const char *msg_to)
         if (! fprintf(message_file, "# This message log is created by the jabberd router.\n"))
         {
             log_write(r->log, LOG_ERR, "Unable to write to message log: %s", strerror(errno));
+            fclose(message_file);
             return 1;
         }
         fprintf(message_file, "# See router.xml for logging options.\n");
