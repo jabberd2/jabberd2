@@ -67,7 +67,7 @@ static st_ret_t _st_db_add_type(st_driver_t drv, const char *type) {
     drvdata_t data = (drvdata_t) drv->private;
     dbdata_t dbd;
     int err;
-    
+
     dbd = (dbdata_t) calloc(1, sizeof(struct dbdata_st));
 
     dbd->data = data;
@@ -162,7 +162,7 @@ static void _st_db_object_serialise(os_object_t o, char **buf, int *len) {
              */
             val = NULL;
             os_object_iter_get(o, &key, &val, &ot);
-            
+
             log_debug(ZONE, "serialising key %s", key);
 
             ser_string_set(key, &cur, buf, len);
@@ -242,12 +242,13 @@ static os_object_t _st_db_object_deserialise(st_driver_t drv, os_t os, const cha
                 free(sval);
                 if(nad == NULL) {
                     log_write(drv->st->log, LOG_ERR, "db: unable to parse stored XML - database corruption?");
+                    free(key);
                     return NULL;
                 }
                 os_object_put(o, key, nad, os_type_NAD);
                 nad_free(nad);
                 break;
-  
+
            case os_type_UNKNOWN:
                 break;
         }
@@ -277,7 +278,7 @@ static st_ret_t _st_db_put_guts(st_driver_t drv, const char *type, const char *o
 
             val.data = buf;
             val.size = len;
-        
+
             if((err = c->c_put(c, &key, &val, DB_KEYLAST)) != 0) {
                 log_write(drv->st->log, LOG_ERR, "db: couldn't store value for type %s owner %s in storage db: %s", type, owner, db_strerror(err));
                 free(buf);
