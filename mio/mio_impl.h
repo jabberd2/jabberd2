@@ -159,7 +159,7 @@ static void _mio_accept(mio_t m, mio_fd_t fd)
 
     /* pull a socket off the accept queue and check */
     newfd = accept(fd->fd, (struct sockaddr*)&serv_addr, &addrlen);
-    if(newfd <= 0) return;
+    if(newfd < 0) return;
     if(addrlen <= 0) {
         close(newfd);
         return;
