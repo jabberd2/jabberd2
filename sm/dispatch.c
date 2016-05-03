@@ -82,19 +82,17 @@ void dispatch(sm_t sm, pkt_t pkt) {
     }
 
     /* preprocessing */
-    if (pkt->sm != NULL) {
-        ret = mm_in_router(pkt->sm->mm, pkt);
-        switch(ret) {
-            case mod_HANDLED:
-                return;
+    ret = mm_in_router(pkt->sm->mm, pkt);
+    switch(ret) {
+        case mod_HANDLED:
+            return;
 
-            case mod_PASS:
-                break;
+        case mod_PASS:
+            break;
 
-            default:
-                pkt_router(pkt_error(pkt, -ret));
-                return;
-        }
+        default:
+            pkt_router(pkt_error(pkt, -ret));
+            return;
     }
 
     /* has to come from someone and be directed to someone */
