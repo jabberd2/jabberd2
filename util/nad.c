@@ -201,7 +201,7 @@ void nad_free(nad_t nad)
 }
 
 /** locate the next elem at a given depth with an optional matching name */
-int nad_find_elem(nad_t nad, int elem, int ns, const char *name, int depth)
+int nad_find_elem(nad_t nad, unsigned int elem, int ns, const char *name, int depth)
 {
     int my_ns;
     int lname = 0;
@@ -232,7 +232,7 @@ int nad_find_elem(nad_t nad, int elem, int ns, const char *name, int depth)
 }
 
 /** get a matching attr on this elem, both name and optional val */
-int nad_find_attr(nad_t nad, int elem, int ns, const char *name, const char *val)
+int nad_find_attr(nad_t nad, unsigned int elem, int ns, const char *name, const char *val)
 {
     int attr, my_ns;
     int lname, lval = 0;
@@ -259,7 +259,7 @@ int nad_find_attr(nad_t nad, int elem, int ns, const char *name, const char *val
 }
 
 /** get a matching ns on this elem, both uri and optional prefix */
-int nad_find_namespace(nad_t nad, int elem, const char *uri, const char *prefix)
+int nad_find_namespace(nad_t nad, unsigned int elem, const char *uri, const char *prefix)
 {
     int check, ns;
 
@@ -317,7 +317,7 @@ int nad_find_scoped_namespace(nad_t nad, const char *uri, const char *prefix)
  *          "!attrib=value" to match the first tag without that attrib and value
  *          or any combination: "name/name/?attrib", etc
  */
-int nad_find_elem_path(nad_t nad, int elem, int ns, const char *name) {
+int nad_find_elem_path(nad_t nad, unsigned int elem, int ns, const char *name) {
     char *str, *slash, *qmark, *excl, *equals;
 
     _nad_ptr_check(__func__, nad);
@@ -400,7 +400,7 @@ int nad_find_elem_path(nad_t nad, int elem, int ns, const char *name) {
 }
 
 /** create, update, or zap any matching attr on this elem */
-void nad_set_attr(nad_t nad, int elem, int ns, const char *name, const char *val, int vallen)
+void nad_set_attr(nad_t nad, unsigned int elem, int ns, const char *name, const char *val, int vallen)
 {
     int attr;
 
@@ -430,7 +430,7 @@ void nad_set_attr(nad_t nad, int elem, int ns, const char *name, const char *val
 }
 
 /** shove in a new child elem after the given one */
-int nad_insert_elem(nad_t nad, int parent, int ns, const char *name, const char *cdata)
+int nad_insert_elem(nad_t nad, unsigned int parent, int ns, const char *name, const char *cdata)
 {
     int elem;
 
@@ -477,7 +477,7 @@ int nad_insert_elem(nad_t nad, int parent, int ns, const char *name, const char 
 }
 
 /** remove an element (and its subelements) */
-void nad_drop_elem(nad_t nad, int elem) {
+void nad_drop_elem(nad_t nad, unsigned int elem) {
     int next, cur;
 
     _nad_ptr_check(__func__, nad);
@@ -500,7 +500,7 @@ void nad_drop_elem(nad_t nad, int elem) {
 }
 
 /** wrap an element with another element */
-void nad_wrap_elem(nad_t nad, int elem, int ns, const char *name)
+void nad_wrap_elem(nad_t nad, unsigned int elem, int ns, const char *name)
 {
     int cur;
 
@@ -807,7 +807,7 @@ int nad_add_namespace(nad_t nad, const char *uri, const char *prefix)
 }
 
 /** declare a namespace on an already-existing element */
-int nad_append_namespace(nad_t nad, int elem, const char *uri, const char *prefix) {
+int nad_append_namespace(nad_t nad, unsigned int elem, const char *uri, const char *prefix) {
     int ns;
 
     _nad_ptr_check(__func__, nad);
@@ -945,7 +945,7 @@ static void _nad_escape(nad_t nad, int data, int len, int flag)
 }
 
 /** internal recursive printing function */
-static int _nad_lp0(nad_t nad, int elem)
+static int _nad_lp0(nad_t nad, unsigned int elem)
 {
     int attr;
     int ndepth;
@@ -1201,7 +1201,7 @@ static int _nad_lp0(nad_t nad, int elem)
     return elem;
 }
 
-void nad_print(nad_t nad, int elem, const char **xml, int *len)
+void nad_print(nad_t nad, unsigned int elem, const char **xml, int *len)
 {
     int ixml = nad->ccur;
 

@@ -202,28 +202,30 @@ static mod_ret_t _verify_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)
 
     message = nad_find_elem(nad, 0, -1, "message", 1);
     log_debug(ZONE, "message: %d", message);
-    body = nad_find_elem(nad, message, -1, "body", 1);
-    log_debug(ZONE, "body: %d", body);
-    if (body >= 0) {
-        size_t len = NAD_CDATA_L(nad, body);
-        cdata = malloc(len+1);
-        strncpy(cdata, NAD_CDATA(nad, body), len);
-        cdata[len] = '\0';
-        log_debug(ZONE, "---> %s <---", cdata);
-        res = pkt_create(mi->mod->mm->sm, "message", NULL, jid_full(sess->jid),
-                         mi->mod->mm->sm->id);
-        if (strstr(cdata, "email: ") == cdata) {
-            send_email(v, sess->user, res, cdata);
-        } else if (strstr(cdata, "code: ") == cdata) {
-            check_code(v, sess->user, res, cdata);
-        } else {
-            print_instructions(res);
+    if (message >= 0) {
+        body = nad_find_elem(nad, message, -1, "body", 1);
+        log_debug(ZONE, "body: %d", body);
+        if (body >= 0) {
+            size_t len = NAD_CDATA_L(nad, body);
+            cdata = malloc(len+1);
+            strncpy(cdata, NAD_CDATA(nad, body), len);
+            cdata[len] = '\0';
+            log_debug(ZONE, "---> %s <---", cdata);
+            res = pkt_create(mi->mod->mm->sm, "message", NULL, jid_full(sess->jid),
+                             mi->mod->mm->sm->id);
+            if (strstr(cdata, "email: ") == cdata) {
+                send_email(v, sess->user, res, cdata);
+            } else if (strstr(cdata, "code: ") == cdata) {
+                check_code(v, sess->user, res, cdata);
+            } else {
+                print_instructions(res);
+            }
+            pkt_router(res);
+            free(cdata);
         }
-        pkt_router(res);
-        free(cdata);
     }
-    pkt_free(pkt);
 
+    pkt_free(pkt);
     return mod_HANDLED;
 }
 
