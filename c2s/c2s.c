@@ -599,7 +599,9 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
             sess->s->port = sess->port;
 
             /* find out which port this is */
-            getsockname(fd->fd, (struct sockaddr *) &sa, &namelen);
+            if(getsockname(fd->fd, (struct sockaddr *) &sa, &namelen) < 0) {
+                return 1;
+            }
             port = j_inet_getport(&sa);
 
             /* remember it */
