@@ -450,6 +450,10 @@ static st_ret_t _st_db_delete(st_driver_t drv, const char *type, const char *own
     DB_TXN *t;
     st_ret_t ret;
 
+    if(dbd == NULL) {
+        return st_FAILED;
+    }
+
     ret = _st_db_cursor_new(drv, dbd, &c, &t);
     if(ret != st_SUCCESS)
         return ret;
