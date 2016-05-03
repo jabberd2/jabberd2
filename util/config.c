@@ -87,7 +87,7 @@ int config_load_with_id(config_t c, const char *file, const char *id)
     struct nad_elem_st **path;
     config_elem_t elem;
     int rv = 0;
-    
+
     /* open the file */
     f = fopen(file, "r");
     if(f == NULL)
@@ -234,12 +234,12 @@ int config_load_with_id(config_t c, const char *file, const char *id)
                 elem->attrs[elem->nvalues][j] = pstrdupx(xhash_pool(c->hash), NAD_ANAME(bd.nad, attr), NAD_ANAME_L(bd.nad, attr));
                 elem->attrs[elem->nvalues][j + 1] = pstrdupx(xhash_pool(c->hash), NAD_AVAL(bd.nad, attr), NAD_AVAL_L(bd.nad, attr));
 
-		/*
-		 * pstrdupx(blob, 0) returns NULL - which means that later
-		 * there's no way of telling whether an attribute is defined
-		 * as empty, or just not defined. This fixes that by creating
-		 * an empty string for attributes which are defined empty
-		 */
+        /*
+         * pstrdupx(blob, 0) returns NULL - which means that later
+         * there's no way of telling whether an attribute is defined
+         * as empty, or just not defined. This fixes that by creating
+         * an empty string for attributes which are defined empty
+         */
                 if (NAD_AVAL_L(bd.nad, attr)==0) {
                     elem->attrs[elem->nvalues][j + 1] = pstrdup(xhash_pool(c->hash), "");
                 } else {
@@ -315,7 +315,7 @@ char *config_get_attr(config_t c, const char *key, int num, const char *attr)
 {
     config_elem_t elem = xhash_get(c->hash, key);
 
-    if(num >= elem->nvalues || elem->attrs == NULL || elem->attrs[num] == NULL)
+    if(elem == NULL || num >= elem->nvalues || elem->attrs == NULL || elem->attrs[num] == NULL)
         return NULL;
 
     return j_attr((const char **) elem->attrs[num], attr);
