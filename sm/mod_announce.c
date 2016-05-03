@@ -59,51 +59,52 @@ static void _announce_load(module_t mod, moddata_t data, const char *domain) {
 
     /* load the current message */
     if((ret = storage_get(mod->mm->sm->st, "motd-message", domain, NULL, &os)) == st_SUCCESS) {
-        os_iter_first(os);
-        o = os_iter_object(os);
-        if(os_object_get_nad(os, o, "xml", &nad)) {
-            /* Copy the nad, as the original is freed when the os is freed below */
-            data->nad = nad_copy(nad);
-            if((ns = nad_find_scoped_namespace(data->nad, uri_DELAY, NULL)) >= 0 &&
-               (elem = nad_find_elem(data->nad, 1, ns, "x", 1)) >= 0 &&
-               (attr = nad_find_attr(data->nad, elem, -1, "stamp", NULL)) >= 0) {
-                snprintf(timestamp, 18, "%.*s", NAD_AVAL_L(data->nad, attr), NAD_AVAL(data->nad, attr));
+        if(os_iter_first(os)) {
+            o = os_iter_object(os);
+            if(os_object_get_nad(os, o, "xml", &nad)) {
+                /* Copy the nad, as the original is freed when the os is freed below */
+                data->nad = nad_copy(nad);
+                if((ns = nad_find_scoped_namespace(data->nad, uri_DELAY, NULL)) >= 0 &&
+                        (elem = nad_find_elem(data->nad, 1, ns, "x", 1)) >= 0 &&
+                        (attr = nad_find_attr(data->nad, elem, -1, "stamp", NULL)) >= 0) {
+                    snprintf(timestamp, 18, "%.*s", NAD_AVAL_L(data->nad, attr), NAD_AVAL(data->nad, attr));
 
-                /* year */
-                telem[0] = timestamp[0];
-                telem[1] = timestamp[1];
-                telem[2] = timestamp[2];
-                telem[3] = timestamp[3];
-                telem[4] = '\0';
-                tm.tm_year = atoi(telem) - 1900;
+                    /* year */
+                    telem[0] = timestamp[0];
+                    telem[1] = timestamp[1];
+                    telem[2] = timestamp[2];
+                    telem[3] = timestamp[3];
+                    telem[4] = '\0';
+                    tm.tm_year = atoi(telem) - 1900;
 
-                /* month */
-                telem[0] = timestamp[4];
-                telem[1] = timestamp[5];
-                telem[2] = '\0';
-                tm.tm_mon = atoi(telem) - 1;
+                    /* month */
+                    telem[0] = timestamp[4];
+                    telem[1] = timestamp[5];
+                    telem[2] = '\0';
+                    tm.tm_mon = atoi(telem) - 1;
 
-                /* day */
-                telem[0] = timestamp[6];
-                telem[1] = timestamp[7];
-                tm.tm_mday = atoi(telem);
+                    /* day */
+                    telem[0] = timestamp[6];
+                    telem[1] = timestamp[7];
+                    tm.tm_mday = atoi(telem);
 
-                /* hour */
-                telem[0] = timestamp[9];
-                telem[1] = timestamp[10];
-                tm.tm_hour = atoi(telem);
+                    /* hour */
+                    telem[0] = timestamp[9];
+                    telem[1] = timestamp[10];
+                    tm.tm_hour = atoi(telem);
 
-                /* minute */
-                telem[0] = timestamp[12];
-                telem[1] = timestamp[13];
-                tm.tm_min = atoi(telem);
+                    /* minute */
+                    telem[0] = timestamp[12];
+                    telem[1] = timestamp[13];
+                    tm.tm_min = atoi(telem);
 
-                /* second */
-                telem[0] = timestamp[15];
-                telem[1] = timestamp[16];
-                tm.tm_sec = atoi(telem);
+                    /* second */
+                    telem[0] = timestamp[15];
+                    telem[1] = timestamp[16];
+                    tm.tm_sec = atoi(telem);
 
-                data->t = timegm(&tm);
+                    data->t = timegm(&tm);
+                }
             }
         }
 
