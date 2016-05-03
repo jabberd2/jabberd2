@@ -561,7 +561,7 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
                 mechbuf[i]=tolower(mech[i]);
                 i++;
             }
-            mechbuf[i]='\0';
+            mechbuf[--i]='\0';
 
             /* get host for request */
             host = xhash_get(c2s->hosts, s->req_to);
