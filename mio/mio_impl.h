@@ -38,11 +38,11 @@ JABBERD2_API char *mio_strerror(int code)
 #endif /* _WIN32 */
 
 /** our internal wrapper around a fd */
-typedef enum { 
-    type_CLOSED = 0x00, 
-    type_NORMAL = 0x01, 
-    type_LISTEN = 0x02, 
-    type_CONNECT = 0x10, 
+typedef enum {
+    type_CLOSED = 0x00,
+    type_NORMAL = 0x01,
+    type_LISTEN = 0x02,
+    type_CONNECT = 0x10,
     type_CONNECT_READ = 0x11,
     type_CONNECT_WRITE = 0x12
 } mio_type_t;
@@ -243,8 +243,8 @@ static void _mio_run(mio_t m, int timeout)
         mio_fd_t fd = MIO_ITERATOR_FD(m,iter);
         if (fd == NULL) continue;
 
-        /* skip already dead slots */ 
-        if(FD(m,fd)->type == type_CLOSED) continue; 
+        /* skip already dead slots */
+        if(FD(m,fd)->type == type_CLOSED) continue;
 
         /* new conns on a listen socket */
         if(FD(m,fd)->type == type_LISTEN && MIO_CAN_READ(m,iter))
@@ -279,7 +279,7 @@ static void _mio_run(mio_t m, int timeout)
 
     deferred:
         /* deferred closing fd
-         * one of previous actions might change the state of fd */ 
+         * one of previous actions might change the state of fd */
         if(FD(m,fd)->type == type_CLOSED)
         {
             MIO_FREE_FD(m, fd);
@@ -342,10 +342,14 @@ static mio_fd_t _mio_listen(mio_t m, int port, const char *sourceip, mio_handler
 
     if(sa.ss_family == 0)
         sa.ss_family = AF_INET;
-    
+
     /* attempt to create a socket */
     if((fd = socket(sa.ss_family,SOCK_STREAM,0)) < 0) return NULL;
-    if(setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char*)&flag, sizeof(flag)) < 0) return NULL;
+    if(setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char*)&flag, sizeof(flag)) < 0)
+    {
+        close(fd);
+        return NULL;
+    }
 
     /* set up and bind address info */
     j_inet_setport(&sa, port);
@@ -396,7 +400,7 @@ static mio_fd_t _mio_connect(mio_t m, int port, const char *hostip, const char *
     }
 
     if(!sa.ss_family) sa.ss_family = AF_INET;
-    
+
     /* attempt to create a socket */
     if((fd = socket(sa.ss_family,SOCK_STREAM,0)) < 0) return NULL;
 
