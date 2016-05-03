@@ -729,7 +729,8 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
     switch(prop) {
         case GSASL_PASSWORD:
             /* GSASL_AUTHID, GSASL_AUTHZID, GSASL_REALM */
-            assert((ctx->cb != NULL));
+            assert(ctx);
+            assert(ctx->cb);
             creds.authnid = gsasl_property_fast(sd, GSASL_AUTHID);
             creds.realm   = gsasl_property_fast(sd, GSASL_REALM);
             if(!creds.authnid) return GSASL_NO_AUTHID;
@@ -757,7 +758,8 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
 
         case GSASL_VALIDATE_SIMPLE:
             /* GSASL_AUTHID, GSASL_AUTHZID, GSASL_PASSWORD */
-            assert((ctx->cb != NULL));
+            assert(ctx);
+            assert(ctx->cb);
             creds.authnid = gsasl_property_fast(sd, GSASL_AUTHID);
             creds.realm   = gsasl_property_fast(sd, GSASL_REALM);
             creds.pass    = gsasl_property_fast(sd, GSASL_PASSWORD);
@@ -788,6 +790,8 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
 
         case GSASL_VALIDATE_EXTERNAL:
             /* GSASL_AUTHID */
+            assert(ctx);
+            assert(ctx->ext_id);
             creds.authzid = gsasl_property_fast(sd, GSASL_AUTHZID);
             _sx_debug(ZONE, "sasl external");
             _sx_debug(ZONE, "sasl creds.authzid is '%s'", creds.authzid);
