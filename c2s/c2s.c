@@ -562,7 +562,8 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
         case action_ACCEPT:
             log_debug(ZONE, "accept action on fd %d", fd->fd);
 
-            getpeername(fd->fd, (struct sockaddr *) &sa, &namelen);
+            if(getpeername(fd->fd, (struct sockaddr *) &sa, &namelen) < 0)
+                return 1;
             port = j_inet_getport(&sa);
 
             log_write(c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] connect", fd->fd, (char *) data, port);
@@ -599,9 +600,8 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
             sess->s->port = sess->port;
 
             /* find out which port this is */
-            if(getsockname(fd->fd, (struct sockaddr *) &sa, &namelen) < 0) {
+            if(getsockname(fd->fd, (struct sockaddr *) &sa, &namelen) < 0)
                 return 1;
-            }
             port = j_inet_getport(&sa);
 
             /* remember it */
