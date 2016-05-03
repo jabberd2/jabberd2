@@ -36,7 +36,7 @@
  *       - DONE
  *     - out_packet(s2s, <verify to='them' from='us' id='stream id'>key</verify>)
  *     - DONE
- *   
+ *
  *   event_PACKET: <verify from='them' to='us' id='123'>key</verify> - validate their key
  *     - generate dbkey: sha1(secret+remote+id)
  *     - if their key matches dbkey
@@ -110,8 +110,10 @@ int in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg)
             s2s = (s2s_t) arg;
 
             log_debug(ZONE, "accept action on fd %d", fd->fd);
-            
-            getpeername(fd->fd, (struct sockaddr *) &sa, &namelen);
+
+            if (getpeername(fd->fd, (struct sockaddr *) &sa, &namelen) < 0) {
+                return -1;
+            }
             port = j_inet_getport(&sa);
 
             log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] incoming connection", fd->fd, (char *) data, port);
@@ -193,7 +195,7 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] read error: %s (%d)", in->fd->fd, in->ip, in->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
                 sx_kill(s);
-                
+
                 return -1;
             }
 
@@ -240,7 +242,7 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             log_debug(ZONE, "STREAM or OPEN event from %s port %d (id %s)", in->ip, in->port, s->id);
 
             /* first time, bring them online */
-            if ((!in->online)||(strcmp(in->key,s->id)!=0)) { 
+            if ((!in->online)||(strcmp(in->key,s->id)!=0)) {
                 log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] incoming stream online (id %s)", in->fd->fd, in->ip, in->port, s->id);
 
                 in->online = 1;
@@ -261,7 +263,7 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
                 snprintf(ipport, INET6_ADDRSTRLEN + 16, "%s/%d", in->ip, in->port);
                 xhash_zap(in->s2s->in_accept, ipport);
-            }  
+            }
 
             break;
 
@@ -290,7 +292,7 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                         return 0;
                     }
                 }
-                
+
                 log_debug(ZONE, "unknown dialback packet, dropping it");
 
                 nad_free(nad);
@@ -457,7 +459,7 @@ static void _in_verify(conn_t in, nad_t nad) {
     int attr;
     jid_t from, to;
     char *id, *dbkey, *type;
-    
+
     attr = nad_find_attr(nad, 0, -1, "from", NULL);
     if(attr < 0 || (from = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
         log_debug(ZONE, "missing or invalid from on db verify packet");
@@ -532,7 +534,7 @@ static void _in_packet(conn_t in, nad_t nad) {
     int elem, attr, ns, sns;
     jid_t from, to;
     char *rkey;
-    
+
     attr = nad_find_attr(nad, 0, -1, "from", NULL);
     if(attr < 0 || (from = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
         log_debug(ZONE, "missing or invalid from on incoming packet");
