@@ -1085,7 +1085,8 @@ int router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *
         case action_ACCEPT:
             log_debug(ZONE, "accept action on fd %d", fd->fd);
 
-            getpeername(fd->fd, (struct sockaddr *) &sa, &namelen);
+            if(getpeername(fd->fd, (struct sockaddr *) &sa, &namelen) < 0)
+                return 1;
             port = j_inet_getport(&sa);
 
             log_write(r->log, LOG_NOTICE, "[%s, port=%d] connect", (char *) data, port);
