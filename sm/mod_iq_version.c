@@ -71,9 +71,9 @@ void _iq_version_get_os_version(mod_iq_version_config_t config) {
     if( !(bOsVersionInfoEx = GetVersionEx ((OSVERSIONINFO *) &osvi)) )
     {
         /* If OSVERSIONINFOEX doesn't work, try OSVERSIONINFO. */
-        
+
         osvi.dwOSVersionInfoSize = sizeof (OSVERSIONINFO);
-        if (! GetVersionEx ( (OSVERSIONINFO *) &osvi) ) 
+        if (! GetVersionEx ( (OSVERSIONINFO *) &osvi) )
         {
             snprintf(sysname, 64, "unknown");
             bSomeError = TRUE;
@@ -87,15 +87,15 @@ void _iq_version_get_os_version(mod_iq_version_config_t config) {
             /* Test for the product. */
             if ( osvi.dwMajorVersion <= 4 )
                 snprintf(sysname, 64, "Microsoft Windows NT");
-            
+
             if ( osvi.dwMajorVersion == 5 && osvi.dwMinorVersion == 0 )
                 snprintf(sysname, 64, "Microsoft Windows 2000");
-            
+
             if ( osvi.dwMajorVersion == 5 && osvi.dwMinorVersion == 1 )
                 snprintf(sysname, 64, "Microsoft Windows XP");
-            
+
             /* Test for product type. */
-            
+
             if( bOsVersionInfoEx )
             {
                 if ( osvi.wProductType == VER_NT_WORKSTATION )
@@ -105,7 +105,7 @@ void _iq_version_get_os_version(mod_iq_version_config_t config) {
                     else
                         snprintf(release, 64,  "Professional" );
                 }
-                
+
                 else if ( osvi.wProductType == VER_NT_SERVER )
                 {
                     if( osvi.wSuiteMask & VER_SUITE_DATACENTER )
@@ -121,7 +121,7 @@ void _iq_version_get_os_version(mod_iq_version_config_t config) {
                 HKEY hKey;
                 char szProductType[80];
                 DWORD dwBufLen;
-                
+
                 RegOpenKeyEx( HKEY_LOCAL_MACHINE,
                     "SYSTEM\\CurrentControlSet\\Control\\ProductOptions",
                     0, KEY_QUERY_VALUE, &hKey );
@@ -136,31 +136,31 @@ void _iq_version_get_os_version(mod_iq_version_config_t config) {
                     snprintf(release, 64, "Advanced Server" );
             }
             break;
-            
+
         case VER_PLATFORM_WIN32_WINDOWS:
-            
+
             if (osvi.dwMajorVersion == 4 && osvi.dwMinorVersion == 0)
             {
                 snprintf(sysname, 64, "Microsoft Windows 95");
                 if ( osvi.szCSDVersion[1] == 'C' || osvi.szCSDVersion[1] == 'B' )
                     snprintf(release, 64, "OSR2" );
-            } 
-            
+            }
+
             if (osvi.dwMajorVersion == 4 && osvi.dwMinorVersion == 10)
             {
                 snprintf(sysname, 64, "Microsoft Windows 98");
                 if ( osvi.szCSDVersion[1] == 'A' )
                     snprintf(release, 64, "SE" );
-            } 
-            
+            }
+
             if (osvi.dwMajorVersion == 4 && osvi.dwMinorVersion == 90)
             {
                 snprintf(sysname, 64, "Microsoft Windows Me");
-            } 
+            }
             break;
-            
+
         case VER_PLATFORM_WIN32s:
-            
+
             snprintf(sysname, 64, "Microsoft Win32s");
             break;
         }
@@ -239,7 +239,7 @@ static void _iq_version_disco_extend(mod_instance_t mi, pkt_t pkt)
         nad_append_cdata(pkt->nad, config->os_name, strlen(config->os_name), 6);
     }
 
-    if(config->os_name != NULL) {
+    if(config->os_release != NULL) {
         nad_append_elem(pkt->nad, -1, "field", 4);
         nad_append_attr(pkt->nad, -1, "var", "os_version");
         nad_append_elem(pkt->nad, -1, "value", 5);
@@ -271,7 +271,7 @@ DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
     config->app_signature = mi->sm->signature;
     _iq_version_get_os_version(config);
 
-    mod->private = config;    
+    mod->private = config;
 
     mod->pkt_sm = _iq_version_pkt_sm;
     mod->disco_extend = _iq_version_disco_extend;
