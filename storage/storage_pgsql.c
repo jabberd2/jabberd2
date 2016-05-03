@@ -26,6 +26,7 @@
   */
 
 #include "storage.h"
+#include <inttypes.h>
 #include <libpq-fe.h>
 
 /** internal structure, holds our data */
@@ -204,12 +205,12 @@ static st_ret_t _st_pgsql_put_guts(st_driver_t drv, const char *type, const char
 
                     switch(ot) {
                         case os_type_BOOLEAN:
-                            cval = ((int)val != 0) ? strdup("t") : strdup("f");
+                            cval = ((intptr_t)val != 0) ? strdup("t") : strdup("f");
                             break;
 
                         case os_type_INTEGER:
                             cval = (char *) malloc(sizeof(char) * 20);
-                            sprintf(cval, "%d", (int)val);
+                            sprintf(cval, "%" PRIdPTR, (intptr_t)val);
                             break;
 
                         case os_type_STRING:
@@ -441,8 +442,8 @@ static st_ret_t _st_pgsql_get(st_driver_t drv, const char *type, const char *own
                     os_object_put(o, fname, val, os_type_STRING);
                     break;
 
-                case os_type_NAD:
-                case os_type_UNKNOWN:
+                default:
+                    /* should not happen */
                     break;
             }
         }
