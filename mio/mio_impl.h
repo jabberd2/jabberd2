@@ -409,6 +409,7 @@ static mio_fd_t _mio_connect(mio_t m, int port, const char *hostip, const char *
         /* convert the srcip */
         if(j_inet_pton(srcip, &src)<=0) {
             MIO_SETERROR(EFAULT);
+            close(fd);
             return NULL;
         }
         if(!src.ss_family) src.ss_family = AF_INET;
