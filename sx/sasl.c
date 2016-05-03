@@ -322,6 +322,9 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, co
 #endif
     size_t buflen, outlen;
 
+    assert(ctx);
+    assert(ctx->cb);
+
     if(mech != NULL) {
         _sx_debug(ZONE, "auth request from client (mechanism=%s)", mech);
 
@@ -340,8 +343,7 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, co
         }
 
         /* get the realm */
-        if(ctx->cb != NULL)
-            (ctx->cb)(sx_sasl_cb_GET_REALM, NULL, (void **) &realm, s, ctx->cbarg);
+        (ctx->cb)(sx_sasl_cb_GET_REALM, NULL, (void **) &realm, s, ctx->cbarg);
 
         /* cleanup any existing session context */
         sctx = gsasl_session_hook_get(sd);
