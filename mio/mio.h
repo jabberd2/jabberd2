@@ -24,7 +24,7 @@
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
-#include "util/inaddr.h"
+#include "lib/inaddr.h"
 #include "ac-stdint.h"
 
 /* jabberd2 Windows DLL */

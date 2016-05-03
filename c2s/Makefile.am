@@ -10,10 +10,7 @@ noinst_HEADERS = c2s.h
 
 c2s_LDADD = $(top_builddir)/sx/libsx.la \
             $(top_builddir)/mio/libmio.la \
-            $(top_builddir)/util/libutil.la
-if USE_LIBSUBST
-c2s_LDADD += $(top_builddir)/subst/libsubst.la
-endif
+            $(top_builddir)/lib/libutil.la
 if USE_WEBSOCKET
 c2s_LDADD += -lhttp_parser
 endif

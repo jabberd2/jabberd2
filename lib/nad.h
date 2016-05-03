@@ -18,7 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
-/** @file util/nad.h
+/** @file lib/nad.h
   * @brief Not A DOM
   * @author Jeremie Miller
   * @author Robert Norris

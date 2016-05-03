@@ -18,7 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
-/** @file util/base64.h
+/** @file lib/base64.h
   * @brief Base64 encoding
   * @author Apache Software Foundation
   * $Date: 2004/05/17 05:03:13 $

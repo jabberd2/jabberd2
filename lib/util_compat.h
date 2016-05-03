@@ -30,7 +30,7 @@ extern "C" {
 #endif
 
 /**
- * @file util/util_compat.h
+ * @file lib/util_compat.h
  * @brief define the structures that could be missing in old libc implementations
  */
 

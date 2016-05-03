@@ -6,7 +6,7 @@
 
 #include <stdlib.h>
 
-#include "util/util.h"
+#include "lib/util.h"
 
 #define NADTXT_COUNT 4
 char *nadtxt[NADTXT_COUNT] = {

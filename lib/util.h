@@ -72,11 +72,7 @@
 #endif
 #endif
 
-#ifdef USE_LIBSUBST
-#include "subst/subst.h"
-#endif
-
-#include "util/util_compat.h"
+#include "lib/util_compat.h"
 
 #ifndef INCL_UTIL_H
 #define INCL_UTIL_H
@@ -102,9 +98,9 @@ extern "C" {
 #include "sha1.h"
 #include "md5.h"
 
-#include <util/nad.h>
-#include <util/pool.h>
-#include <util/xhash.h>
+#include <lib/nad.h>
+#include <lib/pool.h>
+#include <lib/xhash.h>
 
 /* --------------------------------------------------------- */
 /*                                                           */
@@ -163,10 +159,10 @@ JABBERD2_API const char *spools(pool_t p, ...); /* wrap all the spooler stuff in
 
 
 /* known namespace uri */
-#include "util/uri.h"
+#include "lib/uri.h"
 
 /* JID manipulation */
-#include "util/jid.h"
+#include "lib/jid.h"
 
 /* logging */
 

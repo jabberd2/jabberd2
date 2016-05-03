@@ -5,7 +5,7 @@ AM_CFLAGS = -I$(top_srcdir)/c2s -I@top_srcdir@
 LIBTOOL += --quiet
 
 MODULE_LDFLAGS = -module -avoid-version
-MODULE_LIBADD = -lexpat -L$(top_srcdir)/util
+MODULE_LIBADD = -lexpat -L$(top_srcdir)/lib
 
 pkglib_LTLIBRARIES =
 
@@ -27,7 +27,7 @@ authreg_db_la_LDFLAGS = $(MODULE_LDFLAGS)
 authreg_db_la_LIBADD  = $(MODULE_LIBADD) $(DB_LIBS)
 storage_db_la_SOURCES = storage_db.c
 storage_db_la_LDFLAGS = $(MODULE_LDFLAGS)
-storage_db_la_LIBADD  = $(MODULE_LIBADD) $(DB_LIBS) ../util/libutil.la
+storage_db_la_LIBADD  = $(MODULE_LIBADD) $(DB_LIBS) ../lib/libutil.la
 endif
 
 if STORAGE_FS
@@ -47,7 +47,7 @@ authreg_ldapfull_la_LDFLAGS = $(MODULE_LDFLAGS)
 authreg_ldapfull_la_LIBADD  = $(MODULE_LIBADD) $(LDAP_LIBS)
 storage_ldapvcard_la_SOURCES = storage_ldapvcard.c
 storage_ldapvcard_la_LDFLAGS = $(MODULE_LDFLAGS)
-storage_ldapvcard_la_LIBADD  = $(MODULE_LIBADD) $(LDAP_LIBS) ../util/libutil.la
+storage_ldapvcard_la_LIBADD  = $(MODULE_LIBADD) $(LDAP_LIBS) ../lib/libutil.la
 endif
 
 if STORAGE_MYSQL
@@ -55,7 +55,7 @@ pkglib_LTLIBRARIES += authreg_mysql.la storage_mysql.la
 authreg_mysql_la_SOURCES = authreg_mysql.c
 authreg_mysql_la_CPPFLAGS = $(MYSQL_CFLAGS)
 authreg_mysql_la_LDFLAGS = $(MODULE_LDFLAGS)
-authreg_mysql_la_LIBADD  = $(MODULE_LIBADD) $(MYSQL_LIBS) ../util/libutil.la
+authreg_mysql_la_LIBADD  = $(MODULE_LIBADD) $(MYSQL_LIBS) ../lib/libutil.la
 if HAVE_CRYPT
 authreg_mysql_la_LIBADD += -lcrypt
 endif
@@ -89,7 +89,7 @@ pkglib_LTLIBRARIES += authreg_pgsql.la storage_pgsql.la
 authreg_pgsql_la_SOURCES = authreg_pgsql.c
 authreg_pgsql_la_CPPFLAGS = $(PGSQL_CFLAGS)
 authreg_pgsql_la_LDFLAGS = $(MODULE_LDFLAGS)
-authreg_pgsql_la_LIBADD  = $(MODULE_LIBADD) $(PGSQL_LIBS) ../util/libutil.la
+authreg_pgsql_la_LIBADD  = $(MODULE_LIBADD) $(PGSQL_LIBS) ../lib/libutil.la
 storage_pgsql_la_SOURCES = storage_pgsql.c
 storage_pgsql_la_CPPFLAGS = $(PGSQL_CFLAGS)
 storage_pgsql_la_LDFLAGS = $(MODULE_LDFLAGS)
@@ -100,7 +100,7 @@ if STORAGE_PIPE
 pkglib_LTLIBRARIES += authreg_pipe.la
 authreg_pipe_la_SOURCES = authreg_pipe.c
 authreg_pipe_la_LDFLAGS = $(MODULE_LDFLAGS)
-authreg_pipe_la_LIBADD  = $(MODULE_LIBADD) ../util/libutil.la
+authreg_pipe_la_LIBADD  = $(MODULE_LIBADD) ../lib/libutil.la
 endif
 
 if STORAGE_SQLITE

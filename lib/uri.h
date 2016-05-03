@@ -18,7 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
-/** @file util/uri.h
+/** @file lib/uri.h
   * @brief common URIs
   * @author Robert Norris
   * $Revision: 1.1 $

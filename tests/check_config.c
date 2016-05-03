@@ -13,7 +13,7 @@
 # include <config.h>
 #endif
 
-#include "util/util.h"
+#include "lib/util.h"
 
 #ifdef CONFIGEXPAND_GUARDED
 #define GUARD(S) (S + strlen(S) + 1)

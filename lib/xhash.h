@@ -18,7 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
-/** @file util/xhash.h
+/** @file lib/xhash.h
   * @brief hashtables
   * $Date: 2004/04/30 00:53:55 $
   * $Revision: 1.1 $

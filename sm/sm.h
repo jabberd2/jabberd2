@@ -32,7 +32,7 @@
 
 #include "sx/sx.h"
 #include "mio/mio.h"
-#include "util/util.h"
+#include "lib/util.h"
 #include "storage/storage.h"
 
 #ifdef HAVE_SIGNAL_H
@@ -63,7 +63,7 @@ typedef struct aci_st       *aci_t;
 typedef struct mm_st        *mm_t;
 
 /* namespace uri strings */
-#include "util/uri.h"
+#include "lib/uri.h"
 
 /* indexed known namespace values */
 #define ns_AUTH         (1)

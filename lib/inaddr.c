@@ -19,7 +19,7 @@
  */
 
 /**
- * @file util/inaddr.c
+ * @file lib/inaddr.c
  * @brief object like wrapper around struct sockaddr_storage
  *
  * The functions in this file are used as a wrapper around struct

@@ -28,7 +28,7 @@
 #include "ac-stdint.h"
 
 #include <expat.h>
-#include <util/util.h>
+#include <lib/util.h>
 
 /* jabberd2 Windows DLL */
 #ifndef JABBERD2_API

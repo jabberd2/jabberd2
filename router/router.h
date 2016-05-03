@@ -39,7 +39,7 @@
 
 #include "sx/sx.h"
 #include "mio/mio.h"
-#include "util/util.h"
+#include "lib/util.h"
 
 #ifdef HAVE_SIGNAL_H
 # include <signal.h>

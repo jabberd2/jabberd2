@@ -18,7 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
-/** @file util/pqueue.h
+/** @file lib/pqueue.h
   * @brief priority queues
   * @author Robert Norris
   * $Date: 2004/05/05 23:49:38 $

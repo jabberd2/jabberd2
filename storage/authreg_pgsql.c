@@ -39,7 +39,7 @@
 /* We use OpenSSL's MD5 routines for the a1hash password type */
 #include <openssl/md5.h>
 #include <openssl/rand.h>
-#include <util/crypt_blowfish.h>
+#include <lib/crypt_blowfish.h>
 #endif
 
 #define PGSQL_LU  1024   /* maximum length of username - should correspond to field length */

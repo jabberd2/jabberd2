@@ -8,19 +8,17 @@ HEADERS += config.h \
            $$files(s2s/*.h) \
            $$files(sm/*.h) \
            $$files(storage/*.h) \
-           $$files(subst/*.h) \
            $$files(sx/*.h) \
-           $$files(util/*.h)
+           $$files(lib/*.h)
 SOURCES += $$files(c2s/*.c) \
            $$files(mio/*.c) \
            $$files(router/*.c) \
            $$files(s2s/*.c) \
            $$files(sm/*.c) \
            $$files(storage/*.c) \
-           $$files(subst/*.c) \
            $$files(sx/*.c) \
            $$files(tests/*.c) \
-           $$files(util/*.c)
+           $$files(lib/*.c)
 INCLUDEPATH += $$PWD
 CONFIG += depend_includepath
 OTHER_FILES += configure.ac \
@@ -33,7 +31,7 @@ OTHER_FILES += configure.ac \
                storage/Makefile.am \
                sx/Makefile.am \
                tests/Makefile.am \
-               util/Makefile.am \
+               lib/Makefile.am \
                $$files(etc/*) \
                Doxyfile.in \
                NEWS \

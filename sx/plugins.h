@@ -161,7 +161,7 @@ JABBERD2_API int sx_ack_init(sx_env_t env, sx_plugin_t p, va_list args);
 /* websocket wrapper plugin */
 #ifdef USE_WEBSOCKET
 #include <http_parser.h>
-#include <util/util.h>
+#include <lib/util.h>
 
 JABBERD2_API int sx_websocket_init(sx_env_t env, sx_plugin_t p, va_list args);
 

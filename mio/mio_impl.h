@@ -23,7 +23,7 @@
    ---------------------------
 */
 
-#include "util/inaddr.h"
+#include "lib/inaddr.h"
 
 /* win32 wrappers around strerror */
 #ifdef _WIN32

@@ -18,7 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
-/** @file util/jid.h
+/** @file lib/jid.h
   * @brief Jabber identifiers
   * @author Robert Norris
   * $Date: 2004/05/01 00:51:10 $

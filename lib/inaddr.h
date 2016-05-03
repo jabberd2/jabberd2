@@ -1,7 +1,7 @@
 /*
  * jabberd - Jabber Open Source Server
- * Copyright (c) 2002-2004 Jeremie Miller, Thomas Muldowney,
- *                         Ryan Eatmon, Robert Norris
+ * Copyright (c) 2002 Jeremie Miller, Thomas Muldowney,
+ *                    Ryan Eatmon, Robert Norris
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -10,7 +10,7 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
@@ -18,21 +18,30 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
-/** @file util/datetime.h
-  * @brief ISO 8610 / JEP 82 date/time manipulation
-  * @author Robert Norris
-  * $Date: 2004/05/05 23:49:38 $
-  * $Revision: 1.1 $
-  */
-
-#ifndef INCL_UTIL_DATETIME_H
-#define INCL_UTIL_DATETIME_H 1
+#ifndef INCL_INADDR_H
+#define INCL_INADDR_H
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
 
-#include <time.h>
+#include "ac-stdint.h"
+
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
+
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
+
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
 
 /* jabberd2 Windows DLL */
 #ifndef JABBERD2_API
@@ -47,14 +56,26 @@
 # endif /* _WIN32 */
 #endif /* JABBERD2_API */
 
-typedef enum {
-    dt_DATE     = 1,
-    dt_TIME     = 2,
-    dt_DATETIME = 3,
-    dt_LEGACY   = 4
-} datetime_t;
-
-JABBERD2_API time_t  datetime_in(char *date);
-JABBERD2_API void    datetime_out(time_t t, datetime_t type, const char *date, int datelen);
-
+#ifdef __cplusplus
+extern "C" {
 #endif
+
+/*
+ * helpers for ip addresses
+ */
+
+#include <lib/util_compat.h>
+
+JABBERD2_API int         j_inet_pton(const char *src, struct sockaddr_storage *dst);
+JABBERD2_API const char *j_inet_ntop(struct sockaddr_storage* src, char* dst, size_t size);
+JABBERD2_API int         j_inet_getport(struct sockaddr_storage *sa);
+JABBERD2_API int	     j_inet_setport(struct sockaddr_storage *sa, in_port_t port);
+JABBERD2_API socklen_t   j_inet_addrlen(struct sockaddr_storage *sa);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif    /* INCL_UTIL_H */
+
+

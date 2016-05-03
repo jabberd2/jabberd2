@@ -21,7 +21,7 @@
 #define _GNU_SOURCE
 #include <string.h>
 #include "sm.h"
-#include "util/util.h"
+#include "lib/util.h"
 #include <stringprep.h>
 
 /** @file sm/mod_amp.c

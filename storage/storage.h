@@ -32,10 +32,10 @@
   #include <config.h>
 #endif
 
-#include <util/pool.h>
-#include <util/xhash.h>
-#include <util/nad.h>
-#include <util/util.h>
+#include <lib/pool.h>
+#include <lib/xhash.h>
+#include <lib/nad.h>
+#include <lib/util.h>
 
 #ifdef _WIN32
   #ifdef _USRDLL
