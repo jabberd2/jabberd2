@@ -1077,13 +1077,13 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
 #endif
             if(s2s->packet_stats != NULL) {
                 int fd = open(s2s->packet_stats, O_TRUNC | O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP);
-                if(fd) {
+                if(fd >= 0) {
                     char buf[100];
                     int len = snprintf(buf, 100, "%lld\n", s2s->packet_count);
                     write(fd, buf, len);
                     close(fd);
                 } else {
-                    log_write(s2s->log, LOG_ERR, "failed to write packet statistics to: %s", s2s->packet_stats);
+                    log_write(s2s->log, LOG_ERR, "failed to write packet statistics to: %s (%s)", s2s->packet_stats, strerror(errno));
                     s2s_shutdown = 1;
                 }
             }
