@@ -621,7 +621,9 @@ static void _c2s_time_checks(c2s_t c2s) {
             xhv.sess_val = &sess;
             xhash_iter_get(c2s->sessions, NULL, NULL, xhv.val);
 
-            if(c2s->io_check_idle > 0 && sess->s && now > sess->last_activity + c2s->io_check_idle) {
+            if(!sess->s) continue;
+
+            if(c2s->io_check_idle > 0 && now > sess->last_activity + c2s->io_check_idle) {
                 log_write(c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] timed out", sess->fd->fd, sess->ip, sess->port);
 
                 sx_error(sess->s, stream_err_HOST_GONE, "connection timed out");
