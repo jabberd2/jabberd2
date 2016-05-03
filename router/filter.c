@@ -67,12 +67,17 @@ int filter_load(router_t r) {
 
     fseek(f, 0, SEEK_END);
     size = ftell(f);
-    fseek(f, 0, SEEK_SET);
+    if(size < 0) {
+        log_write(r->log, LOG_NOTICE, "couldn't seek filter file %s: %s", filterfile, strerror(errno));
+        fclose(f);
+        return 1;
+    }
     if(size == 0) {
         log_write(r->log, LOG_NOTICE, "empty filter file %s", filterfile);
         fclose(f);
         return 1;
     }
+    fseek(f, 0, SEEK_SET);
 
     buf = (char *) malloc(sizeof(char) * size);
 
