@@ -74,7 +74,7 @@ struct nad_elem_st {
     int attr;
     int ns;
     int my_ns;
-    int depth;
+    unsigned int depth;
 };
 
 struct nad_attr_st {

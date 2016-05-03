@@ -82,7 +82,8 @@ int config_load_with_id(config_t c, const char *file, const char *id)
     struct build_data bd;
     FILE *f;
     XML_Parser p;
-    int done, len, end, i, j, attr;
+    unsigned int done, len, end, i, j;
+    int attr;
     char buf[1024], *next;
     struct nad_elem_st **path;
     config_elem_t elem;
