@@ -332,6 +332,10 @@ static st_ret_t _st_db_get(st_driver_t drv, const char *type, const char *owner,
     os_object_t o;
     char *cfilter;
 
+    if(dbd == NULL) {
+        return st_FAILED;
+    }
+
     ret = _st_db_cursor_new(drv, dbd, &c, &t);
     if(ret != st_SUCCESS)
         return ret;
