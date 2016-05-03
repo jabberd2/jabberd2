@@ -112,8 +112,7 @@ static const char *_roster_publish_get_group_name(sm_t sm, roster_publish_t rp, 
 
     if(storage_get(sm->st, "published-roster-groups", groupid, NULL, &os) == st_SUCCESS && os_iter_first(os)) {
         o = os_iter_object(os);
-        os_object_get_str(os, o, "groupname", &str);
-        if( str ) {
+        if( os_object_get_str(os, o, "groupname", &str) && str ) {
             group=strdup(str);
         } else {
             group=NULL;
@@ -142,7 +141,7 @@ static void _roster_publish_free_walker(xht roster, const char *key, void *val, 
     int i;
 
     jid_free(item->jid);
-    
+
     if(item->name != NULL)
         free((void*)item->name);
 
@@ -187,7 +186,7 @@ static void _roster_publish_save_item(user_t user, item_t item) {
     }
 
     os = os_new();
-    
+
     for(i = 0; i < item->ngroups; i++) {
         o = os_object_new(os);
 
