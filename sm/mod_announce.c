@@ -139,10 +139,11 @@ static mod_ret_t _announce_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
         /* load the time of the last motd they got */
         if((time_t) sess->user->module_data[mod->index] == 0 &&
            storage_get(sess->user->sm->st, "motd-times", jid_user(sess->jid), NULL, &os) == st_SUCCESS) {
-            os_iter_first(os);
-            o = os_iter_object(os);
-            os_object_get_time(os, o, "time", &t);
-            sess->user->module_data[mod->index] = (void *) t;
+            if(os_iter_first(os)) {
+                o = os_iter_object(os);
+                os_object_get_time(os, o, "time", &t);
+                sess->user->module_data[mod->index] = (void *) t;
+            }
             os_free(os);
         }
 
