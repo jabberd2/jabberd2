@@ -225,7 +225,7 @@ int _ldapfull_set_clear(moddata_t data, const char *scheme, const char *prefix, 
 
 #ifdef HAVE_SSL
 int _ldapfull_base64_decode( const char *src, const unsigned char **ret, int *rlen ) {
-    unsigned int rc, tlen = 0;
+    int rc, tlen = 0;
     int i;
     unsigned char *text;
     EVP_ENCODE_CTX EVP_ctx;
