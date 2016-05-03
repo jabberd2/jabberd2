@@ -1208,6 +1208,7 @@ void dns_resolve_domain(s2s_t s2s, dnscache_t dns) {
         /* shortcut resolution failure */
         query->expiry = time(NULL) + 99999999;
         out_resolve(query->s2s, dns->name, query->results, query->expiry);
+        free(query);
         return;
     }
     query->name = name;
