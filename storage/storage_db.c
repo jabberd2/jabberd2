@@ -299,6 +299,10 @@ static st_ret_t _st_db_put(st_driver_t drv, const char *type, const char *owner,
     DB_TXN *t;
     st_ret_t ret;
 
+    if(dbd == NULL) {
+        return st_FAILED;
+    }
+
     if(os_count(os) == 0)
         return st_SUCCESS;
 
