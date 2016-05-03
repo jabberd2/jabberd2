@@ -301,7 +301,7 @@ static int
 _ar_sqlite_create_user(authreg_t ar, sess_t sess, const char *username, const char *realm)
 {
     sqlite3_stmt *stmt;
-    moddata_t data = data = (moddata_t) ar->private;
+    moddata_t data = (moddata_t) ar->private;
     int res, ret = 0;
 
     char *sql =
