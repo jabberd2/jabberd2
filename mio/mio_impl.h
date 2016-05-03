@@ -110,10 +110,16 @@ static mio_fd_t _mio_setup_fd(mio_t m, int fd, mio_handler_t app, void *arg)
 #if defined(HAVE_FCNTL)
     flags = fcntl(fd, F_GETFL);
     flags |= O_NONBLOCK;
-    fcntl(fd, F_SETFL, flags);
+    if(fcntl(fd, F_SETFL, flags) == -1) {
+        MIO_FREE_FD(m, mio_fd);
+        return NULL;
+    }
 #elif defined(HAVE_IOCTL)
     flags = 1;
-    ioctl(fd, FIONBIO, &flags);
+    if(ioctl(fd, FIONBIO, &flags) == -1) {
+        MIO_FREE_FD(m, mio_fd);
+        return NULL;
+    }
 #endif
 
     return mio_fd;
