@@ -75,12 +75,17 @@ static int _template_roster_reload(template_roster_t tr) {
 
     fseek(f, 0, SEEK_END);
     size = ftell(f);
-    fseek(f, 0, SEEK_SET);
+    if(size < 0) {
+        log_write(tr->sm->log, LOG_ERR, "couldn't seek roster template %s: %s", tr->filename, strerror(errno));
+        fclose(f);
+        return 1;
+    }
     if(size == 0) {
         log_write(tr->sm->log, LOG_ERR, "empty roster template %s", tr->filename);
         fclose(f);
         return 1;
     }
+    fseek(f, 0, SEEK_SET);
 
     buf = (char *) malloc(sizeof(char) * size);
 
