@@ -112,7 +112,7 @@ static int bcrypt_verify(const char *password, const char* hash)
 
     int status = 0;
     int i = 0;
-    for(i; i < strlen(ret); i++)
+    for(; i < strlen(ret); i++)
         status |= (ret[i] ^ hash[i]);
     return status != 0;
 }
@@ -624,7 +624,7 @@ int ar_init(authreg_t ar) {
     } else if (config_get_one(ar->c2s->config, "authreg.pgsql.password_type.bcrypt", 0)) {
         pgsqlcontext->password_type = MPC_BCRYPT;
         int cost;
-        if(cost = j_atoi(config_get_attr(ar->c2s->config, "authreg.pgsql.password_type.bcrypt", 0, "cost"), 0))
+        if((cost = j_atoi(config_get_attr(ar->c2s->config, "authreg.pgsql.password_type.bcrypt", 0, "cost"), 0)))
         {
             if (cost < 4 || cost > 31) {
                 log_write(ar->c2s->log, LOG_ERR, "bcrypt cost has to be higher than 3 and lower than 32.");
@@ -643,7 +643,7 @@ int ar_init(authreg_t ar) {
     /* bounds checking and parameter format verification will be perfomed if the statement is used (see next section) */
     /* For malloc(), there is no +1 for trailing 0 as parameter substitution will net us several extra characters */
 
-    strlentur = strlen( table ) + strlen( username) + strlen( realm );  /* avoid repetition */
+    strlentur = strlen( table ) + strlen( username ) + strlen( realm );  /* avoid repetition */
 
     template = "INSERT INTO \"%s\" ( \"%s\", \"%s\" ) VALUES ( '%%s', '%%s' )";
     create = malloc( strlen( template ) + strlentur );
