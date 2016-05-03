@@ -49,12 +49,17 @@ int user_table_load(router_t r) {
 
     fseek(f, 0, SEEK_END);
     size = ftell(f);
-    fseek(f, 0, SEEK_SET);
+    if(size < 0) {
+        log_write(r->log, LOG_ERR, "couldn't seek user table file %s: %s", userfile, strerror(errno));
+        fclose(f);
+        return 1;
+    }
     if(size == 0) {
         log_write(r->log, LOG_ERR, "empty user table file %s", userfile);
         fclose(f);
         return 1;
     }
+    fseek(f, 0, SEEK_SET);
 
     buf = (char *) malloc(sizeof(char) * size);
 
