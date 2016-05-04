@@ -170,11 +170,11 @@ static void _st_db_object_serialise(os_object_t o, char **buf, int *len) {
 
             switch(ot) {
                 case os_type_BOOLEAN:
-                    ser_int_set(((int)val) != 0, &cur, buf, len);
+                    ser_int_set(((intptr_t)val) != 0, &cur, buf, len);
                     break;
 
                 case os_type_INTEGER:
-                    ser_int_set((int)val, &cur, buf, len);
+                    ser_int_set((intptr_t)val, &cur, buf, len);
                     break;
 
                 case os_type_STRING:
