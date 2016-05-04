@@ -319,6 +319,7 @@ int nad_find_scoped_namespace(nad_t nad, const char *uri, const char *prefix)
  */
 int nad_find_elem_path(nad_t nad, unsigned int elem, int ns, const char *name) {
     char *str, *slash, *qmark, *excl, *equals;
+    int el;
 
     _nad_ptr_check(__func__, nad);
 
@@ -329,6 +330,7 @@ int nad_find_elem_path(nad_t nad, unsigned int elem, int ns, const char *name) {
     if(strstr(name, "/") == NULL && strstr(name,"?") == NULL && strstr(name,"!") == NULL)
         return nad_find_elem(nad, elem, ns, name, 1);
 
+    el = elem;
     str = strdup(name);
     slash = strstr(str, "/");
     qmark = strstr(str, "?");
@@ -347,18 +349,18 @@ int nad_find_elem_path(nad_t nad, unsigned int elem, int ns, const char *name) {
             equals++;
         }
 
-        for(elem = nad_find_elem(nad, elem, ns, str, 1); ; elem = nad_find_elem(nad, elem, ns, str, 0)) {
-            if(elem < 0) break;
+        for(el = nad_find_elem(nad, el, ns, str, 1); ; el = nad_find_elem(nad, el, ns, str, 0)) {
+            if(el < 0) break;
             if(strcmp(qmark, "xmlns") == 0) {
-                if(nad_find_namespace(nad, elem, equals, NULL) >= 0) break;
+                if(nad_find_namespace(nad, el, equals, NULL) >= 0) break;
             }
             else {
-                if(nad_find_attr(nad, elem, ns, qmark, equals) >= 0) break;
+                if(nad_find_attr(nad, el, ns, qmark, equals) >= 0) break;
             }
         }
 
         free(str);
-        return elem;
+        return el;
     }
 
     if(excl != NULL && (slash == NULL || excl < slash))
@@ -372,31 +374,31 @@ int nad_find_elem_path(nad_t nad, unsigned int elem, int ns, const char *name) {
             equals++;
         }
 
-        for(elem = nad_find_elem(nad, elem, ns, str, 1); ; elem = nad_find_elem(nad, elem, ns, str, 0)) {
-            if(elem < 0) break;
+        for(el = nad_find_elem(nad, el, ns, str, 1); ; el = nad_find_elem(nad, el, ns, str, 0)) {
+            if(el < 0) break;
             if(strcmp(excl, "xmlns") == 0) {
-                if(nad_find_namespace(nad, elem, equals, NULL) < 0) break;
+                if(nad_find_namespace(nad, el, equals, NULL) < 0) break;
             }
             else {
-                if(nad_find_attr(nad, elem, ns, excl, equals) < 0) break;
+                if(nad_find_attr(nad, el, ns, excl, equals) < 0) break;
             }
         }
 
         free(str);
-        return elem;
+        return el;
     }
 
     /* there is a / in element name part - need to recurse */
     *slash = '\0';
     ++slash;
 
-    for(elem = nad_find_elem(nad, elem, ns, str, 1); ; elem = nad_find_elem(nad, elem, ns, str, 0)) {
-        if(elem < 0) break;
-        if((elem = nad_find_elem_path(nad, elem, ns, slash)) >= 0) break;
+    for(el = nad_find_elem(nad, el, ns, str, 1); ; el = nad_find_elem(nad, el, ns, str, 0)) {
+        if(el < 0) break;
+        if((el = nad_find_elem_path(nad, el, ns, slash)) >= 0) break;
     }
 
     free(str);
-    return elem;
+    return el;
 }
 
 /** create, update, or zap any matching attr on this elem */
