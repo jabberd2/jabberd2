@@ -485,6 +485,7 @@ DLLEXPORT int ar_init(authreg_t ar) {
     int strlentur; /* string length of table, user, and realm strings */
     MYSQL *conn;
     mysqlcontext_t mysqlcontext;
+    int fail = 0;
 
     /* configure the database context with field names and SQL statements */
     mysqlcontext = (mysqlcontext_t) malloc( sizeof( struct mysqlcontext_st ) );
@@ -563,22 +564,22 @@ DLLEXPORT int ar_init(authreg_t ar) {
     mysqlcontext->sql_create = strdup(_ar_mysql_param( ar->c2s->config
                , "authreg.mysql.sql.create"
                , create ));
-    if( _ar_mysql_check_sql( ar, mysqlcontext->sql_create, "ss" ) != 0 ) return 1;
+    if( _ar_mysql_check_sql( ar, mysqlcontext->sql_create, "ss" ) != 0 ) fail = 1;
 
     mysqlcontext->sql_select = strdup(_ar_mysql_param( ar->c2s->config
                , "authreg.mysql.sql.select"
                , select ));
-    if( _ar_mysql_check_sql( ar, mysqlcontext->sql_select, "ss" ) != 0 ) return 1;
+    if( _ar_mysql_check_sql( ar, mysqlcontext->sql_select, "ss" ) != 0 ) fail = 1;
 
     mysqlcontext->sql_setpassword = strdup(_ar_mysql_param( ar->c2s->config
                , "authreg.mysql.sql.setpassword"
                , setpassword ));
-    if( _ar_mysql_check_sql( ar, mysqlcontext->sql_setpassword, "sss" ) != 0 ) return 1;
+    if( _ar_mysql_check_sql( ar, mysqlcontext->sql_setpassword, "sss" ) != 0 ) fail = 1;
 
     mysqlcontext->sql_delete = strdup(_ar_mysql_param( ar->c2s->config
                , "authreg.mysql.sql.delete"
                , delete ));
-    if( _ar_mysql_check_sql( ar, mysqlcontext->sql_delete, "ss" ) != 0 ) return 1;
+    if( _ar_mysql_check_sql( ar, mysqlcontext->sql_delete, "ss" ) != 0 ) fail = 1;
 
     /* echo our configuration to debug */
     log_debug( ZONE, "SQL to create account: %s", mysqlcontext->sql_create );
@@ -590,6 +591,8 @@ DLLEXPORT int ar_init(authreg_t ar) {
     free(select);
     free(setpassword);
     free(delete);
+
+    if (fail) return fail;
 
     host = config_get_one(ar->c2s->config, "authreg.mysql.host", 0);
     port = config_get_one(ar->c2s->config, "authreg.mysql.port", 0);
