@@ -83,7 +83,7 @@ static int _status_sess_start(mod_instance_t mi, sess_t sess) {
     os_t os;
     os_object_t o;
     st_ret_t ret;
-    nad_t nad;
+    nad_t nad = NULL;
 
     /* not interested if there is other top session */
     if(sess->user->top != NULL && sess != sess->user->top)
@@ -96,15 +96,14 @@ static int _status_sess_start(mod_instance_t mi, sess_t sess) {
         {
             o = os_iter_object(os);
             os_object_get_time(os, o, "last-logout", &lastlogout);
-        os_object_get_nad(os, o, "xml", &nad);
-        nad = nad_copy(nad);
+            os_object_get_nad(os, o, "xml", &nad);
+            nad = nad_copy(nad);
         }
         os_free(os);
     }
     else
     {
         lastlogout = (time_t) 0;
-    nad = NULL;
     }
 
     t = time(NULL);
