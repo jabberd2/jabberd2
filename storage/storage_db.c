@@ -200,7 +200,7 @@ static void _st_db_object_serialise(os_object_t o, char **buf, int *len) {
 static os_object_t _st_db_object_deserialise(st_driver_t drv, os_t os, const char *buf, int len) {
     os_object_t o;
     int cur;
-    char *key = NULL, *sval;
+    char *key, *sval;
     int ot;
     int ival;
     nad_t nad;
@@ -211,9 +211,14 @@ static os_object_t _st_db_object_deserialise(st_driver_t drv, os_t os, const cha
 
     cur = 0;
     while(cur < len) {
-        if(ser_string_get(&key, &cur, buf, len) != 0 || ser_int_get(&ot, &cur, buf, len) != 0) {
+        if(ser_string_get(&key, &cur, buf, len) != 0) {
             log_debug(ZONE, "ran off the end of the buffer");
-            if (key != NULL) free(key);
+            return o;
+        }
+
+        if(ser_int_get(&ot, &cur, buf, len) != 0) {
+            log_debug(ZONE, "ran off the end of the buffer");
+            free(key);
             return o;
         }
 
