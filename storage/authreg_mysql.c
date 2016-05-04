@@ -23,6 +23,8 @@
 #define _XOPEN_SOURCE 500
 #include "c2s.h"
 #include <mysql.h>
+#include <stdlib.h>
+#include <openssl/rand.h>
 
 /* Windows does not have the crypt() function, let's take DES_crypt from OpenSSL instead */
 #if defined(HAVE_OPENSSL_CRYPTO_H) && defined(_WIN32)
@@ -93,8 +95,7 @@ static void calc_a1hash(const char *username, const char *realm, const char *pas
 static void bcrypt_hash(const char *password, int cost, char* hash)
 {
     char salt[16];
-    if(!RAND_bytes(salt, 16))
-        ; //we've got a problem
+    if(!RAND_bytes(salt, 16)) abort(); //we've got a problem
 
     char* gen = bcrypt_gensalt("$2y$", cost, salt, 16);
     strcpy(hash, bcrypt(password, gen));
@@ -110,7 +111,7 @@ static int bcrypt_verify(const char *password, const char* hash)
 
     int status = 0;
     int i = 0;
-    for(i; i < strlen(ret); i++)
+    for(; i < strlen(ret); i++)
         status |= (ret[i] ^ hash[i]);
     return status != 0;
 }
@@ -519,7 +520,7 @@ DLLEXPORT int ar_init(authreg_t ar) {
     } else if (config_get_one(ar->c2s->config, "authreg.mysql.password_type.bcrypt", 0)) {
         mysqlcontext->password_type = MPC_BCRYPT;
     int cost;
-    if(cost = j_atoi(config_get_attr(ar->c2s->config, "authreg.mysql.password_type.bcrypt", 0, "cost"), 0))
+    if((cost = j_atoi(config_get_attr(ar->c2s->config, "authreg.mysql.password_type.bcrypt", 0, "cost"), 0)))
     {
         if(cost < 4 || cost > 31) {
             log_write(ar->c2s->log, LOG_ERR, "bcrypt cost has to be higher than 3 and lower than 32.");
