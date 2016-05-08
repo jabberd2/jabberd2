@@ -21,6 +21,8 @@
 #include "c2s.h"
 
 #include <stringprep.h>
+#include <string.h>
+#include <ctype.h>
 
 static sig_atomic_t c2s_shutdown = 0;
 sig_atomic_t c2s_lost_router = 0;
@@ -556,12 +558,9 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
         case sx_sasl_cb_CHECK_MECH:
             mech = (char *)arg;
 
-            i=0;
-            while(i<sizeof(mechbuf) && mech[i]!='\0') {
-                mechbuf[i]=tolower(mech[i]);
-                i++;
-            }
-            mechbuf[--i]='\0';
+            strncpy(mechbuf, mech, sizeof(mechbuf));
+            mechbuf[sizeof(mechbuf)-1]='\0';
+            for(i = 0; mechbuf[i]; i++) mechbuf[i] = tolower(mechbuf[i]);
 
             /* get host for request */
             host = xhash_get(c2s->hosts, s->req_to);
