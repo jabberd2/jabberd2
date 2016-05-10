@@ -131,6 +131,8 @@ nad_t nad_new(void)
     nad->scope = -1;
 
 #ifdef NAD_DEBUG
+    if(_nad_alloc_tracked == NULL) _nad_alloc_tracked = xhash_new(501);
+    if(_nad_free_tracked == NULL) _nad_free_tracked = xhash_new(501);
     {
     char loc[24];
     snprintf(loc, sizeof(loc), "%x", (int) nad);
