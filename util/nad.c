@@ -516,11 +516,6 @@ void nad_wrap_elem(nad_t nad, unsigned int elem, int ns, const char *name)
     memmove(&nad->elems[elem + 1], &nad->elems[elem], (nad->ecur - elem) * sizeof(struct nad_elem_st));
     nad->ecur++;
 
-    /* relink parents on moved elements */
-    for(cur = elem + 1; cur < nad->ecur; cur++)
-        if(nad->elems[cur].parent > elem + 1)
-            nad->elems[cur].parent++;
-
     /* set up req'd parts of new elem */
     nad->elems[elem].lname = strlen(name);
     nad->elems[elem].iname = _nad_cdata(nad,name,nad->elems[elem].lname);
@@ -529,13 +524,18 @@ void nad_wrap_elem(nad_t nad, unsigned int elem, int ns, const char *name)
     nad->elems[elem].itail = nad->elems[elem].ltail = 0;
     nad->elems[elem].icdata = nad->elems[elem].lcdata = 0;
     nad->elems[elem].my_ns = ns;
+    /* hook up the parent */
+    nad->elems[elem].parent = nad->elems[elem + 1].parent;
+
+    /* relink parents on moved elements */
+    for(cur = elem + 1; cur < nad->ecur; cur++)
+        if(nad->elems[cur].parent >= elem)
+            nad->elems[cur].parent++;
 
     /* raise the bar on all the children */
     nad->elems[elem+1].depth++;
     for(cur = elem + 2; cur < nad->ecur && nad->elems[cur].depth > nad->elems[elem].depth; cur++) nad->elems[cur].depth++;
 
-    /* hook up the parent */
-    nad->elems[elem].parent = nad->elems[elem + 1].parent;
 }
 
 /** insert part of a nad into another nad */
