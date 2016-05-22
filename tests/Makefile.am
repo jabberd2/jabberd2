@@ -1,5 +1,5 @@
 LIBTOOL += --quiet
-AM_CPPFLAGS = -I@top_srcdir@
+AM_CPPFLAGS = -I@top_srcdir@ -DSRCDIR="\"$(srcdir)\""
 
 EXTRA_DIST = *.xml subdir
 
