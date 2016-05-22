@@ -44,9 +44,9 @@ static int _sx_ssl_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
      * Ignore errors when we can't get CRLs in the certificate
      */
     if (!preverify_ok && err == X509_V_ERR_UNABLE_TO_GET_CRL) {
-    	_sx_debug(ZONE, "ignoring verify error:num=%d:%s:depth=%d:%s\n", err,
-    	                 X509_verify_cert_error_string(err), depth, buf);
-    	preverify_ok = 1;
+        _sx_debug(ZONE, "ignoring verify error:num=%d:%s:depth=%d:%s\n", err,
+                         X509_verify_cert_error_string(err), depth, buf);
+        preverify_ok = 1;
     }
 
     /*
@@ -305,90 +305,91 @@ static void _sx_ssl_get_external_id(sx_t s, _sx_ssl_conn_t sc) {
     int i, j, count,  id = 0, len;
 
     /* If there's not peer cert, quit */
-	if ((cert = SSL_get_peer_certificate(sc->ssl) ) == NULL)
-		return;
-	_sx_debug(ZONE, "external_id: Got peer certificate");
+    if ((cert = SSL_get_peer_certificate(sc->ssl) ) == NULL)
+        return;
+    _sx_debug(ZONE, "external_id: Got peer certificate");
 
-	/* Allocate new id-on-xmppAddr object. See rfc3921bis 15.2.1.2 */
-	id_on_xmppAddr_nid = OBJ_create("1.3.6.1.5.5.7.8.5", "id-on-xmppAddr", "XMPP Address Identity");
-	id_on_xmppAddr_obj = OBJ_nid2obj(id_on_xmppAddr_nid);
-	_sx_debug(ZONE, "external_id: Created id-on-xmppAddr SSL object");
+    /* Allocate new id-on-xmppAddr object. See rfc3921bis 15.2.1.2 */
+    id_on_xmppAddr_nid = OBJ_create("1.3.6.1.5.5.7.8.5", "id-on-xmppAddr", "XMPP Address Identity");
+    id_on_xmppAddr_obj = OBJ_nid2obj(id_on_xmppAddr_nid);
+    _sx_debug(ZONE, "external_id: Created id-on-xmppAddr SSL object");
 
-	/* Iterate through all subjectAltName x509v3 extensions. Get id-on-xmppAddr and dDnsName */
-	for (i = X509_get_ext_by_NID(cert, NID_subject_alt_name, -1);
-		 i != -1;
-		 i = X509_get_ext_by_NID(cert, NID_subject_alt_name, i)) {
-		// Get this subjectAltName x509v3 extension
-		if ((extension = X509_get_ext(cert, i)) == NULL) {
-			_sx_debug(ZONE, "external_id: Can't get subjectAltName. Possibly malformed cert.");
-			goto end;
-		}
-		// Get the collection of AltNames
-		if ((altnames = X509V3_EXT_d2i(extension)) == NULL) {
-			_sx_debug(ZONE, "external_id: Can't get all AltNames. Possibly malformed cert.");
-			goto end;
-		}
-		/* Iterate through all altNames and get id-on-xmppAddr and dNSName */
-		count = sk_GENERAL_NAME_num(altnames);
-		for (j = 0; j < count; j++) {
-			if ((altname = sk_GENERAL_NAME_value(altnames, j)) == NULL) {
-				_sx_debug(ZONE, "external_id: Can't get AltName. Possibly malformed cert.");
-				goto end;
-			}
-			/* Check if its otherName id-on-xmppAddr */
-			if (altname->type == GEN_OTHERNAME &&
-				OBJ_cmp(altname->d.otherName->type_id, id_on_xmppAddr_obj) == 0) {
-				othername = altname->d.otherName;
-				len = ASN1_STRING_to_UTF8((unsigned char **) &buff, othername->value->value.utf8string);
-				if (len <= 0)
-					continue;
-				sc->external_id[id] = (char *) malloc(sizeof(char) *  (len + 1));
-				memcpy(sc->external_id[id], buff, len);
-				sc->external_id[id][len] = '\0'; // just to make sure
-				_sx_debug(ZONE, "external_id: Found(%d) subjectAltName/id-on-xmppAddr: '%s'", id, sc->external_id[id]);
-				id++;
-				OPENSSL_free(buff);
-			} else if (altname->type == GEN_DNS) {
-				len = ASN1_STRING_length(altname->d.dNSName);
-				sc->external_id[id] = (char *) malloc(sizeof(char) *  (len + 1));
-				memcpy(sc->external_id[id], ASN1_STRING_data(altname->d.dNSName), len);
-				sc->external_id[id][len] = '\0'; // just to make sure
-				_sx_debug(ZONE, "external_id: Found(%d) subjectAltName/dNSName: '%s'", id, sc->external_id[id]);
-				id++;
-			}
-			/* Check if we're not out of space */
-			if (id == SX_CONN_EXTERNAL_ID_MAX_COUNT) {
-				sk_GENERAL_NAME_pop_free(altnames, GENERAL_NAME_free);
-				goto end;
-			}
-		}
+    /* Iterate through all subjectAltName x509v3 extensions. Get id-on-xmppAddr and dDnsName */
+    for (i = X509_get_ext_by_NID(cert, NID_subject_alt_name, -1);
+         i != -1;
+         i = X509_get_ext_by_NID(cert, NID_subject_alt_name, i)) {
+        // Get this subjectAltName x509v3 extension
+        if ((extension = X509_get_ext(cert, i)) == NULL) {
+            _sx_debug(ZONE, "external_id: Can't get subjectAltName. Possibly malformed cert.");
+            goto end;
+        }
+        // Get the collection of AltNames
+        if ((altnames = X509V3_EXT_d2i(extension)) == NULL) {
+            _sx_debug(ZONE, "external_id: Can't get all AltNames. Possibly malformed cert.");
+            goto end;
+        }
+        /* Iterate through all altNames and get id-on-xmppAddr and dNSName */
+        count = sk_GENERAL_NAME_num(altnames);
+        for (j = 0; j < count; j++) {
+            if ((altname = sk_GENERAL_NAME_value(altnames, j)) == NULL) {
+                _sx_debug(ZONE, "external_id: Can't get AltName. Possibly malformed cert.");
+                goto end;
+            }
+            /* Check if its otherName id-on-xmppAddr */
+            if (altname->type == GEN_OTHERNAME &&
+                OBJ_cmp(altname->d.otherName->type_id, id_on_xmppAddr_obj) == 0) {
+                othername = altname->d.otherName;
+                len = ASN1_STRING_to_UTF8((unsigned char **) &buff, othername->value->value.utf8string);
+                if (len <= 0)
+                    continue;
+                sc->external_id[id] = (char *) malloc(sizeof(char) *  (len + 1));
+                memcpy(sc->external_id[id], buff, len);
+                sc->external_id[id][len] = '\0'; // just to make sure
+                _sx_debug(ZONE, "external_id: Found(%d) subjectAltName/id-on-xmppAddr: '%s'", id, sc->external_id[id]);
+                id++;
+                OPENSSL_free(buff);
+            } else if (altname->type == GEN_DNS) {
+                len = ASN1_STRING_length(altname->d.dNSName);
+                sc->external_id[id] = (char *) malloc(sizeof(char) *  (len + 1));
+                memcpy(sc->external_id[id], ASN1_STRING_data(altname->d.dNSName), len);
+                sc->external_id[id][len] = '\0'; // just to make sure
+                _sx_debug(ZONE, "external_id: Found(%d) subjectAltName/dNSName: '%s'", id, sc->external_id[id]);
+                id++;
+            }
+            /* Check if we're not out of space */
+            if (id == SX_CONN_EXTERNAL_ID_MAX_COUNT) {
+                sk_GENERAL_NAME_pop_free(altnames, GENERAL_NAME_free);
+                goto end;
+            }
+        }
 
-		sk_GENERAL_NAME_pop_free(altnames, GENERAL_NAME_free);
-	}
-	/* Get CNs */
-	name = X509_get_subject_name(cert);
-	for (i = X509_NAME_get_index_by_NID(name, NID_commonName, -1);
-		 i != -1;
-		 i = X509_NAME_get_index_by_NID(name, NID_commonName, i)) {
-		// Get the commonName entry
-		if ((entry = X509_NAME_get_entry(name, i)) == NULL) {
-			_sx_debug(ZONE, "external_id: Can't get commonName(%d). Possibly malformed cert. Continuing.", i);
-			continue;
-		}
-		// Get the commonName as UTF8 string
-		len = ASN1_STRING_to_UTF8((unsigned char **) &buff, X509_NAME_ENTRY_get_data(entry));
-		if (len <= 0) {
-			continue;
-		}
-		sc->external_id[id] = (char *) malloc(sizeof(char) *  (len + 1));
-		memcpy(sc->external_id[id], buff, len);
-		sc->external_id[id][len] = '\0'; // just to make sure
-		_sx_debug(ZONE, "external_id: Found(%d) commonName: '%s'", id, sc->external_id[id]);
-		OPENSSL_free(buff);
-		/* Check if we're not out of space */
-		if (id == SX_CONN_EXTERNAL_ID_MAX_COUNT)
-			goto end;
-	}
+        sk_GENERAL_NAME_pop_free(altnames, GENERAL_NAME_free);
+    }
+    /* Get CNs */
+    name = X509_get_subject_name(cert);
+    for (i = X509_NAME_get_index_by_NID(name, NID_commonName, -1);
+         i != -1;
+         i = X509_NAME_get_index_by_NID(name, NID_commonName, i)) {
+        // Get the commonName entry
+        if ((entry = X509_NAME_get_entry(name, i)) == NULL) {
+            _sx_debug(ZONE, "external_id: Can't get commonName(%d). Possibly malformed cert. Continuing.", i);
+            continue;
+        }
+        // Get the commonName as UTF8 string
+        len = ASN1_STRING_to_UTF8((unsigned char **) &buff, X509_NAME_ENTRY_get_data(entry));
+        if (len <= 0) {
+            continue;
+        }
+        sc->external_id[id] = (char *) malloc(sizeof(char) *  (len + 1));
+        memcpy(sc->external_id[id], buff, len);
+        sc->external_id[id][len] = '\0'; // just to make sure
+        _sx_debug(ZONE, "external_id: Found(%d) commonName: '%s'", id, sc->external_id[id]);
+        id++;
+        OPENSSL_free(buff);
+        /* Check if we're not out of space */
+        if (id == SX_CONN_EXTERNAL_ID_MAX_COUNT)
+            goto end;
+    }
 
 end:
     X509_free(cert);
@@ -735,7 +736,7 @@ static void _sx_ssl_client(sx_t s, sx_plugin_t p) {
 
     /* empty external_id */
     for (i = 0; i < SX_CONN_EXTERNAL_ID_MAX_COUNT; i++)
-    	sc->external_id[i] = NULL;
+        sc->external_id[i] = NULL;
 
     /* alternate pemfile */
     /* !!! figure out how to error correctly here - just returning will cause
@@ -832,7 +833,7 @@ static void _sx_ssl_server(sx_t s, sx_plugin_t p) {
 
     /* empty external_id */
     for (i = 0; i < SX_CONN_EXTERNAL_ID_MAX_COUNT; i++)
-    	sc->external_id[i] = NULL;
+        sc->external_id[i] = NULL;
 
     /* buffer queue */
     sc->wq = jqueue_new();
@@ -860,10 +861,10 @@ static void _sx_ssl_free(sx_t s, sx_plugin_t p) {
     }
 
     for (i = 0; i < SX_CONN_EXTERNAL_ID_MAX_COUNT; i++)
-    	if(sc->external_id[i] != NULL)
-    		free(sc->external_id[i]);
-    	else
-    		break;
+        if(sc->external_id[i] != NULL)
+            free(sc->external_id[i]);
+        else
+            break;
 
     if(sc->pemfile != NULL) free(sc->pemfile);
 
@@ -1002,23 +1003,23 @@ int sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, 
         if(ret != 1) {
             _sx_debug(ZONE, "WARNING: couldn't load CA chain: %s; %s", cachain, ERR_error_string(ERR_get_error(), NULL));
         } else {
-        	_sx_debug(ZONE, "Loaded CA verify location chain: %s", cachain);
+            _sx_debug(ZONE, "Loaded CA verify location chain: %s", cachain);
         }
         cert_names = SSL_load_client_CA_file(cachain);
         if (cert_names != NULL) {
-        	SSL_CTX_set_client_CA_list(ctx, cert_names);
-        	_sx_debug(ZONE, "Loaded client CA chain: %s", cachain);
+            SSL_CTX_set_client_CA_list(ctx, cert_names);
+            _sx_debug(ZONE, "Loaded client CA chain: %s", cachain);
         } else {
-        	_sx_debug(ZONE, "WARNING: couldn't load client CA chain: %s", cachain);
+            _sx_debug(ZONE, "WARNING: couldn't load client CA chain: %s", cachain);
         }
     } else {
-    	/* Load the default OpenlSSL certs from /etc/ssl/certs
-    	 We must assume that the client certificate's CA is there
+        /* Load the default OpenlSSL certs from /etc/ssl/certs
+         We must assume that the client certificate's CA is there
 
-    	 Note: We don't send client_CA_list here. Will possibly break some clients.
-    	 */
-    	SSL_CTX_set_default_verify_paths(ctx);
-    	_sx_debug(ZONE, "No CA chain specified. Loading SSL default CA certs: /etc/ssl/certs");
+         Note: We don't send client_CA_list here. Will possibly break some clients.
+         */
+        SSL_CTX_set_default_verify_paths(ctx);
+        _sx_debug(ZONE, "No CA chain specified. Loading SSL default CA certs: /etc/ssl/certs");
     }
     /* Add server CRL verificaition */
     store = SSL_CTX_get_cert_store(ctx);

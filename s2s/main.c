@@ -749,10 +749,8 @@ int s2s_domain_in_whitelist(s2s_t s2s, const char *in_domain) {
         seg_tmp_len = strlen(seg_tmp);
         if (seg_tmp_len > MAX_DOMAIN_LEN) {
             log_write(s2s->log, LOG_NOTICE, "s2s_domain_in_whitelist: domain contains a segment greater than %s chars", MAX_DOMAIN_LEN);
-            if (seg_tmp != NULL) {
-                free(seg_tmp);
-                seg_tmp = NULL;
-            }
+            free(seg_tmp);
+            seg_tmp = NULL;
             for (x = 0; x < segcount; x++) {
                 free(segments[x]);
                 segments[x] = NULL;
@@ -767,10 +765,8 @@ int s2s_domain_in_whitelist(s2s_t s2s, const char *in_domain) {
             strncpy(*dst, seg_tmp, seg_tmp_len + 1);
             (*dst)[seg_tmp_len] = '\0';
         } else {
-            if (seg_tmp != NULL) {
-                free(seg_tmp);
-                seg_tmp = NULL;
-            }
+            free(seg_tmp);
+            seg_tmp = NULL;
             for (x = 0; x < segcount; x++) {
                 free(segments[x]);
                 segments[x] = NULL;

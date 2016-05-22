@@ -11,10 +11,13 @@ if ENABLE_TESTS
 SUBDIRS += tests
 endif
 
-.PHONY: docs
+.PHONY: docs cppcheck
 
 docs: Doxyfile
 	@doxygen
+
+cppcheck:
+	cppcheck --force --quiet --report-progress -j6 --std=c99 -DSIGHUP -DSIGPIPE --enable=warning,performance,portability,information,missingInclude .
 
 dist-hook:
 	if grep 'AC_INIT.*dev' configure.ac ; then echo "Remove 'dev' version flag first!"; exit 1; else : ; fi

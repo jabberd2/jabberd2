@@ -48,7 +48,7 @@ static void send_email(verify_t *v, user_t user, pkt_t res, char *message)
 
     message = strdup(message);
     result = regcomp(&preg, "[a-z0-9._+-]+@[a-z0-9.-]+", REG_EXTENDED|REG_ICASE);
-    result = regexec(&preg, message, 1, match, 0);
+    result |= regexec(&preg, message, 1, match, 0);
     regfree(&preg);
 
     if (result != 0 || match[0].rm_so == -1) {

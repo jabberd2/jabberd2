@@ -66,7 +66,7 @@ struct zebra_list_st {
 
 struct zebra_item_st {
     zebra_item_type_t   type;
-    
+
     jid_t               jid;
 
     char                *group;
@@ -238,7 +238,7 @@ static int _privacy_user_load(mod_instance_t mi, user_t user) {
                             log_debug(ZONE, "s10n item with value '%s' (to %d from %d)", str, zitem->to, zitem->from);
 
                             break;
-                            
+
                         case zebra_NONE:
                             /* can't get here */
                             break;
@@ -263,7 +263,7 @@ static int _privacy_user_load(mod_instance_t mi, user_t user) {
                 for(scan = zlist->items; scan != NULL; scan = scan->next)
                     if(zitem->order < scan->order)
                         break;
-                
+
                 /* we're >= everyone, add us to the end */
                 if(scan == NULL) {
                     if(zlist->last == NULL)
@@ -274,7 +274,7 @@ static int _privacy_user_load(mod_instance_t mi, user_t user) {
                         zlist->last = zitem;
                     }
                 }
-                
+
                 /* insert just before scan */
                 else {
                     if(zlist->items == scan) {
@@ -336,7 +336,7 @@ static int _privacy_action(user_t user, zebra_list_t zlist, jid_t jid, pkt_type_
 
             case zebra_JID:
                 snprintf(domres, sizeof(domres) / sizeof(domres[0]), "%s/%s", jid->domain, jid->resource);
- 
+
                 /* jid check - match node@dom/res, then node@dom, then dom/resource, then dom */
                 if(jid_compare_full(scan->jid, jid) == 0 ||
                    strcmp(jid_full(scan->jid), jid_user(jid)) == 0 ||
@@ -629,7 +629,7 @@ static void _unblock_jid(user_t user, storage_t st, zebra_list_t zlist, jid_t ji
 
             /* and from the storage */
             sprintf(filter, "(&(list=%zu:%s)(type=3:jid)(value=%zu:%s))",
-					strlen(urn_BLOCKING), urn_BLOCKING, strlen(jid_full(scan->jid)), jid_full(scan->jid));
+                    strlen(urn_BLOCKING), urn_BLOCKING, strlen(jid_full(scan->jid)), jid_full(scan->jid));
             storage_delete(st, "privacy-items", jid_user(user->jid), filter);
 
             /* set jid for notify */
@@ -647,7 +647,7 @@ static void _unblock_jid(user_t user, storage_t st, zebra_list_t zlist, jid_t ji
                  * we sent presence direct or got error bounce */
                 if(!sscan->available || jid_search(sscan->A, notify_jid) || jid_search(sscan->E, notify_jid))
                     continue;
-    
+
                 log_debug(ZONE, "updating unblocked %s with presence from %s", jid_full(notify_jid), jid_full(sscan->jid));
                 pkt_router(pkt_dup(sscan->pres, jid_full(notify_jid), jid_full(sscan->jid)));
             }
@@ -718,7 +718,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                 zlist->p = p;
                 zlist->name = pstrdup(p, urn_BLOCKING);
                 xhash_put(z->lists, zlist->name, (void *) zlist);
-                
+
                 /* make it default */
                 z->def = zlist;
 
@@ -782,7 +782,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                                  * we sent presence direct or got error bounce */
                                 if(!sscan->available || jid_search(sscan->A, jidt) || jid_search(sscan->E, jidt))
                                     continue;
-                        
+
                                 log_debug(ZONE, "forcing unavailable to %s from %s after block", jid_full(jidt), jid_full(sscan->jid));
                                 pkt_router(pkt_create(sess->user->sm, "presence", "unavailable", jid_full(jidt), jid_full(sscan->jid)));
                             }
@@ -920,7 +920,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
         list = nad_find_elem(pkt->nad, query, ns, "list", 1);
         active = nad_find_elem(pkt->nad, query, ns, "active", 1);
         def = nad_find_elem(pkt->nad, query, ns, "default", 1);
-        
+
         /* we need something to do, but we can't do it all at once */
         if((list < 0 && active < 0 && def < 0) || (list >= 0 && (active >=0 || def >= 0)))
             return -stanza_err_BAD_REQUEST;
@@ -1083,7 +1083,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                 for(scan = zlist->items; scan != NULL; scan = scan->next)
                     if(zitem->order < scan->order)
                         break;
-            
+
                 /* we're >= everyone, add us to the end */
                 if(scan == NULL) {
                     if(zlist->last == NULL)
@@ -1094,7 +1094,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                         zlist->last = zitem;
                     }
                 }
-            
+
                 /* insert just before scan */
                 else {
                     if(zlist->items == scan) {
@@ -1162,7 +1162,6 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                         storage_delete(mod->mm->sm->st, "privacy-default", jid_user(sess->user->jid), NULL);
                         log_debug(ZONE, "removed default list");
                     }
-
                     else {
                         os = os_new();
                         o = os_object_new(os);
@@ -1173,7 +1172,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 
                         os_free(os);
 
-                        log_debug(ZONE, "default list is now '%s'", (zlist != NULL) ? zlist->name : "(NONE)");
+                        log_debug(ZONE, "default list is now '%s'", zlist->name);
                     }
                 }
             }
@@ -1187,7 +1186,6 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                 log_debug(ZONE, "clearing active list for session '%s'", jid_full(sess->jid));
                 ((privacy_t) sess->module_data[mod->index])->active = NULL;
             }
-
             else {
                 snprintf(str, 256, "%.*s", NAD_AVAL_L(pkt->nad, name), NAD_AVAL(pkt->nad, name));
                 str[255] = '\0';
@@ -1212,7 +1210,6 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                 log_debug(ZONE, "clearing default list for '%s'", jid_user(sess->user->jid));
                 z->def = NULL;
             }
-
             else {
                 snprintf(str, 256, "%.*s", NAD_AVAL_L(pkt->nad, name), NAD_AVAL(pkt->nad, name));
                 str[255] = '\0';

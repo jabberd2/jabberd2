@@ -21,6 +21,7 @@
 /* xdata, whee! */
 
 #include "util.h"
+#include <string.h>
 
 /** creation */
 xdata_t xdata_new(xdata_type_t type, const char *title, const char *instructions) {
@@ -276,7 +277,7 @@ xdata_t xdata_parse(nad_t nad, int root) {
 
     log_debug(ZONE, "building xd from nad");
 
-    if(root >= nad->ecur || NAD_NURI_L(nad, NAD_ENS(nad, root)) != strlen(uri_XDATA) || strncmp(uri_XDATA, NAD_NURI(nad, NAD_ENS(nad, root)), strlen(uri_XDATA) != 0) || NAD_ENAME_L(nad, root) != 1 || (NAD_ENAME(nad, root))[0] != 'x') {
+    if(root >= nad->ecur || NAD_NURI_L(nad, NAD_ENS(nad, root)) != strlen(uri_XDATA) || strncmp(uri_XDATA, NAD_NURI(nad, NAD_ENS(nad, root)), NAD_NURI_L(nad, NAD_ENS(nad, root))) || NAD_ENAME_L(nad, root) != 1 || (NAD_ENAME(nad, root))[0] != 'x') {
         log_debug(ZONE, "elem %d does not exist, or is not {x:data}x", root);
         return NULL;
     }

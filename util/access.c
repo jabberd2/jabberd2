@@ -21,6 +21,7 @@
 /* this implements allow/deny filters for IP address */
 
 #include "util.h"
+#include <arpa/inet.h>
 
 access_t access_new(int order)
 {
@@ -112,7 +113,7 @@ static int _access_check_match(struct sockaddr_storage *ip_1, struct sockaddr_st
             struct sockaddr_in *temp;
 
             temp = (struct sockaddr_in *)&t;
-        
+
             _access_unmap_v4(sin6_1, temp);
             if(netsize>96)
                 netsize -= 96;
@@ -131,7 +132,7 @@ static int _access_check_match(struct sockaddr_storage *ip_1, struct sockaddr_st
         if(netsize > 32)
             netsize = 32;
 
-        netmask = htonl(-1 << (32-netsize));
+        netmask = htonl(((uint32_t)-1) << (32-netsize));
 
         return ((sin_1->sin_addr.s_addr&netmask) == (sin_2->sin_addr.s_addr&netmask));
     }
@@ -147,7 +148,7 @@ static int _access_check_match(struct sockaddr_storage *ip_1, struct sockaddr_st
         for(i=0; i<netsize/8; i++)
             if(sin6_1->sin6_addr.s6_addr[i] != sin6_2->sin6_addr.s6_addr[i])
                 return 0;
-    
+
         if(netsize%8 == 0)
             return 1;
 

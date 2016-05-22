@@ -970,7 +970,6 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     }
 
                     /* build temporary resource to close session for */
-                    tres = NULL;
                     tres = (bres_t) calloc(1, sizeof(struct bres_st));
                     tres->jid = jid_new(NAD_AVAL(nad, target), NAD_AVAL_L(nad, target));
 
