@@ -2,11 +2,15 @@ ChangeLog log format:
 git log --pretty=format:'%ai %aN <%aE>%n\t* %s\n'
 
 New release:
-git co -b 2.2.16
+git co -b 2.X.0
 vim configure.ac
-git commit configure.ac -m "2.2.16 release"
-git tag jabberd-2.2.16
+git commit configure.ac -m "2.X.0 release"
+git tag -s jabberd-2.X.0
+autoreconf -fi
+./configure
 make dist
-git push github tag jabberd-2.2.16
-gpg --armor --detach-sign jabberd-2.2.16.tar.gz
+git push github tag jabberd-2.X.0
+gzip -dc jabberd-2.X.0.tar.gz | xz -9 > jabberd-2.X.0.tar.xz
+gpg --armor --detach-sign jabberd-2.X.0.tar.gz
+gpg --armor --detach-sign jabberd-2.X.0.tar.xz
 
