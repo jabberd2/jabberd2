@@ -2,6 +2,25 @@ This file contains news, important changes
 and upgrade instructions between different versions of jabberd2.
 
 
+* 2.3.6 to 2.4.0 upgrade:
+
+What changed:
+- Check for C99 support in compiler
+- Count RIO bytes and check against max stanza size
+- Gracefully drop unhandled HTTP connections
+- wss:// (WebSocket over SSL) support in c2s
+- Allow BareJID S10N packets
+- Fallback to connecting S2S using local.ip when none of the origin.ip works
+- Removed explicit SQLite transactions
+- SQLite postconnect SQL support
+- SQLite DB setup script improvements
+- Many Coverity Scan and cppcheck detected issues fixed
+- Properly lowercase SASL mechanisms in c2s
+- Support out-of-source build
+
+This is a bugfix release.
+
+
 * 2.3.5 to 2.3.6 upgrade:
 
 What changed:
