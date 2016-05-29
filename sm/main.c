@@ -41,24 +41,7 @@ static void _sm_signal(int signum)
 
 static void _sm_signal_hup(int signum)
 {
-    config_t conf;
-
-    log_write(sm->log, LOG_NOTICE, "HUP handled. reloading modules...");
-
     sm_logrotate = 1;
-
-    /* reload dynamic modules */
-    conf = config_new();
-    if (conf && config_load(conf, config_file) == 0) {
-        config_free(sm->config);
-        sm->config = conf;
-        /*_sm_config_expand(sm);*/ /* we want to reload modules only */
-    } else {
-        log_write(sm->log, LOG_WARNING, "couldn't reload config (%s)", config_file);
-        if (conf) config_free(conf);
-    }
-    mm_free(sm->mm);
-    sm->mm = mm_new(sm);
 }
 
 static void _sm_signal_usr1(int signum)
