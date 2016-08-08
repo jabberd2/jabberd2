@@ -20,31 +20,35 @@
  */
 
 #include "c2s.h"
+#include "lib/uri.h"
+#include "lib/stanza.h"
+#include <assert.h>
 #include <stringprep.h>
+#include <sys/ioctl.h>
 
-static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
-    sess_t sess = (sess_t) arg;
-    sx_buf_t buf = (sx_buf_t) data;
+static int _c2s_client_sx_callback(sx_t *s, sx_event_t e, void *data, void *arg) {
+    sess_t *sess = arg;
+    sx_buf_t *buf = data;
     int rlen, len, ns, elem, attr;
     sx_error_t *sxe;
-    nad_t nad;
+    nad_t *nad;
     char root[9];
-    bres_t bres, ires;
-    stream_redirect_t redirect;
+    bres_t *bres, *ires;
+    stream_redirect_t *redirect;
 
     switch(e) {
         case event_WANT_READ:
-            log_debug(ZONE, "want read");
+            LOG_DEBUG(sess->c2s->log, "want read");
             mio_read(sess->c2s->mio, sess->fd);
             break;
 
         case event_WANT_WRITE:
-            log_debug(ZONE, "want write");
+            LOG_DEBUG(sess->c2s->log, "want write");
             mio_write(sess->c2s->mio, sess->fd);
             break;
 
         case event_READ:
-            log_debug(ZONE, "reading from %d", sess->fd->fd);
+            LOG_DEBUG(sess->c2s->log, "reading from %d", sess->fd->fd);
 
             /* check rate limits */
             if(sess->rate != NULL) {
@@ -52,10 +56,11 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 
                     /* inform the app if we haven't already */
                     if(!sess->rate_log) {
-                        if(s->state >= state_STREAM && sess->resources != NULL)
-                            log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s] is being byte rate limited", sess->fd->fd, jid_user(sess->resources->jid));
-                        else
-                            log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] is being byte rate limited", sess->fd->fd, sess->ip, sess->port);
+                        if(s->state >= state_STREAM && sess->resources != NULL) {
+                            LOG_NOTICE(sess->c2s->log, "[%d] [%s] is being byte rate limited", sess->fd->fd, jid_user(sess->resources->jid));
+                        } else {
+                            LOG_NOTICE(sess->c2s->log, "[%d] [%s, port=%d] is being byte rate limited", sess->fd->fd, sess->ip, sess->port);
+                        }
 
                         sess->rate_log = 1;
                     }
@@ -86,10 +91,11 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                     return 0;
                 }
 
-                if(s->state >= state_STREAM && sess->resources != NULL)
-                    log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s] read error: %s (%d)", sess->fd->fd, jid_user(sess->resources->jid), MIO_STRERROR(MIO_ERROR), MIO_ERROR);
-                else
-                    log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] read error: %s (%d)", sess->fd->fd, sess->ip, sess->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+                if(s->state >= state_STREAM && sess->resources != NULL) {
+                    LOG_NOTICE(sess->c2s->log, "[%d] [%s] read error: %s (%d)", sess->fd->fd, jid_user(sess->resources->jid), MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+                } else {
+                    LOG_NOTICE(sess->c2s->log, "[%d] [%s, port=%d] read error: %s (%d)", sess->fd->fd, sess->ip, sess->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+                }
 
                 sx_kill(s);
 
@@ -103,46 +109,48 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                 return -1;
             }
 
-            log_debug(ZONE, "read %d bytes", len);
+            LOG_DEBUG(sess->c2s->log, "read %d bytes", len);
 
             buf->len = len;
 
             return len;
 
         case event_WRITE:
-            log_debug(ZONE, "writing to %d", sess->fd->fd);
+            LOG_DEBUG(sess->c2s->log, "writing to %d", sess->fd->fd);
 
             len = send(sess->fd->fd, buf->data, buf->len, 0);
             if(len >= 0) {
-                log_debug(ZONE, "%d bytes written", len);
+                LOG_DEBUG(sess->c2s->log, "%d bytes written", len);
                 return len;
             }
 
             if(MIO_WOULDBLOCK)
                 return 0;
 
-            if(s->state >= state_OPEN && sess->resources != NULL)
-                log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s] write error: %s (%d)", sess->fd->fd, jid_user(sess->resources->jid), MIO_STRERROR(MIO_ERROR), MIO_ERROR);
-            else
-                log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s. port=%d] write error: %s (%d)", sess->fd->fd, sess->ip, sess->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+            if(s->state >= state_OPEN && sess->resources != NULL) {
+                LOG_NOTICE(sess->c2s->log, "[%d] [%s] write error: %s (%d)", sess->fd->fd, jid_user(sess->resources->jid), MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+            } else {
+                LOG_NOTICE(sess->c2s->log, "[%d] [%s. port=%d] write error: %s (%d)", sess->fd->fd, sess->ip, sess->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+            }
 
             sx_kill(s);
 
             return -1;
 
         case event_ERROR:
-            sxe = (sx_error_t *) data;
-            if(sess->resources != NULL)
-                log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s] error: %s (%s)", sess->fd->fd, jid_user(sess->resources->jid), sxe->generic, sxe->specific);
-            else
-                log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] error: %s (%s)", sess->fd->fd, sess->ip, sess->port, sxe->generic, sxe->specific);
+            sxe = data;
+            if(sess->resources != NULL) {
+                LOG_NOTICE(sess->c2s->log, "[%d] [%s] error: %s (%s)", sess->fd->fd, jid_user(sess->resources->jid), sxe->generic, sxe->specific);
+            } else {
+                LOG_NOTICE(sess->c2s->log, "[%d] [%s, port=%d] error: %s (%s)", sess->fd->fd, sess->ip, sess->port, sxe->generic, sxe->specific);
+            }
 
             break;
 
         case event_STREAM:
 
             if(s->req_to == NULL) {
-                log_debug(ZONE, "no stream to provided, closing");
+                LOG_DEBUG(sess->c2s->log, "no stream to provided, closing");
                 sx_error(s, stream_err_HOST_UNKNOWN, "no 'to' attribute on stream header");
                 sx_close(s);
 
@@ -150,11 +158,11 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
             }
 
             /* send a see-other-host error if we're configured to do so */
-            redirect = (stream_redirect_t) xhash_get(sess->c2s->stream_redirects, s->req_to);
+            redirect = xhash_get(sess->c2s->stream_redirects, s->req_to);
             if (redirect != NULL) {
-                log_debug(ZONE, "redirecting client's stream using see-other-host for domain: '%s'", s->req_to);
+                LOG_DEBUG(sess->c2s->log, "redirecting client's stream using see-other-host for domain: '%s'", s->req_to);
                 len = strlen(redirect->to_address) + strlen(redirect->to_port) + 1;
-                char *other_host = (char *) malloc(len+1);
+                char *other_host = malloc(len+1);
                 snprintf(other_host, len+1, "%s:%s", redirect->to_address, redirect->to_port);
                 sx_error_extended(s, stream_err_SEE_OTHER_HOST, other_host);
                 free(other_host);
@@ -167,7 +175,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
             sess->host = xhash_get(sess->c2s->hosts, s->req_to);
 
             if(sess->host == NULL && sess->c2s->vhost == NULL) {
-                log_debug(ZONE, "no host available for requested domain '%s'", s->req_to);
+                LOG_DEBUG(sess->c2s->log, "no host available for requested domain '%s'", s->req_to);
                 sx_error(s, stream_err_HOST_UNKNOWN, "service requested for unknown domain");
                 sx_close(s);
 
@@ -175,7 +183,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
             }
 
             if(xhash_get(sess->c2s->sm_avail, s->req_to) == NULL) {
-                log_debug(ZONE, "sm for domain '%s' is not online", s->req_to);
+                LOG_DEBUG(sess->c2s->log, "sm for domain '%s' is not online", s->req_to);
                 sx_error(s, stream_err_HOST_GONE, "session manager for requested domain is not available");
                 sx_close(s);
 
@@ -184,8 +192,8 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 
             if(sess->host == NULL) {
                 /* create host on-fly */
-                sess->host = (host_t) pmalloc(xhash_pool(sess->c2s->hosts), sizeof(struct host_st));
-                memcpy(sess->host, sess->c2s->vhost, sizeof(struct host_st));
+                sess->host = pnew(xhash_pool(sess->c2s->hosts), host_t);
+                memcpy(sess->host, sess->c2s->vhost, sizeof(host_t));
                 sess->host->realm = pstrdup(xhash_pool(sess->c2s->hosts), s->req_to);
                 xhash_put(sess->c2s->hosts, pstrdup(xhash_pool(sess->c2s->hosts), s->req_to), sess->host);
             }
@@ -209,10 +217,11 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 
                     /* inform the app if we haven't already */
                     if(!sess->stanza_rate_log) {
-                        if(s->state >= state_STREAM && sess->resources != NULL)
-                            log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s] is being stanza rate limited", sess->fd->fd, jid_user(sess->resources->jid));
-                        else
-                            log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] is being stanza rate limited", sess->fd->fd, sess->ip, sess->port);
+                        if(s->state >= state_STREAM && sess->resources != NULL) {
+                            LOG_NOTICE(sess->c2s->log, "[%d] [%s] is being stanza rate limited", sess->fd->fd, jid_user(sess->resources->jid));
+                        } else {
+                            LOG_NOTICE(sess->c2s->log, "[%d] [%s, port=%d] is being stanza rate limited", sess->fd->fd, sess->ip, sess->port);
+                        }
 
                         sess->stanza_rate_log = 1;
                     }
@@ -222,7 +231,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                 rate_add(sess->stanza_rate, 1);
             }
 
-            nad = (nad_t) data;
+            nad = data;
 
             /* we only want (message|presence|iq) in jabber:client, everything else gets dropped */
             snprintf(root, 9, "%.*s", NAD_ENAME_L(nad, 0), NAD_ENAME(nad, 0));
@@ -234,8 +243,8 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 
             /* resource bind */
             if((ns = nad_find_scoped_namespace(nad, uri_BIND, NULL)) >= 0 && (elem = nad_find_elem(nad, 0, ns, "bind", 1)) >= 0 && nad_find_attr(nad, 0, -1, "type", "set") >= 0) {
-                bres_t bres;
-                jid_t jid = jid_new(sess->s->auth_id, -1);
+                bres_t *bres;
+                jid_t *jid = jid_new(sess->s->auth_id, -1);
 
                 /* get the resource */
                 elem = nad_find_elem(nad, elem, ns, "resource", 1);
@@ -245,7 +254,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                     char resource_buf[1024];
 
                     if(NAD_CDATA_L(nad, elem) == 0) {
-                        log_debug(ZONE, "empty resource specified on bind");
+                        LOG_DEBUG(sess->c2s->log, "empty resource specified on bind");
                         sx_nad_write(sess->s, stanza_error(nad, 0, stanza_err_BAD_REQUEST));
 
                         return 0;
@@ -254,7 +263,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                     snprintf(resource_buf, 1024, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
                     /* Put resource into JID */
                     if (jid == NULL || jid_reset_components(jid, jid->node, jid->domain, resource_buf) == NULL) {
-                        log_debug(ZONE, "invalid jid data");
+                        LOG_DEBUG(sess->c2s->log, "invalid jid data");
                         sx_nad_write(sess->s, stanza_error(nad, 0, stanza_err_BAD_REQUEST));
 
                         return 0;
@@ -263,18 +272,18 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                     /* check if resource already bound */
                     for(bres = sess->resources; bres != NULL; bres = bres->next)
                         if(strcmp(bres->jid->resource, jid->resource) == 0){
-                            log_debug(ZONE, "resource /%s already bound - generating", jid->resource);
+                            LOG_DEBUG(sess->c2s->log, "resource /%s already bound - generating", jid->resource);
                             jid_random_part(jid, jid_RESOURCE);
                         }
                 }
                 else {
                     /* generate random resource */
-                    log_debug(ZONE, "no resource given - generating");
+                    LOG_DEBUG(sess->c2s->log, "no resource given - generating");
                     jid_random_part(jid, jid_RESOURCE);
                 }
 
                 /* attach new bound jid holder */
-                bres = (bres_t) calloc(1, sizeof(struct bres_st));
+                bres = new(bres_t);
                 bres->jid = jid;
                 if(sess->resources != NULL) {
                     for(ires = sess->resources; ires->next != NULL; ires = ires->next);
@@ -284,7 +293,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 
                 sess->bound += 1;
 
-                log_write(sess->c2s->log, LOG_NOTICE, "[%d] bound: jid=%s", sess->s->tag, jid_full(bres->jid));
+                LOG_NOTICE(sess->c2s->log, "[%s:%d] bound: jid=%s", sess->s->ip, sess->s->port, jid_full(bres->jid));
 
                 /* build a result packet, we'll send this back to the client after we have a session for them */
                 sess->result = nad_new();
@@ -305,7 +314,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                 nad_append_cdata(sess->result, jid_full(bres->jid), strlen(jid_full(bres->jid)), 3);
 
                 /* our local id */
-                sprintf(bres->c2s_id, "%d", sess->s->tag);
+                sprintf(bres->c2s_id, "%s:%d", sess->s->ip, sess->s->port);
 
                 /* start a session with the sm */
                 sm_start(sess, bres);
@@ -320,13 +329,13 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
             /* resource unbind */
             if((ns = nad_find_scoped_namespace(nad, uri_BIND, NULL)) >= 0 && (elem = nad_find_elem(nad, 0, ns, "unbind", 1)) >= 0 && nad_find_attr(nad, 0, -1, "type", "set") >= 0) {
                 char resource_buf[1024];
-                bres_t bres;
+                bres_t *bres;
 
                 /* get the resource */
                 elem = nad_find_elem(nad, elem, ns, "resource", 1);
 
                 if(elem < 0 || NAD_CDATA_L(nad, elem) == 0) {
-                    log_debug(ZONE, "no/empty resource given to unbind");
+                    LOG_DEBUG(sess->c2s->log, "no/empty resource given to unbind");
                     sx_nad_write(sess->s, stanza_error(nad, 0, stanza_err_BAD_REQUEST));
 
                     return 0;
@@ -334,7 +343,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 
                 snprintf(resource_buf, 1024, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
                 if(stringprep_xmpp_resourceprep(resource_buf, 1024) != 0) {
-                    log_debug(ZONE, "cannot resourceprep");
+                    LOG_DEBUG(sess->c2s->log, "cannot resourceprep");
                     sx_nad_write(sess->s, stanza_error(nad, 0, stanza_err_BAD_REQUEST));
 
                     return 0;
@@ -346,7 +355,7 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
                         break;
 
                 if(bres == NULL) {
-                    log_debug(ZONE, "resource /%s not bound", resource_buf);
+                    LOG_DEBUG(sess->c2s->log, "resource /%s not bound", resource_buf);
                     sx_nad_write(sess->s, stanza_error(nad, 0, stanza_err_ITEM_NOT_FOUND));
 
                     return 0;
@@ -376,8 +385,8 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 
             /* pre-session requests */
             if(!sess->active && sess->sasl_authd && sess->result == NULL && strcmp(root, "iq") == 0 && nad_find_attr(nad, 0, -1, "type", "set") >= 0) {
-                log_debug(ZONE, "unrecognised pre-session packet, bye");
-                log_write(sess->c2s->log, LOG_NOTICE, "[%d] unrecognized pre-session packet, closing stream", sess->s->tag);
+                LOG_DEBUG(sess->c2s->log, "unrecognised pre-session packet, bye");
+                LOG_NOTICE(sess->c2s->log, "[%s:%d] unrecognized pre-session packet, closing stream", sess->s->ip, sess->s->port);
 
                 sx_error(s, stream_err_NOT_AUTHORIZED, "unrecognized pre-session stanza");
                 sx_close(s);
@@ -389,8 +398,8 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 #ifdef HAVE_SSL
             /* drop packets if they have to starttls and they haven't */
             if((sess->s->flags & SX_SSL_STARTTLS_REQUIRE) && sess->s->ssf == 0) {
-                log_debug(ZONE, "pre STARTTLS packet, dropping");
-                log_write(sess->c2s->log, LOG_NOTICE, "[%d] got pre STARTTLS packet, dropping", sess->s->tag);
+                LOG_DEBUG(sess->c2s->log, "pre STARTTLS packet, dropping");
+                LOG_NOTICE(sess->c2s->log, "[%s:%d] got pre STARTTLS packet, dropping", sess->s->ip, sess->s->port);
 
                 sx_error(s, stream_err_POLICY_VIOLATION, "STARTTLS is required for this stream");
 
@@ -405,8 +414,8 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 
             /* drop it if no session */
             if(!sess->active) {
-                log_debug(ZONE, "pre-session packet, bye");
-                log_write(sess->c2s->log, LOG_NOTICE, "[%d] packet sent before session start, closing stream", sess->s->tag);
+                LOG_DEBUG(sess->c2s->log, "pre-session packet, bye");
+                LOG_NOTICE(sess->c2s->log, "[%s:%d] packet sent before session start, closing stream", sess->s->ip, sess->s->port);
 
                 sx_error(s, stream_err_NOT_AUTHORIZED, "stanza sent before session start");
                 sx_close(s);
@@ -426,9 +435,9 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 
                 if(bres == NULL) {
                     if(attr >= 0) {
-                        log_debug(ZONE, "packet from: %.*s that has not bound the resource", NAD_AVAL_L(nad, attr), NAD_AVAL(nad, attr));
+                        LOG_DEBUG(sess->c2s->log, "packet from: %.*s that has not bound the resource", NAD_AVAL_L(nad, attr), NAD_AVAL(nad, attr));
                     } else {
-                        log_debug(ZONE, "packet without 'from' on multiple resource stream");
+                        LOG_DEBUG(sess->c2s->log, "packet without 'from' on multiple resource stream");
                     }
 
                     sx_nad_write(sess->s, stanza_error(nad, 0, stanza_err_UNKNOWN_SENDER));
@@ -457,8 +466,8 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 
             /* they sasl auth'd, so we only want the new-style session start */
             else {
-                log_write(sess->c2s->log, LOG_NOTICE, "[%d] %s authentication succeeded: %s %s:%d %s",
-                    sess->s->tag, &sess->s->auth_method[5],
+                LOG_NOTICE(sess->c2s->log, "[%s:%d] %s authentication succeeded: %s %s:%d %s",
+                    sess->s->ip, sess->s->port, &sess->s->auth_method[5],
                     sess->s->auth_id, sess->s->ip, sess->s->port, _sx_flags(sess->s)
                 );
                 sess->sasl_authd = 1;
@@ -475,16 +484,16 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
     return 0;
 }
 
-static int _c2s_client_accept_check(c2s_t c2s, mio_fd_t fd, const char *ip) {
-    rate_t rt;
+static int _c2s_client_accept_check(c2s_t *c2s, mio_fd_t fd, const char *ip) {
+    rate_t *rt;
 
     if(access_check(c2s->access, ip) == 0) {
-        log_write(c2s->log, LOG_NOTICE, "[%d] [%s] access denied by configuration", fd->fd, ip);
+        LOG_NOTICE(c2s->log, "[%d] [%s] access denied by configuration", fd->fd, ip);
         return 1;
     }
 
     if(c2s->conn_rate_total != 0) {
-        rt = (rate_t) xhash_get(c2s->conn_rates, ip);
+        rt = xhash_get(c2s->conn_rates, ip);
         if(rt == NULL) {
             rt = rate_new(c2s->conn_rate_total, c2s->conn_rate_seconds, c2s->conn_rate_wait);
             xhash_put(c2s->conn_rates, pstrdup(xhash_pool(c2s->conn_rates), ip), (void *) rt);
@@ -492,7 +501,7 @@ static int _c2s_client_accept_check(c2s_t c2s, mio_fd_t fd, const char *ip) {
         }
 
         if(rate_check(rt) == 0) {
-            log_write(c2s->log, LOG_NOTICE, "[%d] [%s] is being connect rate limited", fd->fd, ip);
+            LOG_NOTICE(c2s->log, "[%d] [%s] is being connect rate limited", fd->fd, ip);
             return 1;
         }
 
@@ -503,16 +512,16 @@ static int _c2s_client_accept_check(c2s_t c2s, mio_fd_t fd, const char *ip) {
 }
 
 static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg) {
-    sess_t sess = (sess_t) arg;
-    c2s_t c2s = (c2s_t) arg;
-    bres_t bres;
+    sess_t *sess = arg;
+    c2s_t *c2s = arg;
+    bres_t *bres;
     struct sockaddr_storage sa;
     socklen_t namelen = sizeof(sa);
     int port, nbytes, flags = 0;
 
     switch(a) {
         case action_READ:
-            log_debug(ZONE, "read action on fd %d", fd->fd);
+            LOG_DEBUG(sess->c2s->log, "read action on fd %d", fd->fd);
 
             /* they did something */
             sess->last_activity = time(NULL);
@@ -526,14 +535,14 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
             return sx_can_read(sess->s);
 
         case action_WRITE:
-            log_debug(ZONE, "write action on fd %d", fd->fd);
+            LOG_DEBUG(sess->c2s->log, "write action on fd %d", fd->fd);
 
             return sx_can_write(sess->s);
 
         case action_CLOSE:
-            log_debug(ZONE, "close action on fd %d", fd->fd);
+            LOG_DEBUG(sess->c2s->log, "close action on fd %d", fd->fd);
 
-            log_write(sess->c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] disconnect jid=%s, packets: %i, bytes: %d", sess->fd->fd, sess->ip, sess->port, ((sess->resources)?((char*) jid_full(sess->resources->jid)):"unbound"), sess->packet_count, sess->s->tbytes);
+            LOG_NOTICE(sess->c2s->log, "[%d] [%s, port=%d] disconnect jid=%s, packets: %i, bytes: %d", sess->fd->fd, sess->ip, sess->port, ((sess->resources)?((char*) jid_full(sess->resources->jid)):"unbound"), sess->packet_count, sess->s->tbytes);
 
             /* tell the sm to close their session */
             if(sess->active)
@@ -560,18 +569,18 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
             break;
 
         case action_ACCEPT:
-            log_debug(ZONE, "accept action on fd %d", fd->fd);
+            LOG_DEBUG(sess->c2s->log, "accept action on fd %d", fd->fd);
 
             if(getpeername(fd->fd, (struct sockaddr *) &sa, &namelen) < 0)
                 return 1;
             port = j_inet_getport(&sa);
 
-            log_write(c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] connect", fd->fd, (char *) data, port);
+            LOG_NOTICE(c2s->log, "[%d] [%s, port=%d] connect", fd->fd, (char *) data, port);
 
             if(_c2s_client_accept_check(c2s, fd, (char *) data) != 0)
                 return 1;
 
-            sess = (sess_t) calloc(1, sizeof(struct sess_st));
+            sess = new(sess_t);
 
             sess->c2s = c2s;
 
@@ -583,7 +592,7 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
             /* they did something */
             sess->last_activity = time(NULL);
 
-            sess->s = sx_new(c2s->sx_env, fd->fd, _c2s_client_sx_callback, (void *) sess);
+            sess->s = sx_new(c2s->sx_env, sess->ip, sess->port, _c2s_client_sx_callback, (void *) sess);
             mio_app(m, fd, _c2s_client_mio_callback, (void *) sess);
 
             if(c2s->stanza_size_limit != 0)
@@ -626,10 +635,10 @@ static int _c2s_client_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *
     return 0;
 }
 
-static void _c2s_component_presence(c2s_t c2s, nad_t nad) {
+static void _c2s_component_presence(c2s_t *c2s, nad_t *nad) {
     int attr;
     char from[1024];
-    sess_t sess;
+    sess_t *sess;
     union xhashv xhv;
 
     if((attr = nad_find_attr(nad, 0, -1, "from", NULL)) < 0) {
@@ -641,11 +650,11 @@ static void _c2s_component_presence(c2s_t c2s, nad_t nad) {
     from[NAD_AVAL_L(nad, attr)] = '\0';
 
     if(nad_find_attr(nad, 0, -1, "type", NULL) < 0) {
-        log_debug(ZONE, "component available from '%s'", from);
-
-        log_debug(ZONE, "sm for serviced domain '%s' online", from);
+        LOG_DEBUG(c2s->log, "component available from '%s'", from);
 
         xhash_put(c2s->sm_avail, pstrdup(xhash_pool(c2s->sm_avail), from), (void *) 1);
+
+        LOG_DEBUG(c2s->log, "sm for serviced domain '%s' online", from);
 
         nad_free(nad);
         return;
@@ -656,10 +665,10 @@ static void _c2s_component_presence(c2s_t c2s, nad_t nad) {
         return;
     }
 
-    log_debug(ZONE, "component unavailable from '%s'", from);
+    LOG_DEBUG(c2s->log, "component unavailable from '%s'", from);
 
     if(xhash_get(c2s->sm_avail, from) != NULL) {
-        log_debug(ZONE, "sm for serviced domain '%s' offline", from);
+        LOG_DEBUG(c2s->log, "sm for serviced domain '%s' offline", from);
 
         if(xhash_iter_first(c2s->sessions))
             do {
@@ -667,7 +676,7 @@ static void _c2s_component_presence(c2s_t c2s, nad_t nad) {
                 xhash_iter_get(c2s->sessions, NULL, NULL, xhv.val);
 
                 if(sess->resources != NULL && strcmp(sess->resources->jid->domain, from) == 0) {
-                    log_debug(ZONE, "killing session %s", jid_user(sess->resources->jid));
+                    LOG_DEBUG(c2s->log, "killing session %s", jid_user(sess->resources->jid));
 
                     sess->active = 0;
                     if(sess->s) sx_close(sess->s);
@@ -678,30 +687,30 @@ static void _c2s_component_presence(c2s_t c2s, nad_t nad) {
     }
 }
 
-int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
-    c2s_t c2s = (c2s_t) arg;
-    sx_buf_t buf = (sx_buf_t) data;
+int c2s_router_sx_callback(sx_t *s, sx_event_t e, void *data, void *arg) {
+    c2s_t *c2s = arg;
+    sx_buf_t *buf = data;
     sx_error_t *sxe;
-    nad_t nad;
+    nad_t *nad;
     int len, elem, from, c2sid, smid, action, id, ns, attr, scan, replaced;
     char skey[44];
-    sess_t sess;
-    bres_t bres, ires;
+    sess_t *sess;
+    bres_t *bres, *ires;
     char *smcomp;
 
     switch(e) {
         case event_WANT_READ:
-            log_debug(ZONE, "want read");
+            LOG_DEBUG(c2s->log, "want read");
             mio_read(c2s->mio, c2s->fd);
             break;
 
         case event_WANT_WRITE:
-            log_debug(ZONE, "want write");
+            LOG_DEBUG(c2s->log, "want write");
             mio_write(c2s->mio, c2s->fd);
             break;
 
         case event_READ:
-            log_debug(ZONE, "reading from %d", c2s->fd->fd);
+            LOG_DEBUG(c2s->log, "reading from %d", c2s->fd->fd);
 
             /* do the read */
             len = recv(c2s->fd->fd, buf->data, buf->len, 0);
@@ -712,7 +721,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     return 0;
                 }
 
-                log_write(c2s->log, LOG_NOTICE, "[%d] [router] read error: %s (%d)", c2s->fd->fd, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+                LOG_NOTICE(c2s->log, "[%d] [router] read error: %s (%d)", c2s->fd->fd, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
                 sx_kill(s);
 
@@ -726,33 +735,33 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 return -1;
             }
 
-            log_debug(ZONE, "read %d bytes", len);
+            LOG_DEBUG(c2s->log, "read %d bytes", len);
 
             buf->len = len;
 
             return len;
 
         case event_WRITE:
-            log_debug(ZONE, "writing to %d", c2s->fd->fd);
+            LOG_DEBUG(c2s->log, "writing to %d", c2s->fd->fd);
 
             len = send(c2s->fd->fd, buf->data, buf->len, 0);
             if(len >= 0) {
-                log_debug(ZONE, "%d bytes written", len);
+                LOG_DEBUG(c2s->log, "%d bytes written", len);
                 return len;
             }
 
             if(MIO_WOULDBLOCK)
                 return 0;
 
-            log_write(c2s->log, LOG_NOTICE, "[%d] [router] write error: %s (%d)", c2s->fd->fd, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+            LOG_NOTICE(c2s->log, "[%d] [router] write error: %s (%d)", c2s->fd->fd, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
             sx_kill(s);
 
             return -1;
 
         case event_ERROR:
-            sxe = (sx_error_t *) data;
-            log_write(c2s->log, LOG_NOTICE, "error from router: %s (%s)", sxe->generic, sxe->specific);
+            sxe = data;
+            LOG_NOTICE(c2s->log, "error from router: %s (%s)", sxe->generic, sxe->specific);
 
             if(sxe->code == SX_ERR_AUTH)
                 sx_close(s);
@@ -763,7 +772,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             break;
 
         case event_OPEN:
-            log_write(c2s->log, LOG_NOTICE, "connection to router established");
+            LOG_NOTICE(c2s->log, "connection to router established");
 
             /* set connection attempts counter */
             c2s->retry_left = c2s->retry_lost;
@@ -773,14 +782,14 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             nad_append_elem(nad, ns, "bind", 0);
             nad_append_attr(nad, -1, "name", c2s->id);
 
-            log_debug(ZONE, "requesting component bind for '%s'", c2s->id);
+            LOG_DEBUG(c2s->log, "requesting component bind for '%s'", c2s->id);
 
             sx_nad_write(c2s->router, nad);
 
             return 0;
 
         case event_PACKET:
-            nad = (nad_t) data;
+            nad = data;
 
             /* drop unqualified packets */
             if(NAD_ENS(nad, 0) < 0) {
@@ -791,7 +800,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             /* watch for the features packet */
             if(s->state == state_STREAM) {
                 if(NAD_NURI_L(nad, NAD_ENS(nad, 0)) != strlen(uri_STREAMS) || strncmp(uri_STREAMS, NAD_NURI(nad, NAD_ENS(nad, 0)), strlen(uri_STREAMS)) != 0 || NAD_ENAME_L(nad, 0) != 8 || strncmp("features", NAD_ENAME(nad, 0), 8) != 0) {
-                    log_debug(ZONE, "got a non-features packet on an unauth'd stream, dropping");
+                    LOG_DEBUG(c2s->log, "got a non-features packet on an unauth'd stream, dropping");
                     nad_free(nad);
                     return 0;
                 }
@@ -807,7 +816,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                                 nad_free(nad);
                                 return 0;
                             }
-                            log_write(c2s->log, LOG_ERR, "unable to establish encrypted session with router");
+                            LOG_ERROR(c2s->log, "unable to establish encrypted session with router");
                         }
                     }
                 }
@@ -826,7 +835,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             /* watch for the bind response */
             if(s->state == state_OPEN && !c2s->online) {
                 if(NAD_NURI_L(nad, NAD_ENS(nad, 0)) != strlen(uri_COMPONENT) || strncmp(uri_COMPONENT, NAD_NURI(nad, NAD_ENS(nad, 0)), strlen(uri_COMPONENT)) != 0 || NAD_ENAME_L(nad, 0) != 4 || strncmp("bind", NAD_ENAME(nad, 0), 4) != 0) {
-                    log_debug(ZONE, "got a packet from router, but we're not online, dropping");
+                    LOG_DEBUG(c2s->log, "got a packet from router, but we're not online, dropping");
                     nad_free(nad);
                     return 0;
                 }
@@ -834,11 +843,11 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 /* catch errors */
                 attr = nad_find_attr(nad, 0, -1, "error", NULL);
                 if(attr >= 0) {
-                    log_write(c2s->log, LOG_ERR, "router refused bind request (%.*s)", NAD_AVAL_L(nad, attr), NAD_AVAL(nad, attr));
+                    LOG_ERROR(c2s->log, "router refused bind request (%.*s)", NAD_AVAL_L(nad, attr), NAD_AVAL(nad, attr));
                     exit(1);
                 }
 
-                log_debug(ZONE, "coming online");
+                LOG_DEBUG(c2s->log, "coming online");
 
                 /* if we're coming online for the first time, setup listening sockets */
 #ifdef HAVE_SSL
@@ -848,20 +857,22 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 #endif
                     if(c2s->local_port != 0) {
                         c2s->server_fd = mio_listen(c2s->mio, c2s->local_port, c2s->local_ip, _c2s_client_mio_callback, (void *) c2s);
-                        if(c2s->server_fd == NULL)
-                            log_write(c2s->log, LOG_ERR, "[%s, port=%d] failed to listen", c2s->local_ip, c2s->local_port);
-                        else
-                            log_write(c2s->log, LOG_NOTICE, "[%s, port=%d] listening for connections", c2s->local_ip, c2s->local_port);
+                        if(c2s->server_fd == NULL) {
+                            LOG_ERROR(c2s->log, "[%s, port=%d] failed to listen", c2s->local_ip, c2s->local_port);
+                        } else {
+                            LOG_NOTICE(c2s->log, "[%s, port=%d] listening for connections", c2s->local_ip, c2s->local_port);
+                        }
                     } else
                         c2s->server_fd = NULL;
 
 #ifdef HAVE_SSL
                     if(c2s->local_ssl_port != 0 && c2s->local_pemfile != NULL) {
                         c2s->server_ssl_fd = mio_listen(c2s->mio, c2s->local_ssl_port, c2s->local_ip, _c2s_client_mio_callback, (void *) c2s);
-                        if(c2s->server_ssl_fd == NULL)
-                            log_write(c2s->log, LOG_ERR, "[%s, port=%d] failed to listen", c2s->local_ip, c2s->local_ssl_port);
-                        else
-                            log_write(c2s->log, LOG_NOTICE, "[%s, port=%d] listening for SSL connections", c2s->local_ip, c2s->local_ssl_port);
+                        if(c2s->server_ssl_fd == NULL) {
+                            LOG_ERROR(c2s->log, "[%s, port=%d] failed to listen", c2s->local_ip, c2s->local_ssl_port);
+                        } else {
+                            LOG_NOTICE(c2s->log, "[%s, port=%d] listening for SSL connections", c2s->local_ip, c2s->local_ssl_port);
+                        }
                     } else
                         c2s->server_ssl_fd = NULL;
 #endif
@@ -869,10 +880,10 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
 #ifdef HAVE_SSL
                 if(c2s->server_fd == NULL && c2s->server_ssl_fd == NULL && c2s->pbx_pipe == NULL) {
-                    log_write(c2s->log, LOG_ERR, "both normal and SSL ports are disabled, nothing to do!");
+                    LOG_ERROR(c2s->log, "both normal and SSL ports are disabled, nothing to do!");
 #else
                 if(c2s->server_fd == NULL && c2s->pbx_pipe == NULL) {
-                    log_write(c2s->log, LOG_ERR, "server port is disabled, nothing to do!");
+                    LOG_ERROR(c2s->log, "server port is disabled, nothing to do!");
 #endif
                     exit(1);
                 }
@@ -883,7 +894,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
                 /* we're online */
                 c2s->online = c2s->started = 1;
-                log_write(c2s->log, LOG_NOTICE, "ready for connections", c2s->id);
+                LOG_NOTICE(c2s->log, "'%s' ready for connections", c2s->id);
 
                 nad_free(nad);
                 return 0;
@@ -891,7 +902,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
             /* need component packets */
             if(NAD_NURI_L(nad, NAD_ENS(nad, 0)) != strlen(uri_COMPONENT) || strncmp(uri_COMPONENT, NAD_NURI(nad, NAD_ENS(nad, 0)), strlen(uri_COMPONENT)) != 0) {
-                log_debug(ZONE, "wanted component packet, dropping");
+                LOG_DEBUG(c2s->log, "wanted component packet, dropping");
                 nad_free(nad);
                 return 0;
             }
@@ -904,28 +915,28 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
             /* we want route */
             if(NAD_ENAME_L(nad, 0) != 5 || strncmp("route", NAD_ENAME(nad, 0), 5) != 0) {
-                log_debug(ZONE, "wanted {component}route, dropping");
+                LOG_DEBUG(c2s->log, "wanted {component}route, dropping");
                 nad_free(nad);
                 return 0;
             }
 
             /* only handle unicasts */
             if(nad_find_attr(nad, 0, -1, "type", NULL) >= 0) {
-                log_debug(ZONE, "non-unicast packet, dropping");
+                LOG_DEBUG(c2s->log, "non-unicast packet, dropping");
                 nad_free(nad);
                 return 0;
             }
 
             /* need some payload */
             if(nad->ecur == 1) {
-                log_debug(ZONE, "no route payload, dropping");
+                LOG_DEBUG(c2s->log, "no route payload, dropping");
                 nad_free(nad);
                 return 0;
             }
 
             ns = nad_find_namespace(nad, 1, uri_SESSION, NULL);
             if(ns < 0) {
-                log_debug(ZONE, "not a c2s packet, dropping");
+                LOG_DEBUG(c2s->log, "not a c2s packet, dropping");
                 nad_free(nad);
                 return 0;
             }
@@ -933,7 +944,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             /* figure out the session */
             c2sid = nad_find_attr(nad, 1, ns, "c2s", NULL);
             if(c2sid < 0) {
-                log_debug(ZONE, "no c2s id on payload, dropping");
+                LOG_DEBUG(c2s->log, "no c2s id on payload, dropping");
                 nad_free(nad);
                 return 0;
             }
@@ -944,40 +955,40 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             if(sess == NULL) {
                 /* if we get this, the SM probably thinks the session is still active
                  * so we need to tell SM to free it up */
-                log_debug(ZONE, "no session for %s", skey);
+                LOG_DEBUG(c2s->log, "no session for %s", skey);
 
                 /* check if it's a started action; otherwise we could end up in an infinite loop
                  * trying to tell SM to close in response to errors */
                 action = nad_find_attr(nad, 1, -1, "action", NULL);
                 if(action >= 0 && NAD_AVAL_L(nad, action) == 7 && strncmp("started", NAD_AVAL(nad, action), 7) == 0) {
                     int target;
-                    bres_t tres;
-                    sess_t tsess;
+                    bres_t *tres;
+                    sess_t *tsess;
 
-                    log_write(c2s->log, LOG_NOTICE, "session %s does not exist; telling sm to close", skey);
+                    LOG_NOTICE(c2s->log, "session %s does not exist; telling sm to close", skey);
 
                     /* we don't have a session and we don't have a resource; we need to forge them both
                      * to get SM to close stuff */
                     target = nad_find_attr(nad, 1, -1, "target", NULL);
                     smid = nad_find_attr(nad, 1, ns, "sm", NULL);
                     if(target < 0 || smid < 0) {
-                        const char *buf;
-                        int len;
+                        char *buf;
+                        unsigned int len;
                         nad_print(nad, 0, &buf, &len);
-                        log_write(c2s->log, LOG_NOTICE, "sm sent an invalid start packet: %.*s", len, buf );
+                        LOG_NOTICE(c2s->log, "sm sent an invalid start packet: %.*s", len, buf );
                         nad_free(nad);
                         return 0;
                     }
 
                     /* build temporary resource to close session for */
-                    tres = (bres_t) calloc(1, sizeof(struct bres_st));
+                    tres = new(bres_t);
                     tres->jid = jid_new(NAD_AVAL(nad, target), NAD_AVAL_L(nad, target));
 
                     strncpy(tres->c2s_id, skey, sizeof(tres->c2s_id));
                     snprintf(tres->sm_id, sizeof(tres->sm_id), "%.*s", NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
 
                     /* make a temporary session */
-                    tsess = (sess_t) calloc(1, sizeof(struct sess_st));
+                    tsess = new(sess_t);
                     tsess->c2s = c2s;
                     tsess->result = nad_new();
                     strncpy(tsess->skey, skey, sizeof(tsess->skey));
@@ -998,7 +1009,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
             /* if they're pre-stream, then this is leftovers from a previous session */
             if(sess->s && sess->s->state < state_STREAM) {
-                log_debug(ZONE, "session %s is pre-stream", skey);
+                LOG_DEBUG(c2s->log, "session %s is pre-stream", skey);
 
                 nad_free(nad);
                 return 0;
@@ -1020,7 +1031,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     sx_nad_write(sess->s, sess->result);
                     sess->result = NULL;
                 } else {
-                    log_write(sess->c2s->log, LOG_WARNING, "user created for session %s which is already gone", skey);
+                    LOG_WARN(c2s->log, "user created for session %s which is already gone", skey);
                 }
 
                 return 0;
@@ -1028,7 +1039,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
             /* route errors */
             if(nad_find_attr(nad, 0, -1, "error", NULL) >= 0) {
-                log_debug(ZONE, "routing error");
+                LOG_DEBUG(c2s->log, "routing error");
 
                 if(sess->s) {
                     sx_error(sess->s, stream_err_INTERNAL_SERVER_ERROR, "internal server error");
@@ -1041,7 +1052,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
             /* all other packets need to contain an sm ID */
             if (smid < 0) {
-                log_debug(ZONE, "received packet from sm without an sm ID, dropping");
+                LOG_DEBUG(c2s->log, "received packet from sm without an sm ID, dropping");
                 nad_free(nad);
                 return 0;
             }
@@ -1054,8 +1065,8 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                         break;
                 }
             if(bres == NULL) {
-                jid_t jid = NULL;
-                bres_t tres = NULL;
+                jid_t *jid = NULL;
+                bres_t *tres = NULL;
 
                 /* if it's a failure, just drop it */
                 if(nad_find_attr(nad, 1, ns, "failed", NULL) >= 0) {
@@ -1064,10 +1075,10 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 }
 
                 /* build temporary resource to close session for */
-                tres = (bres_t) calloc(1, sizeof(struct bres_st));
+                tres = new(bres_t);
                 if(sess->s) {
                     jid = jid_new(sess->s->auth_id, -1);
-                    sprintf(tres->c2s_id, "%d", sess->s->tag);
+                    sprintf(tres->c2s_id, "%s:%d", sess->s->ip, sess->s->port);
                 }
                 else {
                     /* does not have SX - extract values from route packet */
@@ -1075,7 +1086,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     c2sid = nad_find_attr(nad, 1, ns, "c2s", NULL);
                     target = nad_find_attr(nad, 1, -1, "target", NULL);
                     if(c2sid < 0 || target < 0) {
-                        log_debug(ZONE, "needed ids not found - c2sid:%d target:%d", c2sid, target);
+                        LOG_DEBUG(c2s->log, "needed ids not found - c2sid:%d target:%d", c2sid, target);
                         nad_free(nad);
                         free(tres);
                         return 0;
@@ -1087,9 +1098,9 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 snprintf(tres->sm_id, sizeof(tres->sm_id), "%.*s", NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
 
                 if(sess->resources) {
-                    log_debug(ZONE, "expected packet from sm session %s, but got one from %.*s, ending sm session", sess->resources->sm_id, NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
+                    LOG_DEBUG(c2s->log, "expected packet from sm session %s, but got one from %.*s, ending sm session", sess->resources->sm_id, NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
                 } else {
-                    log_debug(ZONE, "no resource bound yet, but got packet from sm session %.*s, ending sm session", NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
+                    LOG_DEBUG(c2s->log, "no resource bound yet, but got packet from sm session %.*s, ending sm session", NAD_AVAL_L(nad, smid), NAD_AVAL(nad, smid));
                 }
 
                 /* end a session with the sm */
@@ -1159,7 +1170,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                         ires->next = bres->next;
                     }
 
-                    log_write(sess->c2s->log, LOG_NOTICE, "[%d] unbound: jid=%s", sess->s->tag, jid_full(bres->jid));
+                    LOG_NOTICE(c2s->log, "[%s:%d] unbound: jid=%s", sess->s->ip, sess->s->port, jid_full(bres->jid));
 
                     jid_free(bres->jid);
                     free(bres);
@@ -1178,9 +1189,9 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 /* make sure the id matches */
                 if(id < 0 || bres->sm_request[0] == '\0' || strlen(bres->sm_request) != NAD_AVAL_L(nad, id) || strncmp(bres->sm_request, NAD_AVAL(nad, id), NAD_AVAL_L(nad, id)) != 0) {
                     if(id >= 0) {
-                        log_debug(ZONE, "got a response with id %.*s, but we were expecting %s", NAD_AVAL_L(nad, id), NAD_AVAL(nad, id), bres->sm_request);
+                        LOG_DEBUG(c2s->log, "got a response with id %.*s, but we were expecting %s", NAD_AVAL_L(nad, id), NAD_AVAL(nad, id), bres->sm_request);
                     } else {
-                        log_debug(ZONE, "got a response with no id, but we were expecting %s", bres->sm_request);
+                        LOG_DEBUG(c2s->log, "got a response with no id, but we were expecting %s", bres->sm_request);
                     }
 
                     nad_free(nad);
@@ -1198,10 +1209,11 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
                         /* create failed, so we need to remove them from authreg */
                         if(NAD_AVAL_L(nad, action) == 6 && sess->host->ar->delete_user != NULL) {
-                            if((sess->host->ar->delete_user)(sess->host->ar, sess, bres->jid->node, sess->host->realm) != 0)
-                                log_write(c2s->log, LOG_NOTICE, "[%d] user creation failed, and unable to delete user credentials: user=%s, realm=%s", sess->s->tag, bres->jid->node, sess->host->realm);
-                            else
-                                log_write(c2s->log, LOG_NOTICE, "[%d] user creation failed, so deleted user credentials: user=%s, realm=%s", sess->s->tag, bres->jid->node, sess->host->realm);
+                            if((sess->host->ar->delete_user)(sess->host->ar, sess, bres->jid->node, sess->host->realm) != 0) {
+                                LOG_NOTICE(c2s->log, "[%s:%d] user creation failed, and unable to delete user credentials: user=%s, realm=%s", sess->s->ip, sess->s->port, bres->jid->node, sess->host->realm);
+                            } else {
+                                LOG_NOTICE(c2s->log, "[%s:%d] user creation failed, so deleted user credentials: user=%s, realm=%s", sess->s->ip, sess->s->port, bres->jid->node, sess->host->realm);
+                            }
                         }
 
                         /* error the result and return it to the client */
@@ -1226,7 +1238,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                         return 0;
                     }
 
-                    log_debug(ZONE, "weird, got a failed session response, with a matching id, but the action is bogus *shrug*");
+                    LOG_DEBUG(c2s->log, "weird, got a failed session response, with a matching id, but the action is bogus *shrug*");
 
                     nad_free(nad);
                     return 0;
@@ -1274,7 +1286,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 /* handled request */
                 bres->sm_request[0] = '\0';
 
-                log_debug(ZONE, "unknown action %.*s", NAD_AVAL_L(nad, id), NAD_AVAL(nad, id));
+                LOG_DEBUG(c2s->log, "unknown action %.*s", NAD_AVAL_L(nad, id), NAD_AVAL(nad, id));
 
                 nad_free(nad);
 
@@ -1285,7 +1297,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             if(NAD_NURI_L(nad, NAD_ENS(nad, 1)) == strlen(uri_CLIENT) && strncmp(uri_CLIENT, NAD_NURI(nad, NAD_ENS(nad, 1)), strlen(uri_CLIENT)) == 0) {
                 if(!sess->active || !sess->s) {
                     /* its a strange world .. */
-                    log_debug(ZONE, "Got packet for %s - dropping", !sess->s ? "session without stream (PBX pipe session?)" : "inactive session");
+                    LOG_DEBUG(c2s->log, "Got packet for %s - dropping", !sess->s ? "session without stream (PBX pipe session?)" : "inactive session");
                     nad_free(nad);
                     return 0;
                 }
@@ -1326,7 +1338,7 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             }
 
             /* its something else */
-            log_debug(ZONE, "unknown packet, dropping");
+            LOG_DEBUG(c2s->log, "unknown packet, dropping");
 
             nad_free(nad);
             return 0;
@@ -1341,12 +1353,12 @@ int c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 }
 
 int c2s_router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg) {
-    c2s_t c2s = (c2s_t) arg;
+    c2s_t *c2s = arg;
     int nbytes;
 
     switch(a) {
         case action_READ:
-            log_debug(ZONE, "read action on fd %d", fd->fd);
+            LOG_DEBUG(c2s->log, "read action on fd %d", fd->fd);
 
             ioctl(fd->fd, FIONREAD, &nbytes);
             if(nbytes == 0) {
@@ -1357,12 +1369,12 @@ int c2s_router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, vo
             return sx_can_read(c2s->router);
 
         case action_WRITE:
-            log_debug(ZONE, "write action on fd %d", fd->fd);
+            LOG_DEBUG(c2s->log, "write action on fd %d", fd->fd);
             return sx_can_write(c2s->router);
 
         case action_CLOSE:
-            log_debug(ZONE, "close action on fd %d", fd->fd);
-            log_write(c2s->log, LOG_NOTICE, "connection to router closed");
+            LOG_DEBUG(c2s->log, "close action on fd %d", fd->fd);
+            LOG_NOTICE(c2s->log, "connection to router closed");
 
             c2s_lost_router = 1;
 

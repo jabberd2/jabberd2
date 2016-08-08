@@ -24,16 +24,16 @@
  */
 
 #include "s2s.h"
+#include "lib/nad.h"
+#include "lib/uri.h"
 
 #define S2S_DB_NS_DECL      " xmlns:db='" uri_DIALBACK "'"
 #define S2S_DB_NS_DECL_LEN  (uri_DIALBACK_L + 12)
 
-static void _s2s_db_header(sx_t s, sx_plugin_t p, sx_buf_t buf) {
+static void _s2s_db_header(sx_t *s, sx_plugin_t *p, sx_buf_t *buf) {
 
     if(!(s->flags & S2S_DB_HEADER))
         return;
-
-    log_debug(ZONE, "hacking dialback namespace decl onto stream header");
 
     /* get enough space */
     _sx_buffer_alloc_margin(buf, 0, S2S_DB_NS_DECL_LEN + 2);
@@ -44,7 +44,7 @@ static void _s2s_db_header(sx_t s, sx_plugin_t p, sx_buf_t buf) {
 }
 
 /** sx features callback */
-static void _s2s_db_features(sx_t s, sx_plugin_t p, nad_t nad) {
+static void _s2s_db_features(sx_t *s, sx_plugin_t *p, nad_t *nad) {
     int ns;
 
     ns = nad_add_namespace(nad, uri_URN_DIALBACK, NULL);
@@ -52,8 +52,7 @@ static void _s2s_db_features(sx_t s, sx_plugin_t p, nad_t nad) {
     nad_append_elem(nad, -1, "required", 2);
 }
 
-int s2s_db_init(sx_env_t env, sx_plugin_t p, va_list args) {
-    log_debug(ZONE, "initialising dialback sx plugin");
+int s2s_db_init(sx_env_t *env, sx_plugin_t *p, va_list args) {
 
     p->header = _s2s_db_header;
     p->features = _s2s_db_features;

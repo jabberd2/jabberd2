@@ -19,6 +19,7 @@
  */
 
 #include "sm.h"
+#include "lib/stanza.h"
 #include <time.h>
 
 /** @file sm/mod_announce.c
@@ -34,20 +35,20 @@
  */
 
 typedef struct moddata_st {
-    nad_t       nad;
+    nad_t       *nad;
     int         loaded;
     time_t      t;
-    os_t        tos;
+    os_t        *tos;
     int         index;
     char        *announce_resource;
     char        *online_resource;
-} *moddata_t;
+} moddata_t;
 
-static void _announce_load(module_t mod, moddata_t data, const char *domain) {
+static void _announce_load(module_t *mod, moddata_t *data, const char *domain) {
     st_ret_t ret;
-    os_t os;
-    os_object_t o;
-    nad_t nad;
+    os_t *os;
+    os_object_t *o;
+    nad_t *nad;
     int ns, elem, attr;
     char timestamp[18], telem[5];
     struct tm tm;
@@ -117,14 +118,14 @@ static void _announce_load(module_t mod, moddata_t data, const char *domain) {
     os_object_put(os_object_new(data->tos), "time", &data->t, os_type_INTEGER);
 }
 
-static mod_ret_t _announce_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
-    module_t mod = mi->mod;
-    moddata_t data = (moddata_t) mod->private;
+static mod_ret_t _announce_in_sess(mod_instance_t *mi, sess_t *sess, pkt_t *pkt) {
+    module_t *mod = mi->mod;
+    moddata_t *data = mod->private;
     time_t t;
-    nad_t nad;
-    pkt_t motd;
-    os_t os;
-    os_object_t o;
+    nad_t *nad;
+    pkt_t *motd;
+    os_t *os;
+    os_object_t *o;
 
     /* try to load data if we haven't yet */
     if(data->nad == NULL) {
@@ -153,7 +154,7 @@ static mod_ret_t _announce_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
             return mod_PASS;
 
         /* a-delivering we go */
-        log_debug(ZONE, "delivering stored motd to %s", jid_full(sess->jid));
+        LOG_DEBUG(mi->sm->log, "delivering stored motd to %s", jid_full(sess->jid));
 
         nad = nad_copy(data->nad);
         nad_set_attr(nad, 1, -1, "to", jid_full(sess->jid), strlen(jid_full(sess->jid)));
@@ -161,7 +162,7 @@ static mod_ret_t _announce_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 
         motd = pkt_new(mod->mm->sm, nad); // pkt_new takes ownership of given nad
         if(motd == NULL) {
-            log_debug(ZONE, "invalid stored motd, not delivering");
+            LOG_DEBUG(mi->sm->log, "invalid stored motd, not delivering");
         } else
             pkt_router(motd);
 
@@ -173,16 +174,16 @@ static mod_ret_t _announce_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 }
 
 static void _announce_broadcast_user(const char *key, int keylen, void *val, void *arg) {
-    user_t user = (user_t) val;
-    moddata_t data = (moddata_t) arg;
-    sess_t sess;
-    nad_t nad;
+    user_t *user = val;
+    moddata_t *data = arg;
+    sess_t *sess;
+    nad_t *nad;
 
     for(sess = user->sessions; sess != NULL; sess = sess->next) {
         if(!sess->available || sess->pri < 0)
             continue;
 
-        log_debug(ZONE, "resending to '%s'", jid_full(sess->jid));
+//        LOG_DEBUG(mi->sm->log, "resending to '%s'", jid_full(sess->jid));
 
         nad = nad_copy(data->nad);
         nad_set_attr(nad, 1, -1, "to", jid_full(sess->jid), strlen(jid_full(sess->jid)));
@@ -195,15 +196,15 @@ static void _announce_broadcast_user(const char *key, int keylen, void *val, voi
     }
 }
 
-static mod_ret_t _announce_pkt_sm(mod_instance_t mi, pkt_t pkt) {
-    module_t mod = mi->mod;
-    moddata_t data = (moddata_t) mod->private;
-    pkt_t store;
-    nad_t nad;
-    jid_t jid;
+static mod_ret_t _announce_pkt_sm(mod_instance_t *mi, pkt_t *pkt) {
+    module_t *mod = mi->mod;
+    moddata_t *data = mod->private;
+    pkt_t *store;
+    nad_t *nad;
+    jid_t *jid;
     time_t t;
-    os_t os;
-    os_object_t o;
+    os_t *os;
+    os_object_t *o;
     st_ret_t ret;
     int elem;
 
@@ -212,7 +213,7 @@ static mod_ret_t _announce_pkt_sm(mod_instance_t mi, pkt_t pkt) {
 
     /* answer to probes and subscription requests if admin */
     if((pkt->type == pkt_PRESENCE_PROBE || pkt->type == pkt_S10N) && aci_check(mod->mm->sm->acls, "broadcast", pkt->from)) {
-        log_debug(ZONE, "answering presence probe/sub from %s with /announce resources", jid_full(pkt->from));
+        LOG_DEBUG(mi->sm->log, "answering presence probe/sub from %s with /announce resources", jid_full(pkt->from));
 
         /* send presences */
         jid = jid_new(pkt->from->domain, -1);
@@ -232,7 +233,7 @@ static mod_ret_t _announce_pkt_sm(mod_instance_t mi, pkt_t pkt) {
 
     /* make sure they're allowed */
     if(!aci_check(mod->mm->sm->acls, "broadcast", pkt->from)) {
-        log_debug(ZONE, "not allowing broadcast from %s", jid_full(pkt->from));
+        LOG_DEBUG(mi->sm->log, "not allowing broadcast from %s", jid_full(pkt->from));
         return -stanza_err_FORBIDDEN;
     }
 
@@ -244,7 +245,7 @@ static mod_ret_t _announce_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     if(elem >= 0) nad_drop_elem(pkt->nad, elem);
 
     if(pkt->to->resource[8] == '\0') {
-        log_debug(ZONE, "storing message for announce later");
+        LOG_DEBUG(mi->sm->log, "storing message for announce later");
 
         store = pkt_dup(pkt, NULL, NULL);
 
@@ -290,12 +291,12 @@ static mod_ret_t _announce_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     }
 
     else if(strcmp(&(pkt->to->resource[8]), "/online") != 0) {
-        log_debug(ZONE, "unknown announce resource '%s'", pkt->to->resource);
+        LOG_DEBUG(mi->sm->log, "unknown announce resource '%s'", pkt->to->resource);
         pkt_free(pkt);
         return mod_HANDLED;
     }
 
-    log_debug(ZONE, "broadcasting message to all sessions");
+    LOG_DEBUG(mi->sm->log, "broadcasting message to all sessions");
 
     /* hack */
     nad = data->nad;
@@ -309,27 +310,27 @@ static mod_ret_t _announce_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     return mod_HANDLED;
 }
 
-static void _announce_user_delete(mod_instance_t mi, jid_t jid) {
-    log_debug(ZONE, "deleting motd time for %s", jid_user(jid));
+static void _announce_user_delete(mod_instance_t *mi, jid_t *jid) {
+    LOG_DEBUG(mi->sm->log, "deleting motd time for %s", jid_user(jid));
 
     storage_delete(mi->sm->st, "motd-times", jid_user(jid), NULL);
 }
 
-static void _announce_free(module_t mod) {
-    moddata_t data = (moddata_t) mod->private;
+static void _announce_free(module_t *mod) {
+    moddata_t *data = mod->private;
 
     if(data->nad != NULL) nad_free(data->nad);
     if(data->tos != NULL) os_free(data->tos);
     free(data);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
-    module_t mod = mi->mod;
-    moddata_t data;
+DLLEXPORT int module_init(mod_instance_t *mi, const char *arg) {
+    module_t *mod = mi->mod;
+    moddata_t *data;
 
     if(mod->init) return 0;
 
-    data = (moddata_t) calloc(1, sizeof(struct moddata_st));
+    data = new(moddata_t);
 
     mod->private = (void *) data;
 

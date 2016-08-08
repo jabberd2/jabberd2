@@ -34,17 +34,17 @@ typedef struct _verify_st {
     char *code;
 } verify_t;
 
-static void print_instructions(pkt_t res);
+static void print_instructions(pkt_t *res);
 
 
-static void send_email(verify_t *v, user_t user, pkt_t res, char *message)
+static void send_email(verify_t *v, user_t *user, pkt_t *res, char *message)
 {
     FILE *pipe;
     regex_t preg;
     regmatch_t match[1];
     int result;
-    os_t os;
-    os_object_t o;
+    os_t *os;
+    os_object_t *o;
 
     message = strdup(message);
     result = regcomp(&preg, "[a-z0-9._+-]+@[a-z0-9.-]+", REG_EXTENDED|REG_ICASE);
@@ -61,27 +61,27 @@ static void send_email(verify_t *v, user_t user, pkt_t res, char *message)
         free(v->email);
     *(message + match[0].rm_eo) = '\0';
     v->email = strdup(message + match[0].rm_so);
-    log_debug(ZONE, "email: >%s<", v->email);
+    LOG_DEBUG(user->sm->log, "email: >%s<", v->email);
 
     if (v->code != NULL)
         free(v->code);
     v->code = calloc(1,11);
     if ((pipe = popen("pwgen 10 1", "r")) == NULL) {
-        log_write(user->sm->log, LOG_ERR, "Error generating email code for %s using 'pwgen'. %d:%s", v->email, errno, strerror(errno));
+        LOG_ERROR(user->sm->log, "Error generating email code for %s using 'pwgen'. %d:%s", v->email, errno, strerror(errno));
         goto error;
     }
     if (fgets(v->code, 11, pipe) == NULL) {
-        log_write(user->sm->log, LOG_ERR, "Error getting email code for %s from 'pwgen'. %d:%s", v->email, errno, strerror(errno));
+        LOG_ERROR(user->sm->log, "Error getting email code for %s from 'pwgen'. %d:%s", v->email, errno, strerror(errno));
         pclose(pipe);
         goto error;
     }
     if (pclose(pipe) == -1) {
-        log_write(user->sm->log, LOG_ERR, "Error closing email code for %s from 'pwgen'. %d:%s", v->email, errno, strerror(errno));
+        LOG_ERROR(user->sm->log, "Error closing email code for %s from 'pwgen'. %d:%s", v->email, errno, strerror(errno));
         goto error;
     }
-    log_debug(ZONE, "code: >%s<", v->code);
+    LOG_DEBUG(user->sm->log, "code: >%s<", v->code);
     if ((pipe = popen("sendmail -t -F 'Jabber Server'", "w")) == NULL) {
-        log_write(user->sm->log, LOG_ERR, "Error starting sendmail to %s. %d:%s", v->email, errno, strerror(errno));
+        LOG_ERROR(user->sm->log, "Error starting sendmail to %s. %d:%s", v->email, errno, strerror(errno));
         goto error;
     }
 
@@ -91,7 +91,7 @@ static void send_email(verify_t *v, user_t user, pkt_t res, char *message)
     os_object_put(o, "code",  v->code, os_type_STRING);
     os_object_put(o, "state", &v->state, os_type_INTEGER);
     if (storage_replace(user->sm->st, "verify", jid_user(user->jid), NULL, os) != st_SUCCESS) {
-        log_write(user->sm->log, LOG_ERR, "Error writing email code to DB for %s", v->email);
+        LOG_ERROR(user->sm->log, "Error writing email code to DB for %s", v->email);
         free(v->email);
         free(v->code);
         v->email=NULL;
@@ -106,12 +106,12 @@ static void send_email(verify_t *v, user_t user, pkt_t res, char *message)
                 "Please reply the following line to the jabber server to confirm your email address.\n\n"
                 "code: %s\n"
                 ".\n", v->email, v->code) < 0) {
-        log_write(user->sm->log, LOG_ERR, "Error writing sendmail to %s. %d:%s", v->email, errno, strerror(errno));
+        LOG_ERROR(user->sm->log, "Error writing sendmail to %s. %d:%s", v->email, errno, strerror(errno));
         pclose(pipe);
         goto error;
     }
     if (pclose(pipe) == -1) {
-        log_write(user->sm->log, LOG_ERR, "Error closing sendmail to %s. %d:%s", v->email, errno, strerror(errno));
+        LOG_ERROR(user->sm->log, "Error closing sendmail to %s. %d:%s", v->email, errno, strerror(errno));
         goto error;
     }
     nad_insert_elem(res->nad, 1, NAD_ENS(res->nad, 1),
@@ -134,10 +134,10 @@ free:
     return;
 }
 
-static void check_code(verify_t *v, user_t user, pkt_t res, char *message)
+static void check_code(verify_t *v, user_t *user, pkt_t *res, char *message)
 {
-    os_t os;
-    os_object_t o;
+    os_t *os;
+    os_object_t *o;
 
     if (v->code == NULL) {
         print_instructions(res);
@@ -145,7 +145,7 @@ static void check_code(verify_t *v, user_t user, pkt_t res, char *message)
     }
     if (strstr(message, v->code) != NULL) {
         v->state = VERIFIED;
-        log_debug(ZONE, "check_code: VERIFIED");
+        LOG_DEBUG(user->sm->log, "check_code: VERIFIED");
 
         os = os_new();
         o = os_object_new(os);
@@ -153,7 +153,7 @@ static void check_code(verify_t *v, user_t user, pkt_t res, char *message)
         os_object_put(o, "code",  v->code, os_type_STRING);
         os_object_put(o, "state", &v->state, os_type_INTEGER);
         if (storage_replace(user->sm->st, "verify", jid_user(user->jid), NULL, os) != st_SUCCESS) {
-            log_write(user->sm->log, LOG_ERR, "Error writing verification state to DB for %s", v->email);
+            LOG_ERROR(user->sm->log, "Error writing verification state to DB for %s", v->email);
         }
         os_free(os);
         nad_insert_elem(res->nad, 1, NAD_ENS(res->nad, 1),
@@ -171,7 +171,7 @@ static void check_code(verify_t *v, user_t user, pkt_t res, char *message)
     }
 }
 
-static void print_instructions(pkt_t res)
+static void print_instructions(pkt_t *res)
 {
     nad_insert_elem(res->nad, 1, NAD_ENS(res->nad, 1),
                     "subject", "Please enter your email address");
@@ -185,32 +185,32 @@ static void print_instructions(pkt_t res)
                     "be sent to that email address.");
 }
 
-static mod_ret_t _verify_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)
+static mod_ret_t _verify_in_sess(mod_instance_t *mi, sess_t *sess, pkt_t *pkt)
 {
-    pkt_t res;
-    nad_t nad = pkt->nad;
+    pkt_t *res;
+    nad_t *nad = pkt->nad;
     int body, message;
     char *cdata= NULL;
     verify_t *v = sess->user->module_data[mi->mod->index];
 
-    log_debug(ZONE, "_verify_in_sess: %d", v->state);
+    LOG_DEBUG(mi->sm->log, "_verify_in_sess: %d", v->state);
 
     if(v->state == VERIFIED || !(pkt->type & pkt_MESSAGE))
         return mod_PASS;
 
-    log_debug(ZONE, "blocking message from from %s", jid_full(sess->jid));
+    LOG_DEBUG(mi->sm->log, "blocking message from from %s", jid_full(sess->jid));
 
     message = nad_find_elem(nad, 0, -1, "message", 1);
-    log_debug(ZONE, "message: %d", message);
+    LOG_DEBUG(mi->sm->log, "message: %d", message);
     if (message >= 0) {
         body = nad_find_elem(nad, message, -1, "body", 1);
-        log_debug(ZONE, "body: %d", body);
+        LOG_DEBUG(mi->sm->log, "body: %d", body);
         if (body >= 0) {
             size_t len = NAD_CDATA_L(nad, body);
             cdata = malloc(len+1);
             strncpy(cdata, NAD_CDATA(nad, body), len);
             cdata[len] = '\0';
-            log_debug(ZONE, "---> %s <---", cdata);
+            LOG_DEBUG(mi->sm->log, "---> %s <---", cdata);
             res = pkt_create(mi->mod->mm->sm, "message", NULL, jid_full(sess->jid),
                              mi->mod->mm->sm->id);
             if (strstr(cdata, "email: ") == cdata) {
@@ -231,7 +231,6 @@ static mod_ret_t _verify_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)
 
 static void _verify_user_free(verify_t *v)
 {
-    log_debug(ZONE, "_verify_user_free");
     if (v->email != NULL)
         free(v->email);
     if (v->code != NULL)
@@ -239,21 +238,21 @@ static void _verify_user_free(verify_t *v)
     free(v);
 }
 
-static void _verify_user_delete(mod_instance_t mi, jid_t jid)
+static void _verify_user_delete(mod_instance_t *mi, jid_t *jid)
 {
-    log_debug(ZONE, "deleting email verification for %s", jid_user(jid));
+    LOG_DEBUG(mi->sm->log, "deleting email verification for %s", jid_user(jid));
     storage_delete(mi->sm->st, "verify", jid_user(jid), NULL);
 }
 
-static int _verify_user_load(mod_instance_t mi, user_t user)
+static int _verify_user_load(mod_instance_t *mi, user_t *user)
 {
     verify_t *v;
-    os_t os;
-    os_object_t o;
+    os_t *os;
+    os_object_t *o;
     int state;
 
-    log_debug(ZONE, "_verify_user_load: >%s<", jid_user(user->jid));
-    v = calloc(1, sizeof(struct _verify_st));
+    LOG_DEBUG(mi->sm->log, "_verify_user_load: >%s<", jid_user(user->jid));
+    v = new(verify_t);
     user->module_data[mi->mod->index] = v;
     if (storage_get(user->sm->st, "verify", jid_user(user->jid), NULL, &os) == st_SUCCESS) {
         if (os_iter_first(os)) {
@@ -272,17 +271,17 @@ static int _verify_user_load(mod_instance_t mi, user_t user)
         }
         os_free(os);
     }
-    log_debug(ZONE, "_verify_user_load: state=%d<", v->state);
+    LOG_DEBUG(mi->sm->log, "_verify_user_load: state=%d<", v->state);
     pool_cleanup(user->p, (void (*))(void *) _verify_user_free, v);
     return 0;
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, char *arg) {
-    module_t mod = mi->mod;
+DLLEXPORT int module_init(mod_instance_t *mi, char *arg) {
+    module_t *mod = mi->mod;
 
     if(mod->init) return 0;
 
-    log_debug(ZONE, "mod_verify:init: %p", mi);
+    LOG_DEBUG(mi->sm->log, "mod_verify:init: %p", mi);
     mod->in_sess = _verify_in_sess;
     mod->user_load = _verify_user_load;
     mod->user_delete = _verify_user_delete;

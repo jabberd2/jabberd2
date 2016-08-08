@@ -20,8 +20,12 @@
 
 #define _GNU_SOURCE
 #include <string.h>
+#include <assert.h>
+#include <sys/ioctl.h>
 
 #include "s2s.h"
+#include "lib/uri.h"
+#include "lib/stanza.h"
 
 #include <idna.h>
 
@@ -102,19 +106,19 @@
 
 /* forward decls */
 static int _out_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
-static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg);
-static void _out_result(conn_t out, nad_t nad);
-static void _out_verify(conn_t out, nad_t nad);
+static int _out_sx_callback(sx_t *s, sx_event_t e, void *data, void *arg);
+static void _out_result(conn_t *out, nad_t *nad);
+static void _out_verify(conn_t *out, nad_t *nad);
 static void _dns_result_aaaa(struct dns_ctx *ctx, struct dns_rr_a6 *result, void *data);
 static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *data);
 
 /** queue the packet */
-static void _out_packet_queue(s2s_t s2s, pkt_t pkt) {
+static void _out_packet_queue(s2s_t *s2s, pkt_t *pkt) {
     char *rkey = s2s_route_key(NULL, pkt->from->domain, pkt->to->domain);
-    jqueue_t q = (jqueue_t) xhash_get(s2s->outq, rkey);
+    jqueue_t *q = xhash_get(s2s->outq, rkey);
 
     if(q == NULL) {
-        log_debug(ZONE, "creating new out packet queue for '%s'", rkey);
+        LOG_DEBUG(s2s->log, "creating new out packet queue for '%s'", rkey);
         q = jqueue_new();
         q->key = rkey;
         xhash_put(s2s->outq, q->key, (void *) q);
@@ -122,14 +126,14 @@ static void _out_packet_queue(s2s_t s2s, pkt_t pkt) {
         free(rkey);
     }
 
-    log_debug(ZONE, "queueing packet for '%s'", q->key);
+    LOG_DEBUG(s2s->log, "queueing packet for '%s'", q->key);
 
     jqueue_push(q, (void *) pkt, 0);
 }
 
-static void _out_dialback(conn_t out, const char *rkey, int rkeylen) {
+static void _out_dialback(conn_t *out, const char *rkey, int rkeylen) {
     char *c, *dbkey, *tmp;
-    nad_t nad;
+    nad_t *nad;
     int elem, ns;
     int from_len, to_len;
     time_t now;
@@ -155,8 +159,8 @@ static void _out_dialback(conn_t out, const char *rkey, int rkeylen) {
     nad_set_attr(nad, elem, -1, "to", c, to_len);
     nad_append_cdata(nad, dbkey, strlen(dbkey), 1);
 
-    log_debug(ZONE, "sending auth request for %.*s (key %s)", rkeylen, rkey, dbkey);
-    log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] sending dialback auth request for route '%.*s'", out->fd->fd, out->ip, out->port, rkeylen, rkey);
+    LOG_DEBUG(out->s2s->log, "sending auth request for %.*s (key %s)", rkeylen, rkey, dbkey);
+    LOG_NOTICE(out->s2s->log, "[%d] [%s, port=%d] sending dialback auth request for route '%.*s'", out->fd->fd, out->ip, out->port, rkeylen, rkey);
 
     /* off it goes */
     sx_nad_write(out->s, nad);
@@ -170,16 +174,16 @@ static void _out_dialback(conn_t out, const char *rkey, int rkeylen) {
     xhash_put(out->states_time, pstrdupx(xhash_pool(out->states_time), rkey, rkeylen), (void *) now);
 }
 
-void _out_dns_mark_bad(conn_t out) {
+void _out_dns_mark_bad(conn_t *out) {
     if (out->s2s->dns_bad_timeout > 0) {
-        dnsres_t bad;
+        dnsres_t *bad;
         char *ipport;
 
         /* mark this host as bad */
         ipport = dns_make_ipport(out->ip, out->port);
         bad = xhash_get(out->s2s->dns_bad, ipport);
         if (bad == NULL) {
-            bad = (dnsres_t) calloc(1, sizeof(struct dnsres_st));
+            bad = new(dnsres_t);
             bad->key = ipport;
             xhash_put(out->s2s->dns_bad, ipport, bad);
         } else {
@@ -189,12 +193,12 @@ void _out_dns_mark_bad(conn_t out) {
     }
 }
 
-int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int allow_bad) {
+int dns_select(s2s_t *s2s, char *ip, int *port, time_t now, dnscache_t *dns, int allow_bad) {
     /* list of results */
-    dnsres_t l_reuse[DNS_MAX_RESULTS];
-    dnsres_t l_aaaa[DNS_MAX_RESULTS];
-    dnsres_t l_a[DNS_MAX_RESULTS];
-    dnsres_t l_bad[DNS_MAX_RESULTS];
+    dnsres_t* l_reuse[DNS_MAX_RESULTS];
+    dnsres_t* l_aaaa[DNS_MAX_RESULTS];
+    dnsres_t* l_a[DNS_MAX_RESULTS];
+    dnsres_t* l_bad[DNS_MAX_RESULTS];
     /* running weight sums of results */
     int rw_reuse[DNS_MAX_RESULTS];
     int rw_aaaa[DNS_MAX_RESULTS];
@@ -204,7 +208,7 @@ int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int a
     int wt_reuse = 0, wt_aaaa = 0, wt_a = 0; /* weight total */
     int c_expired_good = 0;
     union xhashv xhv;
-    dnsres_t res;
+    dnsres_t *res;
     const char *ipport;
     int ipport_len;
     char *c;
@@ -221,14 +225,14 @@ int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int a
      */
 
     if (dns->results == NULL) {
-        log_debug(ZONE, "negative cache entry for '%s'", dns->name);
+        LOG_DEBUG(s2s->log, "negative cache entry for '%s'", dns->name);
         return -1;
     }
-    log_debug(ZONE, "selecting DNS result for '%s'", dns->name);
+    LOG_DEBUG(s2s->log, "selecting DNS result for '%s'", dns->name);
 
     xhv.dnsres_val = &res;
     if (xhash_iter_first(dns->results)) {
-        dnsres_t bad = NULL;
+        dnsres_t *bad = NULL;
         do {
             xhash_iter_get(dns->results, (const char **) &ipport, &ipport_len, xhv.val);
 
@@ -240,22 +244,22 @@ int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int a
                 if (bad == NULL)
                     c_expired_good++;
 
-                log_debug(ZONE, "host '%s' expired", res->key);
+                LOG_DEBUG(s2s->log, "host '%s' expired", res->key);
                 continue;
             } else if (bad != NULL && !(now > bad->expiry)) {
                 /* bad host (connection failure) */
                 l_bad[s_bad++] = res;
 
-                log_debug(ZONE, "host '%s' bad", res->key);
+                LOG_DEBUG(s2s->log, "host '%s' bad", res->key);
             } else if (s2s->out_reuse && xhash_getx(s2s->out_host, ipport, ipport_len) != NULL) {
                 /* existing connection */
-                log_debug(ZONE, "host '%s' exists", res->key);
+                LOG_DEBUG(s2s->log, "host '%s' exists", res->key);
                 if (s_reuse == 0 || p_reuse > res->prio) {
                     p_reuse = res->prio;
                     s_reuse = 0;
                     wt_reuse = 0;
 
-                    log_debug(ZONE, "reset prio list, using prio %d", res->prio);
+                    LOG_DEBUG(s2s->log, "reset prio list, using prio %d", res->prio);
                 }
                 if (res->prio <= p_reuse) {
                     l_reuse[s_reuse] = res;
@@ -263,20 +267,20 @@ int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int a
                     rw_reuse[s_reuse] = wt_reuse;
                     s_reuse++;
 
-                    log_debug(ZONE, "added host with weight %d (%d), running weight %d",
+                    LOG_DEBUG(s2s->log, "added host with weight %d (%d), running weight %d",
                         (res->weight >> 8), res->weight, wt_reuse);
                 } else {
-                    log_debug(ZONE, "ignored host with prio %d", res->prio);
+                    LOG_DEBUG(s2s->log, "ignored host with prio %d", res->prio);
                 }
             } else if (memchr(ipport, ':', ipport_len) != NULL) {
                 /* ipv6 */
-                log_debug(ZONE, "host '%s' IPv6", res->key);
+                LOG_DEBUG(s2s->log, "host '%s' IPv6", res->key);
                 if (s_aaaa == 0 || p_aaaa > res->prio) {
                     p_aaaa = res->prio;
                     s_aaaa = 0;
                     wt_aaaa = 0;
 
-                    log_debug(ZONE, "reset prio list, using prio %d", res->prio);
+                    LOG_DEBUG(s2s->log, "reset prio list, using prio %d", res->prio);
                 }
                 if (res->prio <= p_aaaa) {
                     l_aaaa[s_aaaa] = res;
@@ -284,20 +288,20 @@ int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int a
                     rw_aaaa[s_aaaa] = wt_aaaa;
                     s_aaaa++;
 
-                    log_debug(ZONE, "added host with weight %d (%d), running weight %d",
+                    LOG_DEBUG(s2s->log, "added host with weight %d (%d), running weight %d",
                         (res->weight >> 8), res->weight, wt_aaaa);
                 } else {
-                    log_debug(ZONE, "ignored host with prio %d", res->prio);
+                    LOG_DEBUG(s2s->log, "ignored host with prio %d", res->prio);
                 }
             } else {
                 /* ipv4 */
-                log_debug(ZONE, "host '%s' IPv4", res->key);
+                LOG_DEBUG(s2s->log, "host '%s' IPv4", res->key);
                 if (s_a == 0 || p_a > res->prio) {
                     p_a = res->prio;
                     s_a = 0;
                     wt_a = 0;
 
-                    log_debug(ZONE, "reset prio list, using prio %d", res->prio);
+                    LOG_DEBUG(s2s->log, "reset prio list, using prio %d", res->prio);
                 }
                 if (res->prio <= p_a) {
                     l_a[s_a] = res;
@@ -305,10 +309,10 @@ int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int a
                     rw_a[s_a] = wt_a;
                     s_a++;
 
-                    log_debug(ZONE, "added host with weight %d (%d), running weight %d",
+                    LOG_DEBUG(s2s->log, "added host with weight %d (%d), running weight %d",
                         (res->weight >> 8), res->weight, wt_a);
                 } else {
-                    log_debug(ZONE, "ignored host with prio %d", res->prio);
+                    LOG_DEBUG(s2s->log, "ignored host with prio %d", res->prio);
                 }
             }
         } while(xhash_iter_next(dns->results));
@@ -322,15 +326,15 @@ int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int a
     if (s_reuse > 0) {
         int i, r;
 
-        log_debug(ZONE, "using existing hosts, total weight %d", wt_reuse);
+        LOG_DEBUG(s2s->log, "using existing hosts, total weight %d", wt_reuse);
         assert((wt_reuse + 1) > 0);
 
         r = rand() % (wt_reuse + 1);
-        log_debug(ZONE, "random number %d", r);
+        LOG_DEBUG(s2s->log, "random number %d", r);
 
         for (i = 0; i < s_reuse; i++)
             if (rw_reuse[i] >= r) {
-                log_debug(ZONE, "selected host '%s', running weight %d",
+                LOG_DEBUG(s2s->log, "selected host '%s', running weight %d",
                     l_reuse[i]->key, rw_reuse[i]);
 
                 ipport = l_reuse[i]->key;
@@ -339,15 +343,15 @@ int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int a
     } else if (s_aaaa > 0 && (s_a == 0 || p_aaaa <= p_a)) {
         int i, r;
 
-        log_debug(ZONE, "using IPv6 hosts, total weight %d", wt_aaaa);
+        LOG_DEBUG(s2s->log, "using IPv6 hosts, total weight %d", wt_aaaa);
         assert((wt_aaaa + 1) > 0);
 
         r = rand() % (wt_aaaa + 1);
-        log_debug(ZONE, "random number %d", r);
+        LOG_DEBUG(s2s->log, "random number %d", r);
 
         for (i = 0; i < s_aaaa; i++)
             if (rw_aaaa[i] >= r) {
-                log_debug(ZONE, "selected host '%s', running weight %d",
+                LOG_DEBUG(s2s->log, "selected host '%s', running weight %d",
                     l_aaaa[i]->key, rw_aaaa[i]);
 
                 ipport = l_aaaa[i]->key;
@@ -356,15 +360,15 @@ int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int a
     } else if (s_a > 0) {
         int i, r;
 
-        log_debug(ZONE, "using IPv4 hosts, total weight %d", wt_a);
+        LOG_DEBUG(s2s->log, "using IPv4 hosts, total weight %d", wt_a);
         assert((wt_a + 1) > 0);
 
         r = rand() % (wt_a + 1);
-        log_debug(ZONE, "random number %d", r);
+        LOG_DEBUG(s2s->log, "random number %d", r);
 
         for (i = 0; i < s_a; i++)
             if (rw_a[i] >= r) {
-                log_debug(ZONE, "selected host '%s', running weight %d",
+                LOG_DEBUG(s2s->log, "selected host '%s', running weight %d",
                     l_a[i]->key, rw_a[i]);
 
                 ipport = l_a[i]->key;
@@ -373,11 +377,11 @@ int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int a
     } else if (s_bad > 0) {
         ipport = l_bad[rand() % s_bad]->key;
 
-        log_debug(ZONE, "using bad hosts, allow_bad=%d", allow_bad);
+        LOG_DEBUG(s2s->log, "using bad hosts, allow_bad=%d", allow_bad);
 
         /* there are expired good hosts, expire cache immediately */
         if (c_expired_good > 0) {
-            log_debug(ZONE, "expiring this DNS cache entry, %d expired hosts",
+            LOG_DEBUG(s2s->log, "expiring this DNS cache entry, %d expired hosts",
                 c_expired_good);
 
             dns->expiry = 0;
@@ -405,8 +409,8 @@ int dns_select(s2s_t s2s, char *ip, int *port, time_t now, dnscache_t dns, int a
 }
 
 /** find/make a connection for a route */
-int out_route(s2s_t s2s, const char *route, int routelen, conn_t *out, int allow_bad) {
-    dnscache_t dns;
+int out_route(s2s_t *s2s, const char *route, int routelen, conn_t **out, int allow_bad) {
+    dnscache_t *dns;
     char ipport[INET6_ADDRSTRLEN + 16], *dkey, *c;
     time_t now;
     int reuse = 0;
@@ -423,18 +427,18 @@ int out_route(s2s_t s2s, const char *route, int routelen, conn_t *out, int allow
     }
     dkey = strndup(c, c_len);
 
-    log_debug(ZONE, "trying to find connection for '%s'", dkey);
-    *out = (conn_t) xhash_get(s2s->out_dest, dkey);
+    LOG_DEBUG(s2s->log, "trying to find connection for '%s'", dkey);
+    *out = xhash_get(s2s->out_dest, dkey);
     if(*out == NULL) {
-        log_debug(ZONE, "connection for '%s' not found", dkey);
+        LOG_DEBUG(s2s->log, "connection for '%s' not found", dkey);
 
         /* check resolver cache for ip/port */
         dns = xhash_get(s2s->dnscache, dkey);
         if(dns == NULL) {
             /* new resolution */
-            log_debug(ZONE, "no dns for %s, preparing for resolution", dkey);
+            LOG_DEBUG(s2s->log, "no dns for %s, preparing for resolution", dkey);
 
-            dns = (dnscache_t) calloc(1, sizeof(struct dnscache_st));
+            dns = new(dnscache_t);
 
             strcpy(dns->name, dkey);
 
@@ -451,7 +455,7 @@ int out_route(s2s_t s2s, const char *route, int routelen, conn_t *out, int allow
 
         /* resolution in progress */
         if(dns->pending) {
-            log_debug(ZONE, "pending resolution");
+            LOG_DEBUG(s2s->log, "pending resolution");
             free(dkey);
             return 0;
         }
@@ -460,7 +464,7 @@ int out_route(s2s_t s2s, const char *route, int routelen, conn_t *out, int allow
         now = time(NULL); /* each entry must be expired no earlier than the collection */
         if(now > dns->expiry) {
             /* resolution required */
-            log_debug(ZONE, "requesting resolution for %s", dkey);
+            LOG_DEBUG(s2s->log, "requesting resolution for %s", dkey);
 
             dns->init_time = time(NULL);
             dns->pending = 1;
@@ -480,7 +484,7 @@ int out_route(s2s_t s2s, const char *route, int routelen, conn_t *out, int allow
         /* re-request resolution if dns_select expired the data */
         if (now > dns->expiry) {
             /* resolution required */
-            log_debug(ZONE, "requesting resolution for %s", dkey);
+            LOG_DEBUG(s2s->log, "requesting resolution for %s", dkey);
 
             dns->init_time = time(NULL);
             dns->pending = 1;
@@ -496,10 +500,10 @@ int out_route(s2s_t s2s, const char *route, int routelen, conn_t *out, int allow
 
         /* try to re-use an existing connection */
         if (s2s->out_reuse)
-            *out = (conn_t) xhash_get(s2s->out_host, ipport);
+            *out = xhash_get(s2s->out_host, ipport);
 
         if (*out != NULL) {
-            log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] using connection for '%s'", (*out)->fd->fd, (*out)->ip, (*out)->port, dkey);
+            LOG_NOTICE(s2s->log, "[%d] [%s, port=%d] using connection for '%s'", (*out)->fd->fd, (*out)->ip, (*out)->port, dkey);
 
             /* associate existing connection with domain */
             xhash_put(s2s->out_dest, s2s->out_reuse ? pstrdup(xhash_pool((*out)->routes), dkey) : dkey, (void *) *out);
@@ -507,7 +511,7 @@ int out_route(s2s_t s2s, const char *route, int routelen, conn_t *out, int allow
             reuse = 1;
         } else{
             /* no conn, create one */
-            *out = (conn_t) calloc(1, sizeof(struct conn_st));
+            *out = new(conn_t);
 
             (*out)->s2s = s2s;
 
@@ -534,7 +538,7 @@ int out_route(s2s_t s2s, const char *route, int routelen, conn_t *out, int allow
             xhash_put((*out)->routes, pstrdupx(xhash_pool((*out)->routes), route, routelen), (void *) 1);
 
             /* connect */
-            log_debug(ZONE, "initiating connection to %s", ipport);
+            LOG_DEBUG(s2s->log, "initiating connection to %s", ipport);
 
             /* APPLE: multiple origin_ips may be specified; use IPv6 if possible or otherwise IPv4 */
             int ip_is_v6 = 0;
@@ -548,7 +552,7 @@ int out_route(s2s_t s2s, const char *route, int routelen, conn_t *out, int allow
 
                     (*out)->fd = mio_connect(s2s->mio, port, ip, s2s->origin_ips[i], _out_mio_callback, (void *) *out);
                     if ((*out)->fd != NULL) break;
-                    log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] [origin: %s] mio_connect error: %s (%d)", -1, (*out)->ip, (*out)->port, s2s->origin_ips[i], MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+                    LOG_NOTICE(s2s->log, "[%d] [%s, port=%d] [origin: %s] mio_connect error: %s (%d)", -1, (*out)->ip, (*out)->port, s2s->origin_ips[i], MIO_STRERROR(MIO_ERROR), MIO_ERROR);
                 }
             }
 
@@ -556,12 +560,12 @@ int out_route(s2s_t s2s, const char *route, int routelen, conn_t *out, int allow
             if ((*out)->fd == NULL) {
                 (*out)->fd = mio_connect(s2s->mio, port, ip, s2s->local_ip, _out_mio_callback, (void *) *out);
                 if ((*out)->fd == NULL) {
-                    log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] [local: %s] mio_connect error: %s (%d)", -1, (*out)->ip, (*out)->port, s2s->local_ip, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+                    LOG_NOTICE(s2s->log, "[%d] [%s, port=%d] [local: %s] mio_connect error: %s (%d)", -1, (*out)->ip, (*out)->port, s2s->local_ip, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
                 }
             }
 
             if ((*out)->fd == NULL) {
-                log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] unable to connect host", -1, (*out)->ip, (*out)->port);
+                LOG_NOTICE(s2s->log, "[%d] [%s, port=%d] unable to connect host", -1, (*out)->ip, (*out)->port);
 
                 _out_dns_mark_bad(*out);
 
@@ -582,9 +586,9 @@ int out_route(s2s_t s2s, const char *route, int routelen, conn_t *out, int allow
                 /* try again without allowing bad hosts */
                 return out_route(s2s, route, routelen, out, 0);
             } else {
-                log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] outgoing connection for '%s'", (*out)->fd->fd, (*out)->ip, (*out)->port, dkey);
+                LOG_NOTICE(s2s->log, "[%d] [%s, port=%d] outgoing connection for '%s'", (*out)->fd->fd, (*out)->ip, (*out)->port, dkey);
 
-                (*out)->s = sx_new(s2s->sx_env, (*out)->fd->fd, _out_sx_callback, (void *) *out);
+                (*out)->s = sx_new(s2s->sx_env, (*out)->ip, (*out)->port, _out_sx_callback, (void *) *out);
 
 #ifdef HAVE_SSL
                 /* Send a stream version of 1.0 if we can do STARTTLS */
@@ -601,7 +605,7 @@ int out_route(s2s_t s2s, const char *route, int routelen, conn_t *out, int allow
             }
         }
     } else {
-        log_debug(ZONE, "connection for '%s' found (%d %s/%d)", dkey, (*out)->fd->fd, (*out)->ip, (*out)->port);
+        LOG_DEBUG(s2s->log, "connection for '%s' found (%d %s/%d)", dkey, (*out)->fd->fd, (*out)->ip, (*out)->port);
     }
 
     /* connection in progress, or re-using connection: add to routes list */
@@ -614,7 +618,7 @@ int out_route(s2s_t s2s, const char *route, int routelen, conn_t *out, int allow
     return 0;
 }
 
-void out_pkt_free(pkt_t pkt)
+void out_pkt_free(pkt_t *pkt)
 {
     nad_free(pkt->nad);
     jid_free(pkt->from);
@@ -623,10 +627,10 @@ void out_pkt_free(pkt_t pkt)
 }
 
 /** send a packet out */
-int out_packet(s2s_t s2s, pkt_t pkt) {
+int out_packet(s2s_t *s2s, pkt_t *pkt) {
     char *rkey;
     int rkeylen;
-    conn_t out;
+    conn_t *out;
     conn_state_t state;
     int ret;
 
@@ -634,7 +638,7 @@ int out_packet(s2s_t s2s, pkt_t pkt) {
     if (s2s->enable_whitelist > 0 &&
             (pkt->to->domain != NULL) &&
             (s2s_domain_in_whitelist(s2s, pkt->to->domain) == 0)) {
-        log_write(s2s->log, LOG_NOTICE, "sending a packet to domain not in the whitelist, dropping it");
+        LOG_NOTICE(s2s->log, "sending a packet to domain not in the whitelist, dropping it");
         jid_free(pkt->to);
         jid_free(pkt->from);
         nad_free(pkt->nad);
@@ -669,7 +673,7 @@ int out_packet(s2s_t s2s, pkt_t pkt) {
 
     /* connection in progress */
     if(!out->online) {
-        log_debug(ZONE, "connection in progress, queueing packet");
+        LOG_DEBUG(s2s->log, "connection in progress, queueing packet");
 
         _out_packet_queue(s2s, pkt);
 
@@ -682,7 +686,7 @@ int out_packet(s2s_t s2s, pkt_t pkt) {
 
     /* valid conns or dialback packets */
     if(state == conn_VALID || pkt->db) {
-        log_debug(ZONE, "writing packet for %s to outgoing conn %d", rkey, out->fd->fd);
+        LOG_DEBUG(s2s->log, "writing packet for %s to outgoing conn %d", rkey, out->fd->fd);
 
         /* send it straight out */
         if(pkt->db) {
@@ -741,14 +745,14 @@ char *dns_make_ipport(const char *host, int port) {
     char *c;
     assert(port > 0 && port < 65536);
 
-    c = (char *) malloc(strlen(host) + 7);
+    c = malloc(strlen(host) + 7);
     sprintf(c, "%s/%d", host, port);
     return c;
 }
 
-static void _dns_add_result(dnsquery_t query, const char *ip, int port, int prio, int weight, unsigned int ttl) {
+static void _dns_add_result(dnsquery_t *query, const char *ip, int port, int prio, int weight, unsigned int ttl) {
     char *ipport = dns_make_ipport(ip, port);
-    dnsres_t res = xhash_get(query->results, ipport);
+    dnsres_t *res = xhash_get(query->results, ipport);
 
     if (res != NULL) {
         if (prio < res->prio)
@@ -770,10 +774,10 @@ static void _dns_add_result(dnsquery_t query, const char *ip, int port, int prio
         if (ttl > query->expiry)
             query->expiry = ttl;
 
-        log_debug(ZONE, "dns result updated for %s@%p: %s (%d/%d/%d)", query->name, query, ipport,
-            res->prio, (res->weight >> 8), res->expiry);
+        LOG_DEBUG(query->s2s->log, "dns result updated for %s@%p: %s (%d/%d/%lld)", query->name, query, ipport,
+            res->prio, (res->weight >> 8), (long long)res->expiry);
     } else if (xhash_count(query->results) < DNS_MAX_RESULTS) {
-        res = pmalloc(xhash_pool(query->results), sizeof(struct dnsres_st));
+        res = pnew(xhash_pool(query->results), dnsres_t);
         res->key = pstrdup(xhash_pool(query->results), ipport);
         res->prio = prio;
         res->weight = weight;
@@ -784,19 +788,19 @@ static void _dns_add_result(dnsquery_t query, const char *ip, int port, int prio
 
         xhash_put(query->results, res->key, res);
 
-        log_debug(ZONE, "dns result added for %s@%p: %s (%d/%d/%d)", query->name, query, ipport,
-            res->prio, (res->weight >> 8), res->expiry);
+        LOG_DEBUG(query->s2s->log, "dns result added for %s@%p: %s (%d/%d/%lld)", query->name, query, ipport,
+            res->prio, (res->weight >> 8), (long long)res->expiry);
     } else {
-        log_debug(ZONE, "dns result ignored for %s@%p: %s (%d/%d/%d)", query->name, query, ipport,
+        LOG_DEBUG(query->s2s->log, "dns result ignored for %s@%p: %s (%d/%d/%d)", query->name, query, ipport,
             prio, (weight >> 8), ttl);
     }
 
     free(ipport);
 }
 
-static void _dns_add_host(dnsquery_t query, const char *ip, int port, int prio, int weight, unsigned int ttl) {
+static void _dns_add_host(dnsquery_t *query, const char *ip, int port, int prio, int weight, unsigned int ttl) {
     char *ipport = dns_make_ipport(ip, port);
-    dnsres_t res = xhash_get(query->hosts, ipport);
+    dnsres_t *res = xhash_get(query->hosts, ipport);
 
     /* update host weights:
      *  RFC 2482 "In the presence of records containing weights greater
@@ -827,10 +831,10 @@ static void _dns_add_host(dnsquery_t query, const char *ip, int port, int prio, 
         if (ttl > res->expiry)
             res->expiry = ttl;
 
-        log_debug(ZONE, "dns host updated for %s@%p: %s (%d/%d/%d)", query->name, query, ipport,
-            res->prio, (res->weight >> 8), res->expiry);
+        LOG_DEBUG(query->s2s->log, "dns host updated for %s@%p: %s (%d/%d/%lld)", query->name, query, ipport,
+            res->prio, (res->weight >> 8), (long long)res->expiry);
     } else if (xhash_count(query->hosts) < DNS_MAX_RESULTS) {
-        res = pmalloc(xhash_pool(query->hosts), sizeof(struct dnsres_st));
+        res = pnew(xhash_pool(query->hosts), dnsres_t);
         res->key = pstrdup(xhash_pool(query->hosts), ipport);
         res->prio = prio;
         res->weight = weight;
@@ -838,10 +842,10 @@ static void _dns_add_host(dnsquery_t query, const char *ip, int port, int prio, 
 
         xhash_put(query->hosts, res->key, res);
 
-        log_debug(ZONE, "dns host added for %s@%p: %s (%d/%d/%d)", query->name, query, ipport,
-            res->prio, (res->weight >> 8), res->expiry);
+        LOG_DEBUG(query->s2s->log, "dns host added for %s@%p: %s (%d/%d/%lld)", query->name, query, ipport,
+            res->prio, (res->weight >> 8), (long long)res->expiry);
     } else {
-        log_debug(ZONE, "dns host ignored for %s@%p: %s (%d/%d/%d)", query->name, query, ipport,
+        LOG_DEBUG(query->s2s->log, "dns host ignored for %s@%p: %s (%d/%d/%d)", query->name, query, ipport,
             prio, (weight >> 8), ttl);
     }
 
@@ -850,24 +854,24 @@ static void _dns_add_host(dnsquery_t query, const char *ip, int port, int prio, 
 
 /* this function is called with a NULL ctx to start the SRV process */
 static void _dns_result_srv(struct dns_ctx *ctx, struct dns_rr_srv *result, void *data) {
-    dnsquery_t query = data;
+    dnsquery_t *query = data;
     assert(query != NULL);
     query->query = NULL;
 
     if (ctx != NULL && result == NULL) {
-        log_debug(ZONE, "dns failure for %s@%p: SRV %s (%d)", query->name, query,
+        LOG_DEBUG(query->s2s->log, "dns failure for %s@%p: SRV %s (%d)", query->name, query,
             query->s2s->lookup_srv[query->srv_i], dns_status(ctx));
     } else if (result != NULL) {
         int i;
 
-        log_debug(ZONE, "dns response for %s@%p: SRV %s %d (%d)", query->name, query,
+        LOG_DEBUG(query->s2s->log, "dns response for %s@%p: SRV %s %d (%d)", query->name, query,
             result->dnssrv_qname, result->dnssrv_nrr, result->dnssrv_ttl);
 
         for (i = 0; i < result->dnssrv_nrr; i++) {
             if (strlen(result->dnssrv_srv[i].name) > 0
                     && result->dnssrv_srv[i].port > 0
                     && result->dnssrv_srv[i].port < 65536) {
-                log_debug(ZONE, "dns response for %s@%p: SRV %s[%d] %s/%d (%d/%d)", query->name,
+                LOG_DEBUG(query->s2s->log, "dns response for %s@%p: SRV %s[%d] %s/%d (%d/%d)", query->name,
                     query, result->dnssrv_qname, i,
                     result->dnssrv_srv[i].name, result->dnssrv_srv[i].port,
                     result->dnssrv_srv[i].priority, result->dnssrv_srv[i].weight);
@@ -884,7 +888,7 @@ static void _dns_result_srv(struct dns_ctx *ctx, struct dns_rr_srv *result, void
     /* check next SRV service name */
     query->srv_i++;
     if (query->srv_i < query->s2s->lookup_nsrv) {
-        log_debug(ZONE, "dns request for %s@%p: SRV %s", query->name, query,
+        LOG_DEBUG(query->s2s->log, "dns request for %s@%p: SRV %s", query->name, query,
             query->s2s->lookup_srv[query->srv_i]);
 
         query->query = dns_submit_srv(NULL, query->name, query->s2s->lookup_srv[query->srv_i], "tcp",
@@ -906,7 +910,7 @@ static void _dns_result_srv(struct dns_ctx *ctx, struct dns_rr_srv *result, void
             query->cur_weight = 0;
             query->cur_expiry = 0;
             if (query->s2s->resolve_aaaa) {
-                log_debug(ZONE, "dns request for %s@%p: AAAA %s", query->name, query, query->name);
+                LOG_DEBUG(query->s2s->log, "dns request for %s@%p: AAAA %s", query->name, query, query->name);
 
                 query->query = dns_submit_a6(NULL, query->name,
                     DNS_NOSRCH, _dns_result_aaaa, query);
@@ -915,7 +919,7 @@ static void _dns_result_srv(struct dns_ctx *ctx, struct dns_rr_srv *result, void
                 if (query->query == NULL)
                     _dns_result_aaaa(ctx, NULL, query);
             } else {
-                log_debug(ZONE, "dns request for %s@%p: A %s", query->name, query, query->name);
+                LOG_DEBUG(query->s2s->log, "dns request for %s@%p: A %s", query->name, query, query->name);
 
                 query->query = dns_submit_a4(NULL, query->name,
                     DNS_NOSRCH, _dns_result_a, query);
@@ -929,17 +933,17 @@ static void _dns_result_srv(struct dns_ctx *ctx, struct dns_rr_srv *result, void
 }
 
 static void _dns_result_aaaa(struct dns_ctx *ctx, struct dns_rr_a6 *result, void *data) {
-    dnsquery_t query = data;
+    dnsquery_t *query = data;
     char ip[INET6_ADDRSTRLEN];
     int i;
     assert(query != NULL);
     query->query = NULL;
 
     if (ctx != NULL && result == NULL) {
-        log_debug(ZONE, "dns failure for %s@%p: AAAA %s (%d)", query->name, query,
+        LOG_DEBUG(query->s2s->log, "dns failure for %s@%p: AAAA %s (%d)", query->name, query,
             query->cur_host, dns_status(ctx));
     } else if (result != NULL) {
-        log_debug(ZONE, "dns response for %s@%p: AAAA %s %d (%d)", query->name, query,
+        LOG_DEBUG(query->s2s->log, "dns response for %s@%p: AAAA %s %d (%d)", query->name, query,
             result->dnsa6_qname, result->dnsa6_nrr, result->dnsa6_ttl);
 
         if (query->cur_expiry > 0 && result->dnsa6_ttl > query->cur_expiry)
@@ -947,7 +951,7 @@ static void _dns_result_aaaa(struct dns_ctx *ctx, struct dns_rr_a6 *result, void
 
         for (i = 0; i < result->dnsa6_nrr; i++) {
             if (inet_ntop(AF_INET6, &result->dnsa6_addr[i], ip, INET6_ADDRSTRLEN) != NULL) {
-                log_debug(ZONE, "dns response for %s@%p: AAAA %s[%d] %s/%d", query->name,
+                LOG_DEBUG(query->s2s->log, "dns response for %s@%p: AAAA %s[%d] %s/%d", query->name,
                     query, result->dnsa6_qname, i, ip, query->cur_port);
 
                 _dns_add_result(query, ip, query->cur_port,
@@ -958,7 +962,7 @@ static void _dns_result_aaaa(struct dns_ctx *ctx, struct dns_rr_a6 *result, void
 
     if (query->cur_host != NULL) {
         /* do ipv4 resolution too */
-        log_debug(ZONE, "dns request for %s@%p: A %s", query->name, query, query->cur_host);
+        LOG_DEBUG(query->s2s->log, "dns request for %s@%p: A %s", query->name, query, query->cur_host);
 
         query->query = dns_submit_a4(NULL, query->cur_host,
             DNS_NOSRCH, _dns_result_a, query);
@@ -968,7 +972,7 @@ static void _dns_result_aaaa(struct dns_ctx *ctx, struct dns_rr_a6 *result, void
             _dns_result_a(ctx, NULL, query);
     } else {
         /* uh-oh */
-        log_debug(ZONE, "dns result for %s@%p: AAAA host vanished...", query->name, query);
+        LOG_DEBUG(query->s2s->log, "dns result for %s@%p: AAAA host vanished...", query->name, query);
         _dns_result_a(NULL, NULL, query);
     }
 
@@ -1053,7 +1057,7 @@ static int _etc_hosts_lookup(const char *cszName, char *szIP, const int ciMaxIPL
 
 /* this function is called with a NULL ctx to start the A/AAAA process */
 static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *data) {
-    dnsquery_t query = data;
+    dnsquery_t *query = data;
     assert(query != NULL);
     query->query = NULL;
 
@@ -1061,20 +1065,20 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
 #define DRA_IP_LEN 16
         char szIP[DRA_IP_LEN];
         if (_etc_hosts_lookup (query->name, szIP, DRA_IP_LEN)) {
-            log_debug(ZONE, "/etc/lookup for %s@%p: %s (%d)", query->name,
+            LOG_DEBUG(query->s2s->log, "/etc/lookup for %s@%p: %s (%d)", query->name,
                 query, szIP, query->s2s->etc_hosts_ttl);
 
             _dns_add_result (query, szIP, query->cur_port,
                 query->cur_prio, query->cur_weight, query->s2s->etc_hosts_ttl);
         } else {
-            log_debug(ZONE, "dns failure for %s@%p: A %s (%d)", query->name, query,
+            LOG_DEBUG(query->s2s->log, "dns failure for %s@%p: A %s (%d)", query->name, query,
                 query->cur_host, dns_status(ctx));
         }
     } else if (result != NULL) {
         char ip[INET_ADDRSTRLEN];
         int i;
 
-        log_debug(ZONE, "dns response for %s@%p: A %s %d (%d)", query->name,
+        LOG_DEBUG(query->s2s->log, "dns response for %s@%p: A %s %d (%d)", query->name,
             query, result->dnsa4_qname, result->dnsa4_nrr, result->dnsa4_ttl);
 
         if (query->cur_expiry > 0 && result->dnsa4_ttl > query->cur_expiry)
@@ -1082,7 +1086,7 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
 
         for (i = 0; i < result->dnsa4_nrr; i++) {
             if (inet_ntop(AF_INET, &result->dnsa4_addr[i], ip, INET_ADDRSTRLEN) != NULL) {
-                log_debug(ZONE, "dns response for %s@%p: A %s[%d] %s/%d", query->name,
+                LOG_DEBUG(query->s2s->log, "dns response for %s@%p: A %s[%d] %s/%d", query->name,
                     query, result->dnsa4_qname, i, ip, query->cur_port);
 
                 _dns_add_result(query, ip, query->cur_port,
@@ -1097,7 +1101,7 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
     if (xhash_iter_first(query->hosts)) {
         char *ipport, *c, *tmp;
         int ipport_len, ip_len, port_len;
-        dnsres_t res;
+        dnsres_t *res;
         union xhashv xhv;
 
         xhv.dnsres_val = &res;
@@ -1122,10 +1126,10 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
         query->cur_prio = res->prio;
         query->cur_weight = res->weight;
         query->cur_expiry = res->expiry;
-        log_debug(ZONE, "dns ttl for %s@%p limited to %d", query->name, query, query->cur_expiry);
+        LOG_DEBUG(query->s2s->log, "dns ttl for %s@%p limited to %lld", query->name, query, (long long)query->cur_expiry);
 
         if (query->s2s->resolve_aaaa) {
-            log_debug(ZONE, "dns request for %s@%p: AAAA %s", query->name, query, query->cur_host);
+            LOG_DEBUG(query->s2s->log, "dns request for %s@%p: AAAA %s", query->name, query, query->cur_host);
 
             query->query = dns_submit_a6(NULL, query->cur_host, DNS_NOSRCH, _dns_result_aaaa, query);
 
@@ -1133,7 +1137,7 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
             if (query->query == NULL)
                 _dns_result_aaaa(ctx, NULL, query);
         } else {
-            log_debug(ZONE, "dns request for %s@%p: A %s", query->name, query, query->cur_host);
+            LOG_DEBUG(query->s2s->log, "dns request for %s@%p: A %s", query->name, query, query->cur_host);
 
             query->query = dns_submit_a4(NULL, query->cur_host, DNS_NOSRCH, _dns_result_a, query);
 
@@ -1150,8 +1154,8 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
         free((void*)query->cur_host);
         query->cur_host = NULL;
 
-        log_debug(ZONE, "dns requests for %s@%p complete: %d (%d)", query->name,
-            query, xhash_count(query->results), query->expiry);
+        LOG_DEBUG(query->s2s->log, "dns requests for %s@%p complete: %d (%lld)", query->name,
+            query, xhash_count(query->results), (long long)query->expiry);
 
         /* update query TTL */
         if (query->expiry > query->s2s->dns_max_ttl)
@@ -1165,7 +1169,7 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
         /* update result TTLs - the query expiry MUST NOT be longer than all result expiries */
         if (xhash_iter_first(query->results)) {
             union xhashv xhv;
-            dnsres_t res;
+            dnsres_t *res;
 
             xhv.dnsres_val = &res;
 
@@ -1185,7 +1189,7 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
         xhash_free(query->hosts);
         query->hosts = NULL;
         if (idna_to_unicode_8z8z(query->name, &domain, 0) != IDNA_SUCCESS) {
-            log_write(query->s2s->log, LOG_ERR, "idna dns decode for %s failed", query->name);
+            LOG_ERROR(query->s2s->log, "idna dns decode for %s failed", query->name);
             /* fake empty results to shortcut resolution failure */
             xhash_free(query->results);
             query->results = xhash_new(71);
@@ -1199,14 +1203,14 @@ static void _dns_result_a(struct dns_ctx *ctx, struct dns_rr_a4 *result, void *d
     }
 }
 
-void dns_resolve_domain(s2s_t s2s, dnscache_t dns) {
-    dnsquery_t query = (dnsquery_t) calloc(1, sizeof(struct dnsquery_st));
+void dns_resolve_domain(s2s_t *s2s, dnscache_t *dns) {
+    dnsquery_t *query = new(dnsquery_t);
     char *name;
 
     query->s2s = s2s;
     query->results = xhash_new(71);
     if (idna_to_ascii_8z(dns->name, &name, 0) != IDNA_SUCCESS) {
-        log_write(s2s->log, LOG_ERR, "idna dns encode for %s failed", dns->name);
+        LOG_ERROR(s2s->log, "idna dns encode for %s failed", dns->name);
         /* shortcut resolution failure */
         query->expiry = time(NULL) + 99999999;
         out_resolve(query->s2s, dns->name, query->results, query->expiry);
@@ -1223,7 +1227,7 @@ void dns_resolve_domain(s2s_t s2s, dnscache_t dns) {
     query->query = NULL;
     dns->query = query;
 
-    log_debug(ZONE, "dns resolve for %s@%p started", query->name, query);
+    LOG_DEBUG(s2s->log, "dns resolve for %s@%p started", query->name, query);
 
     /* - resolve all SRV records to host/port
      * - if no results, include domain/5269
@@ -1234,8 +1238,8 @@ void dns_resolve_domain(s2s_t s2s, dnscache_t dns) {
 }
 
 /** responses from the resolver */
-void out_resolve(s2s_t s2s, const char *domain, xht results, time_t expiry) {
-    dnscache_t dns;
+void out_resolve(s2s_t *s2s, const char *domain, xht *results, time_t expiry) {
+    dnscache_t *dns;
 
     /* no results, resolve failed */
     if(xhash_count(results) == 0) {
@@ -1249,7 +1253,7 @@ void out_resolve(s2s_t s2s, const char *domain, xht results, time_t expiry) {
             dns->pending = 0;
         }
 
-        log_write(s2s->log, LOG_NOTICE, "dns lookup for %s failed", domain);
+        LOG_NOTICE(s2s->log, "dns lookup for %s failed", domain);
 
         /* bounce queue */
         out_bounce_domain_queues(s2s, domain, stanza_err_REMOTE_SERVER_NOT_FOUND);
@@ -1258,8 +1262,8 @@ void out_resolve(s2s_t s2s, const char *domain, xht results, time_t expiry) {
         return;
     }
 
-    log_write(s2s->log, LOG_NOTICE, "dns lookup for %s returned %d result%s (ttl %d)",
-        domain, xhash_count(results), xhash_count(results)!=1?"s":"", expiry - time(NULL));
+    LOG_NOTICE(s2s->log, "dns lookup for %s returned %d result%s (ttl %lld)",
+        domain, xhash_count(results), xhash_count(results)!=1?"s":"", (long long)expiry - time(NULL));
 
     /* get the cache entry */
     dns = xhash_get(s2s->dnscache, domain);
@@ -1274,7 +1278,7 @@ void out_resolve(s2s_t s2s, const char *domain, xht results, time_t expiry) {
     }
 
     if(dns == NULL) {
-        log_write(s2s->log, LOG_ERR, "weird, never requested %s resolution", domain);
+        LOG_ERROR(s2s->log, "weird, never requested %s resolution", domain);
         return;
     }
 
@@ -1297,13 +1301,13 @@ void out_resolve(s2s_t s2s, const char *domain, xht results, time_t expiry) {
 
 /** mio callback for outgoing conns */
 static int _out_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg) {
-    conn_t out = (conn_t) arg;
+    conn_t *out = arg;
     char ipport[INET6_ADDRSTRLEN + 17];
     int nbytes;
 
     switch(a) {
         case action_READ:
-            log_debug(ZONE, "read action on fd %d", fd->fd);
+            LOG_DEBUG(out->s2s->log, "read action on fd %d", fd->fd);
 
             /* they did something */
             out->last_activity = time(NULL);
@@ -1317,7 +1321,7 @@ static int _out_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, v
             return sx_can_read(out->s);
 
         case action_WRITE:
-            log_debug(ZONE, "write action on fd %d", fd->fd);
+            LOG_DEBUG(out->s2s->log, "write action on fd %d", fd->fd);
 
             /* update activity timestamp */
             out->last_activity = time(NULL);
@@ -1325,11 +1329,11 @@ static int _out_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, v
             return sx_can_write(out->s);
 
         case action_CLOSE:
-            log_debug(ZONE, "close action on fd %d", fd->fd);
+            LOG_DEBUG(out->s2s->log, "close action on fd %d", fd->fd);
 
             jqueue_push(out->s2s->dead, (void *) out->s, 0);
 
-            log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] disconnect, packets: %i", fd->fd, out->ip, out->port, out->packet_count);
+            LOG_NOTICE(out->s2s->log, "[%d] [%s, port=%d] disconnect, packets: %i", fd->fd, out->ip, out->port, out->packet_count);
 
 
             if (out->s2s->out_reuse) {
@@ -1352,9 +1356,9 @@ static int _out_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, v
                     c++;
                     c_len = rkeylen - (c - rkey);
 
-                    log_debug(ZONE, "route '%.*s'", rkeylen, rkey);
+                    LOG_DEBUG(out->s2s->log, "route '%.*s'", rkeylen, rkey);
                     if (xhash_getx(out->s2s->out_dest, c, c_len) != NULL) {
-                        log_debug(ZONE, "removing dest entry for '%.*s'", c_len, c);
+                        LOG_DEBUG(out->s2s->log, "removing dest entry for '%.*s'", c_len, c);
                         xhash_zapx(out->s2s->out_dest, c, c_len);
                     }
                 } while(xhash_iter_next(out->routes));
@@ -1363,7 +1367,7 @@ static int _out_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, v
             if (xhash_iter_first(out->routes)) {
                 char *rkey;
                 int rkeylen;
-                jqueue_t q;
+                jqueue_t *q;
                 int npkt;
 
                 /* retry all the routes */
@@ -1372,23 +1376,23 @@ static int _out_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, v
 
                     q = xhash_getx(out->s2s->outq, rkey, rkeylen);
                     if (out->s2s->retry_limit > 0 && q != NULL && jqueue_age(q) > out->s2s->retry_limit) {
-                        log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] retry limit reached for '%.*s' queue", fd->fd, out->ip, out->port, rkeylen, rkey);
+                        LOG_NOTICE(out->s2s->log, "[%d] [%s, port=%d] retry limit reached for '%.*s' queue", fd->fd, out->ip, out->port, rkeylen, rkey);
                         q = NULL;
                     }
 
                     if (q != NULL && (npkt = jqueue_size(q)) > 0 && xhash_get(out->states, rkey) != (void*) conn_INPROGRESS) {
-                        conn_t retry;
+                        conn_t *retry;
 
-                        log_debug(ZONE, "retrying connection for '%.*s' queue", rkeylen, rkey);
+                        LOG_DEBUG(out->s2s->log, "retrying connection for '%.*s' queue", rkeylen, rkey);
                         if (!out_route(out->s2s, rkey, rkeylen, &retry, 0)) {
-                            log_debug(ZONE, "retry successful");
+                            LOG_DEBUG(out->s2s->log, "retry successful");
 
                             if (retry != NULL) {
                                 /* flush queue */
                                 out_flush_route_queue(out->s2s, rkey, rkeylen);
                             }
                         } else {
-                            log_debug(ZONE, "retry failed");
+                            LOG_DEBUG(out->s2s->log, "retry failed");
 
                             /* bounce queue */
                             out_bounce_route_queue(out->s2s, rkey, rkeylen, stanza_err_SERVICE_UNAVAILABLE);
@@ -1411,16 +1415,16 @@ static int _out_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, v
     return 0;
 }
 
-void send_dialbacks(conn_t out)
+void send_dialbacks(conn_t *out)
 {
   char *rkey;
   int rkeylen;
 
   if (out->s2s->dns_bad_timeout > 0) {
-      dnsres_t bad = xhash_get(out->s2s->dns_bad, out->key);
+      dnsres_t *bad = xhash_get(out->s2s->dns_bad, out->key);
 
       if (bad != NULL) {
-          log_debug(ZONE, "removing bad host entry for '%s'", out->key);
+          LOG_DEBUG(out->s2s->log, "removing bad host entry for '%s'", out->key);
           xhash_zap(out->s2s->dns_bad, out->key);
           free((void*)bad->key);
           free(bad);
@@ -1428,7 +1432,7 @@ void send_dialbacks(conn_t out)
   }
 
   if (xhash_iter_first(out->routes)) {
-       log_debug(ZONE, "sending dialback packets for %s", out->key);
+       LOG_DEBUG(out->s2s->log, "sending dialback packets for %s", out->key);
        do {
             xhash_iter_get(out->routes, (const char **) &rkey, &rkeylen, NULL);
             _out_dialback(out, rkey, rkeylen);
@@ -1438,26 +1442,26 @@ void send_dialbacks(conn_t out)
   return;
 }
 
-static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
-    conn_t out = (conn_t) arg;
-    sx_buf_t buf = (sx_buf_t) data;
+static int _out_sx_callback(sx_t *s, sx_event_t e, void *data, void *arg) {
+    conn_t *out = arg;
+    sx_buf_t *buf = data;
     int len, ns, elem, starttls = 0;
     sx_error_t *sxe;
-    nad_t nad;
+    nad_t *nad;
 
     switch(e) {
         case event_WANT_READ:
-            log_debug(ZONE, "want read");
+            LOG_DEBUG(out->s2s->log, "want read");
             mio_read(out->s2s->mio, out->fd);
             break;
 
         case event_WANT_WRITE:
-            log_debug(ZONE, "want write");
+            LOG_DEBUG(out->s2s->log, "want write");
             mio_write(out->s2s->mio, out->fd);
             break;
 
         case event_READ:
-            log_debug(ZONE, "reading from %d", out->fd->fd);
+            LOG_DEBUG(out->s2s->log, "reading from %d", out->fd->fd);
 
             /* do the read */
             len = recv(out->fd->fd, buf->data, buf->len, 0);
@@ -1468,7 +1472,7 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     return 0;
                 }
 
-                log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] read error: %s (%d)", out->fd->fd, out->ip, out->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+                LOG_NOTICE(out->s2s->log, "[%d] [%s, port=%d] read error: %s (%d)", out->fd->fd, out->ip, out->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
                 if (!out->online) {
                     _out_dns_mark_bad(out);
@@ -1486,25 +1490,25 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 return -1;
             }
 
-            log_debug(ZONE, "read %d bytes", len);
+            LOG_DEBUG(out->s2s->log, "read %d bytes", len);
 
             buf->len = len;
 
             return len;
 
         case event_WRITE:
-            log_debug(ZONE, "writing to %d", out->fd->fd);
+            LOG_DEBUG(out->s2s->log, "writing to %d", out->fd->fd);
 
             len = send(out->fd->fd, buf->data, buf->len, 0);
             if(len >= 0) {
-                log_debug(ZONE, "%d bytes written", len);
+                LOG_DEBUG(out->s2s->log, "%d bytes written", len);
                 return len;
             }
 
             if(MIO_WOULDBLOCK)
                 return 0;
 
-            log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] write error: %s (%d)", out->fd->fd, out->ip, out->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+            LOG_NOTICE(out->s2s->log, "[%d] [%s, port=%d] write error: %s (%d)", out->fd->fd, out->ip, out->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
             if (!out->online) {
                 _out_dns_mark_bad(out);
@@ -1516,7 +1520,7 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
         case event_ERROR:
             sxe = (sx_error_t *) data;
-            log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] error: %s (%s)", out->fd->fd, out->ip, out->port, sxe->generic, sxe->specific);
+            LOG_NOTICE(out->s2s->log, "[%d] [%s, port=%d] error: %s (%s)", out->fd->fd, out->ip, out->port, sxe->generic, sxe->specific);
 
             /* mark as bad if we did not manage to connect or there is unrecoverable stream error */
             if (!out->online ||
@@ -1541,25 +1545,25 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             return -1;
 
         case event_OPEN:
-            log_debug(ZONE, "OPEN event for %s", out->key);
+            LOG_DEBUG(out->s2s->log, "OPEN event for %s", out->key);
             break;
 
         case event_STREAM:
             /* check stream version - NULl = pre-xmpp (some jabber1 servers) */
-            log_debug(ZONE, "STREAM event for %s stream version is %s", out->key, out->s->res_version);
+            LOG_DEBUG(out->s2s->log, "STREAM event for %s stream version is %s", out->key, out->s->res_version);
 
             /* first time, bring them online */
             if(!out->online) {
-                log_debug(ZONE, "outgoing conn to %s is online", out->key);
+                LOG_DEBUG(out->s2s->log, "outgoing conn to %s is online", out->key);
 
                 /* if no stream version from either side, kick off dialback for each route, */
                 /* otherwise wait for stream features */
                 if (((out->s->res_version==NULL) || (out->s2s->sx_ssl == NULL)) && out->s2s->require_tls == 0) {
-                     log_debug(ZONE, "no stream version, sending dialbacks for %s immediately", out->key);
+                     LOG_DEBUG(out->s2s->log, "no stream version, sending dialbacks for %s immediately", out->key);
                      out->online = 1;
                      send_dialbacks(out);
                 } else
-                     log_debug(ZONE, "outgoing conn to %s - waiting for STREAM features", out->key);
+                     LOG_DEBUG(out->s2s->log, "outgoing conn to %s - waiting for STREAM features", out->key);
             }
 
             break;
@@ -1569,14 +1573,14 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             out->packet_count++;
             out->s2s->packet_count++;
 
-            nad = (nad_t) data;
+            nad = data;
 
             /* watch for the features packet - STARTTLS and/or SASL*/
             if ((out->s->res_version!=NULL)
                  && NAD_NURI_L(nad, NAD_ENS(nad, 0)) == strlen(uri_STREAMS)
                  && strncmp(uri_STREAMS, NAD_NURI(nad, NAD_ENS(nad, 0)), strlen(uri_STREAMS)) == 0
                  && NAD_ENAME_L(nad, 0) == 8 && strncmp("features", NAD_ENAME(nad, 0), 8) == 0) {
-                log_debug(ZONE, "got the stream features packet");
+                LOG_DEBUG(out->s2s->log, "got the stream features packet");
 
 #ifdef HAVE_SSL
                 /* starttls if we can */
@@ -1585,13 +1589,13 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     if(ns >= 0) {
                         elem = nad_find_elem(nad, 0, ns, "starttls", 1);
                         if(elem >= 0) {
-                            log_debug(ZONE, "got STARTTLS in stream features");
+                            LOG_DEBUG(out->s2s->log, "got STARTTLS in stream features");
                             if(sx_ssl_client_starttls(out->s2s->sx_ssl, s, out->s2s->local_pemfile, out->s2s->local_private_key_password) == 0) {
                                 starttls = 1;
                                 nad_free(nad);
                                 return 0;
                             }
-                            log_write(out->s2s->log, LOG_ERR, "unable to establish encrypted session with peer");
+                            LOG_ERROR(out->s2s->log, "unable to establish encrypted session with peer");
                         }
                     }
                 }
@@ -1599,11 +1603,11 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 /* If we're not establishing a starttls connection, send dialbacks */
                 if (!starttls) {
                     if (out->s2s->require_tls == 0 || s->ssf > 0) {
-                     log_debug(ZONE, "No STARTTLS, sending dialbacks for %s", out->key);
+                     LOG_DEBUG(out->s2s->log, "No STARTTLS, sending dialbacks for %s", out->key);
                      out->online = 1;
                      send_dialbacks(out);
                     } else {
-                        log_debug(ZONE, "No STARTTLS, dialbacks disabled for non-TLS connections, cannot complete negotiation");
+                        LOG_DEBUG(out->s2s->log, "No STARTTLS, dialbacks disabled for non-TLS connections, cannot complete negotiation");
                     }
                 }
 #else
@@ -1617,7 +1621,7 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
             /* we only accept dialback packets */
             if(NAD_ENS(nad, 0) < 0 || NAD_NURI_L(nad, NAD_ENS(nad, 0)) != uri_DIALBACK_L || strncmp(uri_DIALBACK, NAD_NURI(nad, NAD_ENS(nad, 0)), uri_DIALBACK_L) != 0) {
-                log_debug(ZONE, "got a non-dialback packet on an outgoing conn, dropping it");
+                LOG_DEBUG(out->s2s->log, "got a non-dialback packet on an outgoing conn, dropping it");
                 nad_free(nad);
                 return 0;
             }
@@ -1635,7 +1639,7 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 }
             }
 
-            log_debug(ZONE, "unknown dialback packet, dropping it");
+            LOG_DEBUG(out->s2s->log, "unknown dialback packet, dropping it");
 
             nad_free(nad);
             return 0;
@@ -1652,22 +1656,22 @@ static int _out_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 }
 
 /** process incoming auth responses */
-static void _out_result(conn_t out, nad_t nad) {
+static void _out_result(conn_t *out, nad_t *nad) {
     int attr;
-    jid_t from, to;
+    jid_t *from, *to;
     char *rkey;
     int rkeylen;
 
     attr = nad_find_attr(nad, 0, -1, "from", NULL);
     if(attr < 0 || (from = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
-        log_debug(ZONE, "missing or invalid from on db result packet");
+        LOG_DEBUG(out->s2s->log, "missing or invalid from on db result packet");
         nad_free(nad);
         return;
     }
 
     attr = nad_find_attr(nad, 0, -1, "to", NULL);
     if(attr < 0 || (to = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
-        log_debug(ZONE, "missing or invalid to on db result packet");
+        LOG_DEBUG(out->s2s->log, "missing or invalid to on db result packet");
         jid_free(from);
         nad_free(nad);
         return;
@@ -1678,12 +1682,12 @@ static void _out_result(conn_t out, nad_t nad) {
 
     /* key is valid */
     if(nad_find_attr(nad, 0, -1, "type", "valid") >= 0 && xhash_get(out->states, rkey) == (void*) conn_INPROGRESS) {
-        log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] outgoing route '%s' is now valid %s",
+        LOG_NOTICE(out->s2s->log, "[%d] [%s, port=%d] outgoing route '%s' is now valid %s",
                   out->fd->fd, out->ip, out->port, rkey, _sx_flags(out->s));
 
         xhash_put(out->states, pstrdup(xhash_pool(out->states), rkey), (void *) conn_VALID);    /* !!! small leak here */
 
-        log_debug(ZONE, "%s valid, flushing queue", rkey);
+        LOG_DEBUG(out->s2s->log, "%s valid, flushing queue", rkey);
 
         /* flush the queue */
         out_flush_route_queue(out->s2s, rkey, rkeylen);
@@ -1699,10 +1703,10 @@ static void _out_result(conn_t out, nad_t nad) {
     }
 
     /* invalid */
-    log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] outgoing route '%s' is now invalid", out->fd->fd, out->ip, out->port, rkey);
+    LOG_NOTICE(out->s2s->log, "[%d] [%s, port=%d] outgoing route '%s' is now invalid", out->fd->fd, out->ip, out->port, rkey);
 
     /* close connection */
-    log_write(out->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] closing connection", out->fd->fd, out->ip, out->port);
+    LOG_NOTICE(out->s2s->log, "[%d] [%s, port=%d] closing connection", out->fd->fd, out->ip, out->port);
 
     /* report stream error */
     sx_error(out->s, stream_err_INVALID_ID, "dialback negotiation failed");
@@ -1722,23 +1726,23 @@ static void _out_result(conn_t out, nad_t nad) {
 }
 
 /** incoming stream authenticated */
-static void _out_verify(conn_t out, nad_t nad) {
+static void _out_verify(conn_t *out, nad_t *nad) {
     int attr, ns;
-    jid_t from, to;
-    conn_t in;
+    jid_t *from, *to;
+    conn_t *in;
     char *rkey;
     int valid;
 
     attr = nad_find_attr(nad, 0, -1, "from", NULL);
     if(attr < 0 || (from = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
-        log_debug(ZONE, "missing or invalid from on db verify packet");
+        LOG_DEBUG(out->s2s->log, "missing or invalid from on db verify packet");
         nad_free(nad);
         return;
     }
 
     attr = nad_find_attr(nad, 0, -1, "to", NULL);
     if(attr < 0 || (to = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
-        log_debug(ZONE, "missing or invalid to on db verify packet");
+        LOG_DEBUG(out->s2s->log, "missing or invalid to on db verify packet");
         jid_free(from);
         nad_free(nad);
         return;
@@ -1746,7 +1750,7 @@ static void _out_verify(conn_t out, nad_t nad) {
 
     attr = nad_find_attr(nad, 0, -1, "id", NULL);
     if(attr < 0) {
-        log_debug(ZONE, "missing id on db verify packet");
+        LOG_DEBUG(out->s2s->log, "missing id on db verify packet");
         jid_free(from);
         jid_free(to);
         nad_free(nad);
@@ -1756,7 +1760,7 @@ static void _out_verify(conn_t out, nad_t nad) {
     /* get the incoming conn */
     in = xhash_getx(out->s2s->in, NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr));
     if(in == NULL) {
-        log_debug(ZONE, "got a verify for incoming conn %.*s, but it doesn't exist, dropping the packet", NAD_AVAL_L(nad, attr), NAD_AVAL(nad, attr));
+        LOG_DEBUG(out->s2s->log, "got a verify for incoming conn %.*s, but it doesn't exist, dropping the packet", NAD_AVAL_L(nad, attr), NAD_AVAL(nad, attr));
         jid_free(from);
         jid_free(to);
         nad_free(nad);
@@ -1768,11 +1772,11 @@ static void _out_verify(conn_t out, nad_t nad) {
     attr = nad_find_attr(nad, 0, -1, "type", "valid");
     if(attr >= 0 && xhash_get(in->states, rkey) == (void*) conn_INPROGRESS) {
         xhash_put(in->states, pstrdup(xhash_pool(in->states), rkey), (void *) conn_VALID);
-        log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] incoming route '%s' is now valid %s",
+        LOG_NOTICE(in->s2s->log, "[%d] [%s, port=%d] incoming route '%s' is now valid %s",
                   in->fd->fd, in->ip, in->port, rkey, _sx_flags(in->s));
         valid = 1;
     } else {
-        log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] incoming route '%s' is now invalid", in->fd->fd, in->ip, in->port, rkey);
+        LOG_NOTICE(in->s2s->log, "[%d] [%s, port=%d] incoming route '%s' is now invalid", in->fd->fd, in->ip, in->port, rkey);
         valid = 0;
     }
 
@@ -1809,7 +1813,7 @@ static void _out_verify(conn_t out, nad_t nad) {
 }
 
 /* bounce all packets in the queues for domain */
-int out_bounce_domain_queues(s2s_t s2s, const char *domain, int err)
+int out_bounce_domain_queues(s2s_t *s2s, const char *domain, int err)
 {
   char *rkey;
   int rkeylen;
@@ -1827,10 +1831,10 @@ int out_bounce_domain_queues(s2s_t s2s, const char *domain, int err)
 }
 
 /* bounce all packets in the queue for route */
-int out_bounce_route_queue(s2s_t s2s, const char *rkey, int rkeylen, int err)
+int out_bounce_route_queue(s2s_t *s2s, const char *rkey, int rkeylen, int err)
 {
-  jqueue_t q;
-  pkt_t pkt;
+  jqueue_t *q;
+  pkt_t *pkt;
   int pktcount = 0;
 
   q = xhash_getx(s2s->outq, rkey, rkeylen);
@@ -1852,7 +1856,7 @@ int out_bounce_route_queue(s2s_t s2s, const char *rkey, int rkeylen, int err)
   }
 
   /* delete queue and remove domain from queue hash */
-  log_debug(ZONE, "deleting out packet queue for %.*s", rkeylen, rkey);
+  LOG_DEBUG(s2s->log, "deleting out packet queue for %.*s", rkeylen, rkey);
   rkey = q->key;
   jqueue_free(q);
   xhash_zap(s2s->outq, rkey);
@@ -1861,7 +1865,7 @@ int out_bounce_route_queue(s2s_t s2s, const char *rkey, int rkeylen, int err)
   return pktcount;
 }
 
-int out_bounce_conn_queues(conn_t out, int err)
+int out_bounce_conn_queues(conn_t *out, int err)
 {
   char *rkey;
   int rkeylen;
@@ -1878,7 +1882,7 @@ int out_bounce_conn_queues(conn_t out, int err)
   return pktcount;
 }
 
-void out_flush_domain_queues(s2s_t s2s, const char *domain) {
+void out_flush_domain_queues(s2s_t *s2s, const char *domain) {
   char *rkey;
   int rkeylen;
   char *c;
@@ -1896,9 +1900,9 @@ void out_flush_domain_queues(s2s_t s2s, const char *domain) {
   }
 }
 
-void out_flush_route_queue(s2s_t s2s, const char *rkey, int rkeylen) {
-    jqueue_t q;
-    pkt_t pkt;
+void out_flush_route_queue(s2s_t *s2s, const char *rkey, int rkeylen) {
+    jqueue_t *q;
+    pkt_t *pkt;
     int npkt, i, ret;
 
     q = xhash_getx(s2s->outq, rkey, rkeylen);
@@ -1906,7 +1910,7 @@ void out_flush_route_queue(s2s_t s2s, const char *rkey, int rkeylen) {
         return;
 
     npkt = jqueue_size(q);
-    log_debug(ZONE, "flushing %d packets for '%.*s' to out_packet", npkt, rkeylen, rkey);
+    LOG_DEBUG(s2s->log, "flushing %d packets for '%.*s' to out_packet", npkt, rkeylen, rkey);
 
     for(i = 0; i < npkt; i++) {
         pkt = jqueue_pull(q);
@@ -1923,12 +1927,12 @@ void out_flush_route_queue(s2s_t s2s, const char *rkey, int rkeylen) {
 
     /* delete queue for route and remove route from queue hash */
     if (jqueue_size(q) == 0) {
-        log_debug(ZONE, "deleting out packet queue for '%.*s'", rkeylen, rkey);
+        LOG_DEBUG(s2s->log, "deleting out packet queue for '%.*s'", rkeylen, rkey);
         rkey = q->key;
         jqueue_free(q);
         xhash_zap(s2s->outq, rkey);
         free((void*)rkey);
     } else {
-        log_debug(ZONE, "emptied queue gained more packets...");
+        LOG_DEBUG(s2s->log, "emptied queue gained more packets...");
     }
 }

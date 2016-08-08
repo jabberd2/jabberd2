@@ -1,5 +1,4 @@
 LIBTOOL += --quiet
-AM_CPPFLAGS = -I@top_srcdir@
 
 bin_PROGRAMS = sm
 
@@ -42,7 +41,8 @@ sm_SOURCES = aci.c \
              sm.c \
              user.c
 
-sm_CPPFLAGS = -DCONFIG_DIR=\"$(sysconfdir)\" -DLIBRARY_DIR=\"$(pkglibdir)\" -I@top_srcdir@
+AM_CPPFLAGS = -DCONFIG_DIR=\"$(sysconfdir)\" -I@top_srcdir@
+sm_CPPFLAGS = $(AM_CPPFLAGS) -DLIBRARY_DIR=\"$(pkglibdir)\"
 sm_LDFLAGS = -export-dynamic
 sm_LDADD = $(top_builddir)/sx/libsx.la \
            $(top_builddir)/mio/libmio.la \

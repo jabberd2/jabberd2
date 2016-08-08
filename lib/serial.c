@@ -20,7 +20,9 @@
 
 /* these are useful utilities for data serialisation */
 
-#include "util.h"
+#include "serial.h"
+#include "str.h"
+#include <string.h>
 
 /*
  * ser_string_get() and ser_int_get() retrieve a string (null-terminated) or
@@ -42,7 +44,7 @@ int ser_string_get(char **dest, int *source, const char *buf, int len)
     /* make sure we have a \0 before the end of the buffer */
     c = &(buf[*source]);
     while(c <= end && *c != '\0') c++;
-    if(c > end)
+    if (c > end)
         /* we ran past the end, fail */
         return 1;
 
@@ -65,11 +67,11 @@ int ser_int_get(int *dest, int *source, const char *buf, int len)
     int i;
 
     /* we need sizeof(int) bytes */
-    if(&(buf[*source]) + sizeof(int) > buf + (sizeof(char) * len))
+    if (&(buf[*source]) + sizeof(int) > buf + (sizeof(char) * len))
         return 1;
 
     /* copy the bytes into the union. we do it this way to avoid alignment problems */
-    for(i = 0; i < sizeof(int); i++)
+    for (i = 0; i < sizeof(int); i++)
     {
         u.c[i] = buf[*source];
         (*source)++;
@@ -86,40 +88,26 @@ int ser_int_get(int *dest, int *source, const char *buf, int len)
  * will be grown to accomodate. buf, dest and len will be updated.
  */
 
-/* shamelessy stolen from nad.c */
-
-#define BLOCKSIZE 1024
-
-/** internal: do and return the math and ensure it gets realloc'd */
-static int _ser_realloc(void **oblocks, int len)
+void ser_string_setx(const char *source, size_t slen, int *dest, char **buf, int *len)
 {
-    void *nblocks;
-    int nlen;
+    int need = sizeof(char) * (slen + 1);
 
-    /* round up to standard block sizes */
-    nlen = (((len-1)/BLOCKSIZE)+1)*BLOCKSIZE;
+    /* make more space if necessary */
+    BUF_SAFE(*buf, *dest + need, *len);
 
-    /* keep trying till we get it */
-    while((nblocks = realloc(*oblocks, nlen)) == NULL) sleep(1);
-    *oblocks = nblocks;
-    return nlen;
+    /* copy it in */
+    strncpy(*buf + *dest, source, slen);
+
+    /* shift the pointer */
+    *dest += need;
+
+    /* and nul-terminate */
+    *(*buf + *dest) = 0;
 }
-
-/** this is the safety check used to make sure there's always enough mem */
-#define SER_SAFE(blocks, size, len) if((size) > len) len = _ser_realloc((void**)&(blocks),(size));
 
 void ser_string_set(const char *source, int *dest, char **buf, int *len)
 {
-    int need = sizeof(char) * (strlen(source) + 1);
-
-    /* make more space if necessary */
-    SER_SAFE(*buf, *dest + need, *len);
-
-    /* copy it in */
-    strcpy(*buf + *dest, source);
-
-    /* and shift the pointer */
-    *dest += need;
+    ser_string_setx(source, strlen(source), dest, buf, len);
 }
 
 void ser_int_set(int source, int *dest, char **buf, int *len)
@@ -132,11 +120,11 @@ void ser_int_set(int source, int *dest, char **buf, int *len)
     int i;
 
     /* make more space if necessary */
-    SER_SAFE(*buf, *dest + sizeof(int), *len)
+    BUF_SAFE(*buf, *dest + sizeof(int), *len)
 
     /* copy it in */
     u.i = source;
-    for(i = 0; i < sizeof(int); i++)
+    for (i = 0; i < sizeof(int); i++)
         (*buf)[*dest + i] = u.c[i];
 
     /* and shift the pointer */

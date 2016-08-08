@@ -22,19 +22,19 @@
 
 /** aci manager */
 
-typedef struct aci_user_st      *aci_user_t;
+typedef struct aci_user_st aci_user_t;
 struct aci_user_st {
     char        *name;
-    aci_user_t  next;
+    aci_user_t  *next;
 };
 
-xht aci_load(router_t r) {
-    xht aci;
+xht *aci_load(router_t *r) {
+    xht *aci;
     int aelem, uelem, attr;
     char type[33];
-    aci_user_t list_head, list_tail, user;
+    aci_user_t *list_head, *list_tail, *user;
 
-    log_debug(ZONE, "loading aci");
+    LOG_DEBUG(r->log, "loading aci");
 
     aci = xhash_new(51);
 
@@ -53,14 +53,14 @@ xht aci_load(router_t r) {
 
         snprintf(type, 33, "%.*s", NAD_AVAL_L(r->config->nad, attr), NAD_AVAL(r->config->nad, attr));
 
-        log_debug(ZONE, "building list for '%s'", type);
+        LOG_DEBUG(r->log, "building list for '%s'", type);
 
         uelem = nad_find_elem(r->config->nad, aelem, -1, "user", 1);
         while(uelem >= 0) {
             if(NAD_CDATA_L(r->config->nad, uelem) > 0) {
-                user = (aci_user_t) calloc(1, sizeof(struct aci_user_st));
+                user = new(aci_user_t);
 
-                user->name = (char *) malloc(sizeof(char) * (NAD_CDATA_L(r->config->nad, uelem) + 1));
+                user->name = malloc(sizeof(char) * (NAD_CDATA_L(r->config->nad, uelem) + 1));
                 sprintf(user->name, "%.*s", NAD_CDATA_L(r->config->nad, uelem), NAD_CDATA(r->config->nad, uelem));
 
                 if(list_tail != NULL) {
@@ -74,7 +74,7 @@ xht aci_load(router_t r) {
                    list_tail = user;
                 }
                 
-                log_debug(ZONE, "added '%s'", user->name);
+                LOG_DEBUG(r->log, "added '%s'", user->name);
             }
 
             uelem = nad_find_elem(r->config->nad, uelem, -1, "user", 0);
@@ -90,18 +90,18 @@ xht aci_load(router_t r) {
 }
 
 /** see if a username is in an acl */
-int aci_check(xht aci, const char *type, const char *name) {
-    aci_user_t list, scan;
+int aci_check(xht *aci, const char *type, const char *name) {
+    aci_user_t *list, *scan;
 
-    log_debug(ZONE, "checking for '%s' in acl 'all'", name);
-    list = (aci_user_t) xhash_get(aci, "all");
+//    LOG_DEBUG(log, "checking for '%s' in acl 'all'", name);
+    list = xhash_get(aci, "all");
     for(scan = list; scan != NULL; scan = scan->next)
         if(strcmp(scan->name, name) == 0)
             return 1;
 
     if(type != NULL) {
-        log_debug(ZONE, "checking for '%s' in acl '%s'", name, type);
-        list = (aci_user_t) xhash_get(aci, type);
+//        LOG_DEBUG(log, "checking for '%s' in acl '%s'", name, type);
+        list = xhash_get(aci, type);
         for(scan = list; scan != NULL; scan = scan->next)
             if(strcmp(scan->name, name) == 0)
                 return 1;
@@ -111,8 +111,8 @@ int aci_check(xht aci, const char *type, const char *name) {
 }
 
 /** unload aci table */
-void aci_unload(xht aci) {
-    aci_user_t list, user;
+void aci_unload(xht *aci) {
+    aci_user_t *list, *user;
 
     /* free list of users for each acl*/
     if(xhash_iter_first(aci))

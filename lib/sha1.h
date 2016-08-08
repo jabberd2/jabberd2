@@ -23,18 +23,11 @@
 #ifndef INCL_SHA1_H
 #define INCL_SHA1_H
 
-/* jabberd2 Windows DLL */
-#ifndef JABBERD2_API
-# ifdef _WIN32
-#  ifdef JABBERD2_EXPORTS
-#   define JABBERD2_API  __declspec(dllexport)
-#  else /* JABBERD2_EXPORTS */
-#   define JABBERD2_API  __declspec(dllimport)
-#  endif /* JABBERD2_EXPORTS */
-# else /* _WIN32 */
-#  define JABBERD2_API extern
-# endif /* _WIN32 */
-#endif /* JABBERD2_API */
+#include "util.h"
+
+/** old convenience functions */
+JABBERD2_API void shahash_r(const char* str, char hashbuf[41]);
+JABBERD2_API void shahash_raw(const char* str, unsigned char hashval[20]);
 
 /* use OpenSSL functions when available */
 #ifdef HAVE_SSL

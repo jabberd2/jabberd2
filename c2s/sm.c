@@ -19,9 +19,11 @@
  */
 
 #include "c2s.h"
+#include "lib/uri.h"
+#include "lib/sha1.h"
 
 /** generate a new session request id */
-static void _sm_generate_id(sess_t sess, bres_t res, const char *type) {
+static void _sm_generate_id(sess_t *sess, bres_t *res, const char *type) {
     char str[3094];   /* JID=3071 chars max + time = 12 chars max + type = 10 chars max + terminator = 3094 */
 
     snprintf(str, 3094, "%s%d%s", type, (int) time(NULL), jid_full(res->jid));
@@ -31,8 +33,8 @@ static void _sm_generate_id(sess_t sess, bres_t res, const char *type) {
 }
 
 /** make a new action route */
-static nad_t _sm_build_route(sess_t sess, bres_t res, const char *action, const char *target, const char *id) {
-    nad_t nad;
+static nad_t *_sm_build_route(sess_t *sess, bres_t *res, const char *action, const char *target, const char *id) {
+    nad_t *nad;
     int ns, ans;
 
     nad = nad_new();
@@ -58,32 +60,32 @@ static nad_t _sm_build_route(sess_t sess, bres_t res, const char *action, const 
     if(id != NULL)
         nad_append_attr(nad, -1, "id", id);
 
-    log_debug(ZONE, "built new route nad for %s action %s target %s id %s", jid_full(res->jid), action, target, id);
+    LOG_DEBUG(sess->c2s->log, "built new route nad for %s action %s target %s id %s", jid_full(res->jid), action, target, id);
 
     return nad;
 }
 
-void sm_start(sess_t sess, bres_t res) {
+void sm_start(sess_t *sess, bres_t *res) {
     _sm_generate_id(sess, res, "start");
 
     sx_nad_write(sess->c2s->router, _sm_build_route(sess, res, "start", jid_full(res->jid), res->sm_request));
 }
 
-void sm_end(sess_t sess, bres_t res) {
+void sm_end(sess_t *sess, bres_t *res) {
     sx_nad_write(sess->c2s->router, _sm_build_route(sess, res, "end", NULL, NULL));
 }
 
-void sm_create(sess_t sess, bres_t res) {
+void sm_create(sess_t *sess, bres_t *res) {
     _sm_generate_id(sess, res, "create");
 
     sx_nad_write(sess->c2s->router, _sm_build_route(sess, res, "create", jid_user(res->jid), res->sm_request));
 }
 
-void sm_delete(sess_t sess, bres_t res) {
+void sm_delete(sess_t *sess, bres_t *res) {
     sx_nad_write(sess->c2s->router, _sm_build_route(sess, res, "delete", jid_user(res->jid), NULL));
 }
 
-void sm_packet(sess_t sess, bres_t res, nad_t nad) {
+void sm_packet(sess_t *sess, bres_t *res, nad_t *nad) {
     int ns;
 
     ns = nad_add_namespace(nad, uri_COMPONENT, NULL);

@@ -22,15 +22,15 @@
 
 /** user table manager */
 
-int user_table_load(router_t r) {
+int user_table_load(router_t *r) {
     const char *userfile;
     FILE *f;
     long size;
     char *buf;
-    nad_t nad;
+    nad_t *nad;
     int nusers, user, name, secret;
 
-    log_debug(ZONE, "loading user table");
+    LOG_DEBUG(r->log, "loading user table");
 
     if(r->users != NULL)
         xhash_free(r->users);
@@ -43,28 +43,28 @@ int user_table_load(router_t r) {
 
     f = fopen(userfile, "rb");
     if(f == NULL) {
-        log_write(r->log, LOG_ERR, "couldn't open user table file %s: %s", userfile, strerror(errno));
+        LOG_ERROR(r->log, "couldn't open user table file %s: %s", userfile, strerror(errno));
         return 1;
     }
 
     fseek(f, 0, SEEK_END);
     size = ftell(f);
     if(size < 0) {
-        log_write(r->log, LOG_ERR, "couldn't seek user table file %s: %s", userfile, strerror(errno));
+        LOG_ERROR(r->log, "couldn't seek user table file %s: %s", userfile, strerror(errno));
         fclose(f);
         return 1;
     }
     if(size == 0) {
-        log_write(r->log, LOG_ERR, "empty user table file %s", userfile);
+        LOG_ERROR(r->log, "empty user table file %s", userfile);
         fclose(f);
         return 1;
     }
     fseek(f, 0, SEEK_SET);
 
-    buf = (char *) malloc(sizeof(char) * size);
+    buf = malloc(sizeof(char) * size);
 
-    if (fread(buf, 1, size, f) != size || ferror(f)) {
-        log_write(r->log, LOG_ERR, "couldn't read from user table file: %s", strerror(errno));
+    if(fread(buf, 1, size, f) != size || ferror(f)) {
+        LOG_ERROR(r->log, "couldn't read from user table file: %s", strerror(errno));
         free(buf);
         fclose(f);
         return 1;
@@ -74,7 +74,7 @@ int user_table_load(router_t r) {
 
     nad = nad_parse(buf, size);
     if(nad == NULL) {
-        log_write(r->log, LOG_ERR, "couldn't parse user table");
+        LOG_ERROR(r->log, "couldn't parse user table");
         free(buf);
         return 1;
     }
@@ -88,11 +88,11 @@ int user_table_load(router_t r) {
         secret = nad_find_elem(nad, user, -1, "secret", 1);
 
         if(name < 0 || secret < 0 || NAD_CDATA_L(nad, name) <= 0 || NAD_CDATA_L(nad, secret) <= 0) {
-            log_write(r->log, LOG_ERR, "malformed user entry in user table file, skipping");
+            LOG_ERROR(r->log, "malformed user entry in user table file, skipping");
             continue;
         }
 
-        log_debug(ZONE, "remembering user '%.*s'", NAD_CDATA_L(nad, name), NAD_CDATA(nad, name));
+        LOG_DEBUG(r->log, "remembering user '%.*s'", NAD_CDATA_L(nad, name), NAD_CDATA(nad, name));
 
         xhash_put(r->users, pstrdupx(xhash_pool(r->users), NAD_CDATA(nad, name), NAD_CDATA_L(nad, name)), pstrdupx(xhash_pool(r->users), NAD_CDATA(nad, secret), NAD_CDATA_L(nad, secret)));
 
@@ -103,14 +103,14 @@ int user_table_load(router_t r) {
 
     nad_free(nad);
 
-    log_write(r->log, LOG_NOTICE, "loaded user table (%d users)", nusers);
+    LOG_NOTICE(r->log, "loaded user table (%d users)", nusers);
 
     r->users_load = time(NULL);
 
     return 0;
 }
 
-void user_table_unload(router_t r) {
+void user_table_unload(router_t *r) {
 
     if(r->users != NULL)
         xhash_free(r->users);

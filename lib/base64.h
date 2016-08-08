@@ -18,28 +18,16 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
-/** @file lib/base64.h
+/** @file util/base64.h
   * @brief Base64 encoding
   * @author Apache Software Foundation
-  * $Date: 2004/05/17 05:03:13 $
-  * $Revision: 1.1 $
   */
 
 #ifndef INCL_UTIL_BASE64_H
 #define INCL_UTIL_BASE64_H 1
 
-/* jabberd2 Windows DLL */
-#ifndef JABBERD2_API
-# ifdef _WIN32
-#  ifdef JABBERD2_EXPORTS
-#   define JABBERD2_API  __declspec(dllexport)
-#  else /* JABBERD2_EXPORTS */
-#   define JABBERD2_API  __declspec(dllimport)
-#  endif /* JABBERD2_EXPORTS */
-# else /* _WIN32 */
-#  define JABBERD2_API extern
-# endif /* _WIN32 */
-#endif /* JABBERD2_API */
+#include "util.h"
+#include <stddef.h>
 
 /* base64 functions */
 JABBERD2_API int apr_base64_decode_len(const char *bufcoded);
@@ -48,7 +36,7 @@ JABBERD2_API int apr_base64_encode_len(int len);
 JABBERD2_API int apr_base64_encode(char *encoded, const unsigned char *string, int len);
 
 /* convenience, result string must be free()'d by caller */
-JABBERD2_API char *b64_encode(char *buf, int len);
+JABBERD2_API char *b64_encode(char *buf, size_t len);
 JABBERD2_API char *b64_decode(char *buf);
 
 #endif

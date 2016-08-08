@@ -438,7 +438,7 @@ int ar_init(authreg_t ar)
         return 1;
     }
 
-    data = (moddata_t) calloc(1, sizeof(struct moddata_st));
+    data = new(moddata_t);
 
     data->basedn = xhash_new(101);
 

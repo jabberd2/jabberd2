@@ -18,57 +18,61 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
-#include "util.h"
+#include "jid.h"
+#include "str.h"
+#include "sha1.h"
 #include <stringprep.h>
+#include <assert.h>
+#include <stdio.h>
 
 /** Forward declaration **/
-static jid_t jid_reset_components_internal(jid_t jid, const char *node, const char *domain, const char *resource, int prepare);
+static jid_t *jid_reset_components_internal(jid_t *jid, const char *node, const char *domain, const char *resource, int prepare);
 
 /** do stringprep on the pieces */
 static int jid_prep_pieces(char *node, char *domain, char *resource) {
-    if(node[0] != '\0')
-        if(stringprep_xmpp_nodeprep(node, 1024) != 0)
+    if (node[0] != '\0')
+        if (stringprep_xmpp_nodeprep(node, 1024) != 0)
             return 1;
 
-    if(stringprep_nameprep(domain, 1024) != 0)
+    if (stringprep_nameprep(domain, 1024) != 0)
         return 1;
 
-    if(resource[0] != '\0')
-        if(stringprep_xmpp_resourceprep(resource, 1024) != 0)
+    if (resource[0] != '\0')
+        if (stringprep_xmpp_resourceprep(resource, 1024) != 0)
             return 1;
 
     return 0;
 }
 
 /** do stringprep on the piece **/
-int jid_prep(jid_t jid)
+int jid_prep(jid_t *jid)
 {
     char node[MAXLEN_JID_COMP+1];
     char domain[MAXLEN_JID_COMP+1];
     char resource[MAXLEN_JID_COMP+1];
 
-    if(jid->node != NULL) {
+    if (jid->node != NULL) {
         strncpy(node, jid->node, MAXLEN_JID_COMP);
         node[MAXLEN_JID_COMP]='\0';
     }
     else
         node[0] = '\0';
 
-    if(jid->domain != NULL) {
+    if (jid->domain != NULL) {
         strncpy(domain, jid->domain, MAXLEN_JID_COMP);
         domain[MAXLEN_JID_COMP]='\0';
     }
     else
         domain[0] = '\0';
 
-    if(jid->resource != NULL) {
+    if (jid->resource != NULL) {
         strncpy(resource, jid->resource, MAXLEN_JID_COMP);
         resource[MAXLEN_JID_COMP]='\0';
     }
     else
         resource[0] = '\0';
 
-    if(jid_prep_pieces(node, domain, resource) != 0)
+    if (jid_prep_pieces(node, domain, resource) != 0)
         return 1;
 
     /* put prepared components into jid */
@@ -78,103 +82,76 @@ int jid_prep(jid_t jid)
 }
 
 /** make a new jid */
-jid_t jid_new(const char *id, int len) {
-    jid_t jid, ret;
+jid_t *jid_new(const char *id, int len) {
+    jid_t *jid, *ret;
 
-    jid = malloc(sizeof(struct jid_st));
-    jid->jid_data = NULL;
+    jid = new(jid_t);
 
     ret = jid_reset(jid, id, len);
-    if(ret == NULL) {
-        if(len < 0) {
-           log_debug(ZONE, "invalid jid: %s", id);
-        } else {
-           log_debug(ZONE, "invalid jid: %.*s", len, id);
-        }
+    if (ret == NULL) {
         free(jid);
     }
 
     return ret;
 }
 
-/** Make jid to use static buffer (jid data won't be allocated dynamically, but
- * given buffer will be always used. JID may not be previously used! */
-void jid_static(jid_t jid, jid_static_buf *buf)
-{
-    /* clear jid */
-    memset(jid, 0, sizeof(*jid));
-
-    /* set buffer */
-    jid->jid_data = (char *)buf;
-}
-
-
 /** build a jid from an id */
-jid_t jid_reset(jid_t jid, const char *id, int len) {
-    char *myid, *cur, *olddata=NULL;
+jid_t *jid_reset(jid_t *jid, const char *id, int len) {
+    char *myid, *cur;
 
     assert((int) (jid != NULL));
 
-    if (jid->jid_data != NULL) {
-        if(jid->jid_data_len != 0)
-            free(jid->jid_data);
-        else
-            olddata = jid->jid_data; /* store pointer to old data */
-    }
-    memset(jid, 0, sizeof(struct jid_st));
+    free(jid->jid_data);
+    memset(jid, 0, sizeof(jid_t));
     jid->dirty = 1;
     jid->node = "";
     jid->domain = "";
     jid->resource = "";
 
     /* nice empty jid */
-    if(id == NULL)
+    if (id == NULL)
         return jid;
 
-    if(len < 0)
+    if (len < 0)
         len = strlen(id);
 
-    if((len == 0) || (len > MAXLEN_JID))
+    if ((len == 0) || (len > MAXLEN_JID))
         return NULL;
 
-    if(olddata != NULL)
-        myid = olddata; /* use static buffer */
-    else {
-        jid->jid_data_len = sizeof(char) * (len + 1);
-        myid = (char *) malloc(jid->jid_data_len);
-    }
+    jid->jid_data_len = sizeof(char) * (len + 1);
+    myid = malloc(jid->jid_data_len);
     sprintf(myid, "%.*s", len, id);
 
     /* fail - only a resource or leading @ */
-    if(myid[0] == '/' || myid[0] == '@') {
-        if(olddata == NULL) free(myid);
+    if (myid[0] == '/' || myid[0] == '@') {
+        free(myid);
         return NULL;
     }
 
     /* get the resource first */
     cur = strstr(myid, "/");
 
-    if(cur != NULL)
+    if (cur != NULL)
     {
         *cur = '\0';
         cur++;
-        if(strlen(cur) > 0) {
+        if (strlen(cur) > 0) {
             jid->resource = cur;
         } else {
             /* fail - a resource separator but nothing after it */
-            if(olddata == NULL) free(myid);
+            free(myid);
             return NULL;
         }
     }
 
     /* find the domain */
     cur = strstr(myid, "@");
-    if(cur != NULL) {
+    if (cur != NULL) {
         *cur = '\0';
         cur++;
-        if(strlen(cur) == 0) {
+        if (strlen(cur) == 0) {
             /* no domain part, bail out */
-            if(olddata == NULL) free(myid);
+            free(myid);
             return NULL;
         }
         jid->domain = cur;
@@ -186,8 +163,8 @@ jid_t jid_reset(jid_t jid, const char *id, int len) {
 
     jid->jid_data = myid;
 
-    if(jid_prep(jid) != 0) {
-        if(olddata == NULL) free(myid);
+    if (jid_prep(jid) != 0) {
+        free(myid);
         jid->jid_data = NULL;
         return NULL;
     }
@@ -196,49 +173,37 @@ jid_t jid_reset(jid_t jid, const char *id, int len) {
 }
 
 /** build a jid from components - internal version */
-static jid_t jid_reset_components_internal(jid_t jid, const char *node, const char *domain, const char *resource, int prepare) {
+static jid_t *jid_reset_components_internal(jid_t *jid, const char *node, const char *domain, const char *resource, int prepare) {
     char *olddata=NULL;
     int node_l,domain_l,resource_l;
-    int dataStatic;
-    jid_static_buf staticTmpBuf;
 
     assert((int) (jid != NULL));
 
-    if(jid->jid_data != NULL)
+    if (jid->jid_data != NULL)
         olddata = jid->jid_data; /* Store old data before clearing JID */
 
-    dataStatic = ((jid->jid_data != NULL) && (jid->jid_data_len == 0));
+    free(jid->_user);
+    free(jid->_full);
 
-    if (jid->_user != NULL )
-        free(jid->_user);
-    if (jid->_full != NULL )
-        free(jid->_full);
-
-    memset(jid, 0, sizeof(struct jid_st));
+    memset(jid, 0, sizeof(jid_t));
 
     /* get lengths */
     node_l = strlen(node);
     domain_l = strlen(domain);
     resource_l = strlen(resource);
 
-    if(node_l > MAXLEN_JID_COMP)
+    if (node_l > MAXLEN_JID_COMP)
         node_l = MAXLEN_JID_COMP;
 
-    if(domain_l > MAXLEN_JID_COMP)
+    if (domain_l > MAXLEN_JID_COMP)
         domain_l = MAXLEN_JID_COMP;
 
-    if(resource_l > MAXLEN_JID_COMP)
+    if (resource_l > MAXLEN_JID_COMP)
         resource_l = MAXLEN_JID_COMP;
 
-    if(dataStatic) {
-        /* use static buffer */
-        jid->jid_data = staticTmpBuf;
-    }
-    else {
-        /* allocate new data buffer */
-        jid->jid_data_len = node_l+domain_l+resource_l+3;
-        jid->jid_data = realloc(jid->jid_data, jid->jid_data_len);
-    }
+    /* allocate new data buffer */
+    jid->jid_data_len = node_l+domain_l+resource_l+3;
+    jid->jid_data = realloc(jid->jid_data, jid->jid_data_len);
 
     /* copy to buffer */
     jid->node = jid->jid_data;
@@ -254,57 +219,45 @@ static jid_t jid_reset_components_internal(jid_t jid, const char *node, const ch
     jid->resource[resource_l] = 0;
 
     /* Free old data buffer. Postponed to this point so that arguments may point (in)to old jid data. */
-    if((!dataStatic) && (olddata != NULL))
-        free(olddata);
+    free(olddata);
 
-    if(prepare) {
-        if(jid_prep(jid) != 0)
+    if (prepare) {
+        if (jid_prep(jid) != 0)
             return NULL;
     }
 
     jid->dirty = 1;
 
-    if (dataStatic) {
-        jid->jid_data = olddata; /* Return pointer to the original static buffer */
-        memcpy(jid->jid_data,staticTmpBuf,node_l+domain_l+resource_l+3); /* Copy data from tmp buf to original buffer */
-
-        /* Relocate pointers */
-        jid->node = olddata+(jid->node-(char *)staticTmpBuf);
-        jid->domain = olddata+(jid->domain-(char *)staticTmpBuf);
-        jid->resource = olddata+(jid->resource-(char *)staticTmpBuf);
-    }
-
     return jid;
 }
 
 /** build a jid from components */
-jid_t jid_reset_components(jid_t jid, const char *node, const char *domain, const char *resource) {
+jid_t *jid_reset_components(jid_t *jid, const char *node, const char *domain, const char *resource) {
     return jid_reset_components_internal(jid, node, domain, resource, 1);
 }
 
 /** free a jid */
-void jid_free(jid_t jid)
+void jid_free(jid_t *jid)
 {
-    if((jid->jid_data != NULL) && (jid->jid_data_len != 0))
-        free(jid->jid_data);
-    if (jid->_user != NULL )
-        free(jid->_user);
-    if (jid->_full != NULL )
-        free(jid->_full);
+    if(!jid)
+        return;
+    free(jid->jid_data);
+    free(jid->_user);
+    free(jid->_full);
     free(jid);
 }
 
 /** build user and full if they're out of date */
-void jid_expand(jid_t jid)
+void jid_expand(jid_t *jid)
 {
     int nlen, dlen, rlen, ulen;
 
-    if((!jid->dirty) && (jid->_full))
+    if ((!jid->dirty) && (jid->_full))
         return; /* Not dirty & already expanded */
 
-    if(*jid->domain == '\0') {
+    if (*jid->domain == '\0') {
       /* empty */
-      jid->_full = (char*) realloc(jid->_full, 1);
+      jid->_full = realloc(jid->_full, 1);
       jid->_full[0] = 0;
       return;
     }
@@ -313,21 +266,21 @@ void jid_expand(jid_t jid)
     dlen = strlen(jid->domain);
     rlen = strlen(jid->resource);
 
-    if(nlen == 0) {
+    if (nlen == 0) {
         ulen = dlen+1;
-        jid->_user = (char*) realloc(jid->_user, ulen);
+        jid->_user = realloc(jid->_user, ulen);
         strcpy(jid->_user, jid->domain);
     } else {
         ulen = nlen+1+dlen+1;
-        jid->_user = (char*) realloc(jid->_user, ulen);
+        jid->_user = realloc(jid->_user, ulen);
         snprintf(jid->_user, ulen, "%s@%s", jid->node, jid->domain);
     }
 
-    if(rlen == 0) {
-        jid->_full = (char*) realloc(jid->_full, ulen);
+    if (rlen == 0) {
+        jid->_full = realloc(jid->_full, ulen);
         strcpy(jid->_full, jid->_user);
     } else {
-        jid->_full = (char*) realloc(jid->_full, ulen+1+rlen);
+        jid->_full = realloc(jid->_full, ulen+1+rlen);
         snprintf(jid->_full, ulen+1+rlen, "%s/%s", jid->_user, jid->resource);
     }
 
@@ -335,7 +288,7 @@ void jid_expand(jid_t jid)
 }
 
 /** expand and return the user */
-const char *jid_user(jid_t jid)
+const char *jid_user(jid_t *jid)
 {
     jid_expand(jid);
 
@@ -343,7 +296,7 @@ const char *jid_user(jid_t jid)
 }
 
 /** expand and return the full */
-const char *jid_full(jid_t jid)
+const char *jid_full(jid_t *jid)
 {
     jid_expand(jid);
 
@@ -351,7 +304,7 @@ const char *jid_full(jid_t jid)
 }
 
 /** compare the user portion of two jids */
-int jid_compare_user(jid_t a, jid_t b)
+int jid_compare_user(jid_t *a, jid_t *b)
 {
     jid_expand(a);
     jid_expand(b);
@@ -360,7 +313,7 @@ int jid_compare_user(jid_t a, jid_t b)
 }
 
 /** compare two full jids */
-int jid_compare_full(jid_t a, jid_t b)
+int jid_compare_full(jid_t *a, jid_t *b)
 {
     jid_expand(a);
     jid_expand(b);
@@ -369,65 +322,60 @@ int jid_compare_full(jid_t a, jid_t b)
 }
 
 /** duplicate a jid */
-jid_t jid_dup(jid_t jid)
+jid_t *jid_dup(jid_t *jid)
 {
-    jid_t new;
+    jid_t *new_jid;
 
-    new = (jid_t) malloc(sizeof(struct jid_st));
-    memcpy(new, jid, sizeof(struct jid_st));
-    if(jid->jid_data != NULL) {
-      if(jid->jid_data_len == 0) {
-        /* when original jid had static buffer, allocate new dynamic buffer
-         * of the same size as has the static buffer */
-        jid->jid_data_len = sizeof(jid_static_buf);
-      }
+    new_jid = new(jid_t);
+    memcpy(new_jid, jid, sizeof(jid_t));
+    if (jid->jid_data != NULL) {
 
       /* allocate & populate new dynamic buffer */
-      new->jid_data = malloc(new->jid_data_len);
-      memcpy(new->jid_data, jid->jid_data, new->jid_data_len);
+      new_jid->jid_data = malloc(new_jid->jid_data_len);
+      memcpy(new_jid->jid_data, jid->jid_data, new_jid->jid_data_len);
 
       /* relocate pointers */
-      if(jid->node[0] == '\0')
-          new->node = "";
+      if (jid->node[0] == '\0')
+          new_jid->node = "";
       else
-          new->node = new->jid_data + (jid->node - jid->jid_data);
-      if(jid->domain[0] == '\0')
-          new->domain = "";
+          new_jid->node = new_jid->jid_data + (jid->node - jid->jid_data);
+      if (jid->domain[0] == '\0')
+          new_jid->domain = "";
       else
-          new->domain = new->jid_data + (jid->domain - jid->jid_data);
-      if(jid->resource[0] == '\0')
-          new->resource = "";
+          new_jid->domain = new_jid->jid_data + (jid->domain - jid->jid_data);
+      if (jid->resource[0] == '\0')
+          new_jid->resource = "";
       else
-          new->resource = new->jid_data + (jid->resource - jid->jid_data);
+          new_jid->resource = new_jid->jid_data + (jid->resource - jid->jid_data);
     }
-    if(jid->_user)
-      new->_user = strdup(jid->_user);
-    if(jid->_full)
-      new->_full = strdup(jid->_full);
+    if (jid->_user)
+      new_jid->_user = j_strdup(jid->_user);
+    if (jid->_full)
+      new_jid->_full = j_strdup(jid->_full);
 
-    return new;
+    return new_jid;
 }
 
 /** util to search through jids */
-int jid_search(jid_t list, jid_t jid)
+int jid_search(jid_t *list, jid_t *jid)
 {
-    jid_t cur;
-    for(cur = list; cur != NULL; cur = cur->next)
-        if(jid_compare_full(cur,jid) == 0)
+    jid_t *cur;
+    for (cur = list; cur != NULL; cur = cur->next)
+        if (jid_compare_full(cur,jid) == 0)
             return 1;
     return 0;
 }
 
 /** remove a jid_t from a list, returning the new list */
-jid_t jid_zap(jid_t list, jid_t jid)
+jid_t *jid_zap(jid_t *list, jid_t *jid)
 {
-    jid_t cur, dead;
+    jid_t *cur, *dead;
 
-    if(jid == NULL || list == NULL)
+    if (jid == NULL || list == NULL)
         return NULL;
 
     /* check first */
-    if(jid_compare_full(jid,list) == 0) {
+    if (jid_compare_full(jid,list) == 0) {
         cur = list->next;
         jid_free(list);
         return cur;
@@ -435,13 +383,13 @@ jid_t jid_zap(jid_t list, jid_t jid)
 
     /* check through the list, stopping at the previous list entry to a matching one */
     cur = list;
-    while(cur != NULL)
+    while (cur != NULL)
     {
-        if(cur->next == NULL)
+        if (cur->next == NULL)
             /* none match, so we're done */
             return list;
 
-        if(jid_compare_full(cur->next, jid) == 0)
+        if (jid_compare_full(cur->next, jid) == 0)
         {
             /* match, kill it */
             dead = cur->next;
@@ -460,22 +408,22 @@ jid_t jid_zap(jid_t list, jid_t jid)
 }
 
 /** make a copy of jid, link into list (avoiding dups) */
-jid_t jid_append(jid_t list, jid_t jid)
+jid_t *jid_append(jid_t *list, jid_t *jid)
 {
-    jid_t scan;
+    jid_t *scan;
 
-    if(list == NULL)
+    if (list == NULL)
         return jid_dup(jid);
 
     scan = list;
-    while(scan != NULL)
+    while (scan != NULL)
     {
         /* check for dups */
-        if(jid_compare_full(scan, jid) == 0)
+        if (jid_compare_full(scan, jid) == 0)
             return list;
 
         /* tack it on to the end of the list */
-        if(scan->next == NULL)
+        if (scan->next == NULL)
         {
             scan->next = jid_dup(jid);
             return list;
@@ -488,14 +436,14 @@ jid_t jid_append(jid_t list, jid_t jid)
 }
 
 /** create random resource **/
-void jid_random_part(jid_t jid, jid_part_t part)
+void jid_random_part(jid_t *jid, jid_part_t part)
 {
     char hashBuf[41];
     char randomBuf[257];
     int i,r;
 
     /* create random string */
-    for(i = 0; i < 256; i++) {
+    for (i = 0; i < 256; i++) {
         r = (int) (36.0 * rand() / RAND_MAX);
         randomBuf[i] = (r >= 0 && r <= 0) ? (r + 48) : (r + 87);
     }

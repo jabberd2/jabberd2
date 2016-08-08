@@ -20,14 +20,16 @@
 
 /* priority jqueues */
 
-#include "util.h"
+#include "jqueue.h"
+#include <assert.h>
+#include <malloc.h>
 
-jqueue_t jqueue_new(void) {
-    pool_t p;
-    jqueue_t q;
+jqueue_t *jqueue_new(void) {
+    pool_t *p;
+    jqueue_t *q;
 
     p = pool_new();
-    q = (jqueue_t) pmalloco(p, sizeof(struct _jqueue_st));
+    q = pnew(p, jqueue_t);
 
     q->p = p;
     q->init_time = time(NULL);
@@ -35,14 +37,13 @@ jqueue_t jqueue_new(void) {
     return q;
 }
 
-void jqueue_free(jqueue_t q) {
-    assert((int) (q != NULL));
-
+void jqueue_free(jqueue_t *q) {
+    assert(q);
     pool_free(q->p);
 }
 
-void jqueue_push(jqueue_t q, void *data, int priority) {
-    _jqueue_node_t qn, scan;
+void jqueue_push(jqueue_t *q, void *data, int priority) {
+    _jqueue_node_t *qn, *scan;
 
     assert((int) (q != NULL));
 
@@ -50,10 +51,10 @@ void jqueue_push(jqueue_t q, void *data, int priority) {
 
     /* node from the cache, or make a new one */
     qn = q->cache;
-    if(qn != NULL)
+    if (qn != NULL)
         q->cache = qn->next;
     else
-        qn = (_jqueue_node_t) pmalloc(q->p, sizeof(struct _jqueue_node_st));
+        qn = pnew(q->p, _jqueue_node_t);
 
     qn->data = data;
     qn->priority = priority;
@@ -62,7 +63,7 @@ void jqueue_push(jqueue_t q, void *data, int priority) {
     qn->prev = NULL;
 
     /* first one */
-    if(q->back == NULL && q->front == NULL) {
+    if (q->back == NULL && q->front == NULL) {
         q->back = qn;
         q->front = qn;
 
@@ -70,10 +71,10 @@ void jqueue_push(jqueue_t q, void *data, int priority) {
     }
 
     /* find the first node with priority <= to us */
-    for(scan = q->back; scan != NULL && scan->priority > priority; scan = scan->next);
+    for (scan = q->back; scan != NULL && scan->priority > priority; scan = scan->next);
 
     /* didn't find one, so we have top priority - push us on the front */
-    if(scan == NULL) {
+    if (scan == NULL) {
         qn->prev = q->front;
         qn->prev->next = qn;
         q->front = qn;
@@ -85,7 +86,7 @@ void jqueue_push(jqueue_t q, void *data, int priority) {
     qn->next = scan;
     qn->prev = scan->prev;
 
-    if(scan->prev != NULL)
+    if (scan->prev != NULL)
         scan->prev->next = qn;
     else
         q->back = qn;
@@ -93,29 +94,29 @@ void jqueue_push(jqueue_t q, void *data, int priority) {
     scan->prev = qn;
 }
 
-void *jqueue_pull(jqueue_t q) {
+void* jqueue_pull(jqueue_t *q) {
     void *data;
-    _jqueue_node_t qn;
+    _jqueue_node_t *qn;
 
     assert((int) (q != NULL));
 
-    if(q->front == NULL)
+    if (q->front == NULL)
         return NULL;
 
     data = q->front->data;
 
     qn = q->front;
 
-    if(qn->prev != NULL)
+    if (qn->prev != NULL)
         qn->prev->next = NULL;
-    
+
     q->front = qn->prev;
 
     /* node to cache for later reuse */
     qn->next = q->cache;
     q->cache = qn;
 
-    if(q->front == NULL)
+    if (q->front == NULL)
         q->back = NULL;
 
     q->size--;
@@ -123,10 +124,10 @@ void *jqueue_pull(jqueue_t q) {
     return data;
 }
 
-int jqueue_size(jqueue_t q) {
+int jqueue_size(jqueue_t *q) {
     return q->size;
 }
 
-time_t jqueue_age(jqueue_t q) {
+time_t jqueue_age(jqueue_t *q) {
     return time(NULL) - q->init_time;
 }

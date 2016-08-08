@@ -403,14 +403,14 @@ static st_ret_t _st_oracle_put_guts(st_driver_t drv, const char *type, const cha
               break;
 
             case os_type_INTEGER:
-              cval = (char *) malloc(sizeof(char) * 20);
+              cval = malloc(sizeof(char) * 20);
               sprintf(cval, "%d", (int) val);
               vlen = strlen(cval);
               break;
 
             case os_type_STRING:
           /* Ensure that we have enough space for an escaped string. */
-              cval = (char *) malloc(sizeof(char) * ((strlen((char *) val) * 2 + count_chars((char *) val,'&') * 8) + 1));
+              cval = malloc(sizeof(char) * ((strlen((char *) val) * 2 + count_chars((char *) val,'&') * 8) + 1));
               vlen = oracle_escape_string(cval , (strlen((char *) val) * 2) + count_chars((char *) val,'&') * 8 + 1, (char *) val, strlen((char *) val));
               break;
 
@@ -418,7 +418,7 @@ static st_ret_t _st_oracle_put_guts(st_driver_t drv, const char *type, const cha
             case os_type_NAD:
               nad_print((nad_t) val, 0, &xml, &xlen);
           /* Ensure that we have enough space for an escaped string. */
-              cval = (char *) malloc(sizeof(char) * ((xlen * 2 + count_chars((char *) val,'&') * 8) + 4));
+              cval = malloc(sizeof(char) * ((xlen * 2 + count_chars((char *) val,'&') * 8) + 4));
               vlen = oracle_escape_string(&cval[3],(xlen * 2 + count_chars((char *) val,'&') * 8) + 4, (char *) xml, xlen) + 3;
               strncpy(cval, "NAD", 3);
               break;
@@ -1006,7 +1006,7 @@ st_ret_t st_init(st_driver_t drv) {
 
     free(oracle_server_host);
 
-    data = (OracleDriverPointer) calloc(1, sizeof(struct OracleDriver));
+    data = new(OracleDriverPointer);
 
     data->ociEnvironment = ociEnvironment;
     data->ociError = ociError;

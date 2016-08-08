@@ -19,6 +19,7 @@
  */
 
 #include "sm.h"
+#include "lib/stanza.h"
 
 /** @file sm/mod_session.c
   * @brief session control
@@ -46,14 +47,14 @@
 union xhashv
 {
   void **val;
-  sess_t *sess_val;
+  sess_t **sess_val;
 };
 
-static mod_ret_t _session_in_router(mod_instance_t mi, pkt_t pkt) {
-    sm_t sm = mi->mod->mm->sm;
+static mod_ret_t _session_in_router(mod_instance_t *mi, pkt_t *pkt) {
+    sm_t *sm = mi->mod->mm->sm;
     int ns, iq, elem, attr;
-    jid_t jid;
-    sess_t sess = (sess_t) NULL;
+    jid_t *jid;
+    sess_t *sess = NULL;
     mod_ret_t ret;
 
     /* if we've got this namespace, its from a c2s */
@@ -185,7 +186,7 @@ static mod_ret_t _session_in_router(mod_instance_t mi, pkt_t pkt) {
         /* get the session id */
         attr = nad_find_attr(pkt->nad, 1, ns, "sm", NULL);
         if(attr < 0) {
-            log_debug(ZONE, "no session id, bouncing");
+            LOG_DEBUG(mi->sm->log, "no session id, bouncing");
             nad_set_attr(pkt->nad, 1, ns, "failed", "1", 1);
             sx_nad_write(sm->router, stanza_tofrom(pkt->nad, 0));
 
@@ -200,7 +201,7 @@ static mod_ret_t _session_in_router(mod_instance_t mi, pkt_t pkt) {
 
         /* active check */
         if(sess == NULL) {
-            log_debug(ZONE, "session %.*s doesn't exist, bouncing", NAD_AVAL_L(pkt->nad, attr), NAD_AVAL(pkt->nad, attr));
+            LOG_DEBUG(mi->sm->log, "session %.*s doesn't exist, bouncing", NAD_AVAL_L(pkt->nad, attr), NAD_AVAL(pkt->nad, attr));
             nad_set_attr(pkt->nad, 1, ns, "failed", "1", 1);
             sx_nad_write(sm->router, stanza_tofrom(pkt->nad, 0));
 
@@ -213,7 +214,7 @@ static mod_ret_t _session_in_router(mod_instance_t mi, pkt_t pkt) {
         /* make sure its from them */
         attr = nad_find_attr(pkt->nad, 1, ns, "c2s", NULL);
         if(attr >= 0 && (strlen(sess->c2s_id) != NAD_AVAL_L(pkt->nad, attr) || strncmp(sess->c2s_id, NAD_AVAL(pkt->nad, attr), NAD_AVAL_L(pkt->nad, attr)) != 0)) {
-            log_debug(ZONE, "invalid sender on route from %s for session %s (should be %s)", pkt->rfrom->domain, sess->sm_id, sess->c2s_id);
+            LOG_DEBUG(mi->sm->log, "invalid sender on route from %s for session %s (should be %s)", pkt->rfrom->domain, sess->sm_id, sess->c2s_id);
             pkt_free(pkt);
             return mod_HANDLED;
         }
@@ -227,7 +228,7 @@ static mod_ret_t _session_in_router(mod_instance_t mi, pkt_t pkt) {
             return mod_HANDLED;
         }
 
-        log_debug(ZONE, "unknown session packet, dropping");
+        LOG_DEBUG(mi->sm->log, "unknown session packet, dropping");
         pkt_free(pkt);
 
         return mod_HANDLED;
@@ -235,14 +236,14 @@ static mod_ret_t _session_in_router(mod_instance_t mi, pkt_t pkt) {
 
     /* otherwise, its a normal packet for the session */
 
-/* #ifdef ENABLE_SUPERSEDED       // FIXME XXX TODO clients are not yet ready for this */
+#ifdef ENABLE_SUPERSEDED
         /* check for RFC3920 session request *
          * with RFC3920bis it is unneeded *
          * session is activated by bind, so we just return back result */
         if((ns = nad_find_scoped_namespace(pkt->nad, uri_XSESSION, NULL)) >= 0 &&
            (iq = nad_find_elem(pkt->nad, 0, -1, "iq", 1)) >= 0 &&
            (elem = nad_find_elem(pkt->nad, iq, ns, "session", 1)) >= 0) {
-            log_debug(ZONE, "session create request");
+            LOG_DEBUG(mi->sm->log, "session create request");
     
             /* build a result packet */
             nad_drop_elem(pkt->nad, elem);
@@ -256,11 +257,11 @@ static mod_ret_t _session_in_router(mod_instance_t mi, pkt_t pkt) {
     
             return mod_HANDLED;
         }
-/* #endif */
+#endif
     /* get the session id */
     attr = nad_find_attr(pkt->nad, 1, ns, "sm", NULL);
     if(attr < 0) {
-        log_debug(ZONE, "no session id, bouncing");
+        LOG_DEBUG(mi->sm->log, "no session id, bouncing");
         nad_set_attr(pkt->nad, 1, ns, "failed", "1", 1);
         sx_nad_write(sm->router, stanza_tofrom(pkt->nad, 0));
 
@@ -275,7 +276,7 @@ static mod_ret_t _session_in_router(mod_instance_t mi, pkt_t pkt) {
 
     /* active check */
     if(sess == NULL) {
-        log_debug(ZONE, "session %.*s doesn't exist, bouncing", NAD_AVAL_L(pkt->nad, attr), NAD_AVAL(pkt->nad, attr));
+        LOG_DEBUG(mi->sm->log, "session %.*s doesn't exist, bouncing", NAD_AVAL_L(pkt->nad, attr), NAD_AVAL(pkt->nad, attr));
         nad_set_attr(pkt->nad, 1, ns, "failed", "1", 1);
         sx_nad_write(sm->router, stanza_tofrom(pkt->nad, 0));
 
@@ -288,7 +289,7 @@ static mod_ret_t _session_in_router(mod_instance_t mi, pkt_t pkt) {
     /* make sure its from them */
     attr = nad_find_attr(pkt->nad, 1, ns, "c2s", NULL);
     if(attr >= 0 && (strlen(sess->c2s_id) != NAD_AVAL_L(pkt->nad, attr) || strncmp(sess->c2s_id, NAD_AVAL(pkt->nad, attr), NAD_AVAL_L(pkt->nad, attr)) != 0)) {
-        log_debug(ZONE, "invalid sender on route from %s for session %s (should be %s)", jid_full(pkt->rfrom), sess->sm_id, sess->c2s_id);
+        LOG_DEBUG(mi->sm->log, "invalid sender on route from %s for session %s (should be %s)", jid_full(pkt->rfrom), sess->sm_id, sess->c2s_id);
         pkt_free(pkt);
         return mod_HANDLED;
     }
@@ -318,15 +319,15 @@ static mod_ret_t _session_in_router(mod_instance_t mi, pkt_t pkt) {
     return mod_HANDLED;
 }
 
-static mod_ret_t _session_pkt_router(mod_instance_t mi, pkt_t pkt) {
-    sess_t sess;
+static mod_ret_t _session_pkt_router(mod_instance_t *mi, pkt_t *pkt) {
+    sess_t *sess;
     union xhashv xhv;
 
     /* we want unadvertisments */
     if(pkt->from == NULL || !(pkt->rtype & route_ADV) || pkt->rtype != route_ADV_UN)
         return mod_PASS;
 
-    log_debug(ZONE, "component '%s' went offline, checking for sessions held there", jid_full(pkt->from));
+    LOG_DEBUG(mi->sm->log, "component '%s' went offline, checking for sessions held there", jid_full(pkt->from));
 
     /* this is fairly inefficient, especially if we have a lot of sessions
      * online, but it shouldn't be called that often (components are usually
@@ -343,7 +344,7 @@ static mod_ret_t _session_pkt_router(mod_instance_t mi, pkt_t pkt) {
     return mod_PASS;
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
+DLLEXPORT int module_init(mod_instance_t *mi, const char *arg) {
     if(mi->mod->init) return 0;
 
     mi->mod->in_router = _session_in_router;

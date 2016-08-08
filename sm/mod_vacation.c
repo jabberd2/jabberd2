@@ -19,6 +19,8 @@
  */
 
 #include "sm.h"
+#include "lib/stanza.h"
+#include "lib/datetime.h"
 
 /** @file sm/mod_vacation.c
   * @brief vacation messages
@@ -27,23 +29,22 @@
   * $Revision: 1.13 $
   */
 
-#define uri_VACATION    "http://jabber.org/protocol/vacation"
 static int ns_VACATION = 0;
 
 typedef struct _vacation_st {
     time_t  start;
     time_t  end;
     char    *msg;
-} *vacation_t;
+} vacation_t;
 
-static mod_ret_t _vacation_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
-    module_t mod = mi->mod;
-    vacation_t v = sess->user->module_data[mod->index];
+static mod_ret_t _vacation_in_sess(mod_instance_t *mi, sess_t *sess, pkt_t *pkt) {
+    module_t *mod = mi->mod;
+    vacation_t *v = sess->user->module_data[mod->index];
     int ns, start, end, msg;
     char dt[30];
-    pkt_t res;
-    os_t os;
-    os_object_t o;
+    pkt_t *res;
+    os_t *os;
+    os_object_t *o;
 
     /* we only want to play with vacation iq packets */
     if((pkt->type != pkt_IQ && pkt->type != pkt_IQ_SET) || pkt->ns != ns_VACATION)
@@ -128,7 +129,7 @@ static mod_ret_t _vacation_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     } else
         v->end = 0;
 
-    v->msg = (char *) malloc(sizeof(char) * (NAD_CDATA_L(pkt->nad, msg) + 1));
+    v->msg = malloc(sizeof(char) * (NAD_CDATA_L(pkt->nad, msg) + 1));
     strncpy(v->msg, NAD_CDATA(pkt->nad, msg), NAD_CDATA_L(pkt->nad, msg));
     v->msg[NAD_CDATA_L(pkt->nad, msg)] = '\0';
 
@@ -155,11 +156,11 @@ static mod_ret_t _vacation_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     return mod_HANDLED;
 }
 
-static mod_ret_t _vacation_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
-    module_t mod = mi->mod;
-    vacation_t v = user->module_data[mod->index];
+static mod_ret_t _vacation_pkt_user(mod_instance_t *mi, user_t *user, pkt_t *pkt) {
+    module_t *mod = mi->mod;
+    vacation_t *v = user->module_data[mod->index];
     time_t t;
-    pkt_t res;
+    pkt_t *res;
 
     if(v->msg == NULL)
         return mod_PASS;
@@ -189,19 +190,19 @@ static mod_ret_t _vacation_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     return mod_PASS;
 }
 
-static void _vacation_user_free(vacation_t v) {
+static void _vacation_user_free(vacation_t *v) {
     if(v->msg != NULL)
         free(v->msg);
     free(v);
 }
 
-static int _vacation_user_load(mod_instance_t mi, user_t user) {
-    module_t mod = mi->mod;
-    vacation_t v;
-    os_t os;
-    os_object_t o;
+static int _vacation_user_load(mod_instance_t *mi, user_t *user) {
+    module_t *mod = mi->mod;
+    vacation_t *v;
+    os_t *os;
+    os_object_t *o;
 
-    v = (vacation_t) calloc(1, sizeof(struct _vacation_st));
+    v = new(vacation_t);
     user->module_data[mod->index] = v;
 
     if(storage_get(mod->mm->sm->st, "vacation-settings", jid_user(user->jid), NULL, &os) == st_SUCCESS) {
@@ -227,19 +228,19 @@ static int _vacation_user_load(mod_instance_t mi, user_t user) {
     return 0;
 }
 
-static void _vacation_user_delete(mod_instance_t mi, jid_t jid) {
-    log_debug(ZONE, "deleting vacations settings for %s", jid_user(jid));
+static void _vacation_user_delete(mod_instance_t *mi, jid_t *jid) {
+    LOG_DEBUG(mi->sm->log, "deleting vacations settings for %s", jid_user(jid));
 
     storage_delete(mi->sm->st, "vacation-settings", jid_user(jid), NULL);
 }
 
-static void _vacation_free(module_t mod) {
+static void _vacation_free(module_t *mod) {
     sm_unregister_ns(mod->mm->sm, uri_VACATION);
     feature_unregister(mod->mm->sm, uri_VACATION);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
-    module_t mod = mi->mod;
+DLLEXPORT int module_init(mod_instance_t *mi, const char *arg) {
+    module_t *mod = mi->mod;
 
     if(mod->init) return 0;
 

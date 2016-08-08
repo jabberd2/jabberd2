@@ -19,6 +19,7 @@
  */
 
 #include "sm.h"
+#include "lib/stanza.h"
 
 /** @file sm/mod_disco.c
   * @brief service discovery
@@ -30,20 +31,20 @@
 #define ACTIVE_SESSIONS_NAME "Active sessions"
 
 /** holder for a single service */
-typedef struct service_st *service_t;
+typedef struct service_st service_t;
 struct service_st {
-    jid_t       jid;
+    jid_t       *jid;
 
     char        name[257];
 
     char        category[257];
     char        type[257];
 
-    xht         features;
+    xht         *features;
 };
 
 /** all the current disco data */
-typedef struct disco_st *disco_t;
+typedef struct disco_st disco_t;
 struct disco_st {
     /** identity */
     const char  *category;
@@ -54,44 +55,44 @@ struct disco_st {
     int         agents;
 
     /** the lists */
-    xht         dyn;
-    xht         stat;
+    xht         *dyn;
+    xht         *stat;
 
     /** unified list */
-    xht         un;
+    xht         *un;
 
     /** cached result packets */
-    pkt_t       disco_info_result;
-    pkt_t       disco_items_result;
-    pkt_t       agents_result;
+    pkt_t       *disco_info_result;
+    pkt_t       *disco_items_result;
+    pkt_t       *agents_result;
 };
 
 /* union for xhash_iter_get to comply with strict-alias rules for gcc3 */
 union xhashv
 {
   void **val;
-  service_t *svc_val;
-  sess_t *sess_val;
+  service_t **svc_val;
+  sess_t **sess_val;
   const char **char_val;
 };
 
 /** put val into arg */
 static void _disco_unify_walker(const char *key, int keylen, void *val, void *arg) {
-    service_t svc = (service_t) val;
-    xht dest = (xht) arg;
+    service_t *svc = val;
+    xht *dest = arg;
 
     /* if its already there, skip this one */
     if(xhash_get(dest, jid_full(svc->jid)) != NULL)
         return;
 
-    log_debug(ZONE, "unify: %s", jid_full(svc->jid));
+//    LOG_DEBUG(mi->sm->log, "unify: %s", jid_full(svc->jid));
 
     xhash_put(dest, jid_full(svc->jid), (void *) svc);
 }
 
 /** unify the contents of dyn and stat */
-static void _disco_unify_lists(disco_t d) {
-    log_debug(ZONE, "unifying lists");
+static void _disco_unify_lists(disco_t *d) {
+//    LOG_DEBUG(mi->sm->log, "unifying lists");
 
     if(d->un != NULL)
         xhash_free(d->un);
@@ -104,10 +105,10 @@ static void _disco_unify_lists(disco_t d) {
 }
 
 /** build a disco items result, known services */
-static pkt_t _disco_items_result(module_t mod, disco_t d) {
-    pkt_t pkt;
+static pkt_t *_disco_items_result(module_t *mod, disco_t *d) {
+    pkt_t *pkt;
     int ns;
-    service_t svc;
+    service_t *svc;
     union xhashv xhv;
 
     pkt = pkt_create(mod->mm->sm, "iq", "result", NULL, NULL);
@@ -130,8 +131,8 @@ static pkt_t _disco_items_result(module_t mod, disco_t d) {
 }
 
 /** build a disco info result */
-static pkt_t _disco_info_result(module_t mod, disco_t d) {
-    pkt_t pkt;
+static pkt_t *_disco_info_result(module_t *mod, disco_t *d) {
+    pkt_t *pkt;
     int el, ns;
     const char *key;
     int keylen;
@@ -163,12 +164,12 @@ static pkt_t _disco_info_result(module_t mod, disco_t d) {
 }
 
 /** build an agents result */
-static pkt_t _disco_agents_result(module_t mod, disco_t d) {
-    pkt_t pkt;
+static pkt_t *_disco_agents_result(module_t *mod, disco_t *d) {
+    pkt_t *pkt;
     int ns;
     const char *key;
     int keylen;
-    service_t svc;
+    service_t *svc;
     union xhashv xhv;
 
     pkt = pkt_create(mod->mm->sm, "iq", "result", NULL, NULL);
@@ -209,8 +210,8 @@ static pkt_t _disco_agents_result(module_t mod, disco_t d) {
 }
 
 /** generate cached result packets */
-static void _disco_generate_packets(module_t mod, disco_t d) {
-    log_debug(ZONE, "regenerating packets");
+static void _disco_generate_packets(module_t *mod, disco_t *d) {
+//    LOG_DEBUG(mi->sm->log, "regenerating packets");
 
     if(d->disco_items_result != NULL)
         pkt_free(d->disco_items_result);
@@ -229,17 +230,17 @@ static void _disco_generate_packets(module_t mod, disco_t d) {
 }
 
 /** catch responses and populate the table */
-static mod_ret_t _disco_pkt_sm_populate(mod_instance_t mi, pkt_t pkt)
+static mod_ret_t _disco_pkt_sm_populate(mod_instance_t *mi, pkt_t *pkt)
 {
-    module_t mod = mi->mod;
-    disco_t d = (disco_t) mod->private;
+    module_t *mod = mi->mod;
+    disco_t *d = mod->private;
     int ns, query, elem, attr;
-    service_t svc;
+    service_t *svc;
 
     /* it has to come from the service itself - don't want any old user messing with the table */
     if(pkt->from->node[0] != '\0' || pkt->from->resource[0] != '\0')
     {
-        log_debug(ZONE, "disco response from %s, not allowed", jid_full(pkt->from));
+        LOG_DEBUG(mi->sm->log, "disco response from %s, not allowed", jid_full(pkt->from));
         return -stanza_err_NOT_ALLOWED;
     }
 
@@ -264,7 +265,7 @@ static mod_ret_t _disco_pkt_sm_populate(mod_instance_t mi, pkt_t pkt)
     if(svc == NULL)
     {
         /* make a new one */
-        svc = (service_t) calloc(1, sizeof(struct service_st));
+        svc = new(service_t);
 
         svc->jid = jid_dup(pkt->from);
 
@@ -322,9 +323,9 @@ static mod_ret_t _disco_pkt_sm_populate(mod_instance_t mi, pkt_t pkt)
 }
 
 /** build a disco items result, active sessions */
-static void _disco_sessions_result(module_t mod, disco_t d, pkt_t pkt) {
+static void _disco_sessions_result(module_t *mod, disco_t *d, pkt_t *pkt) {
     int ns;
-    sess_t sess;
+    sess_t *sess;
     union xhashv xhv;
 
     ns = nad_add_namespace(pkt->nad, uri_DISCO_ITEMS, NULL);
@@ -343,10 +344,10 @@ static void _disco_sessions_result(module_t mod, disco_t d, pkt_t pkt) {
 }
 
 /** catch responses and populate the table; respond to requests */
-static mod_ret_t _disco_pkt_sm(mod_instance_t mi, pkt_t pkt) {
-    module_t mod = mi->mod;
-    disco_t d = (disco_t) mod->private;
-    pkt_t result;
+static mod_ret_t _disco_pkt_sm(mod_instance_t *mi, pkt_t *pkt) {
+    module_t *mod = mi->mod;
+    disco_t *d = mod->private;
+    pkt_t *result;
     int node, ns;
 
     /* disco info results go to a seperate function */
@@ -474,14 +475,14 @@ static mod_ret_t _disco_pkt_sm(mod_instance_t mi, pkt_t pkt) {
 }
 
 /** response to quering user JID */
-static void _disco_user_result(pkt_t pkt, user_t user)
+static void _disco_user_result(pkt_t *pkt, user_t *user)
 {
     /* identity */
     nad_append_elem(pkt->nad, -1, "identity", 3);
     nad_append_attr(pkt->nad, -1, "category", "account");
     /* if user is logged in (has session) yet never logged in (no active time)
        it is certainly an anonymous user */
-    log_debug(ZONE, "%s: top %p active %d", jid_full(user->jid), user->sessions, user->active);
+    LOG_DEBUG(user->sm->log, "%s: top %p active %ld", jid_full(user->jid), user->sessions, user->active);
     nad_append_attr(pkt->nad, -1, "type", (user->sessions && !user->active) ? "anonymous" : "registered");
 
     /* tell them */
@@ -489,10 +490,10 @@ static void _disco_user_result(pkt_t pkt, user_t user)
 }
 
 /** legacy support for agents requests from sessions */
-static mod_ret_t _disco_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
-    module_t mod = mi->mod;
-    disco_t d = (disco_t) mod->private;
-    pkt_t result;
+static mod_ret_t _disco_in_sess(mod_instance_t *mi, sess_t *sess, pkt_t *pkt) {
+    module_t *mod = mi->mod;
+    disco_t *d = mod->private;
+    pkt_t *result;
 
     /* disco info requests */
     if(pkt->type == pkt_IQ && pkt->ns == ns_DISCO_INFO)
@@ -531,7 +532,7 @@ static mod_ret_t _disco_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     return mod_HANDLED;
 }
 
-static mod_ret_t _disco_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
+static mod_ret_t _disco_pkt_user(mod_instance_t *mi, user_t *user, pkt_t *pkt) {
     /* disco info requests */
     if(pkt->type == pkt_IQ && pkt->ns == ns_DISCO_INFO)
     {
@@ -545,12 +546,12 @@ static mod_ret_t _disco_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
 }
 
 /** update the table for component changes */
-static mod_ret_t _disco_pkt_router(mod_instance_t mi, pkt_t pkt)
+static mod_ret_t _disco_pkt_router(mod_instance_t *mi, pkt_t *pkt)
 {
-    module_t mod = mi->mod;
-    disco_t d = (disco_t) mod->private;
-    service_t svc;
-    pkt_t request;
+    module_t *mod = mi->mod;
+    disco_t *d = mod->private;
+    service_t *svc;
+    pkt_t *request;
     int ns;
 
     /* we want advertisements with a from address */
@@ -560,7 +561,7 @@ static mod_ret_t _disco_pkt_router(mod_instance_t mi, pkt_t pkt)
     /* component online */
     if(pkt->rtype == route_ADV)
     {
-        log_debug(ZONE, "presence from component %s, issuing discovery request", jid_full(pkt->from));
+        LOG_DEBUG(mi->sm->log, "presence from component %s, issuing discovery request", jid_full(pkt->from));
 
         /* new disco get packet */
         request = pkt_create(mod->mm->sm, "iq", "get", jid_full(pkt->from), mod->mm->sm->id);
@@ -580,7 +581,7 @@ static mod_ret_t _disco_pkt_router(mod_instance_t mi, pkt_t pkt)
     svc = xhash_get(d->dyn, jid_full(pkt->from));
     if(svc != NULL)
     {
-        log_debug(ZONE, "dropping entry for %s", jid_full(pkt->from));
+        LOG_DEBUG(mi->sm->log, "dropping entry for %s", jid_full(pkt->from));
 
         xhash_zap(d->dyn, jid_full(pkt->from));
 
@@ -600,15 +601,15 @@ static mod_ret_t _disco_pkt_router(mod_instance_t mi, pkt_t pkt)
 }
 
 static void _disco_free_walker(const char *key, int keylen, void *val, void *arg) {
-    service_t svc = (service_t) val;
+    service_t *svc = val;
 
     jid_free(svc->jid);
     xhash_free(svc->features);
     free(svc);
 }
 
-static void _disco_free(module_t mod) {
-    disco_t d = (disco_t) mod->private;
+static void _disco_free(module_t *mod) {
+    disco_t *d = mod->private;
 
     xhash_walk(d->stat, _disco_free_walker, NULL);
     xhash_walk(d->dyn, _disco_free_walker, NULL);
@@ -624,19 +625,19 @@ static void _disco_free(module_t mod) {
     free(d);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, const char *arg)
+DLLEXPORT int module_init(mod_instance_t *mi, const char *arg)
 {
-    module_t mod = mi->mod;
-    disco_t d;
-    nad_t nad;
+    module_t *mod = mi->mod;
+    disco_t *d;
+    nad_t *nad;
     int items, item, jid, name, category, type, ns;
-    service_t svc;
+    service_t *svc;
 
     if(mod->init) return 0;
 
-    log_debug(ZONE, "disco module init");
+    LOG_DEBUG(mi->sm->log, "disco module init");
 
-    d = (disco_t) calloc(1, sizeof(struct disco_st));
+    d = new(disco_t);
 
     /* new hashes to store the lists in */
     d->dyn = xhash_new(51);
@@ -654,7 +655,7 @@ DLLEXPORT int module_init(mod_instance_t mi, const char *arg)
     d->agents = config_get(mod->mm->sm->config, "discovery.agents") != NULL;
 
     if(d->agents)
-        log_debug(ZONE, "agents compat enabled");
+        LOG_DEBUG(mi->sm->log, "agents compat enabled");
 
     /* our data */
     mod->private = (void *) d;
@@ -690,7 +691,7 @@ DLLEXPORT int module_init(mod_instance_t mi, const char *arg)
         }
 
         /* new service */
-        svc = (service_t) calloc(1, sizeof(struct service_st));
+        svc = new(service_t);
 
         svc->features = xhash_new(13);
 
@@ -729,7 +730,7 @@ DLLEXPORT int module_init(mod_instance_t mi, const char *arg)
 
         item = nad_find_elem(nad, item, -1, "item", 0);
 
-        log_debug(ZONE, "added %s to static list", jid_full(svc->jid));
+        LOG_DEBUG(mi->sm->log, "added %s to static list", jid_full(svc->jid));
     }
 
     /* generate the initial union list */

@@ -30,13 +30,13 @@
 #include "sm.h"
 
 typedef struct _status_st {
-    sm_t       sm;
+    sm_t       *sm;
     const char *resource;
-} *status_t;
+} status_t;
 
-static void _status_os_replace(storage_t st, const char *jid, char *status, char *show, time_t *lastlogin, time_t *lastlogout, nad_t nad) {
-    os_t os = os_new();
-    os_object_t o = os_object_new(os);
+static void _status_os_replace(storage_t *st, const char *jid, char *status, char *show, time_t *lastlogin, time_t *lastlogout, nad_t *nad) {
+    os_t *os = os_new();
+    os_object_t *o = os_object_new(os);
     os_object_put(o, "status", status, os_type_STRING);
     os_object_put(o, "show", show, os_type_STRING);
     os_object_put(o, "last-login", (void **) lastlogin, os_type_INTEGER);
@@ -46,7 +46,7 @@ static void _status_os_replace(storage_t st, const char *jid, char *status, char
     os_free(os);
 }
 
-static void _status_store(storage_t st, const char *jid, pkt_t pkt, time_t *lastlogin, time_t *lastlogout) {
+static void _status_store(storage_t *st, const char *jid, pkt_t *pkt, time_t *lastlogin, time_t *lastlogout) {
     char *show;
     int show_free = 0;
 
@@ -78,12 +78,12 @@ static void _status_store(storage_t st, const char *jid, pkt_t pkt, time_t *last
     if(show_free) free(show);
 }
 
-static int _status_sess_start(mod_instance_t mi, sess_t sess) {
+static int _status_sess_start(mod_instance_t *mi, sess_t *sess) {
     time_t t, lastlogout;
-    os_t os;
-    os_object_t o;
+    os_t *os;
+    os_object_t *o;
     st_ret_t ret;
-    nad_t nad = NULL;
+    nad_t *nad = NULL;
 
     /* not interested if there is other top session */
     if(sess->user->top != NULL && sess != sess->user->top)
@@ -114,12 +114,12 @@ static int _status_sess_start(mod_instance_t mi, sess_t sess) {
     return mod_PASS;
 }
 
-static void _status_sess_end(mod_instance_t mi, sess_t sess) {
+static void _status_sess_end(mod_instance_t *mi, sess_t *sess) {
     time_t t, lastlogin;
-    os_t os;
-    os_object_t o;
+    os_t *os;
+    os_object_t *o;
     st_ret_t ret;
-    nad_t nad = NULL;
+    nad_t *nad = NULL;
 
     /* not interested if there is other top session */
     if(sess->user->top != NULL && sess != sess->user->top)
@@ -148,10 +148,10 @@ static void _status_sess_end(mod_instance_t mi, sess_t sess) {
     if(nad != NULL) nad_free(nad);
 }
 
-static mod_ret_t _status_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
+static mod_ret_t _status_in_sess(mod_instance_t *mi, sess_t *sess, pkt_t *pkt) {
     time_t lastlogin, lastlogout;
-    os_t os;
-    os_object_t o;
+    os_t *os;
+    os_object_t *o;
     st_ret_t ret;
 
     /* only handle presence */
@@ -183,15 +183,15 @@ static mod_ret_t _status_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 }
 
 /* presence packets incoming from other servers */
-static mod_ret_t _status_pkt_sm(mod_instance_t mi, pkt_t pkt) {
+static mod_ret_t _status_pkt_sm(mod_instance_t *mi, pkt_t *pkt) {
     time_t t;
-    jid_t jid;
-    module_t mod = mi->mod;
-    status_t st = (status_t) mod->private;
+    jid_t *jid;
+    module_t *mod = mi->mod;
+    status_t *st = mod->private;
 
     /* store presence information */
     if(pkt->type == pkt_PRESENCE || pkt->type == pkt_PRESENCE_UN) {
-        log_debug(ZONE, "storing presence from %s", jid_full(pkt->from));
+        LOG_DEBUG(mi->sm->log, "storing presence from %s", jid_full(pkt->from));
 
         t = (time_t) 0;
 
@@ -200,7 +200,7 @@ static mod_ret_t _status_pkt_sm(mod_instance_t mi, pkt_t pkt) {
 
     /* answer to probes and subscription requests*/
     if(st->resource && (pkt->type == pkt_PRESENCE_PROBE || pkt->type == pkt_S10N)) {
-        log_debug(ZONE, "answering presence probe/sub from %s with /%s resource", jid_full(pkt->from), st->resource);
+        LOG_DEBUG(mi->sm->log, "answering presence probe/sub from %s with /%s resource", jid_full(pkt->from), st->resource);
 
         /* send presence */
         jid = jid_new(pkt->to->domain, -1);
@@ -214,24 +214,24 @@ static mod_ret_t _status_pkt_sm(mod_instance_t mi, pkt_t pkt) {
 
 }
 
-static void _status_user_delete(mod_instance_t mi, jid_t jid) {
-    log_debug(ZONE, "deleting status information of %s", jid_user(jid));
+static void _status_user_delete(mod_instance_t *mi, jid_t *jid) {
+    LOG_DEBUG(mi->sm->log, "deleting status information of %s", jid_user(jid));
 
     storage_delete(mi->sm->st, "status", jid_user(jid), NULL);
 }
 
-static void _status_free(module_t mod) {
+static void _status_free(module_t *mod) {
     free(mod->private);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
-    module_t mod = mi->mod;
+DLLEXPORT int module_init(mod_instance_t *mi, const char *arg) {
+    module_t *mod = mi->mod;
 
-    status_t tr;
+    status_t *tr;
 
     if (mod->init) return 0;
 
-    tr = (status_t) calloc(1, sizeof(struct _status_st));
+    tr = new(status_t);
 
     tr->sm = mod->mm->sm;
     tr->resource = config_get_one(mod->mm->sm->config, "status.resource", 0);

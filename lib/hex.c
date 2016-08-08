@@ -20,13 +20,11 @@
 
 /* simple hex conversion functions */
 
-#include "util.h"
-
 /** turn raw into hex - out must be (inlen*2)+1 */
 void hex_from_raw(const unsigned char *in, int inlen, char *out) {
     int i, h, l;
 
-    for(i = 0; i < inlen; i++) {
+    for (i = 0; i < inlen; i++) {
         h = in[i] & 0xf0;
         h >>= 4;
         l = in[i] & 0x0f;
@@ -41,14 +39,14 @@ int hex_to_raw(const char *in, int inlen, char *out) {
     int i, o, h, l;
 
     /* need +ve even input */
-    if(inlen == 0 || (inlen / 2 * 2) != inlen)
+    if (inlen == 0 || (inlen / 2 * 2) != inlen)
         return 1;
 
-    for(i = o = 0; i < inlen; i += 2, o++) {
+    for (i = o = 0; i < inlen; i += 2, o++) {
         h = (in[i] >= 0x30 && in[i] <= 0x39) ? (in[i] - 0x30) : (in[i] >= 0x41 && in[i] <= 0x64) ? (in[i] - 0x36) : (in[i] >= 0x61 && in[i] <= 0x66) ? (in[i] - 0x56) : -1;
         l = (in[i + 1] >= 0x30 && in[i + 1] <= 0x39) ? (in[i + 1] - 0x30) : (in[i + 1] >= 0x41 && in[i + 1] <= 0x64) ? (in[i + 1] - 0x36) : (in[i + 1] >= 0x61 && in[i + 1] <= 0x66) ? (in[i + 1] - 0x56) : -1;
 
-        if(h < 0 || l < 0)
+        if (h < 0 || l < 0)
             return 1;
 
         out[o] = (h << 4) + l;

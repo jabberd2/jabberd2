@@ -79,7 +79,7 @@ static void _st_mysql_convert_filter_recursive(st_driver_t drv, st_filter_t f, c
         case st_filter_type_PAIR:
 
             /* do sql escape processing of f->val */
-            cval = (char *) malloc(sizeof(char) * ((strlen((char *) f->val) * 2) + 1));
+            cval = malloc(sizeof(char) * ((strlen((char *) f->val) * 2) + 1));
             vlen = mysql_real_escape_string(data->conn, cval, (char *) f->val, strlen((char *) f->val));
 
             MYSQL_SAFE((*buf), *buflen + 12 + strlen(f->key) + vlen, *buflen);
@@ -208,18 +208,18 @@ static st_ret_t _st_mysql_put_guts(st_driver_t drv, const char *type, const char
                             break;
 
                         case os_type_INTEGER:
-                            cval = (char *) malloc(sizeof(char) * 20);
+                            cval = malloc(sizeof(char) * 20);
                             sprintf(cval, "%" PRIdPTR, (intptr_t) val);
                             break;
 
                         case os_type_STRING:
-                            cval = (char *) malloc(sizeof(char) * ((strlen((char *) val) * 2) + 1));
+                            cval = malloc(sizeof(char) * ((strlen((char *) val) * 2) + 1));
                             mysql_real_escape_string(data->conn, cval, (char *) val, strlen((char *) val));
                             break;
 
                         case os_type_NAD:
                             nad_print((nad_t) val, 0, &xml, &xlen);
-                            cval = (char *) malloc(sizeof(char) * ((xlen * 2) + 4));
+                            cval = malloc(sizeof(char) * ((xlen * 2) + 4));
                             mysql_real_escape_string(data->conn, &cval[3], xml, xlen);
                             strncpy(cval, "NAD", 3);
                             break;
@@ -615,7 +615,7 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv) {
     /* Set reconnect flag to 1 (set to 0 by default from mysql 5 on) */
     conn->reconnect = 1;
 
-    data = (drvdata_t) calloc(1, sizeof(struct drvdata_st));
+    data = new(drvdata_t);
 
     data->conn = conn;
 

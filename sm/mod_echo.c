@@ -27,14 +27,14 @@
   * $Revision: 1.9 $
   */
 
-static mod_ret_t _echo_pkt_sm(mod_instance_t mi, pkt_t pkt)
+static mod_ret_t _echo_pkt_sm(mod_instance_t *mi, pkt_t *pkt)
 {
-    jid_t jid;
+    jid_t *jid;
     char *resource = (char *) mi->mod->private;
 
     /* answer to probes and subscription requests */
     if(pkt->type == pkt_PRESENCE_PROBE || pkt->type == pkt_S10N) {
-        log_debug(ZONE, "answering presence probe/sub from %s with /echo resource", jid_full(pkt->from));
+        LOG_DEBUG(mi->sm->log, "answering presence probe/sub from %s with /echo resource", jid_full(pkt->from));
 
         /* send presence */
         jid = jid_new(jid_user(pkt->to), -1);
@@ -47,7 +47,7 @@ static mod_ret_t _echo_pkt_sm(mod_instance_t mi, pkt_t pkt)
     if(!(pkt->type & pkt_MESSAGE) || strcmp(pkt->to->resource, "echo") != 0)
         return mod_PASS;
 
-    log_debug(ZONE, "echo request from %s", jid_full(pkt->from));
+    LOG_DEBUG(mi->sm->log, "echo request from %s", jid_full(pkt->from));
 
     /* swap to and from and return it */
     pkt_router(pkt_tofrom(pkt));
@@ -55,8 +55,8 @@ static mod_ret_t _echo_pkt_sm(mod_instance_t mi, pkt_t pkt)
     return mod_HANDLED;
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
-    module_t mod = mi->mod;
+DLLEXPORT int module_init(mod_instance_t *mi, const char *arg) {
+    module_t *mod = mi->mod;
 
     if(mod->init) return 0;
 

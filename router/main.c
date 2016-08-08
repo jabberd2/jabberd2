@@ -19,32 +19,29 @@
  */
 
 #include "router.h"
+#include "lib/jsignal.h"
+#include "lib/str.h"
+#include <signal.h>
 
 static sig_atomic_t router_shutdown = 0;
-static sig_atomic_t router_logrotate = 0;
 
 static void router_signal(int signum)
 {
     router_shutdown = 1;
 }
 
-static void router_signal_hup(int signum)
-{
-    router_logrotate = 1;
-}
-
 static void router_signal_usr1(int signum)
 {
-    set_debug_flag(0);
+    log4c_category_set_priority(log4c_category_get(""), LOG4C_PRIORITY_NOTSET);
 }
 
 static void router_signal_usr2(int signum)
 {
-    set_debug_flag(1);
+    log4c_category_set_priority(log4c_category_get(""), LOG4C_PRIORITY_TRACE);
 }
 
 /** store the process id */
-static void _router_pidfile(router_t r) {
+static void _router_pidfile(router_t *r) {
     const char *pidfile;
     FILE *f;
     pid_t pid;
@@ -56,52 +53,32 @@ static void _router_pidfile(router_t r) {
     pid = getpid();
 
     if((f = fopen(pidfile, "w+")) == NULL) {
-        log_write(r->log, LOG_ERR, "couldn't open %s for writing: %s", pidfile, strerror(errno));
+        LOG_ERROR(r->log, "couldn't open %s for writing: %s", pidfile, strerror(errno));
         return;
     }
 
     if(fprintf(f, "%d", pid) < 0) {
-        log_write(r->log, LOG_ERR, "couldn't write to %s: %s", pidfile, strerror(errno));
+        LOG_ERROR(r->log, "couldn't write to %s: %s", pidfile, strerror(errno));
         fclose(f);
         return;
     }
 
     fclose(f);
 
-    log_write(r->log, LOG_INFO, "process id is %d, written to %s", pid, pidfile);
+    LOG_INFO(r->log, "process id is %d, written to %s", pid, pidfile);
 }
 
 /** pull values out of the config file */
-static void _router_config_expand(router_t r)
+static void _router_config_expand(router_t *r)
 {
     const char *str, *ip, *mask, *name, *target;
-    config_elem_t elem;
+    config_elem_t *elem;
     int i;
-    alias_t alias;
+    alias_t *alias;
 
     r->id = config_get_one(r->config, "id", 0);
     if(r->id == NULL)
         r->id = "router";
-
-    set_debug_log_from_config(r->config);
-
-    r->log_type = log_STDOUT;
-    if(config_get(r->config, "log") != NULL) {
-        if((str = config_get_attr(r->config, "log", 0, "type")) != NULL) {
-            if(strcmp(str, "file") == 0)
-                r->log_type = log_FILE;
-            else if(strcmp(str, "syslog") == 0)
-                r->log_type = log_SYSLOG;
-        }
-    }
-
-    if(r->log_type == log_SYSLOG) {
-        r->log_facility = config_get_one(r->config, "log.facility", 0);
-        r->log_ident = config_get_one(r->config, "log.ident", 0);
-        if(r->log_ident == NULL)
-            r->log_ident = "jabberd/router";
-    } else if(r->log_type == log_FILE)
-        r->log_ident = config_get_one(r->config, "log.file", 0);
 
     r->local_ip = config_get_one(r->config, "local.ip", 0);
     if(r->local_ip == NULL)
@@ -193,7 +170,7 @@ static void _router_config_expand(router_t r)
             if(name == NULL || target == NULL)
                 continue;
 
-            alias = (alias_t) calloc(1, sizeof(struct alias_st));
+            alias = new(alias_t);
 
             alias->name = name;
             alias->target = target;
@@ -210,9 +187,9 @@ static void _router_config_expand(router_t r)
     r->check_keepalive = j_atoi(config_get_one(r->config, "check.keepalive", 0), 0);
 }
 
-static int _router_sx_sasl_callback(int cb, void *arg, void ** res, sx_t s, void *cbarg) {
-    router_t r = (router_t) cbarg;
-    sx_sasl_creds_t creds;
+static int _router_sx_sasl_callback(int cb, void *arg, void ** res, sx_t *s, void *cbarg) {
+    router_t *r = cbarg;
+    sx_sasl_creds_t *creds;
     static char buf[1024];
     char *pass;
 
@@ -224,9 +201,9 @@ static int _router_sx_sasl_callback(int cb, void *arg, void ** res, sx_t s, void
             break;
 
         case sx_sasl_cb_GET_PASS:
-            creds = (sx_sasl_creds_t) arg;
+            creds = arg;
 
-            log_debug(ZONE, "sx sasl callback: get pass (authnid=%s, realm=%s)", creds->authnid, creds->realm);
+            LOG_DEBUG(r->log, "sx sasl callback: get pass (authnid=%s, realm=%s)", creds->authnid, creds->realm);
 
             pass = xhash_get(r->users, creds->authnid);
             if(pass == NULL)
@@ -237,9 +214,9 @@ static int _router_sx_sasl_callback(int cb, void *arg, void ** res, sx_t s, void
             break;
 
         case sx_sasl_cb_CHECK_PASS:
-            creds = (sx_sasl_creds_t) arg;
+            creds = arg;
 
-            log_debug(ZONE, "sx sasl callback: check pass (authnid=%s, realm=%s)", creds->authnid, creds->realm);
+            LOG_DEBUG(r->log, "sx sasl callback: check pass (authnid=%s, realm=%s)", creds->authnid, creds->realm);
 
             pass = xhash_get(r->users, creds->authnid);
             if(pass == NULL || strcmp(creds->pass, pass) != 0)
@@ -249,7 +226,7 @@ static int _router_sx_sasl_callback(int cb, void *arg, void ** res, sx_t s, void
             break;
 
         case sx_sasl_cb_CHECK_AUTHZID:
-        creds = (sx_sasl_creds_t) arg;
+        creds = arg;
 
         if (strcmp(creds->authnid, creds->authzid) == 0)
                 return sx_sasl_ret_OK;
@@ -272,8 +249,8 @@ static int _router_sx_sasl_callback(int cb, void *arg, void ** res, sx_t s, void
     return sx_sasl_ret_FAIL;
 }
 
-static void _router_time_checks(router_t r) {
-   component_t target;
+static void _router_time_checks(router_t *r) {
+   component_t *target;
    time_t now;
    union xhashv xhv;
 
@@ -286,7 +263,7 @@ static void _router_time_checks(router_t r) {
           xhash_iter_get(r->components, NULL, NULL, xhv.val);
 
          if(r->check_keepalive > 0 && target->last_activity > 0 && now > target->last_activity + r->check_keepalive && target->s->state >= state_STREAM) {
-               log_debug(ZONE, "sending keepalive for %d", target->fd->fd);
+               LOG_DEBUG(r->log, "sending keepalive for %d", target->fd->fd);
                sx_raw_write(target->s, " ", 1);
           }
        } while(xhash_iter_next(r->components));
@@ -296,11 +273,11 @@ static void _router_time_checks(router_t r) {
 
 JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Router", NULL)
 {
-    router_t r;
+    router_t *r;
     char *config_file;
     int optchar;
-    rate_t rt;
-    component_t comp;
+    rate_t *rt;
+    component_t *comp;
     union xhashv xhv;
     int close_wait_max;
     const char *cli_id = 0;
@@ -334,19 +311,21 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
 
     jabber_signal(SIGINT, router_signal);
     jabber_signal(SIGTERM, router_signal);
-#ifdef SIGHUP
-    jabber_signal(SIGHUP, router_signal_hup);
-#endif
 #ifdef SIGPIPE
     jabber_signal(SIGPIPE, SIG_IGN);
 #endif
     jabber_signal(SIGUSR1, router_signal_usr1);
     jabber_signal(SIGUSR2, router_signal_usr2);
 
-    r = (router_t) calloc(1, sizeof(struct router_st));
+    if (log4c_init()) {
+        fputs("log4c init failed\n", stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    r = new(router_t);
 
     /* load our config */
-    r->config = config_new();
+    r->config = config_new(0);
 
     config_file = CONFIG_DIR "/router.xml";
 
@@ -358,13 +337,6 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
             case 'c':
                 config_file = optarg;
                 break;
-            case 'D':
-#ifdef DEBUG
-                set_debug_flag(1);
-#else
-                printf("WARN: Debugging not enabled.  Ignoring -D.\n");
-#endif
-                break;
             case 'i':
                 cli_id = optarg;
                 break;
@@ -375,9 +347,6 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
                     "Options are:\n"
                     "   -c <config>     config file to use [default: " CONFIG_DIR "/router.xml]\n"
                     "   -i id           Override <id> config element\n"
-#ifdef DEBUG
-                    "   -D              Show debug output\n"
-#endif
                     ,
                     stdout);
                 config_free(r->config);
@@ -396,8 +365,8 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
 
     _router_config_expand(r);
 
-    r->log = log_new(r->log_type, r->log_ident, r->log_facility);
-    log_write(r->log, LOG_NOTICE, "starting up");
+    r->log = log_get(r->id);
+    LOG_NOTICE(r->log, "starting up");
 
     _router_pidfile(r);
 
@@ -424,14 +393,14 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
     if(r->local_pemfile != NULL) {
         r->sx_ssl = sx_env_plugin(r->sx_env, sx_ssl_init, NULL, r->local_pemfile, NULL, NULL, r->local_private_key_password, r->local_ciphers);
         if(r->sx_ssl == NULL)
-            log_write(r->log, LOG_ERR, "failed to load SSL pemfile, SSL disabled");
+            LOG_ERROR(r->log, "failed to load SSL pemfile, SSL disabled");
     }
 #endif
 
     /* get sasl online */
     r->sx_sasl = sx_env_plugin(r->sx_env, sx_sasl_init, "jabberd-router", _router_sx_sasl_callback, (void *) r);
     if(r->sx_sasl == NULL) {
-        log_write(r->log, LOG_ERR, "failed to initialise SASL context, aborting");
+        LOG_ERROR(r->log, "failed to initialise SASL context, aborting");
         exit(1);
     }
 
@@ -439,39 +408,19 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
 
     r->fd = mio_listen(r->mio, r->local_port, r->local_ip, router_mio_callback, (void *) r);
     if(r->fd == NULL) {
-        log_write(r->log, LOG_ERR, "[%s, port=%d] unable to listen (%s)", r->local_ip, r->local_port, MIO_STRERROR(MIO_ERROR));
+        LOG_ERROR(r->log, "[%s, port=%d] unable to listen (%s)", r->local_ip, r->local_port, MIO_STRERROR(MIO_ERROR));
         exit(1);
     }
 
-    log_write(r->log, LOG_NOTICE, "[%s, port=%d] listening for incoming connections", r->local_ip, r->local_port, MIO_STRERROR(MIO_ERROR));
+    LOG_NOTICE(r->log, "[%s, port=%d] listening for incoming connections", r->local_ip, r->local_port);
 
     while(!router_shutdown)
     {
         mio_run(r->mio, 5);
 
-        if(router_logrotate)
-        {
-            set_debug_log_from_config(r->config);
-
-            log_write(r->log, LOG_NOTICE, "reopening log ...");
-            log_free(r->log);
-            r->log = log_new(r->log_type, r->log_ident, r->log_facility);
-            log_write(r->log, LOG_NOTICE, "log started");
-
-            log_write(r->log, LOG_NOTICE, "reloading filter ...");
-            filter_unload(r);
-            filter_load(r);
-
-            log_write(r->log, LOG_NOTICE, "reloading users ...");
-            user_table_unload(r);
-            user_table_load(r);
-
-            router_logrotate = 0;
-        }
-
         /* cleanup dead sx_ts */
         while(jqueue_size(r->dead) > 0)
-            sx_free((sx_t) jqueue_pull(r->dead));
+            sx_free(jqueue_pull(r->dead));
 
         /* cleanup closed fd */
         while(jqueue_size(r->closefd) > 0)
@@ -479,16 +428,16 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
 
         /* cleanup dead routes */
         while(jqueue_size(r->deadroutes) > 0)
-            routes_free((routes_t) jqueue_pull(r->deadroutes));
+            routes_free(jqueue_pull(r->deadroutes));
 
         /* time checks */
         if(r->check_interval > 0 && time(NULL) >= r->next_check) {
-            log_debug(ZONE, "running time checks");
+            LOG_DEBUG(r->log, "running time checks");
 
             _router_time_checks(r);
 
             r->next_check = time(NULL) + r->check_interval;
-            log_debug(ZONE, "next time check at %d", r->next_check);
+            LOG_DEBUG(r->log, "next time check in %d: %lld", r->check_interval, (long long)r->next_check);
         }
 
 #ifdef POOL_DEBUG
@@ -499,7 +448,7 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
 #endif
     }
 
-    log_write(r->log, LOG_NOTICE, "shutting down");
+    LOG_NOTICE(r->log, "shutting down");
 
     /* stop accepting new connections */
     if (r->fd) {
@@ -522,7 +471,7 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
     if(xhash_iter_first(r->components))
         do {
             xhash_iter_get(r->components, NULL, NULL, xhv.val);
-            log_debug(ZONE, "close component %p", comp);
+            LOG_DEBUG(r->log, "close component %p", comp);
             if (comp) sx_close(comp->s);
             mio_run(r->mio, 5000);
             if (1 > close_wait_max--) break;
@@ -535,7 +484,7 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
 
     /* cleanup dead sx_ts */
     while(jqueue_size(r->dead) > 0)
-       sx_free((sx_t) jqueue_pull(r->dead));
+       sx_free(jqueue_pull(r->dead));
     jqueue_free(r->dead);
 
     while(jqueue_size(r->closefd) > 0)
@@ -544,7 +493,7 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
 
     /* cleanup dead routes - probably just showed up (route was just closed) */
     while(jqueue_size(r->deadroutes) > 0)
-        routes_free((routes_t) jqueue_pull(r->deadroutes));
+        routes_free(jqueue_pull(r->deadroutes));
     jqueue_free(r->deadroutes);
 
     /* walk r->conn_rates and free */
@@ -562,7 +511,7 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
     /* walk r->routes and free */
     if (xhash_iter_first(r->routes))
         do {
-            routes_t p;
+            routes_t *p;
             xhash_iter_get(r->routes, NULL, NULL, (void *) &p);
             routes_free(p);
         } while(xhash_iter_next(r->routes));
@@ -583,8 +532,6 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
 
     access_free(r->access);
 
-    log_free(r->log);
-
     config_free(r->config);
 
     free(r);
@@ -596,6 +543,12 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
 #ifdef HAVE_WINSOCK2_H
     WSACleanup();
 #endif
+
+    /* shutdown logging system - should be last before exit! */
+    if (log4c_fini()) {
+        fputs("log4c finish failed\n", stderr);
+        exit(EXIT_FAILURE);
+    }
 
     return 0;
 }

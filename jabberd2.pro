@@ -1,6 +1,7 @@
 DEFINES += HAVE_CONFIG_H
 DEFINES += USE_WEBSOCKET HAVE_SSL HAVE_LIBZ HAVE_CRYPT
 DEFINES += STORAGE_LDAP
+DEFINES += ENABLE_SUPERSEDED ENABLE_EXPERIMENTAL
 HEADERS += config.h \
            $$files(c2s/*.h) \
            $$files(mio/*.h) \
@@ -36,4 +37,5 @@ OTHER_FILES += configure.ac \
                Doxyfile.in \
                NEWS \
                TODO \
-               README.md
+               README.md \
+               .gitignore

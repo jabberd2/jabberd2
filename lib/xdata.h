@@ -24,11 +24,14 @@
 #define INCL_XDATA_H
 
 #include "util.h"
+#include "pool.h"
+#include "nad.h"
+#include <stdbool.h>
 
-typedef struct _xdata_st        *xdata_t;
-typedef struct _xdata_field_st  *xdata_field_t;
-typedef struct _xdata_option_st *xdata_option_t;
-typedef struct _xdata_item_st   *xdata_item_t;
+typedef struct _xdata_st        xdata_t;
+typedef struct _xdata_field_st  xdata_field_t;
+typedef struct _xdata_option_st xdata_option_t;
+typedef struct _xdata_item_st   xdata_item_t;
 
 typedef enum {
     xd_type_NONE,
@@ -39,17 +42,17 @@ typedef enum {
 } xdata_type_t;
 
 struct _xdata_st {
-    pool_t              p;
+    pool_t              *p;
 
     xdata_type_t        type;
 
     char                *title;
     char                *instructions;
 
-    xdata_field_t       fields, flast;
-    xdata_field_t       rfields, rflast;    /* reported fields */
+    xdata_field_t       *fields, *flast;
+    xdata_field_t       *rfields, *rflast;    /* reported fields */
 
-    xdata_item_t        items, ilast;
+    xdata_item_t        *items, *ilast;
 };
 
 typedef enum {
@@ -67,7 +70,7 @@ typedef enum {
 } xdata_field_type_t;
 
 struct _xdata_field_st {
-    pool_t              p;
+    pool_t              *p;
 
     xdata_field_type_t  type;
 
@@ -77,55 +80,55 @@ struct _xdata_field_st {
 
     char                *desc;
 
-    int                 required;
+    bool                required;
 
     char                **values;
     int                 nvalues;
 
-    xdata_option_t      options, olast;
+    xdata_option_t      *options, *olast;
 
-    xdata_field_t       next;
+    xdata_field_t       *next;
 };
 
 struct _xdata_option_st {
-    pool_t              p;
+    pool_t              *p;
 
     char                *label;
     char                *value;
 
-    xdata_option_t      next;
+    xdata_option_t      *next;
 };
 
 struct _xdata_item_st {
-    pool_t              p;
+    pool_t              *p;
 
-    xdata_field_t       fields, flast;
+    xdata_field_t       *fields, *flast;
 
-    xdata_item_t        next;
+    xdata_item_t        *next;
 };
 
 /** creation */
-JABBERD2_API xdata_t xdata_new(xdata_type_t type, const char *title, const char *instructions);
-JABBERD2_API xdata_t xdata_parse(nad_t nad, int root);
+JABBERD2_API xdata_t* xdata_new(xdata_type_t type, const char *title, const char *instructions);
+JABBERD2_API xdata_t* xdata_parse(nad_t *nad, unsigned int root);
 
 /** new field */
-JABBERD2_API xdata_field_t xdata_field_new(xdata_t xd, xdata_field_type_t type, const char *var, const char *label, const char *desc, int required);
+JABBERD2_API xdata_field_t* xdata_field_new(xdata_t *xd, xdata_field_type_t type, const char *var, const char *label, const char *desc, bool required);
 
 /** new item */
-JABBERD2_API xdata_item_t xdata_item_new(xdata_t xd);
+JABBERD2_API xdata_item_t* xdata_item_new(xdata_t *xd);
 
 /** field insertion */
-JABBERD2_API void xdata_add_field(xdata_t xd, xdata_field_t xdf);
-JABBERD2_API void xdata_add_rfield(xdata_t xd, xdata_field_t xdf);
-JABBERD2_API void xdata_add_field_item(xdata_item_t item, xdata_field_t xdf);
+JABBERD2_API void xdata_add_field(xdata_t *xd, xdata_field_t *xdf);
+JABBERD2_API void xdata_add_rfield(xdata_t *xd, xdata_field_t *xdf);
+JABBERD2_API void xdata_add_field_item(xdata_item_t *item, xdata_field_t *xdf);
 
 /** item insertion */
-JABBERD2_API void xdata_add_item(xdata_t xd, xdata_item_t xdi);
+JABBERD2_API void xdata_add_item(xdata_t *xd, xdata_item_t *xdi);
 
 /** option insertion */
-JABBERD2_API void xdata_add_option(xdata_field_t xdf, const char *value, int lvalue, const char *label, int llabel);
+JABBERD2_API void xdata_add_option(xdata_field_t *xdf, const char *value, int lvalue, const char *label, int llabel);
 
 /** value insertion */
-JABBERD2_API void xdata_add_value(xdata_field_t xdf, const char *value, int vlen);
+JABBERD2_API void xdata_add_value(xdata_field_t *xdf, const char *value, int vlen);
 
 #endif

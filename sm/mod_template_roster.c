@@ -30,30 +30,30 @@
 /* user template - roster */
 
 typedef struct _template_roster_st {
-    sm_t       sm;
+    sm_t       *sm;
     const char *filename;
     time_t     mtime;
-    xht        items;
-} *template_roster_t;
+    xht        *items;
+} template_roster_t;
 
 /* union for xhash_iter_get to comply with strict-alias rules for gcc3 */
 union xhashv
 {
   void **val;
-  item_t *item_val;
+  item_t **item_val;
 };
 
-static int _template_roster_reload(template_roster_t tr) {
+static int _template_roster_reload(template_roster_t *tr) {
     struct stat st;
     FILE *f;
     long size;
     char *buf;
-    nad_t nad;
+    nad_t *nad;
     int nitems, eitem, ajid, as10n, aname, egroup;
-    item_t item;
+    item_t *item;
 
     if(stat(tr->filename, &st) < 0) {
-        log_write(tr->sm->log, LOG_ERR, "couldn't stat roster template %s: %s", tr->filename, strerror(errno));
+        LOG_ERROR(tr->sm->log, "couldn't stat roster template %s: %s", tr->filename, strerror(errno));
         return 1;
     }
 
@@ -69,28 +69,28 @@ static int _template_roster_reload(template_roster_t tr) {
 
     f = fopen(tr->filename, "r");
     if(f == NULL) {
-        log_write(tr->sm->log, LOG_ERR, "couldn't open roster template %s: %s", tr->filename, strerror(errno));
+        LOG_ERROR(tr->sm->log, "couldn't open roster template %s: %s", tr->filename, strerror(errno));
         return 1;
     }
 
     fseek(f, 0, SEEK_END);
     size = ftell(f);
     if(size < 0) {
-        log_write(tr->sm->log, LOG_ERR, "couldn't seek roster template %s: %s", tr->filename, strerror(errno));
+        LOG_ERROR(tr->sm->log, "couldn't seek roster template %s: %s", tr->filename, strerror(errno));
         fclose(f);
         return 1;
     }
     if(size == 0) {
-        log_write(tr->sm->log, LOG_ERR, "empty roster template %s", tr->filename);
+        LOG_ERROR(tr->sm->log, "empty roster template %s", tr->filename);
         fclose(f);
         return 1;
     }
     fseek(f, 0, SEEK_SET);
 
-    buf = (char *) malloc(sizeof(char) * size);
+    buf = malloc(sizeof(char) * size);
 
     if (fread(buf, 1, size, f) != size || ferror(f)) {
-        log_write(tr->sm->log, LOG_ERR, "couldn't read from roster template %s: %s", tr->filename, strerror(errno));
+        LOG_ERROR(tr->sm->log, "couldn't read from roster template %s: %s", tr->filename, strerror(errno));
         free(buf);
         fclose(f);
         return 1;
@@ -100,7 +100,7 @@ static int _template_roster_reload(template_roster_t tr) {
 
     nad = nad_parse(buf, size);
     if(nad == NULL) {
-        log_write(tr->sm->log, LOG_ERR, "couldn't parse roster template");
+        LOG_ERROR(tr->sm->log, "couldn't parse roster template");
         free(buf);
         return 1;
     }
@@ -108,7 +108,7 @@ static int _template_roster_reload(template_roster_t tr) {
     free(buf);
 
     if(nad->ecur < 2) {
-        log_write(tr->sm->log, LOG_NOTICE, "roster template has no elements");
+        LOG_NOTICE(tr->sm->log, "roster template has no elements");
     }
 
     nitems = 0;
@@ -116,15 +116,15 @@ static int _template_roster_reload(template_roster_t tr) {
     while(eitem >= 0) {
         ajid = nad_find_attr(nad, eitem, -1, "jid", NULL);
         if(ajid < 0) {
-            log_write(tr->sm->log, LOG_ERR, "roster template has item with no jid, skipping");
+            LOG_ERROR(tr->sm->log, "roster template has item with no jid, skipping");
             continue;
         }
 
-        item = (item_t) pmalloco(xhash_pool(tr->items), sizeof(struct item_st));
+        item = pnew(xhash_pool(tr->items), item_t);
 
         item->jid = jid_new(NAD_AVAL(nad, ajid), NAD_AVAL_L(nad, ajid));
         if(item->jid == NULL) {
-            log_write(tr->sm->log, LOG_ERR, "roster template has item with invalid jid, skipping");
+            LOG_ERROR(tr->sm->log, "roster template has item with invalid jid, skipping");
             continue;
         }
         pool_cleanup(xhash_pool(tr->items), (void (*)(void *)) jid_free, item->jid);
@@ -146,11 +146,11 @@ static int _template_roster_reload(template_roster_t tr) {
         egroup = nad_find_elem(nad, eitem, NAD_ENS(nad, 0), "group", 1);
         while(egroup >= 0) {
             if(NAD_CDATA_L(nad, egroup) <= 0) {
-                log_write(tr->sm->log, LOG_ERR, "roster template has zero-length group, skipping");
+                LOG_ERROR(tr->sm->log, "roster template has zero-length group, skipping");
                 continue;
             }
 
-            item->groups = (const char **) realloc(item->groups, sizeof(char *) * (item->ngroups + 1));
+            item->groups = realloc(item->groups, sizeof(char *) * (item->ngroups + 1));
             item->groups[item->ngroups] = pstrdupx(xhash_pool(tr->items), NAD_CDATA(nad, egroup), NAD_CDATA_L(nad, egroup));
             item->ngroups++;
 
@@ -162,26 +162,26 @@ static int _template_roster_reload(template_roster_t tr) {
 
         xhash_put(tr->items, jid_full(item->jid), item);
 
-        log_debug(ZONE, "loaded roster template item %s, %d groups", jid_full(item->jid), item->ngroups);
+        LOG_DEBUG(tr->sm->log, "loaded roster template item %s, %d groups", jid_full(item->jid), item->ngroups);
 
         nitems++;
 
         eitem = nad_find_elem(nad, eitem, NAD_ENS(nad, 0), "item", 0);
     }
 
-    log_write(tr->sm->log, LOG_NOTICE, "loaded %d items from roster template", nitems);
+    LOG_NOTICE(tr->sm->log, "loaded %d items from roster template", nitems);
 
     return 0;
 }
 
 /** !!! this is a cut & paste of _roster_save_time - break it out */
-static void _template_roster_save_item(sm_t sm, jid_t jid, item_t item) {
-    os_t os;
-    os_object_t o;
+static void _template_roster_save_item(sm_t *sm, jid_t *jid, item_t *item) {
+    os_t *os;
+    os_object_t *o;
     char filter[4096];
     int i;
 
-    log_debug(ZONE, "saving roster item %s for %s", jid_full(item->jid), jid_user(jid));
+    LOG_DEBUG(sm->log, "saving roster item %s for %s", jid_full(item->jid), jid_user(jid));
 
     os = os_new();
     o = os_object_new(os);
@@ -222,15 +222,15 @@ static void _template_roster_save_item(sm_t sm, jid_t jid, item_t item) {
     os_free(os);
 }
 
-static int _template_roster_user_create(mod_instance_t mi, jid_t jid) {
-    template_roster_t tr = (template_roster_t) mi->mod->private;
-    item_t item;
+static int _template_roster_user_create(mod_instance_t *mi, jid_t *jid) {
+    template_roster_t *tr = mi->mod->private;
+    item_t *item;
     union xhashv xhv;
 
     if(_template_roster_reload(tr) != 0)
         return 0;
 
-    log_debug(ZONE, "populating roster with items from template");
+    LOG_DEBUG(mi->sm->log, "populating roster with items from template");
 
     if(xhash_iter_first(tr->items))
         do {
@@ -243,8 +243,8 @@ static int _template_roster_user_create(mod_instance_t mi, jid_t jid) {
     return 0;
 }
 
-static void _template_roster_free(module_t mod) {
-    template_roster_t tr = (template_roster_t) mod->private;
+static void _template_roster_free(module_t *mod) {
+    template_roster_t *tr = mod->private;
 
     if(tr->items != NULL)
         xhash_free(tr->items);
@@ -252,10 +252,10 @@ static void _template_roster_free(module_t mod) {
     free(tr);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
-    module_t mod = mi->mod;
+DLLEXPORT int module_init(mod_instance_t *mi, const char *arg) {
+    module_t *mod = mi->mod;
     const char *filename;
-    template_roster_t tr;
+    template_roster_t *tr;
 
     if(mod->init) return 0;
 
@@ -263,7 +263,7 @@ DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
     if(filename == NULL)
         return 0;
 
-    tr = (template_roster_t) calloc(1, sizeof(struct _template_roster_st));
+    tr = new(template_roster_t);
 
     tr->sm = mod->mm->sm;
     tr->filename = filename;

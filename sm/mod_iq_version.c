@@ -27,7 +27,7 @@
   * $Revision: 1.16 $
   */
 
-#ifdef HAVE_SYS_UTSNAME_H
+#if defined(HAVE_UNAME)
 # include <sys/utsname.h>
 #endif
 
@@ -37,11 +37,11 @@ typedef struct _mod_iq_version_config_st {
     char   *app_signature;
     char   *os_name;
     char   *os_release;
-} *mod_iq_version_config_t;
+} mod_iq_version_config_t;
 
 static int ns_VERSION = 0;
 
-void _iq_version_get_os_version(mod_iq_version_config_t config) {
+void _iq_version_get_os_version(mod_iq_version_config_t *config) {
 #if defined(HAVE_UNAME)
     struct utsname un;
 
@@ -173,9 +173,9 @@ void _iq_version_get_os_version(mod_iq_version_config_t config) {
 #endif
 }
 
-static mod_ret_t _iq_version_pkt_sm(mod_instance_t mi, pkt_t pkt) {
-    module_t mod = mi->mod;
-    mod_iq_version_config_t config = (mod_iq_version_config_t) mod->private;
+static mod_ret_t _iq_version_pkt_sm(mod_instance_t *mi, pkt_t *pkt) {
+    module_t *mod = mi->mod;
+    mod_iq_version_config_t *config = mod->private;
     char buf[256];
 
     /* we only want to play with iq:version gets */
@@ -201,13 +201,13 @@ static mod_ret_t _iq_version_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     return mod_HANDLED;
 }
 
-static void _iq_version_disco_extend(mod_instance_t mi, pkt_t pkt)
+static void _iq_version_disco_extend(mod_instance_t *mi, pkt_t *pkt)
 {
-    module_t mod = mi->mod;
-    mod_iq_version_config_t config = (mod_iq_version_config_t) mod->private;
+    module_t *mod = mi->mod;
+    mod_iq_version_config_t *config = mod->private;
     int ns;
 
-    log_debug(ZONE, "in mod_iq_version disco-extend");
+    LOG_DEBUG(mi->sm->log, "in mod_iq_version disco-extend");
 
     ns = nad_add_namespace(pkt->nad, uri_XDATA, NULL);
     /* there may be several XDATA siblings, so need to enforce the NS */
@@ -247,8 +247,8 @@ static void _iq_version_disco_extend(mod_instance_t mi, pkt_t pkt)
     }
 }
 
-static void _iq_version_free(module_t mod) {
-    mod_iq_version_config_t config = (mod_iq_version_config_t) mod->private;
+static void _iq_version_free(module_t *mod) {
+    mod_iq_version_config_t *config = mod->private;
 
     sm_unregister_ns(mod->mm->sm, uri_VERSION);
     feature_unregister(mod->mm->sm, uri_VERSION);
@@ -259,13 +259,13 @@ static void _iq_version_free(module_t mod) {
     free(config);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
-    mod_iq_version_config_t config;
-    module_t mod = mi->mod;
+DLLEXPORT int module_init(mod_instance_t *mi, const char *arg) {
+    mod_iq_version_config_t *config;
+    module_t *mod = mi->mod;
 
     if(mod->init) return 0;
 
-    config = (mod_iq_version_config_t) calloc(1, sizeof(struct _mod_iq_version_config_st));
+    config = new(mod_iq_version_config_t);
     config->app_name = PACKAGE;
     config->app_version = VERSION;
     config->app_signature = mi->sm->signature;

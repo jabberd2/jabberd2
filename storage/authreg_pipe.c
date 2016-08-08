@@ -35,6 +35,7 @@
  */
 
 #include "c2s.h"
+#include "lib/base64.h"
 #include <sys/wait.h>
 
 /** internal structure, holds our data */
@@ -44,9 +45,9 @@ typedef struct moddata_st {
     pid_t   child;
 
     int     in, out;
-} *moddata_t;
+} moddata_t;
 
-static int _ar_pipe_write(authreg_t ar, int fd, const char *msgfmt, ...)
+static int _ar_pipe_write(authreg_t *ar, int fd, const char *msgfmt, ...)
 {
     va_list args;
     char buf[1024];
@@ -56,25 +57,25 @@ static int _ar_pipe_write(authreg_t ar, int fd, const char *msgfmt, ...)
     vsnprintf(buf, 1024, msgfmt, args);
     va_end(args);
 
-    log_debug(ZONE, "writing to pipe: %s", buf);
+    LOG_DEBUG(ar->c2s->log, "writing to pipe: %s", buf);
 
     ret = write(fd, buf, strlen(buf));
     if(ret < 0)
-        log_write(ar->c2s->log, LOG_ERR, "pipe: write to pipe failed: %s", strerror(errno));
+        LOG_ERROR(ar->c2s->log, "pipe: write to pipe failed: %s", strerror(errno));
 
     return ret;
 }
 
-static int _ar_pipe_read(authreg_t ar, int fd, char *buf, int buflen)
+static int _ar_pipe_read(authreg_t *ar, int fd, char *buf, int buflen)
 {
     int ret;
     char *c;
 
     ret = read(fd, buf, buflen);
     if(ret == 0)
-        log_write(ar->c2s->log, LOG_ERR, "pipe: got EOF from pipe");
+        LOG_ERROR(ar->c2s->log, "pipe: got EOF from pipe");
     if(ret < 0)
-        log_write(ar->c2s->log, LOG_ERR, "pipe: read from pipe failed: %s", strerror(errno));
+        LOG_ERROR(ar->c2s->log, "pipe: read from pipe failed: %s", strerror(errno));
     if(ret <= 0)
         return ret;
 
@@ -83,14 +84,14 @@ static int _ar_pipe_read(authreg_t ar, int fd, char *buf, int buflen)
     if(c != NULL)
         *c = '\0';
         
-    log_debug(ZONE, "read from pipe: %s", buf);
+    LOG_DEBUG(ar->c2s->log, "read from pipe: %s", buf);
 
     return ret;
 }
 
-static int _ar_pipe_user_exists(authreg_t ar, sess_t sess, const char *username, const char *realm)
+static int _ar_pipe_user_exists(authreg_t *ar, sess_t *sess, const char *username, const char *realm)
 {
-    moddata_t data = (moddata_t) ar->private;
+    moddata_t *data = ar->private;
     char buf[1024];
 
     if(_ar_pipe_write(ar, data->out, "USER-EXISTS %s %s\n", username, realm) < 0)
@@ -105,9 +106,9 @@ static int _ar_pipe_user_exists(authreg_t ar, sess_t sess, const char *username,
     return 1;
 }
 
-static int _ar_pipe_get_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257])
+static int _ar_pipe_get_password(authreg_t *ar, sess_t *sess, const char *username, const char *realm, char password[257])
 {
-    moddata_t data = (moddata_t) ar->private;
+    moddata_t *data = ar->private;
     char buf[1024];
 
     if(_ar_pipe_write(ar, data->out, "GET-PASSWORD %s %s\n", username, realm) < 0)
@@ -121,36 +122,36 @@ static int _ar_pipe_get_password(authreg_t ar, sess_t sess, const char *username
 
     if(buf[2] != ' ' || buf[3] == '\0')
     {
-        log_debug(ZONE, "malformed response from pipe");
+        LOG_DEBUG(ar->c2s->log, "malformed response from pipe");
         return 1;
     }
 
-    if(apr_base64_decode_len(&buf[3], strlen(&buf[3])) >= 256) {
-        log_debug(ZONE, "decoded password longer than buffer");
+    if(apr_base64_decode_len(&buf[3]) >= 256) {
+        LOG_DEBUG(ar->c2s->log, "decoded password longer than buffer");
         return 1;
     }
 
-    apr_base64_decode(password, &buf[3], strlen(&buf[3]));
+    apr_base64_decode(password, &buf[3]);
 
-    log_debug(ZONE, "got password: %s", password);
+    LOG_DEBUG(ar->c2s->log, "got password: %s", password);
 
     return 0;
 }
 
-static int _ar_pipe_check_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257])
+static int _ar_pipe_check_password(authreg_t *ar, sess_t *sess, const char *username, const char *realm, char password[257])
 {
-    moddata_t data = (moddata_t) ar->private;
+    moddata_t *data = ar->private;
     char buf[1024];
     int plen;
 
     plen = strlen(password);
 
     if(apr_base64_encode_len(plen) >= 1023) {
-        log_debug(ZONE, "unable to encode password");
+        LOG_DEBUG(ar->c2s->log, "unable to encode password");
         return 1;
     }
 
-    apr_base64_encode(buf, password, plen);
+    apr_base64_encode(buf, (unsigned char *)password, plen);
     
     if(_ar_pipe_write(ar, data->out, "CHECK-PASSWORD %s %s %s\n", username, buf, realm) < 0)
         return 1;
@@ -164,20 +165,20 @@ static int _ar_pipe_check_password(authreg_t ar, sess_t sess, const char *userna
     return 0;
 }
 
-static int _ar_pipe_set_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257])
+static int _ar_pipe_set_password(authreg_t *ar, sess_t *sess, const char *username, const char *realm, char password[257])
 {
-    moddata_t data = (moddata_t) ar->private;
+    moddata_t *data = ar->private;
     char buf[1024];
     int plen;
 
     plen = strlen(password);
 
     if(apr_base64_encode_len(plen) >= 1023) {
-        log_debug(ZONE, "unable to encode password");
+        LOG_DEBUG(ar->c2s->log, "unable to encode password");
         return 1;
     }
 
-    apr_base64_encode(buf, password, plen);
+    apr_base64_encode(buf, (unsigned char *)password, plen);
 
     if(_ar_pipe_write(ar, data->out, "SET-PASSWORD %s %s %s\n", username, buf, realm) < 0)
         return 1;
@@ -191,9 +192,9 @@ static int _ar_pipe_set_password(authreg_t ar, sess_t sess, const char *username
     return 0;
 }
 
-static int _ar_pipe_create_user(authreg_t ar, sess_t sess, const char *username, const char *realm)
+static int _ar_pipe_create_user(authreg_t *ar, sess_t *sess, const char *username, const char *realm)
 {
-    moddata_t data = (moddata_t) ar->private;
+    moddata_t *data = ar->private;
     char buf[1024];
 
     if(_ar_pipe_write(ar, data->out, "CREATE-USER %s %s\n", username, realm) < 0)
@@ -208,9 +209,9 @@ static int _ar_pipe_create_user(authreg_t ar, sess_t sess, const char *username,
     return 0;
 }
 
-static int _ar_pipe_delete_user(authreg_t ar, sess_t sess, const char *username, const char *realm)
+static int _ar_pipe_delete_user(authreg_t *ar, sess_t *sess, const char *username, const char *realm)
 {
-    moddata_t data = (moddata_t) ar->private;
+    moddata_t *data = ar->private;
     char buf[1024];
 
     if(_ar_pipe_write(ar, data->out, "DELETE-USER %s %s\n", username, realm) < 0)
@@ -225,9 +226,9 @@ static int _ar_pipe_delete_user(authreg_t ar, sess_t sess, const char *username,
     return 0;
 }
 
-static void _ar_pipe_free(authreg_t ar)
+static void _ar_pipe_free(authreg_t *ar)
 {
-    moddata_t data = (moddata_t) ar->private;
+    moddata_t *data = ar->private;
 
     if(_ar_pipe_write(ar, data->out, "FREE\n") < 0)
         return;
@@ -248,32 +249,32 @@ static void _ar_pipe_signal(int signum)
 }
 
 /** start me up */
-int ar_init(authreg_t ar)
+int ar_init(authreg_t *ar)
 {
-    moddata_t data;
+    moddata_t *data;
     int to[2], from[2], ret;
     char buf[1024], *tok, *c;
 
-    data = (moddata_t) calloc(1, sizeof(struct moddata_st));
+    data = new(moddata_t);
 
     data->exec = config_get_one(ar->c2s->config, "authreg.pipe.exec", 0);
     if(data->exec == NULL)
     {
-        log_write(ar->c2s->log, LOG_ERR, "pipe: no executable specified in config file");
+        LOG_ERROR(ar->c2s->log, "pipe: no executable specified in config file");
         free(data);
         return 1;
     }
 
     if(pipe(to) < 0)
     {
-        log_write(ar->c2s->log, LOG_ERR, "pipe: failed to create pipe: %s", strerror(errno));
+        LOG_ERROR(ar->c2s->log, "pipe: failed to create pipe: %s", strerror(errno));
         free(data);
         return 1;
     }
 
     if(pipe(from) < 0)
     {
-        log_write(ar->c2s->log, LOG_ERR, "pipe: failed to create pipe: %s", strerror(errno));
+        LOG_ERROR(ar->c2s->log, "pipe: failed to create pipe: %s", strerror(errno));
         close(to[0]);
         close(to[1]);
         free(data);
@@ -282,12 +283,12 @@ int ar_init(authreg_t ar)
 
     signal(SIGCHLD, _ar_pipe_signal);
 
-    log_debug(ZONE, "attempting to fork");
+    LOG_DEBUG(ar->c2s->log, "attempting to fork");
 
     data->child = fork();
     if(data->child < 0)
     {
-        log_write(ar->c2s->log, LOG_ERR, "pipe: failed to fork: %s", strerror(errno));
+        LOG_ERROR(ar->c2s->log, "pipe: failed to fork: %s", strerror(errno));
         close(to[0]);
         close(to[1]);
         close(from[0]);
@@ -299,7 +300,7 @@ int ar_init(authreg_t ar)
     /* child */
     if(data->child == 0)
     {
-        log_debug(ZONE, "executing %s", data->exec);
+        LOG_DEBUG(ar->c2s->log, "executing %s", data->exec);
 
         close(STDIN_FILENO);
         close(STDOUT_FILENO);
@@ -314,14 +315,14 @@ int ar_init(authreg_t ar)
         
         execl(data->exec, data->exec, NULL);
 
-        log_write(ar->c2s->log, LOG_ERR, "pipe: failed to execute %s: %s", data->exec, strerror(errno));
+        LOG_ERROR(ar->c2s->log, "pipe: failed to execute %s: %s", data->exec, strerror(errno));
 
         free(data);
 
         exit(1);
     }
 
-    log_write(ar->c2s->log, LOG_NOTICE, "pipe authenticator %s running (pid %d)", data->exec, data->child);
+    LOG_NOTICE(ar->c2s->log, "pipe authenticator %s running (pid %d)", data->exec, data->child);
 
     /* parent */
     close(to[0]);
@@ -357,7 +358,7 @@ int ar_init(authreg_t ar)
             if(strcmp(tok, "OK") == 0)
                 continue;
 
-            log_write(ar->c2s->log, LOG_ERR, "pipe: pipe authenticator failed to initialise");
+            LOG_ERROR(ar->c2s->log, "pipe: pipe authenticator failed to initialise");
             kill(data->child, SIGTERM);
             close(data->in);
             close(data->out);
@@ -366,7 +367,7 @@ int ar_init(authreg_t ar)
         }
 
         /* its an option */
-        log_debug(ZONE, "module feature: %s", tok);
+        LOG_DEBUG(ar->c2s->log, "module feature: %s", tok);
 
         if(strcmp(tok, "USER-EXISTS") == 0)
             ar->user_exists = _ar_pipe_user_exists;

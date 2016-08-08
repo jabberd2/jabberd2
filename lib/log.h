@@ -1,69 +1,26 @@
-/*
- * jabberd - Jabber Open Source Server
- * Copyright (c) 2002-2004 Jeremie Miller, Thomas Muldowney,
- *                         Ryan Eatmon, Robert Norris
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
- */
+#ifndef LOG_H
+#define LOG_H
 
-/** @file lib/log.h
-  * @brief logging functions
-  * @author Robert Norris
-  * $Revision: 1.1 $
-  * $Date: 2004/04/30 00:53:54 $
-  */
+#include <log4c.h>
 
-#ifndef INCL_UTIL_LOG_H
-#define INCL_UTIL_LOG_H 1
+typedef log4c_category_t    log_t;
 
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
+#define log_get(...)        log4c_category_get(__VA_ARGS__)
+#define log_delete(...)     log4c_category_delete(__VA_ARGS__)
 
-#ifdef HAVE_SYSLOG_H
-# include <syslog.h>
-#endif
+#define __LOG_PRIO(prio, cat, msg, args...) { \
+        const log4c_location_info_t locinfo = LOG4C_LOCATION_INFO_INITIALIZER(NULL); \
+        log4c_category_log_locinfo(cat, &locinfo, prio, msg, ##args); \
+    }
 
-#include "pool.h"
+#define LOG_FATAL(cat, msg, args...)  __LOG_PRIO(LOG4C_PRIORITY_FATAL, cat, msg, ##args)
+#define LOG_ALERT(cat, msg, args...)  __LOG_PRIO(LOG4C_PRIORITY_ALERT, cat, msg, ##args)
+#define LOG_CRIT(cat, msg, args...)   __LOG_PRIO(LOG4C_PRIORITY_CRIT, cat, msg, ##args)
+#define LOG_ERROR(cat, msg, args...)  __LOG_PRIO(LOG4C_PRIORITY_ERROR, cat, msg, ##args)
+#define LOG_WARN(cat, msg, args...)   __LOG_PRIO(LOG4C_PRIORITY_WARN, cat, msg, ##args)
+#define LOG_NOTICE(cat, msg, args...) __LOG_PRIO(LOG4C_PRIORITY_NOTICE, cat, msg, ##args)
+#define LOG_INFO(cat, msg, args...)   __LOG_PRIO(LOG4C_PRIORITY_INFO, cat, msg, ##args)
+#define LOG_DEBUG(cat, msg, args...)  __LOG_PRIO(LOG4C_PRIORITY_DEBUG, cat, msg, ##args)
+#define LOG_TRACE(cat, msg, args...)  __LOG_PRIO(LOG4C_PRIORITY_TRACE, cat, msg, ##args)
 
-typedef enum {
-    log_STDOUT,
-    log_SYSLOG,
-    log_FILE
-} log_type_t;
-
-/* opaque decl */
-typedef struct _log_st *log_t;
-
-JABBERD2_API log_t    log_new(pool_t p, log_type_t type, const char *ident, const char *facility);
-JABBERD2_API void     log_write(log_t log, int level, const char *msgfmt, ...);
-
-/* debug logging */
-#if defined(DEBUG) && 0
-JABBERD2_API int      log_debug_flag;
-void            log_debug(char *file, int line, const char *subsys, const char *msgfmt, ...);
-
-# define        log_debug_get_flag()    log_debug_flag
-# define        log_debug_set_flag(f)   (log_debug_flag = f ? 1 : 0)
-# define        log_debug(...)          if(log_debug_flag) __log_debug(__FILE__,__LINE__,0,__VA_ARGS__)
-# define        log_debug_subsys(...)   if(log_debug_flag) __log_debug(__FILE__,__LINE__,__VA_ARGS__)
-#else
-# define        log_debug_get_flag()    (0)
-# define        log_debug_set_flag(f)
-# define        log_debug(...)
-# define        log_debug_subsys(...)
-#endif
-
-#endif
+#endif // LOG_H

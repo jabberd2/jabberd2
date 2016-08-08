@@ -25,7 +25,6 @@
 # include <config.h>
 #endif
 #include "lib/inaddr.h"
-#include "ac-stdint.h"
 
 /* jabberd2 Windows DLL */
 #ifndef JABBERD2_API
@@ -50,6 +49,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
 
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>

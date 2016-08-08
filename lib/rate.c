@@ -20,11 +20,12 @@
 
 /* rate controls (for implementing connect-limiting or karma) */
 
-#include "util.h"
+#include "rate.h"
+#include <malloc.h>
 
-rate_t rate_new(int total, int seconds, int wait)
+rate_t *rate_new(int total, int seconds, int wait)
 {
-    rate_t rt = (rate_t) calloc(1, sizeof(struct rate_st));
+    rate_t *rt = new(struct rate_st);
 
     rt->total = total;
     rt->seconds = seconds;
@@ -33,72 +34,70 @@ rate_t rate_new(int total, int seconds, int wait)
     return rt;
 }
 
-void rate_free(rate_t rt)
+void rate_free(rate_t *rt)
 {
     free(rt);
 }
 
-void rate_reset(rate_t rt)
+void rate_reset(rate_t *rt)
 {
     rt->time = 0;
     rt->count = 0;
     rt->bad = 0;
 }
 
-void rate_add(rate_t rt, int count)
+void rate_add(rate_t *rt, int count)
 {
-    time_t now;
-
-    now = time(NULL);
+    time_t now = time(NULL);
 
     /* rate expired */
-    if(now - rt->time >= rt->seconds)
+    if (now - rt->time >= rt->seconds)
         rate_reset(rt);
 
     rt->count += count;
 
     /* first event, so set the time */
-    if(rt->time == 0)
+    if (rt->time == 0)
         rt->time = now;
 
     /* uhoh, they stuffed up */
-    if(rt->count >= rt->total)
+    if (rt->count >= rt->total)
         rt->bad = now;
 }
 
-int rate_left(rate_t rt)
+size_t rate_left(rate_t *rt)
 {
     /* if we're bad, then there's none left */
-    if(rt->bad != 0)
+    if (rt->bad != 0)
         return 0;
 
     return rt->total - rt->count;
 }
 
-int rate_check(rate_t rt)
+bool rate_check(rate_t *rt)
 {
     /* not tracking */
-    if(rt->time == 0)
-        return 1;
+    if (rt->time == 0)
+        return true;
 
     /* under the limit */
-    if(rt->count < rt->total)
-        return 1;
+    if (rt->count < rt->total)
+        return true;
 
     /* currently bad */
-    if(rt->bad != 0)
+    if (rt->bad != 0)
     {
         /* wait over, they're good again */
-        if(time(NULL) - rt->bad >= rt->wait)
+        if (time(NULL) - rt->bad >= rt->wait)
         {
             rate_reset(rt);
-            return 1;
+            return true;
         }
 
         /* keep them waiting */
-        return 0;
+        return false;
     }
 
     /* they're inside the time, and not bad yet */
-    return 1;
+    return true;
 }

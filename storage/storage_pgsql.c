@@ -77,7 +77,7 @@ static void _st_pgsql_convert_filter_recursive(st_driver_t drv, st_filter_t f, c
     switch(f->type) {
         case st_filter_type_PAIR:
             /* do sql escaping for apostrophes */
-            cval = (char *) malloc(sizeof(char) * ((strlen(f->val) * 2) + 1));
+            cval = malloc(sizeof(char) * ((strlen(f->val) * 2) + 1));
             vlen = PQescapeString(cval, f->val, strlen(f->val));
 
             PGSQL_SAFE((*buf), *buflen + 12 + vlen - strlen(f->val), *buflen);
@@ -209,18 +209,18 @@ static st_ret_t _st_pgsql_put_guts(st_driver_t drv, const char *type, const char
                             break;
 
                         case os_type_INTEGER:
-                            cval = (char *) malloc(sizeof(char) * 20);
+                            cval = malloc(sizeof(char) * 20);
                             sprintf(cval, "%" PRIdPTR, (intptr_t)val);
                             break;
 
                         case os_type_STRING:
-                            cval = (char *) malloc(sizeof(char) * ((strlen((char *) val) * 2) + 1));
+                            cval = malloc(sizeof(char) * ((strlen((char *) val) * 2) + 1));
                             PQescapeString(cval, (char *) val, strlen((char *) val));
                             break;
 
                         case os_type_NAD:
                             nad_print((nad_t) val, 0, &xml, &xlen);
-                            cval = (char *) malloc(sizeof(char) * ((xlen * 2) + 4));
+                            cval = malloc(sizeof(char) * ((xlen * 2) + 4));
                             PQescapeString(&cval[3], xml, xlen);
                             strncpy(cval, "NAD", 3);
                             break;
@@ -671,7 +671,7 @@ st_ret_t st_init(st_driver_t drv) {
         PQexec(conn, sql);
     }
 
-    data = (drvdata_t) calloc(1, sizeof(struct drvdata_st));
+    data = new(drvdata_t);
 
     data->conn = conn;
 

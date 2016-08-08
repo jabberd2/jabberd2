@@ -19,41 +19,42 @@
  */
 
 #include "s2s.h"
+#include "lib/str.h"
+#include "lib/stanza.h"
+#include "lib/jsignal.h"
 
 #include <stringprep.h>
-#include <unistd.h>
 #ifdef HAVE_SSL
 #include <openssl/rand.h>
 #endif
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 static sig_atomic_t s2s_shutdown = 0;
 sig_atomic_t s2s_lost_router = 0;
-static sig_atomic_t s2s_logrotate = 0;
 
 static void _s2s_signal(int signum) {
     s2s_shutdown = 1;
     s2s_lost_router = 0;
 }
 
-static void _s2s_signal_hup(int signum) {
-    s2s_logrotate = 1;
-}
-
 static void _s2s_signal_usr1(int signum)
 {
-    set_debug_flag(0);
+    log4c_category_set_priority(log4c_category_get(""), LOG4C_PRIORITY_NOTSET);
 }
 
 static void _s2s_signal_usr2(int signum)
 {
-    set_debug_flag(1);
+    log4c_category_set_priority(log4c_category_get(""), LOG4C_PRIORITY_TRACE);
 }
 
-static int _s2s_populate_whitelist_domains(s2s_t s2s, const char **values, int nvalues);
+static int _s2s_populate_whitelist_domains(s2s_t *s2s, const char **values, int nvalues);
 
 
 /** store the process id */
-static void _s2s_pidfile(s2s_t s2s) {
+static void _s2s_pidfile(s2s_t *s2s) {
     const char *pidfile;
     FILE *f;
     pid_t pid;
@@ -65,28 +66,26 @@ static void _s2s_pidfile(s2s_t s2s) {
     pid = getpid();
 
     if((f = fopen(pidfile, "w+")) == NULL) {
-        log_write(s2s->log, LOG_ERR, "couldn't open %s for writing: %s", pidfile, strerror(errno));
+        LOG_ERROR(s2s->log, "couldn't open %s for writing: %s", pidfile, strerror(errno));
         return;
     }
 
     if(fprintf(f, "%d", pid) < 0) {
-        log_write(s2s->log, LOG_ERR, "couldn't write to %s: %s", pidfile, strerror(errno));
+        LOG_ERROR(s2s->log, "couldn't write to %s: %s", pidfile, strerror(errno));
         fclose(f);
         return;
     }
 
     fclose(f);
 
-    log_write(s2s->log, LOG_INFO, "process id is %d, written to %s", pid, pidfile);
+    LOG_INFO(s2s->log, "process id is %d, written to %s", pid, pidfile);
 }
 
 /** pull values out of the config file */
-static void _s2s_config_expand(s2s_t s2s) {
-    char *str, secret[41];
-    config_elem_t elem;
+static void _s2s_config_expand(s2s_t *s2s) {
+    char secret[41];
+    config_elem_t *elem;
     int i, r;
-
-    set_debug_log_from_config(s2s->config);
 
     s2s->id = config_get_one(s2s->config, "id", 0);
     if(s2s->id == NULL)
@@ -119,24 +118,6 @@ static void _s2s_config_expand(s2s_t s2s) {
 
     s2s->router_default = config_count(s2s->config, "router.non-default") ? 0 : 1;
 
-    s2s->log_type = log_STDOUT;
-    if(config_get(s2s->config, "log") != NULL) {
-        if((str = config_get_attr(s2s->config, "log", 0, "type")) != NULL) {
-            if(strcmp(str, "file") == 0)
-                s2s->log_type = log_FILE;
-            else if(strcmp(str, "syslog") == 0)
-                s2s->log_type = log_SYSLOG;
-        }
-    }
-
-    if(s2s->log_type == log_SYSLOG) {
-        s2s->log_facility = config_get_one(s2s->config, "log.facility", 0);
-        s2s->log_ident = config_get_one(s2s->config, "log.ident", 0);
-        if(s2s->log_ident == NULL)
-            s2s->log_ident = "jabberd/s2s";
-    } else if(s2s->log_type == log_FILE)
-        s2s->log_ident = config_get_one(s2s->config, "log.file", 0);
-
     s2s->packet_stats = config_get_one(s2s->config, "stats.packet", 0);
 
     s2s->local_ip = config_get_one(s2s->config, "local.ip", 0);
@@ -153,8 +134,8 @@ static void _s2s_config_expand(s2s_t s2s) {
         s2s->local_secret = strdup(config_get_one(s2s->config, "local.secret", 0));
     else {
 #ifdef HAVE_SSL
-        if (!RAND_bytes(secret, 40)) {
-            log_write(s2s->log, LOG_ERR, "Failed to pull 40 RAND_bytes");
+        if (!RAND_bytes((unsigned char *)secret, 40)) {
+            LOG_ERROR(s2s->log, "Failed to pull 40 RAND_bytes");
             exit(1);
         }
 #else
@@ -216,19 +197,19 @@ static void _s2s_config_expand(s2s_t s2s) {
     s2s->out_reuse = config_count(s2s->config, "out-conn-reuse") ? 1 : 0;
 }
 
-static void _s2s_hosts_expand(s2s_t s2s)
+static void _s2s_hosts_expand(s2s_t *s2s)
 {
     char *realm;
-    config_elem_t elem;
+    config_elem_t *elem;
     char id[1024];
     int i;
 
     elem = config_get(s2s->config, "local.id");
 
     if (elem) for(i = 0; i < elem->nvalues; i++) {
-        host_t host = (host_t) pmalloco(xhash_pool(s2s->hosts), sizeof(struct host_st));
+        host_t *host = pnew(xhash_pool(s2s->hosts), host_t);
         if(!host) {
-            log_write(s2s->log, LOG_ERR, "cannot allocate memory for new host, aborting");
+            LOG_ERROR(s2s->log, "cannot allocate memory for new host, aborting");
             exit(1);
         }
 
@@ -238,7 +219,7 @@ static void _s2s_hosts_expand(s2s_t s2s)
         strncpy(id, elem->values[i], 1024);
         id[1023] = '\0';
         if (stringprep_nameprep(id, 1024) != 0) {
-            log_write(s2s->log, LOG_ERR, "cannot stringprep id %s, aborting", id);
+            LOG_ERROR(s2s->log, "cannot stringprep id %s, aborting", id);
             exit(1);
         }
 
@@ -259,12 +240,12 @@ static void _s2s_hosts_expand(s2s_t s2s)
             if(s2s->sx_ssl == NULL) {
                 s2s->sx_ssl = sx_env_plugin(s2s->sx_env, sx_ssl_init, host->realm, host->host_pemfile, host->host_cachain, host->host_verify_mode, host->host_private_key_password, host->host_ciphers);
                 if(s2s->sx_ssl == NULL) {
-                    log_write(s2s->log, LOG_ERR, "failed to load %s SSL pemfile", host->realm);
+                    LOG_ERROR(s2s->log, "failed to load %s SSL pemfile", host->realm);
                     host->host_pemfile = NULL;
                 }
             } else {
                 if(sx_ssl_server_addcert(s2s->sx_ssl, host->realm, host->host_pemfile, host->host_cachain, host->host_verify_mode, host->host_private_key_password, host->host_ciphers) != 0) {
-                    log_write(s2s->log, LOG_ERR, "failed to load %s SSL pemfile", host->realm);
+                    LOG_ERROR(s2s->log, "failed to load %s SSL pemfile", host->realm);
                     host->host_pemfile = NULL;
                 }
             }
@@ -274,28 +255,28 @@ static void _s2s_hosts_expand(s2s_t s2s)
         /* insert into vHosts xhash */
         xhash_put(s2s->hosts, pstrdup(xhash_pool(s2s->hosts), id), host);
 
-        log_write(s2s->log, LOG_NOTICE, "[%s] configured; realm=%s", id, host->realm);
+        LOG_NOTICE(s2s->log, "[%s] configured; realm=%s", id, host->realm);
     }
 }
 
-static int _s2s_router_connect(s2s_t s2s) {
-    log_write(s2s->log, LOG_NOTICE, "attempting connection to router at %s, port=%d", s2s->router_ip, s2s->router_port);
+static int _s2s_router_connect(s2s_t *s2s) {
+    LOG_NOTICE(s2s->log, "attempting connection to router at %s, port=%d", s2s->router_ip, s2s->router_port);
 
     s2s->fd = mio_connect(s2s->mio, s2s->router_port, s2s->router_ip, NULL, s2s_router_mio_callback, (void *) s2s);
     if(s2s->fd == NULL) {
         if(errno == ECONNREFUSED)
             s2s_lost_router = 1;
-        log_write(s2s->log, LOG_NOTICE, "connection attempt to router failed: %s (%d)", MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+        LOG_NOTICE(s2s->log, "connection attempt to router failed: %s (%d)", MIO_STRERROR(MIO_ERROR), MIO_ERROR);
         return 1;
     }
 
-    s2s->router = sx_new(s2s->sx_env, s2s->fd->fd, s2s_router_sx_callback, (void *) s2s);
+    s2s->router = sx_new(s2s->sx_env, s2s->router_ip, s2s->router_port, s2s_router_sx_callback, (void *) s2s);
     sx_client_init(s2s->router, 0, NULL, NULL, NULL, "1.0");
 
     return 0;
 }
 
-int _s2s_check_conn_routes(s2s_t s2s, conn_t conn, const char *direction)
+int _s2s_check_conn_routes(s2s_t *s2s, conn_t *conn, const char *direction)
 {
   char *rkey;
   int rkeylen;
@@ -315,7 +296,7 @@ int _s2s_check_conn_routes(s2s_t s2s, conn_t conn, const char *direction)
               dialback_time = (time_t) xhash_getx(conn->states_time, rkey, rkeylen);
 
               if(now > dialback_time + s2s->check_queue) {
-                 log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] dialback for %s route '%.*s' timed out", conn->fd->fd, conn->ip, conn->port, direction, rkeylen, rkey);
+                 LOG_NOTICE(s2s->log, "[%d] [%s, port=%d] dialback for %s route '%.*s' timed out", conn->fd->fd, conn->ip, conn->port, direction, rkeylen, rkey);
 
                  xhash_zapx(conn->states, rkey, rkeylen);
                  xhash_zapx(conn->states_time, rkey, rkeylen);
@@ -336,13 +317,13 @@ int _s2s_check_conn_routes(s2s_t s2s, conn_t conn, const char *direction)
   return 1;
 }
 
-static void _s2s_time_checks(s2s_t s2s) {
-    conn_t conn;
+static void _s2s_time_checks(s2s_t *s2s) {
+    conn_t *conn;
     time_t now;
     char *rkey, *key;
     int keylen;
-    jqueue_t q;
-    dnscache_t dns;
+    jqueue_t *q;
+    dnscache_t *dns;
     char *c;
     int c_len;
     union xhashv xhv;
@@ -356,7 +337,7 @@ static void _s2s_time_checks(s2s_t s2s) {
                 xhv.jq_val = &q;
                 xhash_iter_get(s2s->outq, (const char **) &rkey, &keylen, xhv.val);
 
-                log_debug(ZONE, "running time checks for %.*s", keylen, rkey);
+                LOG_DEBUG(s2s->log, "running time checks for %.*s", keylen, rkey);
                 c = memchr(rkey, '/', keylen);
                 c++;
                 c_len = keylen - (c - rkey);
@@ -364,9 +345,9 @@ static void _s2s_time_checks(s2s_t s2s) {
                 /* dns lookup timeout check first */
                 dns = xhash_getx(s2s->dnscache, c, c_len);
                 if(dns != NULL && dns->pending) {
-                    log_debug(ZONE, "dns lookup pending for %.*s", c_len, c);
+                    LOG_DEBUG(s2s->log, "dns lookup pending for %.*s", c_len, c);
                     if(now > dns->init_time + s2s->check_queue) {
-                        log_write(s2s->log, LOG_NOTICE, "dns lookup for %.*s timed out", c_len, c);
+                        LOG_NOTICE(s2s->log, "dns lookup for %.*s timed out", c_len, c);
 
                         /* bounce queue */
                         out_bounce_route_queue(s2s, rkey, keylen, stanza_err_REMOTE_SERVER_NOT_FOUND);
@@ -393,7 +374,7 @@ static void _s2s_time_checks(s2s_t s2s) {
                 if(conn == NULL) {
                     if(jqueue_size(q) > 0) {
                        /* no pending conn? perhaps it failed? */
-                       log_debug(ZONE, "no pending connection for %.*s, bouncing %i packets in queue", c_len, c, jqueue_size(q));
+                       LOG_DEBUG(s2s->log, "no pending connection for %.*s, bouncing %i packets in queue", c_len, c, jqueue_size(q));
 
                        /* bounce queue */
                        out_bounce_route_queue(s2s, rkey, keylen, stanza_err_REMOTE_SERVER_TIMEOUT);
@@ -404,17 +385,17 @@ static void _s2s_time_checks(s2s_t s2s) {
 
                 /* connect timeout check */
                 if(!conn->online && now > conn->init_time + s2s->check_queue) {
-                    dnsres_t bad;
+                    dnsres_t *bad;
                     char *ipport;
 
-                    log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] connection to %s timed out", conn->fd->fd, conn->ip, conn->port, c);
+                    LOG_NOTICE(s2s->log, "[%d] [%s, port=%d] connection to %s timed out", conn->fd->fd, conn->ip, conn->port, c);
 
                     if (s2s->dns_bad_timeout > 0) {
                         /* mark this host as bad */
                         ipport = dns_make_ipport(conn->ip, conn->port);
                         bad = xhash_get(s2s->dns_bad, ipport);
                         if (bad == NULL) {
-                            bad = (dnsres_t) calloc(1, sizeof(struct dnsres_st));
+                            bad = new(dnsres_t);
                             bad->key = ipport;
                             xhash_put(s2s->dns_bad, ipport, bad);
                         } else {
@@ -439,11 +420,11 @@ static void _s2s_time_checks(s2s_t s2s) {
                 do {
                     xhv.conn_val = &conn;
                     xhash_iter_get(s2s->out_host, (const char **) &key, &keylen, xhv.val);
-                    log_debug(ZONE, "checking dialback state for outgoing conn %.*s", keylen, key);
+                    LOG_DEBUG(s2s->log, "checking dialback state for outgoing conn %.*s", keylen, key);
                     if (_s2s_check_conn_routes(s2s, conn, "outgoing")) {
-                        log_debug(ZONE, "checking pending verify requests for outgoing conn %.*s", keylen, key);
+                        LOG_DEBUG(s2s->log, "checking pending verify requests for outgoing conn %.*s", keylen, key);
                         if (conn->verify > 0 && now > conn->last_verify + s2s->check_queue) {
-                            log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] dialback verify request timed out", conn->fd->fd, conn->ip, conn->port);
+                            LOG_NOTICE(s2s->log, "[%d] [%s, port=%d] dialback verify request timed out", conn->fd->fd, conn->ip, conn->port);
                             sx_error(conn->s, stream_err_CONNECTION_TIMEOUT, "dialback verify request timed out");
                             sx_close(conn->s);
                         }
@@ -454,11 +435,11 @@ static void _s2s_time_checks(s2s_t s2s) {
                 do {
                     xhv.conn_val = &conn;
                     xhash_iter_get(s2s->out_dest, (const char **) &key, &keylen, xhv.val);
-                    log_debug(ZONE, "checking dialback state for outgoing conn %s (%s)", conn->dkey, conn->key);
+                    LOG_DEBUG(s2s->log, "checking dialback state for outgoing conn %s (%s)", conn->dkey, conn->key);
                     if (_s2s_check_conn_routes(s2s, conn, "outgoing")) {
-                        log_debug(ZONE, "checking pending verify requests for outgoing conn %s (%s)", conn->dkey, conn->key);
+                        LOG_DEBUG(s2s->log, "checking pending verify requests for outgoing conn %s (%s)", conn->dkey, conn->key);
                         if (conn->verify > 0 && now > conn->last_verify + s2s->check_queue) {
-                            log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] dialback verify request timed out", conn->fd->fd, conn->ip, conn->port);
+                            LOG_NOTICE(s2s->log, "[%d] [%s, port=%d] dialback verify request timed out", conn->fd->fd, conn->ip, conn->port);
                             sx_error(conn->s, stream_err_CONNECTION_TIMEOUT, "dialback verify request timed out");
                             sx_close(conn->s);
                         }
@@ -472,11 +453,11 @@ static void _s2s_time_checks(s2s_t s2s) {
                 xhv.conn_val = &conn;
                 xhash_iter_get(s2s->in, (const char **) &key, &keylen, xhv.val);
 
-                log_debug(ZONE, "checking dialback state for incoming conn %.*s", keylen, key);
+                LOG_DEBUG(s2s->log, "checking dialback state for incoming conn %.*s", keylen, key);
                 if (_s2s_check_conn_routes(s2s, conn, "incoming"))
                     /* if the connection is still valid, check that dialbacks have been initiated */
                     if(!xhash_count(conn->states) && now > conn->init_time + s2s->check_queue) {
-                        log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] no dialback started", conn->fd->fd, conn->ip, conn->port);
+                        LOG_NOTICE(s2s->log, "[%d] [%s, port=%d] no dialback started", conn->fd->fd, conn->ip, conn->port);
                         sx_error(conn->s, stream_err_CONNECTION_TIMEOUT, "no dialback initiated");
                         sx_close(conn->s);
                     }
@@ -488,9 +469,9 @@ static void _s2s_time_checks(s2s_t s2s) {
                 xhv.conn_val = &conn;
                 xhash_iter_get(s2s->in_accept, (const char **) &key, &keylen, xhv.val);
 
-                log_debug(ZONE, "checking stream connection state for incoming conn %i", conn->fd->fd);
+                LOG_DEBUG(s2s->log, "checking stream connection state for incoming conn %i", conn->fd->fd);
                 if(!conn->online && now > conn->init_time + s2s->check_queue) {
-                    log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] stream initiation timed out", conn->fd->fd, conn->ip, conn->port);
+                    LOG_NOTICE(s2s->log, "[%d] [%s, port=%d] stream initiation timed out", conn->fd->fd, conn->ip, conn->port);
                     sx_close(conn->s);
                 }
             } while(xhash_iter_next(s2s->in_accept));
@@ -505,7 +486,7 @@ static void _s2s_time_checks(s2s_t s2s) {
                 xhash_iter_get(s2s->out_host, NULL, NULL, xhv.val);
 
                 if(s2s->check_keepalive > 0 && conn->last_activity > 0 && now > conn->last_activity + s2s->check_keepalive && conn->s->state >= state_STREAM) {
-                    log_debug(ZONE, "sending keepalive for %d", conn->fd->fd);
+                    LOG_DEBUG(s2s->log, "sending keepalive for %d", conn->fd->fd);
 
                     sx_raw_write(conn->s, " ", 1);
                 }
@@ -517,7 +498,7 @@ static void _s2s_time_checks(s2s_t s2s) {
                 xhash_iter_get(s2s->out_dest, NULL, NULL, xhv.val);
 
                 if(s2s->check_keepalive > 0 && conn->last_activity > 0 && now > conn->last_activity + s2s->check_keepalive && conn->s->state >= state_STREAM) {
-                    log_debug(ZONE, "sending keepalive for %d", conn->fd->fd);
+                    LOG_DEBUG(s2s->log, "sending keepalive for %d", conn->fd->fd);
 
                     sx_raw_write(conn->s, " ", 1);
                 }
@@ -533,9 +514,9 @@ static void _s2s_time_checks(s2s_t s2s) {
                 do {
                     xhv.conn_val = &conn;
                     xhash_iter_get(s2s->out_host, (const char **) &key, &keylen, xhv.val);
-                    log_debug(ZONE, "checking idle state for %.*s", keylen, key);
+                    LOG_DEBUG(s2s->log, "checking idle state for %.*s", keylen, key);
                     if (conn->last_packet > 0 && now > conn->last_packet + s2s->check_idle && conn->s->state >= state_STREAM) {
-                        log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] idle timeout", conn->fd->fd, conn->ip, conn->port);
+                        LOG_NOTICE(s2s->log, "[%d] [%s, port=%d] idle timeout", conn->fd->fd, conn->ip, conn->port);
                         sx_close(conn->s);
                     }
                 } while(xhash_iter_next(s2s->out_host));
@@ -544,9 +525,9 @@ static void _s2s_time_checks(s2s_t s2s) {
                 do {
                     xhv.conn_val = &conn;
                     xhash_iter_get(s2s->out_dest, (const char **) &key, &keylen, xhv.val);
-                    log_debug(ZONE, "checking idle state for %s (%s)", conn->dkey, conn->key);
+                    LOG_DEBUG(s2s->log, "checking idle state for %s (%s)", conn->dkey, conn->key);
                     if (conn->last_packet > 0 && now > conn->last_packet + s2s->check_idle && conn->s->state >= state_STREAM) {
-                        log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] idle timeout", conn->fd->fd, conn->ip, conn->port);
+                        LOG_NOTICE(s2s->log, "[%d] [%s, port=%d] idle timeout", conn->fd->fd, conn->ip, conn->port);
                         sx_close(conn->s);
                     }
                 } while(xhash_iter_next(s2s->out_dest));
@@ -557,9 +538,9 @@ static void _s2s_time_checks(s2s_t s2s) {
             do {
                 xhv.conn_val = &conn;
                 xhash_iter_get(s2s->in, (const char **) &key, &keylen, xhv.val);
-                log_debug(ZONE, "checking idle state for %.*s", keylen, key);
+                LOG_DEBUG(s2s->log, "checking idle state for %.*s", keylen, key);
                 if (conn->last_packet > 0 && now > conn->last_packet + s2s->check_idle && conn->s->state >= state_STREAM) {
-                    log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] idle timeout", conn->fd->fd, conn->ip, conn->port);
+                    LOG_NOTICE(s2s->log, "[%d] [%s, port=%d] idle timeout", conn->fd->fd, conn->ip, conn->port);
                     sx_close(conn->s);
                 }
             } while(xhash_iter_next(s2s->in));
@@ -569,10 +550,10 @@ static void _s2s_time_checks(s2s_t s2s) {
     return;
 }
 
-static void _s2s_dns_expiry(s2s_t s2s) {
+static void _s2s_dns_expiry(s2s_t *s2s) {
     time_t now;
-    dnscache_t dns = NULL;
-    dnsres_t res = NULL;
+    dnscache_t *dns = NULL;
+    dnsres_t *res = NULL;
     union xhashv xhv;
 
     now = time(NULL);
@@ -583,7 +564,7 @@ static void _s2s_dns_expiry(s2s_t s2s) {
             xhv.dns_val = &dns;
             xhash_iter_get(s2s->dnscache, NULL, NULL, xhv.val);
             if (dns && !dns->pending && now > dns->expiry) {
-                log_debug(ZONE, "expiring DNS cache for %s", dns->name);
+                LOG_DEBUG(s2s->log, "expiring DNS cache for %s", dns->name);
                 xhash_iter_zap(s2s->dnscache);
 
                 xhash_free(dns->results);
@@ -607,7 +588,7 @@ static void _s2s_dns_expiry(s2s_t s2s) {
             xhv.dnsres_val = &res;
             xhash_iter_get(s2s->dns_bad, NULL, NULL, xhv.val);
             if (res && now > res->expiry) {
-                log_debug(ZONE, "expiring DNS bad host %s", res->key);
+                LOG_DEBUG(s2s->log, "expiring DNS bad host %s", res->key);
                 xhash_iter_zap(s2s->dns_bad);
 
                 free((void*)res->key);
@@ -623,8 +604,6 @@ static int _mio_resolver_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *da
 
     switch(a) {
         case action_READ:
-            log_debug(ZONE, "read action on fd %d", fd->fd);
-
             dns_ioevent(0, time(NULL));
 
         default:
@@ -635,30 +614,30 @@ static int _mio_resolver_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *da
 }
 
 /* Populate the whitelist_domains array with the config file values */
-int _s2s_populate_whitelist_domains(s2s_t s2s, const char **values, int nvalues) {
+int _s2s_populate_whitelist_domains(s2s_t *s2s, const char **values, int nvalues) {
     int i, j;
     int elem_len;
-    s2s->whitelist_domains = (char **)malloc(sizeof(char*) * (nvalues));
+    s2s->whitelist_domains = malloc(sizeof(char*) * (nvalues));
     memset(s2s->whitelist_domains, 0, (sizeof(char *) * (nvalues)));
     for (i = 0, j = 0; i < nvalues; i++) {
         elem_len = strlen(values[i]);
         if (elem_len > MAX_DOMAIN_LEN) {
-            log_debug(ZONE, "whitelist domain element is too large, skipping");
+            LOG_DEBUG(s2s->log, "whitelist domain element is too large, skipping");
             continue;
         }
         if (elem_len == 0) {
-            log_debug(ZONE, "whitelist domain element is blank, skipping");
+            LOG_DEBUG(s2s->log, "whitelist domain element is blank, skipping");
             continue;
         }
-        s2s->whitelist_domains[j] = (char *) malloc(sizeof(char) * (elem_len+1));
+        s2s->whitelist_domains[j] = malloc(sizeof(char) * (elem_len+1));
         strncpy(s2s->whitelist_domains[j], values[i], elem_len);
         s2s->whitelist_domains[j][elem_len] = '\0';
-        log_debug(ZONE, "s2s whitelist domain read from file: %s\n", s2s->whitelist_domains[j]);
+        LOG_DEBUG(s2s->log, "s2s whitelist domain read from file: %s\n", s2s->whitelist_domains[j]);
         j++;
     }
 
     s2s->n_whitelist_domains = j;
-    log_debug(ZONE, "n_whitelist_domains = %d", s2s->n_whitelist_domains);
+    LOG_DEBUG(s2s->log, "n_whitelist_domains = %d", s2s->n_whitelist_domains);
     return 0;
 }
 
@@ -667,7 +646,7 @@ int _s2s_populate_whitelist_domains(s2s_t s2s, const char **values, int nvalues)
     The whitelist values may be FQDN or domain only (with no prepended hostname).
     returns 1 on match, 0 on failure to match
 */
-int s2s_domain_in_whitelist(s2s_t s2s, const char *in_domain) {
+int s2s_domain_in_whitelist(s2s_t *s2s, const char *in_domain) {
     int segcount = 0;
     int dotcount;
     char **segments = NULL;
@@ -689,12 +668,12 @@ int s2s_domain_in_whitelist(s2s_t s2s, const char *in_domain) {
     domain_len = strlen((const char *)&domain);
 
     if (domain_len <= 0) {
-        log_write(s2s->log, LOG_NOTICE, "s2s_domain_in_whitelist: in_domain is empty");
+        LOG_NOTICE(s2s->log, "s2s_domain_in_whitelist: in_domain is empty");
         return 0;
     }
 
     if (domain_len > MAX_DOMAIN_LEN) {
-        log_write(s2s->log, LOG_NOTICE, "s2s_domain_in_whitelist: in_domain is longer than %s chars", MAX_DOMAIN_LEN);
+        LOG_NOTICE(s2s->log, "s2s_domain_in_whitelist: in_domain is longer than %d chars", MAX_DOMAIN_LEN);
         return 0;
     }
 
@@ -704,12 +683,12 @@ int s2s_domain_in_whitelist(s2s_t s2s, const char *in_domain) {
 
     for (wl_index =0; wl_index < s2s->n_whitelist_domains; wl_index++) {
         wl_len = strlen(s2s->whitelist_domains[wl_index]);
-        if (!strncmp((const char *)&domain, s2s->whitelist_domains[wl_index], (domain_len > wl_len) ? domain_len : wl_len)) {
-            log_debug(ZONE, "domain \"%s\" matches whitelist entry", &domain);
+        if (!strncmp(domain, s2s->whitelist_domains[wl_index], (domain_len > wl_len) ? domain_len : wl_len)) {
+            LOG_DEBUG(s2s->log, "domain \"%s\" matches whitelist entry", domain);
             return 1;
         }
         else {
-            //log_debug(ZONE, "domain: %s (len %d) does not match whitelist_domains[%d]: %s (len %d)", &domain, strlen((const char *)&domain), wl_index, s2s->whitelist_domains[wl_index], strlen(s2s->whitelist_domains[wl_index]));
+            LOG_DEBUG(s2s->log, "domain: %s (len %zd) does not match whitelist_domains[%d]: %s (len %zd)", domain, strlen(domain), wl_index, s2s->whitelist_domains[wl_index], strlen(s2s->whitelist_domains[wl_index]));
         }
     }
 
@@ -719,16 +698,16 @@ int s2s_domain_in_whitelist(s2s_t s2s, const char *in_domain) {
             dotcount++;
     }
 
-    segments = (char **)malloc(sizeof(char*) * (dotcount + 1));
+    segments = malloc(sizeof(char*) * (dotcount + 1));
     if (segments == NULL) {
-        log_write(s2s->log, LOG_ERR, "s2s_domain_in_whitelist: malloc() error");
+        LOG_ERROR(s2s->log, "s2s_domain_in_whitelist: malloc() error");
         return 0;
     }
     memset((char **)segments, 0, (sizeof(char*) * (dotcount + 1)));
 
     do {
         if (segcount > (dotcount+1)) {
-            log_write(s2s->log, LOG_ERR, "s2s_domain_in_whitelist: did not malloc enough room for domain segments; should never get here");
+            LOG_ERROR(s2s->log, "s2s_domain_in_whitelist: did not malloc enough room for domain segments; should never get here");
             if (seg_tmp != NULL) {
                 free(seg_tmp);
                 seg_tmp = NULL;
@@ -748,7 +727,7 @@ int s2s_domain_in_whitelist(s2s_t s2s, const char *in_domain) {
 
         seg_tmp_len = strlen(seg_tmp);
         if (seg_tmp_len > MAX_DOMAIN_LEN) {
-            log_write(s2s->log, LOG_NOTICE, "s2s_domain_in_whitelist: domain contains a segment greater than %s chars", MAX_DOMAIN_LEN);
+            LOG_NOTICE(s2s->log, "s2s_domain_in_whitelist: domain contains a segment greater than %d chars", MAX_DOMAIN_LEN);
             free(seg_tmp);
             seg_tmp = NULL;
             for (x = 0; x < segcount; x++) {
@@ -760,7 +739,7 @@ int s2s_domain_in_whitelist(s2s_t s2s, const char *in_domain) {
             return 0;
         }
         dst = &segments[segcount];
-        *dst = (char *)malloc(seg_tmp_len + 1);
+        *dst = malloc(seg_tmp_len + 1);
         if (*dst != NULL) {
             strncpy(*dst, seg_tmp, seg_tmp_len + 1);
             (*dst)[seg_tmp_len] = '\0';
@@ -773,7 +752,7 @@ int s2s_domain_in_whitelist(s2s_t s2s, const char *in_domain) {
             }
             free(segments);
             segments = NULL;
-            log_write(s2s->log, LOG_ERR, "s2s_domain_in_whitelist: malloc() error");
+            LOG_ERROR(s2s->log, "s2s_domain_in_whitelist: malloc() error");
             return 0;
         }
         segcount++;
@@ -793,8 +772,8 @@ int s2s_domain_in_whitelist(s2s_t s2s, const char *in_domain) {
             for (wl_index = 0; wl_index < s2s->n_whitelist_domains; wl_index++) {
                 wl_len = strlen(s2s->whitelist_domains[wl_index]);
                 matchstr_len = strlen((const char *)&matchstr);
-                if (!strncmp((const char *)&matchstr, s2s->whitelist_domains[wl_index], (wl_len > matchstr_len ? wl_len : matchstr_len))) {
-                    log_debug(ZONE, "matchstr \"%s\" matches whitelist entry", &matchstr);
+                if (!strncmp(matchstr, s2s->whitelist_domains[wl_index], (wl_len > matchstr_len ? wl_len : matchstr_len))) {
+                    LOG_DEBUG(s2s->log, "matchstr \"%s\" matches whitelist entry", matchstr);
                     for (x = 0; x < segcount; x++) {
                         free(segments[x]);
                         segments[x] = NULL;
@@ -804,7 +783,7 @@ int s2s_domain_in_whitelist(s2s_t s2s, const char *in_domain) {
                     return 1;
                 }
                 else {
-                    //log_debug(ZONE, "matchstr: %s (len %d) does not match whitelist_domains[%d]: %s (len %d)", &matchstr, strlen((const char *)&matchstr), wl_index, s2s->whitelist_domains[wl_index], strlen(s2s->whitelist_domains[wl_index]));
+                    LOG_DEBUG(s2s->log, "matchstr: %s (len %zd) does not match whitelist_domains[%d]: %s (len %zd)", matchstr, strlen(matchstr), wl_index, s2s->whitelist_domains[wl_index], strlen(s2s->whitelist_domains[wl_index]));
                 }
             }
         }
@@ -821,13 +800,13 @@ int s2s_domain_in_whitelist(s2s_t s2s, const char *in_domain) {
 
 JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to Server", "jabberd2router\0")
 {
-    s2s_t s2s;
+    s2s_t *s2s;
     char *config_file;
     int optchar;
-    conn_t conn;
-    jqueue_t q;
-    dnscache_t dns;
-    dnsres_t res;
+    conn_t *conn;
+    jqueue_t *q;
+    dnscache_t *dns;
+    dnsres_t *res;
     union xhashv xhv;
     time_t check_time = 0, now = 0;
     const char *cli_id = 0;
@@ -857,20 +836,21 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
 
     jabber_signal(SIGINT, _s2s_signal);
     jabber_signal(SIGTERM, _s2s_signal);
-#ifdef SIGHUP
-    jabber_signal(SIGHUP, _s2s_signal_hup);
-#endif
 #ifdef SIGPIPE
     jabber_signal(SIGPIPE, SIG_IGN);
 #endif
     jabber_signal(SIGUSR1, _s2s_signal_usr1);
     jabber_signal(SIGUSR2, _s2s_signal_usr2);
 
+    if (log4c_init()) {
+        fputs("log4c init failed\n", stderr);
+        exit(EXIT_FAILURE);
+    }
 
-    s2s = (s2s_t) calloc(1, sizeof(struct s2s_st));
+    s2s = new(s2s_t);
 
     /* load our config */
-    s2s->config = config_new();
+    s2s->config = config_new(0);
 
     config_file = CONFIG_DIR "/s2s.xml";
 
@@ -882,13 +862,6 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
             case 'c':
                 config_file = optarg;
                 break;
-            case 'D':
-#ifdef DEBUG
-                set_debug_flag(1);
-#else
-                printf("WARN: Debugging not enabled.  Ignoring -D.\n");
-#endif
-                break;
             case 'i':
                 cli_id = optarg;
                 break;
@@ -899,9 +872,6 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
                     "Options are:\n"
                     "   -c <config>     config file to use [default: " CONFIG_DIR "/s2s.xml]\n"
                     "   -i id           Override <id> config element\n"
-#ifdef DEBUG
-                    "   -D              Show debug output\n"
-#endif
                     ,
                     stdout);
                 config_free(s2s->config);
@@ -919,8 +889,8 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
 
     _s2s_config_expand(s2s);
 
-    s2s->log = log_new(s2s->log_type, s2s->log_ident, s2s->log_facility);
-    log_write(s2s->log, LOG_NOTICE, "starting up (interval=%i, queue=%i, keepalive=%i, idle=%i)", s2s->check_interval, s2s->check_queue, s2s->check_keepalive, s2s->check_idle);
+    s2s->log = log_get(s2s->id);
+    LOG_NOTICE(s2s->log, "starting up (interval=%i, queue=%i, keepalive=%i, idle=%i)", s2s->check_interval, s2s->check_queue, s2s->check_keepalive, s2s->check_idle);
 
     _s2s_pidfile(s2s);
 
@@ -943,17 +913,17 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
         s2s->sx_ssl = sx_env_plugin(s2s->sx_env, sx_ssl_init, NULL, s2s->local_pemfile, s2s->local_cachain, s2s->local_verify_mode, s2s->local_private_key_password, s2s->local_ciphers);
 
         if(s2s->sx_ssl == NULL) {
-            log_write(s2s->log, LOG_ERR, "failed to load local SSL pemfile, SSL will not be available to peers");
+            LOG_ERROR(s2s->log, "failed to load local SSL pemfile, SSL will not be available to peers");
             s2s->local_pemfile = NULL;
         } else
-            log_debug(ZONE, "loaded pemfile for SSL connections to peers");
+            LOG_DEBUG(s2s->log, "loaded pemfile for SSL connections to peers");
     }
 
     /* try and get something online, so at least we can encrypt to the router */
     if(s2s->sx_ssl == NULL && s2s->router_pemfile != NULL) {
         s2s->sx_ssl = sx_env_plugin(s2s->sx_env, sx_ssl_init, NULL, s2s->router_pemfile, s2s->router_cachain, NULL, s2s->router_private_key_password, s2s->router_ciphers);
         if(s2s->sx_ssl == NULL) {
-            log_write(s2s->log, LOG_ERR, "failed to load router SSL pemfile, channel to router will not be SSL encrypted");
+            LOG_ERROR(s2s->log, "failed to load router SSL pemfile, channel to router will not be SSL encrypted");
             s2s->router_pemfile = NULL;
         }
     }
@@ -968,7 +938,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
     /* get sasl online */
     s2s->sx_sasl = sx_env_plugin(s2s->sx_env, sx_sasl_init, "xmpp", NULL, NULL);
     if(s2s->sx_sasl == NULL) {
-        log_write(s2s->log, LOG_ERR, "failed to initialise SASL context, aborting");
+        LOG_ERROR(s2s->log, "failed to initialise SASL context, aborting");
         exit(1);
     }
 
@@ -981,7 +951,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
     s2s->mio = mio_new(s2s->io_max_fds);
 
     if((s2s->udns_fd = dns_init(NULL, 1)) < 0) {
-        log_write(s2s->log, LOG_ERR, "unable to initialize dns library, aborting");
+        LOG_ERROR(s2s->log, "unable to initialize dns library, aborting");
         exit(1);
     }
     s2s->udns_mio_fd = mio_register(s2s->mio, s2s->udns_fd, _mio_resolver_callback, (void *) s2s);
@@ -994,20 +964,9 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
 
         now = time(NULL);
 
-        if(s2s_logrotate) {
-            set_debug_log_from_config(s2s->config);
-
-            log_write(s2s->log, LOG_NOTICE, "reopening log ...");
-            log_free(s2s->log);
-            s2s->log = log_new(s2s->log_type, s2s->log_ident, s2s->log_facility);
-            log_write(s2s->log, LOG_NOTICE, "log started");
-
-            s2s_logrotate = 0;
-        }
-
         if(s2s_lost_router) {
             if(s2s->retry_left < 0) {
-                log_write(s2s->log, LOG_NOTICE, "attempting reconnect");
+                LOG_NOTICE(s2s->log, "attempting reconnect");
                 sleep(s2s->retry_sleep);
                 s2s_lost_router = 0;
                 if (s2s->router) sx_free(s2s->router);
@@ -1019,7 +978,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
             }
 
             else {
-                log_write(s2s->log, LOG_NOTICE, "attempting reconnect (%d left)", s2s->retry_left);
+                LOG_NOTICE(s2s->log, "attempting reconnect (%d left)", s2s->retry_left);
                 s2s->retry_left--;
                 sleep(s2s->retry_sleep);
                 s2s_lost_router = 0;
@@ -1033,11 +992,11 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
 
         /* cleanup dead sx_ts */
         while(jqueue_size(s2s->dead) > 0)
-            sx_free((sx_t) jqueue_pull(s2s->dead));
+            sx_free(jqueue_pull(s2s->dead));
 
         /* cleanup dead conn_ts */
         while(jqueue_size(s2s->dead_conn) > 0) {
-            conn = (conn_t) jqueue_pull(s2s->dead_conn);
+            conn = jqueue_pull(s2s->dead_conn);
             xhash_free(conn->states);
             xhash_free(conn->states_time);
             xhash_free(conn->routes);
@@ -1049,22 +1008,22 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
 
         /* time checks */
         if(s2s->check_interval > 0 && now >= s2s->next_check) {
-            log_debug(ZONE, "running time checks");
+            LOG_DEBUG(s2s->log, "running time checks");
 
             _s2s_time_checks(s2s);
 
             s2s->next_check = now + s2s->check_interval;
-            log_debug(ZONE, "next time check at %d", s2s->next_check);
+            LOG_DEBUG(s2s->log, "next time check check in %d: %lld", s2s->check_interval, (long long)s2s->next_check);
         }
 
         /* dnscache expiry */
         if(s2s->check_dnscache > 0 && now >= s2s->next_expiry) {
-            log_debug(ZONE, "running dns expiry");
+            LOG_DEBUG(s2s->log, "running dns expiry");
 
             _s2s_dns_expiry(s2s);
 
             s2s->next_expiry = now + s2s->check_dnscache;
-            log_debug(ZONE, "next dns expiry at %d", s2s->next_expiry);
+            LOG_DEBUG(s2s->log, "next dns expiry in %d: %lld", s2s->check_dnscache, (long long)s2s->next_expiry);
         }
 
         if(now > check_time + 60) {
@@ -1079,7 +1038,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
                     write(fd, buf, len);
                     close(fd);
                 } else {
-                    log_write(s2s->log, LOG_ERR, "failed to write packet statistics to: %s (%s)", s2s->packet_stats, strerror(errno));
+                    LOG_ERROR(s2s->log, "failed to write packet statistics to: %s (%s)", s2s->packet_stats, strerror(errno));
                     s2s_shutdown = 1;
                 }
             }
@@ -1088,7 +1047,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
         }
     }
 
-    log_write(s2s->log, LOG_NOTICE, "shutting down");
+    LOG_NOTICE(s2s->log, "shutting down");
 
     /* close active streams gracefully  */
     xhv.conn_val = &conn;
@@ -1136,11 +1095,11 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
 
     /* remove dead streams */
     while(jqueue_size(s2s->dead) > 0)
-        sx_free((sx_t) jqueue_pull(s2s->dead));
+        sx_free(jqueue_pull(s2s->dead));
 
     /* cleanup dead conn_ts */
     while(jqueue_size(s2s->dead_conn) > 0) {
-        conn = (conn_t) jqueue_pull(s2s->dead_conn);
+        conn = jqueue_pull(s2s->dead_conn);
         xhash_free(conn->states);
         xhash_free(conn->states_time);
         xhash_free(conn->routes);
@@ -1156,7 +1115,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
         do {
              xhash_iter_get(s2s->outq, NULL, NULL, xhv.val);
              while (jqueue_size(q) > 0)
-                 out_pkt_free((pkt_t) jqueue_pull(q));
+                 out_pkt_free(jqueue_pull(q));
              free(q->key);
              jqueue_free(q);
         } while(xhash_iter_next(s2s->outq));
@@ -1187,7 +1146,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
         } while(xhash_iter_next(s2s->dns_bad));
 
     if (dns_active(NULL) > 0)
-        log_debug(ZONE, "there are still active dns queries (%d)", dns_active(NULL));
+        LOG_DEBUG(s2s->log, "there are still active dns queries (%d)", dns_active(NULL));
     dns_close(NULL);
 
     /* close mio */
@@ -1216,8 +1175,6 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
 
     mio_free(s2s->mio);
 
-    log_free(s2s->log);
-
     config_free(s2s->config);
 
     free((void*)s2s->local_secret);
@@ -1226,6 +1183,12 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
 #ifdef POOL_DEBUG
     pool_stat(1);
 #endif
+
+    /* shutdown logging system - should be last before exit! */
+    if (log4c_fini()) {
+        fputs("log4c finish failed\n", stderr);
+        exit(EXIT_FAILURE);
+    }
 
     return 0;
 }

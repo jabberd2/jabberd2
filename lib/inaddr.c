@@ -19,20 +19,21 @@
  */
 
 /**
- * @file lib/inaddr.c
+ * @file util/inaddr.c
  * @brief object like wrapper around struct sockaddr_storage
  *
  * The functions in this file are used as a wrapper around struct
  * sockaddr_storage to access this structure like an object. The structure
  * is seen as an object that contains an IPv4 or an IPv6 address and
  * these functions are the access methods to this object.
- * 
+ *
  * @warning this is the same as mio/mio_inaddr.c - changes made here need to be
  *          made there too. is there anyway we can merge these without
  *          requiring mio to depend on util?
  */
 
-#include "util.h"
+#include "inaddr.h"
+#include <string.h>
 
 /**
  * set the address of a struct sockaddr_storage
@@ -50,8 +51,8 @@ int j_inet_pton(const char *src, struct sockaddr_storage *dst)
 
     memset(dst, 0, sizeof(struct sockaddr_storage));
     sin = (struct sockaddr_in *)dst;
-    
-    if(inet_aton(src, &sin->sin_addr))
+
+    if (inet_aton(src, &sin->sin_addr))
     {
         dst->ss_family = AF_INET;
         return 1;
@@ -65,14 +66,14 @@ int j_inet_pton(const char *src, struct sockaddr_storage *dst)
     memset(dst, 0, sizeof(struct sockaddr_storage));
     sin = (struct sockaddr_in *)dst;
     sin6 = (struct sockaddr_in6 *)dst;
-    
-    if(inet_pton(AF_INET, src, &sin->sin_addr) > 0)
+
+    if (inet_pton(AF_INET, src, &sin->sin_addr) > 0)
     {
         dst->ss_family = AF_INET;
         return 1;
     }
 
-    if(inet_pton(AF_INET6, src, &sin6->sin6_addr) > 0)
+    if (inet_pton(AF_INET6, src, &sin6->sin6_addr) > 0)
     {
         dst->ss_family = AF_INET6;
 #ifdef SIN6_LEN
@@ -105,16 +106,16 @@ const char *j_inet_ntop(struct sockaddr_storage *src, char *dst, size_t size)
     /* if we don't have inet_ntop we only accept AF_INET
      * it's unlikely that we would have use for AF_INET6
      */
-    if(src->ss_family != AF_INET)
+    if (src->ss_family != AF_INET)
     {
         return NULL;
     }
 
     tmp = inet_ntoa(sin->sin_addr);
 
-    if(!tmp || strlen(tmp)>=size)
+    if (!tmp || strlen(tmp)>=size)
     {
-	return NULL;
+        return NULL;
     }
 
     strncpy(dst, tmp, size);
@@ -149,7 +150,7 @@ int j_inet_getport(struct sockaddr_storage *sa)
 {
     struct sockaddr_in *sin;
     struct sockaddr_in6 *sin6;
-    
+
     switch(sa->ss_family)
     {
     case AF_INET:
@@ -203,7 +204,7 @@ int j_inet_setport(struct sockaddr_storage *sa, in_port_t port)
 socklen_t j_inet_addrlen(struct sockaddr_storage *sa)
 {
 #ifdef SIN6_LEN
-    if(sa->ss_len != 0)
+    if (sa->ss_len != 0)
         return sa->ss_len;
 #endif
     switch(sa->ss_family)

@@ -25,14 +25,14 @@
 
 #include "c2s.h"
 
-static int _ar_anon_user_exists(authreg_t ar, sess_t sess, const char *username, const char *realm)
+static int _ar_anon_user_exists(authreg_t *ar, sess_t *sess, const char *username, const char *realm)
 {
     /* always exists */
     return 1;
 }
 
 /** start me up */
-DLLEXPORT int ar_init(authreg_t ar)
+DLLEXPORT int ar_init(authreg_t *ar)
 {
     ar->user_exists = _ar_anon_user_exists;
 

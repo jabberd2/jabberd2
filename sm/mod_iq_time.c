@@ -19,6 +19,7 @@
  */
 
 #include "sm.h"
+#include "lib/datetime.h"
 
 /** @file sm/mod_iq_time.c
   * @brief entity time
@@ -36,7 +37,7 @@ static int ns_URN_TIME = 0;
 extern char *tzname[];
 #endif
 
-static mod_ret_t _iq_time_pkt_sm(mod_instance_t mi, pkt_t pkt)
+static mod_ret_t _iq_time_pkt_sm(mod_instance_t *mi, pkt_t *pkt)
 {
     time_t t;
     struct tm *tm;
@@ -94,13 +95,13 @@ static mod_ret_t _iq_time_pkt_sm(mod_instance_t mi, pkt_t pkt)
     return mod_HANDLED;
 }
 
-static void _iq_time_free(module_t mod) {
+static void _iq_time_free(module_t *mod) {
      sm_unregister_ns(mod->mm->sm, uri_TIME);
      feature_unregister(mod->mm->sm, uri_TIME);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
-    module_t mod = mi->mod;
+DLLEXPORT int module_init(mod_instance_t *mi, const char *arg) {
+    module_t *mod = mi->mod;
 
     if(mod->init) return 0;
 

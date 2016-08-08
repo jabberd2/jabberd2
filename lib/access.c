@@ -20,22 +20,28 @@
 
 /* this implements allow/deny filters for IP address */
 
-#include "util.h"
-#include <arpa/inet.h>
+#include "access.h"
+#include "str.h"
+#include "inaddr.h"
+#include <stdlib.h>
+#include <string.h>
 
-access_t access_new(int order)
+access_t *access_new(int order)
 {
-    access_t access = (access_t) calloc(1, sizeof(struct access_st));
+    access_t *access = new(access_t);
 
     access->order = order;
+    access->allow = new(access_rule_t);
+    access->deny = new(access_rule_t);
 
     return access;
 }
 
-void access_free(access_t access)
+void access_free(access_t *access)
 {
-    if(access->allow != NULL) free(access->allow);
-    if(access->deny != NULL) free(access->deny);
+    if (!access) return;
+    free(access->allow);
+    free(access->deny);
     free(access);
 }
 
@@ -45,16 +51,16 @@ static int _access_calc_netsize(const char *mask, int defaultsize)
     int netsize;
 
 #ifndef HAVE_INET_PTON
-    if(strchr(mask, '.') && inet_aton(mask, &legacy_mask))
+    if (strchr(mask, '.') && inet_aton(mask, &legacy_mask))
 #else
-    if(inet_pton(AF_INET, mask, &legacy_mask.s_addr) > 0)
+    if (inet_pton(AF_INET, mask, &legacy_mask.s_addr) > 0)
 #endif
     {
         /* netmask has been given in dotted decimal form */
         int temp = ntohl(legacy_mask.s_addr);
         netsize = 32;
 
-        while(netsize && temp%2==0)
+        while (netsize && temp%2 == 0)
         {
             netsize--;
             temp /= 2;
@@ -90,7 +96,7 @@ static int _access_check_match(struct sockaddr_storage *ip_1, struct sockaddr_st
     sin6_2 = (struct sockaddr_in6 *)ip_2;
 
     /* addresses of different families */
-    if(ip_1->ss_family != ip_2->ss_family)
+    if (ip_1->ss_family != ip_2->ss_family)
     {
         /* maybe on of the addresses is just a IPv6 mapped IPv4 address */
         if (ip_1->ss_family == AF_INET && ip_2->ss_family == AF_INET6 && IN6_IS_ADDR_V4MAPPED(&sin6_2->sin6_addr))
@@ -101,7 +107,7 @@ static int _access_check_match(struct sockaddr_storage *ip_1, struct sockaddr_st
             temp = (struct sockaddr_in *)&t;
 
             _access_unmap_v4(sin6_2, temp);
-            if(netsize>96)
+            if (netsize > 96)
                 netsize -= 96;
 
             return _access_check_match(ip_1, &t, netsize);
@@ -115,7 +121,7 @@ static int _access_check_match(struct sockaddr_storage *ip_1, struct sockaddr_st
             temp = (struct sockaddr_in *)&t;
 
             _access_unmap_v4(sin6_1, temp);
-            if(netsize>96)
+            if (netsize > 96)
                 netsize -= 96;
 
             return _access_check_match(&t, ip_2, netsize);
@@ -125,11 +131,11 @@ static int _access_check_match(struct sockaddr_storage *ip_1, struct sockaddr_st
     }
 
     /* IPv4? */
-    if(ip_1->ss_family == AF_INET)
+    if (ip_1->ss_family == AF_INET)
     {
         int netmask;
 
-        if(netsize > 32)
+        if (netsize > 32)
             netsize = 32;
 
         netmask = htonl(((uint32_t)-1) << (32-netsize));
@@ -138,18 +144,18 @@ static int _access_check_match(struct sockaddr_storage *ip_1, struct sockaddr_st
     }
 
     /* IPv6? */
-    if(ip_1->ss_family == AF_INET6)
+    if (ip_1->ss_family == AF_INET6)
     {
         unsigned char bytemask;
 
-        if(netsize > 128)
+        if (netsize > 128)
             netsize = 128;
 
-        for(i=0; i<netsize/8; i++)
-            if(sin6_1->sin6_addr.s6_addr[i] != sin6_2->sin6_addr.s6_addr[i])
+        for (i=0; i<netsize/8; i++)
+            if (sin6_1->sin6_addr.s6_addr[i] != sin6_2->sin6_addr.s6_addr[i])
                 return 0;
 
-        if(netsize%8 == 0)
+        if (netsize%8 == 0)
             return 1;
 
         bytemask = 0xff << (8 - netsize%8);
@@ -161,17 +167,17 @@ static int _access_check_match(struct sockaddr_storage *ip_1, struct sockaddr_st
     return 0;
 }
 
-int access_allow(access_t access, const char *ip, const char *mask)
+int access_allow(access_t *access, const char *ip, const char *mask)
 {
     struct sockaddr_storage ip_addr;
     int netsize;
 
-    if(j_inet_pton(ip, &ip_addr) <= 0)
+    if (j_inet_pton(ip, &ip_addr) <= 0)
         return 1;
 
     netsize = _access_calc_netsize(mask, ip_addr.ss_family==AF_INET ? 32 : 128);
 
-    access->allow = (access_rule_t) realloc(access->allow, sizeof(struct access_rule_st) * (access->nallow + 1));
+    access->allow = realloc(access->allow, sizeof(access_rule_t) * (access->nallow + 1));
 
     memcpy(&access->allow[access->nallow].ip, &ip_addr, sizeof(ip_addr));
     access->allow[access->nallow].mask = netsize;
@@ -181,17 +187,17 @@ int access_allow(access_t access, const char *ip, const char *mask)
     return 0;
 }
 
-int access_deny(access_t access, const char *ip, const char *mask)
+int access_deny(access_t *access, const char *ip, const char *mask)
 {
     struct sockaddr_storage ip_addr;
     int netsize;
 
-    if(j_inet_pton(ip, &ip_addr) <= 0)
+    if (j_inet_pton(ip, &ip_addr) <= 0)
         return 1;
 
     netsize = _access_calc_netsize(mask, ip_addr.ss_family==AF_INET ? 32 : 128);
 
-    access->deny = (access_rule_t) realloc(access->deny, sizeof(struct access_rule_st) * (access->ndeny + 1));
+    access->deny = realloc(access->deny, sizeof(access_rule_t) * (access->ndeny + 1));
 
     memcpy(&access->deny[access->ndeny].ip, &ip_addr, sizeof(ip_addr));
     access->deny[access->ndeny].mask = netsize;
@@ -201,38 +207,38 @@ int access_deny(access_t access, const char *ip, const char *mask)
     return 0;
 }
 
-int access_check(access_t access, const char *ip)
+int access_check(access_t *access, const char *ip)
 {
     struct sockaddr_storage addr;
-    access_rule_t rule;
+    access_rule_t *rule;
     int i, allow = 0, deny = 0;
 
-    if(j_inet_pton(ip, &addr) <= 0)
+    if (j_inet_pton(ip, &addr) <= 0)
         return 0;
 
     /* first, search the allow list */
-    for(i = 0; !allow && i < access->nallow; i++)
+    for (i = 0; !allow && i < access->nallow; i++)
     {
         rule = &access->allow[i];
-        if(_access_check_match(&addr, &rule->ip, rule->mask))
+        if (_access_check_match(&addr, &rule->ip, rule->mask))
             allow = 1;
     }
 
     /* now the deny list */
-    for(i = 0; !deny && i < access->ndeny; i++)
+    for (i = 0; !deny && i < access->ndeny; i++)
     {
         rule = &access->deny[i];
-        if(_access_check_match(&addr, &rule->ip, rule->mask))
+        if (_access_check_match(&addr, &rule->ip, rule->mask))
             deny = 1;
     }
 
     /* allow then deny */
-    if(access->order == 0)
+    if (access->order == 0)
     {
-        if(allow)
+        if (allow)
             return 1;
 
-        if(deny)
+        if (deny)
             return 0;
 
         /* allow by default */
@@ -240,10 +246,10 @@ int access_check(access_t access, const char *ip)
     }
 
     /* deny then allow */
-    if(deny)
+    if (deny)
         return 0;
 
-    if(allow)
+    if (allow)
         return 1;
 
     /* deny by default */

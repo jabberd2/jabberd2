@@ -40,6 +40,11 @@
 #include "sx/sx.h"
 #include "mio/mio.h"
 #include "lib/util.h"
+#include "lib/config.h"
+#include "lib/log.h"
+#include "lib/xhash.h"
+#include "lib/access.h"
+#include "lib/rate.h"
 
 #ifdef HAVE_SIGNAL_H
 # include <signal.h>
@@ -48,12 +53,12 @@
 # include <sys/stat.h>
 #endif
 
-typedef struct router_st    *router_t;
-typedef struct component_st *component_t;
-typedef struct routes_st    *routes_t;
-typedef struct alias_st     *alias_t;
+typedef struct router_st    router_t;
+typedef struct component_st component_t;
+typedef struct routes_st    routes_t;
+typedef struct alias_st     alias_t;
 
-typedef struct acl_s *acl_t;
+typedef struct acl_s acl_t;
 struct acl_s {
     int error;
     char *redirect;
@@ -63,7 +68,7 @@ struct acl_s {
     char *to;
     char *dump;
     int log;
-    acl_t next;
+    acl_t *next;
 };
 
 struct router_st {
@@ -71,23 +76,18 @@ struct router_st {
     const char          *id;
 
     /** config */
-    config_t            config;
+    config_t            *config;
 
     /** user table */
-    xht                 users;
+    xht                 *users;
     time_t              users_load;
 
     /** user table */
-    acl_t               filter;
+    acl_t               *filter;
     time_t              filter_load;
 
     /** logging */
-    log_t               log;
-
-    /** log data */
-    log_type_t          log_type;
-    const char          *log_facility;
-    const char          *log_ident;
+    log_t               *log;
 
     /** how we listen for stuff */
     const char          *local_ip;
@@ -101,14 +101,14 @@ struct router_st {
     int                 io_max_fds;
 
     /** access controls */
-    access_t            access;
+    access_t            *access;
 
     /** connection rates */
     int                 conn_rate_total;
     int                 conn_rate_seconds;
     int                 conn_rate_wait;
 
-    xht                 conn_rates;
+    xht                 *conn_rates;
 
     /** default byte rates (karma) */
     int                 byte_rate_total;
@@ -116,9 +116,9 @@ struct router_st {
     int                 byte_rate_wait;
 
     /** sx environment */
-    sx_env_t            sx_env;
-    sx_plugin_t         sx_ssl;
-    sx_plugin_t         sx_sasl;
+    sx_env_t            *sx_env;
+    sx_plugin_t         *sx_ssl;
+    sx_plugin_t         *sx_sasl;
 
     /** managed io */
     mio_t               mio;
@@ -133,31 +133,31 @@ struct router_st {
     time_t              next_check;
 
     /** attached components, key is 'ip:port', var is component_t */
-    xht                 components;
+    xht                 *components;
 
     /** valid routes, key is route name (packet "to" address), var is component_t */
-    xht                 routes;
+    xht                 *routes;
 
     /** default route, only one */
     const char          *default_route;
 
     /** log sinks, key is route name, var is component_t */
-    xht                 log_sinks;
+    xht                 *log_sinks;
 
     /** configured aliases */
-    alias_t             aliases;
+    alias_t             *aliases;
 
     /** access control lists */
-    xht                 aci;
+    xht                 *aci;
 
     /** list of sx_t waiting to be cleaned up */
-    jqueue_t            dead;
+    jqueue_t            *dead;
 
     /** list of mio_fd_t waiting to be closed */
-    jqueue_t            closefd;
+    jqueue_t            *closefd;
 
     /** list of routes_t waiting to be cleaned up */
-    jqueue_t            deadroutes;
+    jqueue_t            *deadroutes;
 
     /** simple message logging */
 	int message_logging_enabled;
@@ -166,7 +166,7 @@ struct router_st {
 
 /** a single component */
 struct component_st {
-    router_t            r;
+    router_t            *r;
 
     /** file descriptor */
     mio_fd_t            fd;
@@ -179,20 +179,20 @@ struct component_st {
     char                ipport[INET6_ADDRSTRLEN + 6];
 
     /** our stream */
-    sx_t                s;
+    sx_t                *s;
 
     /** rate limits */
-    rate_t              rate;
+    rate_t              *rate;
     int                 rate_log;
 
     /** valid routes to this component, key is route name */
-    xht                 routes;
+    xht                 *routes;
 
     /** true if this is an old component:accept stream */
     int                 legacy;
 
     /** throttle queue */
-    jqueue_t            tq;
+    jqueue_t            *tq;
 
     /** timestamps for idle timeouts */
     time_t              last_activity;
@@ -209,7 +209,7 @@ struct routes_st
 {
     const char          *name;
     route_type_t        rtype;
-    component_t         *comp;
+    component_t         **comp;
     int                 ncomp;
 };
 
@@ -217,32 +217,32 @@ struct alias_st {
     const char          *name;
     const char          *target;
 
-    alias_t             next;
+    alias_t             *next;
 };
 
 int     router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
-void    router_sx_handshake(sx_t s, sx_buf_t buf, void *arg);
+void    router_sx_handshake(sx_t *s, sx_buf_t *buf, void *arg);
 
-xht     aci_load(router_t r);
-void    aci_unload(xht aci);
-int     aci_check(xht acls, const char *type, const char *name);
+xht    *aci_load(router_t *r);
+void    aci_unload(xht *aci);
+int     aci_check(xht *acls, const char *type, const char *name);
 
-int     user_table_load(router_t r);
-void    user_table_unload(router_t r);
+int     user_table_load(router_t *r);
+void    user_table_unload(router_t *r);
 
-int     filter_load(router_t r);
-void    filter_unload(router_t r);
-int     filter_packet(router_t r, nad_t nad);
+int     filter_load(router_t *r);
+void    filter_unload(router_t *r);
+int     filter_packet(router_t *r, nad_t *nad);
 
-int     message_log(nad_t nad, router_t r, const char *msg_from, const char *msg_to);
+int     message_log(nad_t *nad, router_t *r, const char *msg_from, const char *msg_to);
 
-void routes_free(routes_t routes);
+void routes_free(routes_t *routes);
 
 /* union for xhash_iter_get to comply with strict-alias rules for gcc3 */
 union xhashv
 {
   void **val;
   char **char_val;
-  component_t *comp_val;
-  rate_t *rt_val;
+  component_t **comp_val;
+  rate_t **rt_val;
 };

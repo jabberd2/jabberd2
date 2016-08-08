@@ -19,6 +19,8 @@
  */
 
 #include "sm.h"
+#include "lib/uri.h"
+#include "lib/stanza.h"
 
 /** @file sm/mod_iq_last.c
   * @brief last activity
@@ -27,11 +29,10 @@
   * $Revision: 1.18 $
   */
 
-#define uri_LAST    "jabber:iq:last"
 static int ns_LAST = 0;
 
-static mod_ret_t _iq_last_pkt_sm(mod_instance_t mi, pkt_t pkt) {
-    module_t mod = mi->mod;
+static mod_ret_t _iq_last_pkt_sm(mod_instance_t *mi, pkt_t *pkt) {
+    module_t *mod = mi->mod;
     char uptime[10];
 
     /* we only want to play with iq:last gets */
@@ -48,11 +49,11 @@ static mod_ret_t _iq_last_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     return mod_HANDLED;
 }
 
-static mod_ret_t _iq_last_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
+static mod_ret_t _iq_last_pkt_user(mod_instance_t *mi, user_t *user, pkt_t *pkt) {
     char lasttime[10];
     time_t t;
-    os_t os;
-    os_object_t o;
+    os_t *os;
+    os_object_t *o;
     st_ret_t ret;
 
     /* we only want to play with iq:last gets */
@@ -116,10 +117,10 @@ static mod_ret_t _iq_last_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     return -stanza_err_INTERNAL_SERVER_ERROR;
 }
 
-static void _iq_last_sess_end(mod_instance_t mi, sess_t sess) {
+static void _iq_last_sess_end(mod_instance_t *mi, sess_t *sess) {
     time_t t;
-    os_t os;
-    os_object_t o;
+    os_t *os;
+    os_object_t *o;
 
     /* store their logout time */
     t = time(NULL);
@@ -134,19 +135,19 @@ static void _iq_last_sess_end(mod_instance_t mi, sess_t sess) {
     os_free(os);
 }
 
-static void _iq_last_user_delete(mod_instance_t mi, jid_t jid) {
-    log_debug(ZONE, "deleting logout time for %s", jid_user(jid));
+static void _iq_last_user_delete(mod_instance_t *mi, jid_t *jid) {
+    LOG_DEBUG(mi->sm->log, "deleting logout time for %s", jid_user(jid));
 
     storage_delete(mi->sm->st, "logout", jid_user(jid), NULL);
 }
 
-static void _iq_last_free(module_t mod) {
+static void _iq_last_free(module_t *mod) {
     sm_unregister_ns(mod->mm->sm, uri_LAST);
     feature_unregister(mod->mm->sm, uri_LAST);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
-    module_t mod = mi->mod;
+DLLEXPORT int module_init(mod_instance_t *mi, const char *arg) {
+    module_t *mod = mi->mod;
 
     if(mod->init) return 0;
 

@@ -27,14 +27,14 @@
   * $Revision: 1.16 $
   */
 
-xht aci_load(sm_t sm)
+xht *aci_load(sm_t *sm)
 {
-    xht acls;
+    xht *acls;
     int aelem, jelem, attr;
     char type[33];
-    jid_t list, jid;
+    jid_t *list, *jid;
 
-    log_debug(ZONE, "loading aci");
+    LOG_DEBUG(sm->log, "loading aci");
 
     acls = xhash_new(51);
 
@@ -54,7 +54,7 @@ xht aci_load(sm_t sm)
 
         snprintf(type, 33, "%.*s", NAD_AVAL_L(sm->config->nad, attr), NAD_AVAL(sm->config->nad, attr));
 
-        log_debug(ZONE, "building list for '%s'", type);
+        LOG_DEBUG(sm->log, "building list for '%s'", type);
 
         jelem = nad_find_elem(sm->config->nad, aelem, -1, "jid", 1);
         while(jelem >= 0)
@@ -64,7 +64,7 @@ xht aci_load(sm_t sm)
                 jid = jid_new(NAD_CDATA(sm->config->nad, jelem), NAD_CDATA_L(sm->config->nad, jelem));
                 list = jid_append(list, jid);
                 
-                log_debug(ZONE, "added '%s'", jid_user(jid));
+                LOG_DEBUG(sm->log, "added '%s'", jid_user(jid));
 
                 jid_free(jid);
             }
@@ -83,9 +83,9 @@ xht aci_load(sm_t sm)
 }
 
 /** see if a jid is in an acl */
-int aci_check(xht acls, const char *type, jid_t jid)
+int aci_check(xht *acls, const char *type, jid_t *jid)
 {
-    jid_t list, dup;
+    jid_t *list, *dup;
 
     dup = jid_dup(jid);
     if (dup->resource[0]) {
@@ -94,28 +94,28 @@ int aci_check(xht acls, const char *type, jid_t jid)
         dup->dirty = 1;
     }
 
-    log_debug(ZONE, "checking for '%s' in acl 'all'", jid_full(jid));
-    list = (jid_t) xhash_get(acls, "all");
+//    LOG_DEBUG(sm->log, "checking for '%s' in acl 'all'", jid_full(jid));
+    list = (jid_t*) xhash_get(acls, "all");
     if(jid_search(list, jid)) {
         jid_free(dup);
         return 1;
     }
 
-    log_debug(ZONE, "checking for '%s' in acl 'all'", jid_user(dup));
+//    LOG_DEBUG(sm->log, "checking for '%s' in acl 'all'", jid_user(dup));
     if(jid_search(list, dup)) {
         jid_free(dup);
         return 1;
     }
 
     if(type != NULL) {
-        log_debug(ZONE, "checking for '%s' in acl '%s'", jid_full(jid), type);
-        list = (jid_t) xhash_get(acls, type);
+//        LOG_DEBUG(sm->log, "checking for '%s' in acl '%s'", jid_full(jid), type);
+        list = (jid_t*) xhash_get(acls, type);
         if(jid_search(list, jid)) {
             jid_free(dup);
             return 1;
         }
 
-        log_debug(ZONE, "checking for '%s' in acl '%s'", jid_user(dup), type);
+//        LOG_DEBUG(sm->log, "checking for '%s' in acl '%s'", jid_user(dup), type);
         if(jid_search(list, dup)) {
             jid_free(dup);
             return 1;
@@ -126,11 +126,11 @@ int aci_check(xht acls, const char *type, jid_t jid)
     return 0;
 }
 
-void aci_unload(xht acls)
+void aci_unload(xht *acls)
 { 
-    jid_t list, jid;
+    jid_t *list, *jid;
 
-    log_debug(ZONE, "unloading acls");
+//    LOG_DEBUG(sm->log, "unloading acls");
 
     if(xhash_iter_first(acls))
         do {

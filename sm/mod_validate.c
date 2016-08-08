@@ -19,6 +19,7 @@
  */
 
 #include "sm.h"
+#include "lib/stanza.h"
 
 /** @file sm/mod_validate.c
   * @brief packet validator
@@ -27,24 +28,24 @@
   * $Revision: 1.15 $
   */
 
-static mod_ret_t _validate_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)
+static mod_ret_t _validate_in_sess(mod_instance_t *mi, sess_t *sess, pkt_t *pkt)
 {
     /* only want message, presence and iq */
     if(!(pkt->type & pkt_MESSAGE || pkt->type & pkt_PRESENCE || pkt->type & pkt_IQ || pkt->type & pkt_S10N)) {
-        log_debug(ZONE, "we only take message, presence and iq packets");
+        LOG_DEBUG(mi->sm->log, "we only take message, presence and iq packets");
         return -stanza_err_BAD_REQUEST;
     }
 
     return mod_PASS;
 }
 
-static mod_ret_t _validate_in_router(mod_instance_t mi, pkt_t pkt)
+static mod_ret_t _validate_in_router(mod_instance_t *mi, pkt_t *pkt)
 {
     return _validate_in_sess(mi, NULL, pkt);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
-    module_t mod = mi->mod;
+DLLEXPORT int module_init(mod_instance_t *mi, const char *arg) {
+    module_t *mod = mi->mod;
 
     if(mod->init) return 0;
 

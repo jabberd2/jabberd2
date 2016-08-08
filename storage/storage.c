@@ -26,7 +26,12 @@
   */
 
 #include "storage.h"
+#include "lib/str.h"
+
 #include <ctype.h>
+#include <stdlib.h>
+#include <limits.h>
+#include <string.h>
 #ifdef _WIN32
   #include <windows.h>
   #define LIBRARY_DIR "."
@@ -35,14 +40,14 @@
 #endif /* _WIN32 */
 
 
-storage_t storage_new(config_t config, log_t log) {
-    storage_t st;
+storage_t *storage_new(config_t *config, log_t *log) {
+    storage_t *st;
     int i;
-    config_elem_t elem;
+    config_elem_t *elem;
     char *type;
     st_ret_t ret;
 
-    st = (storage_t) calloc(1, sizeof(struct storage_st));
+    st = new(storage_t);
 
     st->config = config;
     st->log = log;
@@ -67,14 +72,14 @@ storage_t storage_new(config_t config, log_t log) {
 }
 
 static void _st_driver_reaper(const char *driver, int driverlen, void *val, void *arg) {
-    st_driver_t drv = (st_driver_t) val;
+    st_driver_t *drv = val;
 
     (drv->free)(drv);
 
     free(drv);
 }
 
-void storage_free(storage_t st) {
+void storage_free(storage_t *st) {
     /* close down drivers */
     xhash_walk(st->drivers, _st_driver_reaper, NULL);
 
@@ -83,8 +88,8 @@ void storage_free(storage_t st) {
     free(st);
 }
 
-st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
-    st_driver_t drv;
+st_ret_t storage_add_type(storage_t *st, const char *driver, const char *type) {
+    st_driver_t *drv;
     st_driver_init_fn init_fn = NULL;
     char mod_fullpath[PATH_MAX];
     const char *modules_path;
@@ -93,19 +98,19 @@ st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
 
     /* startup, see if we've already registered this type */
     if(type == NULL) {
-        log_debug(ZONE, "adding arbitrary types to driver '%s'", driver);
+        LOG_DEBUG(st->log, "adding arbitrary types to driver '%s'", driver);
 
         /* see if we already have one */
         if(st->default_drv != NULL) {
-            log_debug(ZONE, "we already have a default handler, ignoring this one");
+            LOG_DEBUG(st->log, "we already have a default handler, ignoring this one");
             return st_FAILED;
         }
     } else {
-        log_debug(ZONE, "adding type '%s' to driver '%s'", type, driver);
+        LOG_DEBUG(st->log, "adding type '%s' to driver '%s'", type, driver);
 
         /* see if we already have one */
         if(xhash_get(st->types, type) != NULL) {
-            log_debug(ZONE, "we already have a handler for type '%s', ignoring this one", type);
+            LOG_DEBUG(st->log, "we already have a handler for type '%s', ignoring this one", type);
             return st_FAILED;
         }
     }
@@ -116,9 +121,9 @@ st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
     /* get the driver */
     drv = xhash_get(st->drivers, driver);
     if(drv == NULL) {
-        log_debug(ZONE, "driver not loaded, trying to init");
+        LOG_DEBUG(st->log, "driver not loaded, trying to init");
 
-        log_write(st->log, LOG_INFO, "loading '%s' storage module", driver);
+        LOG_INFO(st->log, "loading '%s' storage module", driver);
 #ifndef _WIN32
         if (modules_path != NULL)
             snprintf(mod_fullpath, PATH_MAX, "%s/storage_%s.so", modules_path, driver);
@@ -138,14 +143,14 @@ st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
 #endif
     
         if (handle != NULL && init_fn != NULL) {
-            log_debug(ZONE, "preloaded module '%s' (not initialized yet)", driver);
+            LOG_DEBUG(st->log, "preloaded module '%s' (not initialized yet)", driver);
         } else {
 #ifndef _WIN32
-            log_write(st->log, LOG_ERR, "failed loading storage module '%s' (%s)", driver, dlerror());
+            LOG_ERROR(st->log, "failed loading storage module '%s' (%s)", driver, dlerror());
             if (handle != NULL)
                 dlclose(handle);
 #else
-            log_write(st->log, LOG_ERR, "failed loading storage module '%s' (errcode: %x)", driver, GetLastError());
+            LOG_ERROR(st->log, "failed loading storage module '%s' (errcode: %x)", driver, GetLastError());
             if (handle != NULL)
                 FreeLibrary((HMODULE) handle);
 #endif
@@ -153,16 +158,16 @@ st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
         }
 
         /* make a new driver structure */
-        drv = (st_driver_t) calloc(1, sizeof(struct st_driver_st));
+        drv = new(st_driver_t);
 
         drv->handle = handle;
         drv->st = st;
 
-        log_debug(ZONE, "calling driver initializer");
+        LOG_DEBUG(st->log, "calling driver initializer");
 
         /* init */
         if((init_fn)(drv) == st_FAILED) {
-            log_write(st->log, LOG_NOTICE, "initialisation of storage driver '%s' failed", driver);
+            LOG_NOTICE(st->log, "initialisation of storage driver '%s' failed", driver);
             free(drv);
             return st_FAILED;
         }
@@ -171,7 +176,7 @@ st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
         drv->name = pstrdup(xhash_pool(st->drivers), driver);
         xhash_put(st->drivers, drv->name, (void *) drv);
 
-        log_write(st->log, LOG_NOTICE, "initialised storage driver '%s'", driver);
+        LOG_NOTICE(st->log, "initialised storage driver '%s'", driver);
     }
 
     /* if its a default, set it up as such */
@@ -182,7 +187,7 @@ st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
 
     /* its a real type, so let the driver know */
     if(type != NULL && (ret = (drv->add_type)(drv, type)) != st_SUCCESS) {
-        log_debug(ZONE, "driver '%s' can't handle '%s' data", driver, type);
+        LOG_DEBUG(st->log, "driver '%s' can't handle '%s' data", driver, type);
         return ret;
     }
 
@@ -192,11 +197,11 @@ st_ret_t storage_add_type(storage_t st, const char *driver, const char *type) {
     return st_SUCCESS;
 }
 
-st_ret_t storage_put(storage_t st, const char *type, const char *owner, os_t os) {
-    st_driver_t drv;
+st_ret_t storage_put(storage_t *st, const char *type, const char *owner, os_t *os) {
+    st_driver_t *drv;
     st_ret_t ret;
 
-    log_debug(ZONE, "storage_put: type=%s owner=%s os=%X", type, owner, os);
+    LOG_DEBUG(st->log, "storage_put: type=%s owner=%s os=%p", type, owner, os);
 
     /* find the handler for this type */
     drv = xhash_get(st->types, type);
@@ -204,7 +209,7 @@ st_ret_t storage_put(storage_t st, const char *type, const char *owner, os_t os)
         /* never seen it before, so it goes to the default driver */
         drv = st->default_drv;
         if(drv == NULL) {
-            log_debug(ZONE, "no driver associated with type, and no default driver");
+            LOG_DEBUG(st->log, "no driver associated with type, and no default driver");
 
             return st_NOTIMPL;
         }
@@ -218,11 +223,11 @@ st_ret_t storage_put(storage_t st, const char *type, const char *owner, os_t os)
     return (drv->put)(drv, type, owner, os);
 }
 
-st_ret_t storage_get(storage_t st, const char *type, const char *owner, const char *filter, os_t *os) {
-    st_driver_t drv;
+st_ret_t storage_get(storage_t *st, const char *type, const char *owner, const char *filter, os_t **os) {
+    st_driver_t *drv;
     st_ret_t ret;
 
-    log_debug(ZONE, "storage_get: type=%s owner=%s filter=%s", type, owner, filter);
+    LOG_DEBUG(st->log, "storage_get: type=%s owner=%s filter=%s", type, owner, filter);
 
     /* find the handler for this type */
     drv = xhash_get(st->types, type);
@@ -230,7 +235,7 @@ st_ret_t storage_get(storage_t st, const char *type, const char *owner, const ch
         /* never seen it before, so it goes to the default driver */
         drv = st->default_drv;
         if(drv == NULL) {
-            log_debug(ZONE, "no driver associated with type, and no default driver");
+            LOG_DEBUG(st->log, "no driver associated with type, and no default driver");
 
             return st_NOTIMPL;
         }
@@ -244,12 +249,12 @@ st_ret_t storage_get(storage_t st, const char *type, const char *owner, const ch
     return (drv->get)(drv, type, owner, filter, os);
 }
 
-st_ret_t storage_get_custom_sql(storage_t st, const char* request, os_t* os, const char *type /*= 0*/)
+st_ret_t storage_get_custom_sql(storage_t *st, const char* request, os_t **os, const char *type /*= 0*/)
 {
-    st_driver_t drv;
+    st_driver_t *drv;
     st_ret_t ret;
 
-    log_debug(ZONE, "storage_get_custom_sql: query='%s'", request);
+    LOG_DEBUG(st->log, "storage_get_custom_sql: query='%s'", request);
 
     if (type) {
         /* find the handler for this type */
@@ -262,7 +267,7 @@ st_ret_t storage_get_custom_sql(storage_t st, const char* request, os_t* os, con
         /* never seen it before, so it goes to the default driver */
         drv = st->default_drv;
         if(drv == NULL) {
-            log_debug(ZONE, "no driver associated with type, and no default driver");
+            LOG_DEBUG(st->log, "no driver associated with type, and no default driver");
 
             return st_NOTIMPL;
         }
@@ -280,11 +285,11 @@ st_ret_t storage_get_custom_sql(storage_t st, const char* request, os_t* os, con
     }
 }
 
-st_ret_t storage_count(storage_t st, const char *type, const char *owner, const char *filter, int *count) {
-    st_driver_t drv;
+st_ret_t storage_count(storage_t *st, const char *type, const char *owner, const char *filter, int *count) {
+    st_driver_t *drv;
     st_ret_t ret;
 
-    log_debug(ZONE, "storage_count: type=%s owner=%s filter=%s", type, owner, filter);
+    LOG_DEBUG(st->log, "storage_count: type=%s owner=%s filter=%s", type, owner, filter);
 
     /* find the handler for this type */
     drv = xhash_get(st->types, type);
@@ -292,7 +297,7 @@ st_ret_t storage_count(storage_t st, const char *type, const char *owner, const 
         /* never seen it before, so it goes to the default driver */
         drv = st->default_drv;
         if(drv == NULL) {
-            log_debug(ZONE, "no driver associated with type, and no default driver");
+            LOG_DEBUG(st->log, "no driver associated with type, and no default driver");
             return st_NOTIMPL;
         }
 
@@ -306,11 +311,11 @@ st_ret_t storage_count(storage_t st, const char *type, const char *owner, const 
 }
 
 
-st_ret_t storage_delete(storage_t st, const char *type, const char *owner, const char *filter) {
-    st_driver_t drv;
+st_ret_t storage_delete(storage_t *st, const char *type, const char *owner, const char *filter) {
+    st_driver_t *drv;
     st_ret_t ret;
 
-    log_debug(ZONE, "storage_zap: type=%s owner=%s filter=%s", type, owner, filter);
+    LOG_DEBUG(st->log, "storage_zap: type=%s owner=%s filter=%s", type, owner, filter);
 
     /* find the handler for this type */
     drv = xhash_get(st->types, type);
@@ -318,7 +323,7 @@ st_ret_t storage_delete(storage_t st, const char *type, const char *owner, const
         /* never seen it before, so it goes to the default driver */
         drv = st->default_drv;
         if(drv == NULL) {
-            log_debug(ZONE, "no driver associated with type, and no default driver");
+            LOG_DEBUG(st->log, "no driver associated with type, and no default driver");
 
             return st_NOTIMPL;
         }
@@ -332,11 +337,11 @@ st_ret_t storage_delete(storage_t st, const char *type, const char *owner, const
     return (drv->delete)(drv, type, owner, filter);
 }
 
-st_ret_t storage_replace(storage_t st, const char *type, const char *owner, const char *filter, os_t os) {
-    st_driver_t drv;
+st_ret_t storage_replace(storage_t *st, const char *type, const char *owner, const char *filter, os_t *os) {
+    st_driver_t *drv;
     st_ret_t ret;
 
-    log_debug(ZONE, "storage_replace: type=%s owner=%s filter=%s os=%X", type, owner, filter, os);
+    LOG_DEBUG(st->log, "storage_replace: type=%s owner=%s filter=%s os=%p", type, owner, filter, os);
 
     /* find the handler for this type */
     drv = xhash_get(st->types, type);
@@ -344,7 +349,7 @@ st_ret_t storage_replace(storage_t st, const char *type, const char *owner, cons
         /* never seen it before, so it goes to the default driver */
         drv = st->default_drv;
         if(drv == NULL) {
-            log_debug(ZONE, "no driver associated with type, and no default driver");
+            LOG_DEBUG(st->log, "no driver associated with type, and no default driver");
 
             return st_NOTIMPL;
         }
@@ -358,10 +363,10 @@ st_ret_t storage_replace(storage_t st, const char *type, const char *owner, cons
     return (drv->replace)(drv, type, owner, filter, os);
 }
 
-static st_filter_t _storage_filter(pool_t p, const char *f, int len) {
+static st_filter_t *_storage_filter(pool_t *p, const char *f, int len) {
     char *c, *key, *val, *sub;
     int vallen;
-    st_filter_t res, sf;
+    st_filter_t *res, *sf;
     
     if(f[0] != '(' && f[len] != ')')
         return NULL;
@@ -404,9 +409,8 @@ static st_filter_t _storage_filter(pool_t p, const char *f, int len) {
         }
 
         *c = '\0';
-        log_debug(ZONE, "extracted key %s val %s", key, val);
 
-        res = pmalloco(p, sizeof(struct st_filter_st));
+        res = pnew(p, st_filter_t);
         res->p = p;
 
         res->type = st_filter_type_PAIR;
@@ -421,7 +425,7 @@ static st_filter_t _storage_filter(pool_t p, const char *f, int len) {
     if(f[1] != '&' && f[1] != '|' && f[1] != '!')
         return NULL;
 
-    res = pmalloco(p, sizeof(struct st_filter_st));
+    res = pnew(p, st_filter_t);
     res->p = p;
 
     switch(f[1]) {
@@ -446,9 +450,9 @@ static st_filter_t _storage_filter(pool_t p, const char *f, int len) {
     return res;
 }
 
-st_filter_t storage_filter(const char *filter) {
-    pool_t p;
-    st_filter_t f;
+st_filter_t *storage_filter(const char *filter) {
+    pool_t *p;
+    st_filter_t *f;
 
     if(filter == NULL)
         return NULL;
@@ -462,10 +466,10 @@ st_filter_t storage_filter(const char *filter) {
     return f;
 }
 
-static int _storage_match(st_filter_t f, os_object_t o, os_t os) {
+static int _storage_match(st_filter_t *f, os_object_t *o, os_t *os) {
     void *val;
     os_type_t ot;
-    st_filter_t scan;
+    st_filter_t *scan;
 
     switch(f->type) {
         case st_filter_type_PAIR:
@@ -519,7 +523,7 @@ static int _storage_match(st_filter_t f, os_object_t o, os_t os) {
     return 0;
 }
 
-int storage_match(st_filter_t filter, os_object_t o, os_t os) {
+int storage_match(st_filter_t *filter, os_object_t *o, os_t *os) {
     if(filter == NULL)
         return 1;
 

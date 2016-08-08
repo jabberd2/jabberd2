@@ -19,20 +19,22 @@
  */
 
 #include "sx.h"
+#include <lib/util.h>
+#include <string.h>
 
 /** primary expat callbacks */
 void _sx_element_start(void *arg, const char *name, const char **atts) {
-    sx_t s = (sx_t) arg;
+    sx_t *s = (sx_t*) arg;
     char buf[1024];
     char *uri, *elem, *prefix;
     const char **attr;
     int ns;
     int el;
 
-    if(s->fail) return;
+    if (s->fail) return;
 
     /* starting a new nad */
-    if(s->nad == NULL)
+    if (s->nad == NULL)
         s->nad = nad_new();
 
     /* make a copy */
@@ -48,11 +50,11 @@ void _sx_element_start(void *arg, const char *name, const char **atts) {
     /* extract all the bits */
     uri = buf;
     elem = strchr(uri, '|');
-    if(elem != NULL) {
+    if (elem != NULL) {
         *elem = '\0';
         elem++;
         prefix = strchr(elem, '|');
-        if(prefix != NULL) {
+        if (prefix != NULL) {
             *prefix = '\0';
             prefix++;
         }
@@ -79,11 +81,11 @@ void _sx_element_start(void *arg, const char *name, const char **atts) {
         /* extract all the bits */
         uri = buf;
         elem = strchr(uri, '|');
-        if(elem != NULL) {
+        if (elem != NULL) {
             *elem = '\0';
             elem++;
             prefix = strchr(elem, '|');
-            if(prefix != NULL) {
+            if (prefix != NULL) {
                 *prefix = '\0';
                 prefix++;
             }
@@ -105,14 +107,14 @@ void _sx_element_start(void *arg, const char *name, const char **atts) {
     s->depth++;
 }
 
-void _sx_element_end(void *arg, const char *name) {
-    sx_t s = (sx_t) arg;
+void _sx_element_end(void *arg, __attribute__ ((unused)) const char *name) {
+    sx_t *s = (sx_t*) arg;
 
-    if(s->fail) return;
+    if (s->fail) return;
 
     s->depth--;
 
-    if(s->depth == 1) {
+    if (s->depth == 1) {
         /* completed nad, save it for later processing */
         jqueue_push(s->rnadq, s->nad, 0);
         s->nad = NULL;
@@ -123,17 +125,17 @@ void _sx_element_end(void *arg, const char *name) {
     }
 
     /* close received */
-    else if(s->depth == 0)
+    else if (s->depth == 0)
         s->depth = -1;
 }
 
 void _sx_cdata(void *arg, const char *str, int len) {
-    sx_t s = (sx_t) arg;
+    sx_t *s = (sx_t*) arg;
 
-    if(s->fail) return;
+    if (s->fail) return;
 
     /* no nad? no cdata */
-    if(s->nad == NULL)
+    if (s->nad == NULL)
         return;
 
     /* go */
@@ -141,16 +143,16 @@ void _sx_cdata(void *arg, const char *str, int len) {
 }
 
 void _sx_namespace_start(void *arg, const char *prefix, const char *uri) {
-    sx_t s = (sx_t) arg;
+    sx_t *s = (sx_t*) arg;
     int ns;
 
-    if(s->fail) return;
+    if (s->fail) return;
 
     /* some versions of MSXML send xmlns='' occassionaally. it seems safe to ignore it */
-    if(uri == NULL) return;
+    if (uri == NULL) return;
 
     /* starting a new nad */
-    if(s->nad == NULL)
+    if (s->nad == NULL)
         s->nad = nad_new();
 
     ns = nad_add_namespace(s->nad, (char *) uri, (char *) prefix);
@@ -161,13 +163,13 @@ void _sx_namespace_start(void *arg, const char *prefix, const char *uri) {
 
 #ifdef HAVE_XML_STOPPARSER
 /* Stop the parser if an entity declaration is hit. */
-void _sx_entity_declaration(void *arg, const char *entityName,
-                            int is_parameter_entity, const char *value,
-                            int value_length, const char *base,
-                            const char *systemId, const char *publicId,
-                            const char *notationName)
+void _sx_entity_declaration(void *arg, __attribute__ ((unused)) const char *entityName,
+                            __attribute__ ((unused)) int is_parameter_entity, __attribute__ ((unused)) const char *value,
+                            __attribute__ ((unused)) int value_length, __attribute__ ((unused)) const char *base,
+                            __attribute__ ((unused)) const char *systemId, __attribute__ ((unused)) const char *publicId,
+                            __attribute__ ((unused)) const char *notationName)
 {
-    sx_t s = (sx_t) arg;
+    sx_t *s = (sx_t*) arg;
 
     XML_StopParser(s->expat, XML_FALSE);
 }

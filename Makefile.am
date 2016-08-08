@@ -1,15 +1,20 @@
-EXTRA_DIST = Doxyfile.in README.md README.win32 README.protocol README.config contrib docs win32
+EXTRA_DIST = Doxyfile.in README.md README.win32 README.protocol README.config contrib doc win32
 
 LIBTOOL += --quiet
 
-SUBDIRS = etc man tools mio sx lib c2s router s2s storage sm
+SUBDIRS = etc man tools lib mio sx router c2s s2s storage sm
 if ENABLE_TESTS
 SUBDIRS += tests
 endif
 
-.PHONY: docs cppcheck
+ACLOCAL_AMFLAGS = -I m4
 
-docs: Doxyfile
+.PHONY: doc cppcheck
+
+libtool: $(LIBTOOL_DEPS)
+	$(SHELL) ./config.status libtool
+
+doc: Doxyfile
 	@doxygen
 
 cppcheck:

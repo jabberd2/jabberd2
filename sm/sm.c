@@ -19,6 +19,8 @@
  */
 
 #include "sm.h"
+#include "lib/rate.h"
+#include <sys/ioctl.h>
 
 /** @file sm/sm.c
   * @brief stream / io callbacks
@@ -30,28 +32,28 @@
 sig_atomic_t sm_lost_router = 0;
 
 /** our master callback */
-int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
-    sm_t sm = (sm_t) arg;
-    sx_buf_t buf = (sx_buf_t) data;
+int sm_sx_callback(sx_t *s, sx_event_t e, void *data, void *arg) {
+    sm_t *sm = arg;
+    sx_buf_t *buf = data;
     sx_error_t *sxe;
-    nad_t nad;
-    pkt_t pkt;
+    nad_t *nad;
+    pkt_t *pkt;
     int len, ns, elem, attr;
     char *domain;
 
     switch(e) {
         case event_WANT_READ:
-            log_debug(ZONE, "want read");
+            LOG_DEBUG(sm->log, "want read");
             mio_read(sm->mio, sm->fd);
             break;
 
         case event_WANT_WRITE:
-            log_debug(ZONE, "want write");
+            LOG_DEBUG(sm->log, "want write");
             mio_write(sm->mio, sm->fd);
             break;
 
         case event_READ:
-            log_debug(ZONE, "reading from %d", sm->fd->fd);
+            LOG_DEBUG(sm->log, "reading from %d", sm->fd->fd);
 
             /* do the read */
             len = recv(sm->fd->fd, buf->data, buf->len, 0);
@@ -62,7 +64,7 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     return 0;
                 }
 
-                log_write(sm->log, LOG_NOTICE, "[%d] [router] read error: %s (%d)", sm->fd->fd, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+                LOG_NOTICE(sm->log, "[%d] [router] read error: %s (%d)", sm->fd->fd, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
                 sx_kill(s);
                 
@@ -76,33 +78,33 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 return -1;
             }
 
-            log_debug(ZONE, "read %d bytes", len);
+            LOG_DEBUG(sm->log, "read %d bytes", len);
 
             buf->len = len;
 
             return len;
 
         case event_WRITE:
-            log_debug(ZONE, "writing to %d", sm->fd->fd);
+            LOG_DEBUG(sm->log, "writing to %d", sm->fd->fd);
 
             len = send(sm->fd->fd, buf->data, buf->len, 0);
             if (len >= 0) {
-                log_debug(ZONE, "%d bytes written", len);
+                LOG_DEBUG(sm->log, "%d bytes written", len);
                 return len;
             }
 
             if (MIO_WOULDBLOCK)
                 return 0;
 
-            log_write(sm->log, LOG_NOTICE, "[%d] [router] write error: %s (%d)", sm->fd->fd, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+            LOG_NOTICE(sm->log, "[%d] [router] write error: %s (%d)", sm->fd->fd, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
             sx_kill(s);
 
             return -1;
 
         case event_ERROR:
-            sxe = (sx_error_t *) data;
-            log_write(sm->log, LOG_NOTICE, "error from router: %s (%s)", sxe->generic, sxe->specific);
+            sxe = data;
+            LOG_NOTICE(sm->log, "error from router: %s (%s)", sxe->generic, sxe->specific);
 
             if(sxe->code == SX_ERR_AUTH)
                 sx_close(s);
@@ -113,7 +115,7 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             break;
 
         case event_OPEN:
-            log_write(sm->log, LOG_NOTICE, "connection to router established");
+            LOG_NOTICE(sm->log, "connection to router established");
 
             /* set connection attempts counter */
             sm->retry_left = sm->retry_lost;
@@ -122,7 +124,7 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             ns = nad_add_namespace(nad, uri_COMPONENT, NULL);
             nad_append_elem(nad, ns, "bind", 0);
             nad_append_attr(nad, -1, "name", sm->id);
-            log_debug(ZONE, "requesting component bind for '%s'", sm->id);
+            LOG_DEBUG(sm->log, "requesting component bind for '%s'", sm->id);
             sx_nad_write(sm->router, nad);
 
             if(xhash_iter_first(sm->hosts))
@@ -138,14 +140,14 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 elem = nad_append_elem(nad, ns, "bind", 0);
                 nad_set_attr(nad, elem, -1, "name", domain, len);
                 nad_append_attr(nad, -1, "multi", "to");
-                log_debug(ZONE, "requesting domain bind for '%.*s'", len, domain);
+                LOG_DEBUG(sm->log, "requesting domain bind for '%.*s'", len, domain);
                 sx_nad_write(sm->router, nad);
             
             } while(xhash_iter_next(sm->hosts));
             break;
 
         case event_PACKET:
-            nad = (nad_t) data;
+            nad = data;
 
             /* drop unqualified packets */
             if (NAD_ENS(nad, 0) < 0) {
@@ -157,7 +159,7 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 if (NAD_NURI_L(nad, NAD_ENS(nad, 0)) != strlen(uri_STREAMS)
                     || strncmp(uri_STREAMS, NAD_NURI(nad, NAD_ENS(nad, 0)), strlen(uri_STREAMS)) != 0
                     || NAD_ENAME_L(nad, 0) != 8 || strncmp("features", NAD_ENAME(nad, 0), 8) != 0) {
-                    log_debug(ZONE, "got a non-features packet on an unauth'd stream, dropping");
+                    LOG_DEBUG(sm->log, "got a non-features packet on an unauth'd stream, dropping");
                     nad_free(nad);
                     return 0;
                 }
@@ -173,7 +175,7 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                                 nad_free(nad);
                                 return 0;
                             }
-                            log_write(sm->log, LOG_NOTICE, "unable to establish encrypted session with router");
+                            LOG_NOTICE(sm->log, "unable to establish encrypted session with router");
                         }
                     }
                 }
@@ -194,7 +196,7 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 if (NAD_NURI_L(nad, NAD_ENS(nad, 0)) != strlen(uri_COMPONENT)
                     || strncmp(uri_COMPONENT, NAD_NURI(nad, NAD_ENS(nad, 0)), strlen(uri_COMPONENT)) != 0
                     || NAD_ENAME_L(nad, 0) != 4 || strncmp("bind", NAD_ENAME(nad, 0), 4)) {
-                    log_debug(ZONE, "got a packet from router, but we're not online, dropping");
+                    LOG_DEBUG(sm->log, "got a packet from router, but we're not online, dropping");
                     nad_free(nad);
                     return 0;
                 }
@@ -202,25 +204,25 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 /* catch errors */
                 attr = nad_find_attr(nad, 0, -1, "error", NULL);
                 if(attr >= 0) {
-                    log_write(sm->log, LOG_NOTICE, "router refused bind request (%.*s)", NAD_AVAL_L(nad, attr), NAD_AVAL(nad, attr));
+                    LOG_NOTICE(sm->log, "router refused bind request (%.*s)", NAD_AVAL_L(nad, attr), NAD_AVAL(nad, attr));
                     exit(1);
                 }
 
-                log_debug(ZONE, "coming online");
+                LOG_DEBUG(sm->log, "coming online");
 
                 /* we're online */
                 sm->online = sm->started = 1;
-                log_write(sm->log, LOG_NOTICE, "%s ready for sessions", sm->id);
+                LOG_NOTICE(sm->log, "%s ready for sessions", sm->id);
 
                 nad_free(nad);
                 return 0;
             }
 
-            log_debug(ZONE, "got a packet");
+            LOG_DEBUG(sm->log, "got a packet");
 
             pkt = pkt_new(sm, nad);
             if (pkt == NULL) {
-                log_debug(ZONE, "invalid packet, dropping");
+                LOG_DEBUG(sm->log, "invalid packet, dropping");
                 return 0;
             }
 
@@ -239,12 +241,12 @@ int sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 }
 
 int sm_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg) {
-    sm_t sm = (sm_t) arg;
+    sm_t *sm = arg;
     int nbytes;
 
     switch (a) {
         case action_READ:
-            log_debug(ZONE, "read action on fd %d", fd->fd);
+            LOG_DEBUG(sm->log, "read action on fd %d", fd->fd);
 
             ioctl(fd->fd, FIONREAD, &nbytes);
             if(nbytes == 0) {
@@ -255,12 +257,12 @@ int sm_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg)
             return sx_can_read(sm->router);
 
         case action_WRITE:
-            log_debug(ZONE, "write action on fd %d", fd->fd);
+            LOG_DEBUG(sm->log, "write action on fd %d", fd->fd);
             return sx_can_write(sm->router);
 
         case action_CLOSE:
-            log_debug(ZONE, "close action on fd %d", fd->fd);
-            log_write(sm->log, LOG_NOTICE, "connection to router closed");
+            LOG_DEBUG(sm->log, "close action on fd %d", fd->fd);
+            LOG_NOTICE(sm->log, "connection to router closed");
 
             sm_lost_router = 1;
 
@@ -277,8 +279,8 @@ int sm_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg)
 }
 
 /** send a new action route */
-void sm_c2s_action(sess_t dest, const char *action, const char *target) {
-    nad_t nad;
+void sm_c2s_action(sess_t *dest, const char *action, const char *target) {
+    nad_t *nad;
     int rns, sns;
 
     nad = nad_new();
@@ -301,7 +303,7 @@ void sm_c2s_action(sess_t dest, const char *action, const char *target) {
     if (target != NULL)
         nad_append_attr(nad, -1, "target", target);
 
-    log_debug(ZONE,
+    LOG_DEBUG(dest->user->sm->log,
               "routing nad to %s from %s c2s %s s2s %s action %s target %s",
               dest->c2s, dest->user->sm->id, dest->c2s_id, dest->sm_id,
               action, target);
@@ -310,7 +312,7 @@ void sm_c2s_action(sess_t dest, const char *action, const char *target) {
 }
 
 /** this is gratuitous, but apache gets one, so why not? */
-void sm_signature(sm_t sm, const char *str) {
+void sm_signature(sm_t *sm, const char *str) {
     if (sm->siglen == 0) {
         snprintf(&sm->signature[sm->siglen], 2048 - sm->siglen, "%s", str);
         sm->siglen += strlen(str);
@@ -321,7 +323,7 @@ void sm_signature(sm_t sm, const char *str) {
 }
 
 /** register a new global ns */
-int sm_register_ns(sm_t sm, const char *uri) {
+int sm_register_ns(sm_t *sm, const char *uri) {
     int ns_idx;
 
     ns_idx = (int) (long) xhash_get(sm->xmlns, uri);
@@ -335,7 +337,7 @@ int sm_register_ns(sm_t sm, const char *uri) {
 }
 
 /** unregister a global ns */
-void sm_unregister_ns(sm_t sm, const char *uri) {
+void sm_unregister_ns(sm_t *sm, const char *uri) {
     int refcount = (int) (long) xhash_get(sm->xmlns_refcount, uri);
     if (refcount == 1) {
         xhash_zap(sm->xmlns, uri);
@@ -346,24 +348,24 @@ void sm_unregister_ns(sm_t sm, const char *uri) {
 }
 
 /** get a globally registered ns */
-int sm_get_ns(sm_t sm, const char *uri) {
+int sm_get_ns(sm_t *sm, const char *uri) {
     return (int) (long) xhash_get(sm->xmlns, uri);
 }
 
 // Rate limit check:  Prevent denial-of-service due to excessive database queries
 // Make sure owner is responsible for the query!
-int sm_storage_rate_limit(sm_t sm, const char *owner) {
-    rate_t rt;
-    user_t user;
-    sess_t sess;
-    item_t item;
+int sm_storage_rate_limit(sm_t *sm, const char *owner) {
+    rate_t *rt;
+    user_t *user;
+    sess_t *sess;
+    item_t *item;
 
     if (sm->query_rate_total == 0 || owner == NULL)
     return FALSE;
 
     user = xhash_get(sm->users, owner);
     if (user != NULL) {
-        rt = (rate_t) xhash_get(sm->query_rates, owner);
+        rt = xhash_get(sm->query_rates, owner);
         if (rt == NULL) {
             rt = rate_new(sm->query_rate_total, sm->query_rate_seconds, sm->query_rate_wait);
             xhash_put(sm->query_rates, pstrdup(xhash_pool(sm->query_rates), owner), (void *) rt);
@@ -371,7 +373,7 @@ int sm_storage_rate_limit(sm_t sm, const char *owner) {
         }
 
         if(rate_check(rt) == 0) {
-            log_write(sm->log, LOG_WARNING, "[%s] is being disconnected, too many database queries within %d seconds", owner, sm->query_rate_seconds);
+            LOG_WARN(sm->log, "[%s] is being disconnected, too many database queries within %d seconds", owner, sm->query_rate_seconds);
             user = xhash_get(sm->users, owner);
             for (sess = user->sessions; sess != NULL; sess = sess->next) {
                 sm_c2s_action(sess, "ended", NULL);
@@ -388,7 +390,7 @@ int sm_storage_rate_limit(sm_t sm, const char *owner) {
                 rate_add(rt, 1);
             }
         } else {
-            log_debug(ZONE, "Error: could not get user data for %s", owner);
+            LOG_DEBUG(sm->log, "Error: could not get user data for %s", owner);
     }
     return FALSE;
 }

@@ -21,6 +21,12 @@
 #ifndef INCL_SX_PLUGINS_H
 #define INCL_SX_PLUGINS_H
 
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
+
+#include "lib/jqueue.h"
+
 /** sx stream flags */
 #define SX_SSL_WRAPPER          (1<<0)    /** SSL wrapper on legacy 5223 port */
 #define SX_SSL_STARTTLS_OFFER   (1<<1)    /** don't offer starttls without this */
@@ -63,13 +69,13 @@ extern "C" {
 
 
 /** init function */
-JABBERD2_API int                         sx_ssl_init(sx_env_t env, sx_plugin_t p, va_list args);
+JABBERD2_API int                         sx_ssl_init(sx_env_t *env, sx_plugin_t *p, va_list args);
 
 /** add cert function */
-JABBERD2_API int                         sx_ssl_server_addcert(sx_plugin_t p, const char *name, const char *pemfile, const char *cachain, int mode, const char *private_key_password, const char *ciphers);
+JABBERD2_API int                         sx_ssl_server_addcert(sx_plugin_t *p, const char *name, const char *pemfile, const char *cachain, int mode, const char *private_key_password, const char *ciphers);
 
 /** trigger for client starttls */
-JABBERD2_API int                         sx_ssl_client_starttls(sx_plugin_t p, sx_t s, const char *pemfile, const char *private_key_password);
+JABBERD2_API int                         sx_ssl_client_starttls(sx_plugin_t *p, sx_t *s, const char *pemfile, const char *private_key_password);
 
 /* previous states */
 #define SX_SSL_STATE_NONE       (0)
@@ -86,14 +92,14 @@ typedef struct _sx_ssl_conn_st {
 
     BIO         *wbio, *rbio;
 
-    jqueue_t    wq;
+    jqueue_t    *wq;
 
     int         last_state;
 
     char        *pemfile;
 
     char        *private_key_password;
-} *_sx_ssl_conn_t;
+} _sx_ssl_conn_t;
 
 #endif /* HAVE_SSL */
 
@@ -101,10 +107,10 @@ typedef struct _sx_ssl_conn_st {
 /* SASL plugin */
 
 /** init function */
-JABBERD2_API int                         sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args);
+JABBERD2_API int sx_sasl_init(sx_env_t *env, sx_plugin_t *p, va_list args);
 
 /** the callback function */
-typedef int                 (*sx_sasl_callback_t)(int cb, void *arg, void **res, sx_t s, void *cbarg);
+typedef int (*sx_sasl_callback_t)(int cb, void *arg, void **res, sx_t *s, void *cbarg);
 
 /* callbacks */
 #define sx_sasl_cb_GET_REALM        (0x00)
@@ -119,7 +125,7 @@ typedef int                 (*sx_sasl_callback_t)(int cb, void *arg, void **res,
 #define sx_sasl_ret_FAIL	    (1)
 
 /** trigger for client auth */
-JABBERD2_API int                         sx_sasl_auth(sx_plugin_t p, sx_t s, const char *appname, const char *mech, const char *user, const char *pass);
+JABBERD2_API int sx_sasl_auth(sx_plugin_t *p, sx_t *s, const char *appname, const char *mech, const char *user, const char *pass);
 
 /* for passing auth data to callback */
 typedef struct sx_sasl_creds_st {
@@ -127,65 +133,19 @@ typedef struct sx_sasl_creds_st {
     const char                  *realm;
     const char                  *authzid;
     const char                  *pass;
-} *sx_sasl_creds_t;
+} sx_sasl_creds_t;
 
 
 /* Stream Compression plugin */
-#ifdef HAVE_LIBZ
-
-#include <zlib.h>
-
-/** init function */
-JABBERD2_API int                         sx_compress_init(sx_env_t env, sx_plugin_t p, va_list args);
-
-/* allocation chunk for decompression */
-#define SX_COMPRESS_CHUNK       16384
-
-/** a single conn */
-typedef struct _sx_compress_conn_st {
-    /* zlib streams for deflate() and inflate() */
-    z_stream    wstrm, rstrm;
-
-    /* buffers for compressed and decompressed data */
-    sx_buf_t    wbuf, rbuf;
-
-} *_sx_compress_conn_t;
-
-#endif /* HAVE_LIBZ */
+JABBERD2_API int sx_compress_init(sx_env_t *env, sx_plugin_t *p, va_list args);
 
 
 /* Stanza Acknowledgements plugin */
-/** init function */
-JABBERD2_API int sx_ack_init(sx_env_t env, sx_plugin_t p, va_list args);
+JABBERD2_API int sx_ack_init(sx_env_t *env, sx_plugin_t *p, va_list args);
 
 /* websocket wrapper plugin */
 #ifdef USE_WEBSOCKET
-#include <http_parser.h>
-#include <lib/util.h>
-
-JABBERD2_API int sx_websocket_init(sx_env_t env, sx_plugin_t p, va_list args);
-
-/** websocket state */
-typedef enum {
-    websocket_PRE,
-    websocket_HEADERS,      /* parsing HTTP headers */
-    websocket_ACTIVE,       /* active websocket connection */
-    websocket_CLOSING       /* shutdown in progress */
-} _sx_websocket_state_t;
-
-/** a single conn */
-typedef struct _sx_websocket_conn_st {
-    http_parser             parser;
-    _sx_websocket_state_t   state;
-    int                     header_value;
-    pool_t                  p;
-    spool                   field, value;
-    xht                     headers;
-    void                    *frame;
-    unsigned int            opcode;
-    char                    *buf;
-    size_t                  buf_len;
-} *_sx_websocket_conn_t;
+JABBERD2_API int sx_websocket_init(sx_env_t *env, sx_plugin_t *p, va_list args);
 #endif
 
 #ifdef __cplusplus

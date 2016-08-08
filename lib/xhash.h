@@ -18,62 +18,36 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
-/** @file lib/xhash.h
+/** @file util/xhash.h
   * @brief hashtables
-  * $Date: 2004/04/30 00:53:55 $
-  * $Revision: 1.1 $
   */
 
 #ifndef INCL_UTIL_XHASH_H
 #define INCL_UTIL_XHASH_H 1
 
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
-
+#include "util.h"
 #include "pool.h"
 
-typedef struct xhn_struct
-{
-    struct xhn_struct *next;
-    struct xhn_struct *prev;
-    const char *key;
-    int keylen;
-    void *val;
-} *xhn, _xhn;
+typedef struct _xht xht;
 
-typedef struct xht_struct
-{
-    pool_t p;
-    int prime;
-    int dirty;
-    int count;
-    struct xhn_struct *zen;
-    struct xhn_struct *free_list; // list of zaped elements to be reused.
-    int iter_bucket;
-    xhn iter_node;
-    int *stat;
-} *xht, _xht;
-
-JABBERD2_API xht xhash_new(int prime);
-JABBERD2_API void xhash_put(xht h, const char *key, void *val);
-JABBERD2_API void xhash_putx(xht h, const char *key, int len, void *val);
-JABBERD2_API void *xhash_get(xht h, const char *key);
-JABBERD2_API void *xhash_getx(xht h, const char *key, int len);
-JABBERD2_API void xhash_zap(xht h, const char *key);
-JABBERD2_API void xhash_zapx(xht h, const char *key, int len);
-JABBERD2_API void xhash_stat(xht h);
-JABBERD2_API void xhash_free(xht h);
+JABBERD2_API xht *xhash_new(int prime);
+JABBERD2_API void xhash_put(xht *h, const char *key, void *val);
+JABBERD2_API void xhash_putx(xht *h, const char *key, int len, void *val);
+JABBERD2_API void *xhash_get(xht *h, const char *key);
+JABBERD2_API void *xhash_getx(xht *h, const char *key, int len);
+JABBERD2_API void xhash_zap(xht *h, const char *key);
+JABBERD2_API void xhash_zapx(xht *h, const char *key, int len);
+JABBERD2_API void xhash_stat(xht *h);
+JABBERD2_API void xhash_free(xht *h);
 typedef void (*xhash_walker)(const char *key, int keylen, void *val, void *arg);
-JABBERD2_API void xhash_walk(xht h, xhash_walker w, void *arg);
-JABBERD2_API int xhash_dirty(xht h);
-JABBERD2_API int xhash_count(xht h);
-JABBERD2_API pool_t xhash_pool(xht h);
+JABBERD2_API void xhash_walk(xht *h, xhash_walker w, void *arg);
+JABBERD2_API int xhash_count(xht *h);
+JABBERD2_API pool_t *xhash_pool(xht *h);
 
 /* iteration functions */
-JABBERD2_API int xhash_iter_first(xht h);
-JABBERD2_API int xhash_iter_next(xht h);
-JABBERD2_API void xhash_iter_zap(xht h);
-JABBERD2_API int xhash_iter_get(xht h, const char **key, int *keylen, void **val);
+JABBERD2_API int xhash_iter_first(xht *h);
+JABBERD2_API int xhash_iter_next(xht *h);
+JABBERD2_API void xhash_iter_zap(xht *h);
+JABBERD2_API int xhash_iter_get(xht *h, const char **key, int *keylen, void **val);
 
 #endif

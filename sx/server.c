@@ -19,30 +19,36 @@
  */
 
 #include "sx.h"
+#include <lib/uri.h>
 
-static void _sx_server_notify_header(sx_t s, void *arg) {
-    int i, ns, len;
-    nad_t nad;
-    const char *c;
-    sx_buf_t buf;
+#include <stdio.h>
+#include <string.h>
+#include <assert.h>
 
-    _sx_debug(ZONE, "stream established");
+static void _sx_server_notify_header(sx_t *s, __attribute__ ((unused)) void *arg) {
+    unsigned int i, len;
+    int ns;
+    nad_t *nad;
+    char *c;
+    sx_buf_t *buf;
+
+    _sx_debug("stream established");
 
     /* get the plugins to setup */
-    if(s->env != NULL)
-        for(i = 0; i < s->env->nplugins; i++)
-            if(s->env->plugins[i]->stream != NULL)
+    if (s->env != NULL)
+        for (i = 0; i < s->env->nplugins; i++)
+            if (s->env->plugins[i]->stream != NULL)
                 (s->env->plugins[i]->stream)(s, s->env->plugins[i]);
 
     /* bump us to stream if a plugin didn't do it already */
-    if(s->state < state_STREAM) {
+    if (s->state < state_STREAM) {
         _sx_state(s, state_STREAM);
         _sx_event(s, event_STREAM, NULL);
     }
 
     /* next, build the features */
-    if(s->req_version != NULL && strcmp(s->req_version, "1.0") == 0) {
-        _sx_debug(ZONE, "building features nad");
+    if (s->req_version != NULL && strcmp(s->req_version, "1.0") == 0) {
+        _sx_debug("building features nad");
 
         nad = nad_new();
 
@@ -50,9 +56,9 @@ static void _sx_server_notify_header(sx_t s, void *arg) {
         nad_append_elem(nad, ns, "features", 0);
 
         /* get the plugins to populate it */
-        if(s->env != NULL)
-            for(i = 0; i < s->env->nplugins; i++)
-                if(s->env->plugins[i]->features != NULL)
+        if (s->env != NULL)
+            for (i = 0; i < s->env->nplugins; i++)
+                if (s->env->plugins[i]->features != NULL)
                     (s->env->plugins[i]->features)(s, s->env->plugins[i], nad);
 
         /* new buffer for the nad */
@@ -67,21 +73,22 @@ static void _sx_server_notify_header(sx_t s, void *arg) {
     }
 
     /* if they sent packets before the stream was established, process the now */
-    if(jqueue_size(s->rnadq) > 0 && (s->state == state_STREAM || s->state == state_OPEN)) {
-        _sx_debug(ZONE, "processing packets sent before stream, naughty them");
+    if (jqueue_size(s->rnadq) > 0 && (s->state == state_STREAM || s->state == state_OPEN)) {
+        _sx_debug("processing packets sent before stream, naughty them");
         _sx_process_read(s, _sx_buffer_new(c, 0, NULL, NULL));
     }
 }
 
 static void _sx_server_element_start(void *arg, const char *name, const char **atts) {
-    sx_t s = (sx_t) arg;
-    int tflag = 0, fflag = 0, vflag = 0, len, i, r;
+    sx_t *s = (sx_t*) arg;
+    int tflag = 0, fflag = 0, vflag = 0, len, r;
+    size_t i;
     const char **attr;
     char *c, id[41];
-    sx_buf_t buf;
+    sx_buf_t *buf;
     sx_error_t sxe;
 
-    if(s->fail) return;
+    if (s->fail) return;
 
     /* check element and namespace */
     if (s->flags & SX_WEBSOCKET_WRAPPER) {
@@ -100,22 +107,21 @@ static void _sx_server_element_start(void *arg, const char *name, const char **a
         return;
     }
 
-
     /* pull interesting things out of the header */
     attr = atts;
     while(attr[0] != NULL) {
-        if(!tflag && strcmp(attr[0], "to") == 0) {
-            if(s->req_to != NULL) free((void*)s->req_to);
+        if (!tflag && strcmp(attr[0], "to") == 0) {
+            if (s->req_to != NULL) free((void*)s->req_to);
             s->req_to = strdup(attr[1]);
             tflag = 1;
         }
 
-        if(!fflag && strcmp(attr[0], "from") == 0) {
+        if (!fflag && strcmp(attr[0], "from") == 0) {
             s->req_from = strdup(attr[1]);
             fflag = 1;
         }
 
-        if(!vflag && strcmp(attr[0], "version") == 0) {
+        if (!vflag && strcmp(attr[0], "version") == 0) {
             s->req_version = strdup(attr[1]);
             vflag = 1;
         }
@@ -123,10 +129,10 @@ static void _sx_server_element_start(void *arg, const char *name, const char **a
         attr += 2;
     }
 
-    _sx_debug(ZONE, "stream request: to %s from %s version %s", s->req_to, s->req_from, s->req_version);
+    _sx_debug("stream request: to %s from %s version %s", s->req_to, s->req_from, s->req_version);
 
     /* check version */
-    if(s->req_version != NULL && strcmp(s->req_version, "1.0") != 0) {
+    if (s->req_version != NULL && strcmp(s->req_version, "1.0") != 0) {
         /* throw an error */
         _sx_gen_error(sxe, SX_ERR_STREAM, "Stream error", "Unsupported version");
         _sx_event(s, event_ERROR, (void *) &sxe);
@@ -141,14 +147,14 @@ static void _sx_server_element_start(void *arg, const char *name, const char **a
     _sx_state(s, state_STREAM_RECEIVED);
 
     /* response attributes */
-    if(s->req_to != NULL) s->res_from = strdup(s->req_to);
-    if(s->req_from != NULL) s->res_to = strdup(s->req_from);
+    if (s->req_to != NULL) s->res_from = strdup(s->req_to);
+    if (s->req_from != NULL) s->res_to = strdup(s->req_from);
 
     /* Only send 1.0 version if client has indicated a stream version - c/f XMPP 4.4.1 para 4 */
-    if(s->req_version != NULL) s->res_version = strdup("1.0");
+    if (s->req_version != NULL) s->res_version = strdup("1.0");
 
     /* stream id */
-    for(i = 0; i < 40; i++) {
+    for (i = 0; i < 40; i++) {
         r = (int) (36.0 * rand() / RAND_MAX);
         id[i] = (r >= 0 && r <= 9) ? (r + 48) : (r + 87);
     }
@@ -156,7 +162,7 @@ static void _sx_server_element_start(void *arg, const char *name, const char **a
 
     s->id = strdup(id);
 
-    _sx_debug(ZONE, "stream id is %s", id);
+    _sx_debug("stream id is %s", id);
 
     /* build the response */
     if (s->flags & SX_WEBSOCKET_WRAPPER) {
@@ -165,10 +171,10 @@ static void _sx_server_element_start(void *arg, const char *name, const char **a
         len = strlen(uri_STREAMS) + 99;
     }
 
-    if(s->ns != NULL) len += 9 + strlen(s->ns);
-    if(s->res_to != NULL) len += 6 + strlen(s->res_to);
-    if(s->res_from != NULL) len += 8 + strlen(s->res_from);
-    if(s->res_version != NULL) len += 11 + strlen(s->res_version);
+    if (s->ns != NULL) len += 9 + strlen(s->ns);
+    if (s->res_to != NULL) len += 6 + strlen(s->res_to);
+    if (s->res_from != NULL) len += 8 + strlen(s->res_from);
+    if (s->res_version != NULL) len += 11 + strlen(s->res_version);
 
     buf = _sx_buffer_new(NULL, len, _sx_server_notify_header, NULL);
 
@@ -179,10 +185,10 @@ static void _sx_server_element_start(void *arg, const char *name, const char **a
         strcpy(c, "<?xml version='1.0'?><stream:stream xmlns:stream='" uri_STREAMS "'");
     }
 
-    if(s->ns != NULL) { c = strchr(c, '\0'); sprintf(c, " xmlns='%s'", s->ns); }
-    if(s->res_to != NULL) { c = strchr(c, '\0'); sprintf(c, " to='%s'", s->res_to); }
-    if(s->res_from != NULL) { c = strchr(c, '\0'); sprintf(c, " from='%s'", s->res_from); }
-    if(s->res_version != NULL) { c = strchr(c, '\0'); sprintf(c, " version='%s'", s->res_version); }
+    if (s->ns != NULL) { c = strchr(c, '\0'); sprintf(c, " xmlns='%s'", s->ns); }
+    if (s->res_to != NULL) { c = strchr(c, '\0'); sprintf(c, " to='%s'", s->res_to); }
+    if (s->res_from != NULL) { c = strchr(c, '\0'); sprintf(c, " from='%s'", s->res_from); }
+    if (s->res_version != NULL) { c = strchr(c, '\0'); sprintf(c, " version='%s'", s->res_version); }
 
     c = strchr(c, '\0'); sprintf(c, " id='%s'", id);
     if (s->flags & SX_WEBSOCKET_WRAPPER) {
@@ -194,12 +200,12 @@ static void _sx_server_element_start(void *arg, const char *name, const char **a
     buf->len --;
 
     /* plugins can mess with the header too */
-    if(s->env != NULL)
-        for(i = 0; i < s->env->nplugins; i++)
-            if(s->env->plugins[i]->header != NULL)
+    if (s->env != NULL)
+        for (i = 0; i < s->env->nplugins; i++)
+            if (s->env->plugins[i]->header != NULL)
                 (s->env->plugins[i]->header)(s, s->env->plugins[i], buf);
 
-    _sx_debug(ZONE, "prepared stream response: %.*s", buf->len, buf->data);
+    _sx_debug("prepared stream response: %.*s", buf->len, buf->data);
 
     /* off it goes */
     jqueue_push(s->wbufq, buf, 0);
@@ -215,28 +221,28 @@ static void _sx_server_element_start(void *arg, const char *name, const char **a
     s->want_write = 1;
 }
 
-static void _sx_server_element_end(void *arg, const char *name) {
-    sx_t s = (sx_t) arg;
+static void _sx_server_element_end(void *arg, __attribute__ ((unused)) const char *name) {
+    sx_t *s = (sx_t*) arg;
 
-    if(s->fail) return;
+    if (s->fail) return;
 
     s->depth--;
 }
 
 /** catch the application namespace so we can get the response right */
 static void _sx_server_ns_start(void *arg, const char *prefix, const char *uri) {
-    sx_t s = (sx_t) arg;
+    sx_t *s = (sx_t*) arg;
 
     /* only want the default namespace */
-    if(prefix != NULL)
+    if (prefix != NULL)
         return;
 
     /* sanity; MSXML-based clients have been known to send xmlns='' from time to time */
-    if(uri == NULL)
+    if (uri == NULL)
         return;
 
     /* sanity check (should never happen if expat is doing its job) */
-    if(s->ns != NULL)
+    if (s->ns != NULL)
         return;
 
     s->ns = strdup(uri);
@@ -245,31 +251,31 @@ static void _sx_server_ns_start(void *arg, const char *prefix, const char *uri) 
     XML_SetStartNamespaceDeclHandler(s->expat, NULL);
 }
 
-void sx_server_init(sx_t s, unsigned int flags) {
-    int i;
+void sx_server_init(sx_t *s, unsigned int flags) {
+    size_t i;
 
     assert((int) (s != NULL));
 
     /* can't do anything if we're alive already */
-    if(s->state != state_NONE)
+    if (s->state != state_NONE)
         return;
+
+    _sx_debug("doing server init for sx %s:%d %s", s->ip, s->port, _sx_flags(s));
 
     s->type = type_SERVER;
     s->flags = flags;
 
-    _sx_debug(ZONE, "doing server init for sx %d %s", s->tag, _sx_flags(s));
-
     /* plugin */
-    if(s->env != NULL)
-        for(i = 0; i < s->env->nplugins; i++)
-            if(s->env->plugins[i]->server != NULL)
+    if (s->env != NULL)
+        for (i = 0; i < s->env->nplugins; i++)
+            if (s->env->plugins[i]->server != NULL)
                 (s->env->plugins[i]->server)(s, s->env->plugins[i]);
 
     /* we want to read */
     XML_SetElementHandler(s->expat, (void *) _sx_server_element_start, (void *) _sx_server_element_end);
     XML_SetStartNamespaceDeclHandler(s->expat, (void *) _sx_server_ns_start);
 
-    _sx_debug(ZONE, "waiting for stream header");
+    _sx_debug("waiting for stream header");
 
     s->want_read = 1;
     _sx_event(s, event_WANT_READ, NULL);

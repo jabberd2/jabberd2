@@ -19,6 +19,10 @@
  */
 
 #include "s2s.h"
+#include "lib/uri.h"
+#include "lib/stanza.h"
+
+#include <sys/ioctl.h>
 
 /*
  * we handle incoming connections, and the packets that arrive on them.
@@ -55,14 +59,14 @@
  */
 
 /* forward decls */
-static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg);
-static void _in_result(conn_t in, nad_t nad);
-static void _in_verify(conn_t in, nad_t nad);
-static void _in_packet(conn_t in, nad_t nad);
+static int _in_sx_callback(sx_t *s, sx_event_t e, void *data, void *arg);
+static void _in_result(conn_t *in, nad_t *nad);
+static void _in_verify(conn_t *in, nad_t *nad);
+static void _in_packet(conn_t *in, nad_t *nad);
 
 int in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg) {
-    conn_t in = (conn_t) arg;
-    s2s_t s2s = (s2s_t) arg;
+    conn_t *in = arg;
+    s2s_t *s2s = arg;
     struct sockaddr_storage sa;
     socklen_t namelen = sizeof(sa);
     int port, nbytes, flags = 0;
@@ -70,7 +74,7 @@ int in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg)
 
     switch(a) {
         case action_READ:
-            log_debug(ZONE, "read action on fd %d", fd->fd);
+            LOG_DEBUG(in->s2s->log, "read action on fd %d", fd->fd);
 
             ioctl(fd->fd, FIONREAD, &nbytes);
             if(nbytes == 0) {
@@ -81,16 +85,16 @@ int in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg)
             return sx_can_read(in->s);
 
         case action_WRITE:
-            log_debug(ZONE, "write action on fd %d", fd->fd);
+            LOG_DEBUG(in->s2s->log, "write action on fd %d", fd->fd);
             return sx_can_write(in->s);
 
         case action_CLOSE:
-            log_debug(ZONE, "close action on fd %d", fd->fd);
+            LOG_DEBUG(in->s2s->log, "close action on fd %d", fd->fd);
 
             if (fd == s2s->server_fd) break;
 
             /* !!! logging */
-            log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] disconnect, packets: %i", fd->fd, in->ip, in->port, in->packet_count);
+            LOG_NOTICE(in->s2s->log, "[%d] [%s, port=%d] disconnect, packets: %i", fd->fd, in->ip, in->port, in->packet_count);
 
             jqueue_push(in->s2s->dead, (void *) in->s, 0);
 
@@ -107,19 +111,17 @@ int in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg)
             break;
 
         case action_ACCEPT:
-            s2s = (s2s_t) arg;
-
-            log_debug(ZONE, "accept action on fd %d", fd->fd);
+            LOG_DEBUG(s2s->log, "accept action on fd %d", fd->fd);
 
             if (getpeername(fd->fd, (struct sockaddr *) &sa, &namelen) < 0) {
                 return -1;
             }
             port = j_inet_getport(&sa);
 
-            log_write(s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] incoming connection", fd->fd, (char *) data, port);
+            LOG_NOTICE(s2s->log, "[%d] [%s, port=%d] incoming connection", fd->fd, (char *) data, port);
 
             /* new conn */
-            in = (conn_t) calloc(1, sizeof(struct conn_st));
+            in = new(conn_t);
 
             in->s2s = s2s;
 
@@ -133,7 +135,7 @@ int in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg)
 
             in->init_time = time(NULL);
 
-            in->s = sx_new(s2s->sx_env, in->fd->fd, _in_sx_callback, (void *) in);
+            in->s = sx_new(s2s->sx_env, in->ip, in->port, _in_sx_callback, (void *) in);
             mio_app(m, in->fd, in_mio_callback, (void *) in);
 
             if(s2s->stanza_size_limit != 0)
@@ -159,29 +161,29 @@ int in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg)
     return 0;
 }
 
-static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
-    conn_t in = (conn_t) arg;
-    sx_buf_t buf = (sx_buf_t) data;
+static int _in_sx_callback(sx_t *s, sx_event_t e, void *data, void *arg) {
+    conn_t *in = arg;
+    sx_buf_t *buf = data;
     int len;
     sx_error_t *sxe;
-    nad_t nad;
+    nad_t *nad;
     char ipport[INET6_ADDRSTRLEN + 17];
-    jid_t from;
+    jid_t *from;
     int attr;
 
     switch(e) {
         case event_WANT_READ:
-            log_debug(ZONE, "want read");
+            LOG_DEBUG(in->s2s->log, "want read");
             mio_read(in->s2s->mio, in->fd);
             break;
 
         case event_WANT_WRITE:
-            log_debug(ZONE, "want write");
+            LOG_DEBUG(in->s2s->log, "want write");
             mio_write(in->s2s->mio, in->fd);
             break;
 
         case event_READ:
-            log_debug(ZONE, "reading from %d", in->fd->fd);
+            LOG_DEBUG(in->s2s->log, "reading from %d", in->fd->fd);
 
             /* do the read */
             len = recv(in->fd->fd, buf->data, buf->len, 0);
@@ -192,7 +194,7 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     return 0;
                 }
 
-                log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] read error: %s (%d)", in->fd->fd, in->ip, in->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+                LOG_NOTICE(in->s2s->log, "[%d] [%s, port=%d] read error: %s (%d)", in->fd->fd, in->ip, in->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
                 sx_kill(s);
 
@@ -206,25 +208,25 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                 return -1;
             }
 
-            log_debug(ZONE, "read %d bytes", len);
+            LOG_DEBUG(in->s2s->log, "read %d bytes", len);
 
             buf->len = len;
 
             return len;
 
         case event_WRITE:
-            log_debug(ZONE, "writing to %d", in->fd->fd);
+            LOG_DEBUG(in->s2s->log, "writing to %d", in->fd->fd);
 
             len = send(in->fd->fd, buf->data, buf->len, 0);
             if(len >= 0) {
-                log_debug(ZONE, "%d bytes written", len);
+                LOG_DEBUG(in->s2s->log, "%d bytes written", len);
                 return len;
             }
 
             if(MIO_WOULDBLOCK)
                 return 0;
 
-            log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] write error: %s (%d)", in->fd->fd, in->ip, in->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+            LOG_NOTICE(in->s2s->log, "[%d] [%s, port=%d] write error: %s (%d)", in->fd->fd, in->ip, in->port, MIO_STRERROR(MIO_ERROR), MIO_ERROR);
 
             sx_kill(s);
 
@@ -232,24 +234,24 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 
         case event_ERROR:
             sxe = (sx_error_t *) data;
-            log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] error: %s (%s)", in->fd->fd, in->ip, in->port, sxe->generic, sxe->specific);
+            LOG_NOTICE(in->s2s->log, "[%d] [%s, port=%d] error: %s (%s)", in->fd->fd, in->ip, in->port, sxe->generic, sxe->specific);
 
             break;
 
         case event_STREAM:
         case event_OPEN:
 
-            log_debug(ZONE, "STREAM or OPEN event from %s port %d (id %s)", in->ip, in->port, s->id);
+            LOG_DEBUG(in->s2s->log, "STREAM or OPEN event from %s port %d (id %s)", in->ip, in->port, s->id);
 
             /* first time, bring them online */
             if ((!in->online)||(strcmp(in->key,s->id)!=0)) {
-                log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] incoming stream online (id %s)", in->fd->fd, in->ip, in->port, s->id);
+                LOG_NOTICE(in->s2s->log, "[%d] [%s, port=%d] incoming stream online (id %s)", in->fd->fd, in->ip, in->port, s->id);
 
                 in->online = 1;
 
                 /* record the id */
                 if (in->key != NULL) {
-                   log_debug(ZONE,"adding new SSL stream id %s for stream id %s", s->id, in->key);
+                   LOG_DEBUG(in->s2s->log, "adding new SSL stream id %s for stream id %s", s->id, in->key);
 
                    /* remove the initial (non-SSL) stream id from the in connections hash */
                    xhash_zap(in->s2s->in, in->key);
@@ -272,7 +274,7 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             in->packet_count++;
             in->s2s->packet_count++;
 
-            nad = (nad_t) data;
+            nad = data;
 
             /* update last packet timestamp */
             in->last_packet = time(NULL);
@@ -293,7 +295,7 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                     }
                 }
 
-                log_debug(ZONE, "unknown dialback packet, dropping it");
+                LOG_DEBUG(in->s2s->log, "unknown dialback packet, dropping it");
 
                 nad_free(nad);
                 return 0;
@@ -321,7 +323,7 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
                  /* to and from required */
                  nad_find_attr(nad, 0, -1, "to", NULL) >= 0 && nad_find_attr(nad, 0, -1, "from", NULL) >= 0
                )) {
-                log_debug(ZONE, "they sent us a non-jabber looking packet, dropping it");
+                LOG_DEBUG(in->s2s->log, "they sent us a non-jabber looking packet, dropping it");
                 nad_free(nad);
                 return 0;
             }
@@ -329,13 +331,13 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
             /* perform check against whitelist */
             attr = nad_find_attr(nad, 0, -1, "from", NULL);
             if(attr < 0 || (from = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
-                log_debug(ZONE, "missing or invalid from on incoming packet, attr is %d", attr);
+                LOG_DEBUG(in->s2s->log, "missing or invalid from on incoming packet, attr is %d", attr);
                 nad_free(nad);
                 return 0;
             }
 
             if (in->s2s->enable_whitelist > 0 && (s2s_domain_in_whitelist(in->s2s, from->domain) == 0)) {
-                log_write(in->s2s->log, LOG_NOTICE, "received a packet not from a whitelisted domain %s, dropping it", from->domain);
+                LOG_NOTICE(in->s2s->log, "received a packet not from a whitelisted domain %s, dropping it", from->domain);
                 jid_free(from);
                 nad_free(nad);
                 return 0;
@@ -358,24 +360,24 @@ static int _in_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) {
 }
 
 /** auth requests */
-static void _in_result(conn_t in, nad_t nad) {
+static void _in_result(conn_t *in, nad_t *nad) {
     int attr, ns;
-    jid_t from, to;
+    jid_t *from, *to;
     char *rkey;
-    nad_t verify;
-    pkt_t pkt;
+    nad_t *verify;
+    pkt_t *pkt;
     time_t now;
 
     attr = nad_find_attr(nad, 0, -1, "from", NULL);
     if(attr < 0 || (from = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
-        log_debug(ZONE, "missing or invalid from on db result packet");
+        LOG_DEBUG(in->s2s->log, "missing or invalid from on db result packet");
         nad_free(nad);
         return;
     }
 
     attr = nad_find_attr(nad, 0, -1, "to", NULL);
     if(attr < 0 || (to = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
-        log_debug(ZONE, "missing or invalid to on db result packet");
+        LOG_DEBUG(in->s2s->log, "missing or invalid to on db result packet");
         jid_free(from);
         nad_free(nad);
         return;
@@ -383,11 +385,11 @@ static void _in_result(conn_t in, nad_t nad) {
 
     rkey = s2s_route_key(NULL, to->domain, from->domain);
 
-    log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] received dialback auth request for route '%s'", in->fd->fd, in->ip, in->port, rkey);
+    LOG_NOTICE(in->s2s->log, "[%d] [%s, port=%d] received dialback auth request for route '%s'", in->fd->fd, in->ip, in->port, rkey);
 
     /* get current state */
     if((conn_state_t) xhash_get(in->states, rkey) == conn_VALID) {
-        log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] route '%s' is already valid: sending valid", in->fd->fd, in->ip, in->port, rkey);
+        LOG_NOTICE(in->s2s->log, "[%d] [%s, port=%d] route '%s' is already valid: sending valid", in->fd->fd, in->ip, in->port, rkey);
 
         /* its already valid, just reply right now */
         stanza_tofrom(nad, 0);
@@ -409,7 +411,7 @@ static void _in_result(conn_t in, nad_t nad) {
 
     /* need the key */
     if(NAD_CDATA_L(nad, 0) <= 0) {
-        log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] no dialback key given with db result packet", in->fd->fd, in->ip, in->port, rkey);
+        LOG_NOTICE(in->s2s->log, "[%d] [%s, port=%d] no dialback key given with db result packet for route '%s'", in->fd->fd, in->ip, in->port, rkey);
         free(rkey);
         nad_free(nad);
         jid_free(from);
@@ -417,7 +419,7 @@ static void _in_result(conn_t in, nad_t nad) {
         return;
     }
 
-    log_debug(ZONE, "requesting verification for route %s", rkey);
+    LOG_DEBUG(in->s2s->log, "requesting verification for route %s", rkey);
 
     /* set the route status to INPROGRESS and set timestamp */
     xhash_put(in->states, pstrdup(xhash_pool(in->states), rkey), (void *) conn_INPROGRESS);
@@ -439,7 +441,7 @@ static void _in_result(conn_t in, nad_t nad) {
     nad_append_cdata(verify, NAD_CDATA(nad, 0), NAD_CDATA_L(nad, 0), 1);
 
     /* new packet */
-    pkt = (pkt_t) calloc(1, sizeof(struct pkt_st));
+    pkt = new(pkt_t);
 
     pkt->nad = verify;
 
@@ -455,21 +457,21 @@ static void _in_result(conn_t in, nad_t nad) {
 }
 
 /** validate their key */
-static void _in_verify(conn_t in, nad_t nad) {
+static void _in_verify(conn_t *in, nad_t *nad) {
     int attr;
-    jid_t from, to;
+    jid_t *from, *to;
     char *id, *dbkey, *type;
 
     attr = nad_find_attr(nad, 0, -1, "from", NULL);
     if(attr < 0 || (from = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
-        log_debug(ZONE, "missing or invalid from on db verify packet");
+        LOG_DEBUG(in->s2s->log, "missing or invalid from on db verify packet");
         nad_free(nad);
         return;
     }
 
     attr = nad_find_attr(nad, 0, -1, "to", NULL);
     if(attr < 0 || (to = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
-        log_debug(ZONE, "missing or invalid to on db verify packet");
+        LOG_DEBUG(in->s2s->log, "missing or invalid to on db verify packet");
         jid_free(from);
         nad_free(nad);
         return;
@@ -477,7 +479,7 @@ static void _in_verify(conn_t in, nad_t nad) {
 
     attr = nad_find_attr(nad, 0, -1, "id", NULL);
     if(attr < 0) {
-        log_debug(ZONE, "missing id on db verify packet");
+        LOG_DEBUG(in->s2s->log, "missing id on db verify packet");
         jid_free(from);
         jid_free(to);
         nad_free(nad);
@@ -485,7 +487,7 @@ static void _in_verify(conn_t in, nad_t nad) {
     }
 
     if(NAD_CDATA_L(nad, 0) <= 0) {
-        log_debug(ZONE, "no cdata on db verify packet");
+        LOG_DEBUG(in->s2s->log, "no cdata on db verify packet");
         jid_free(from);
         jid_free(to);
         nad_free(nad);
@@ -493,7 +495,7 @@ static void _in_verify(conn_t in, nad_t nad) {
     }
 
     /* extract the id */
-    id = (char *) malloc(sizeof(char) * (NAD_AVAL_L(nad, attr) + 1));
+    id = malloc(NAD_AVAL_L(nad, attr) + 1);
     snprintf(id, NAD_AVAL_L(nad, attr) + 1, "%.*s", NAD_AVAL_L(nad, attr), NAD_AVAL(nad, attr));
 
     /* generate a dialback key */
@@ -501,16 +503,16 @@ static void _in_verify(conn_t in, nad_t nad) {
 
     /* valid */
     if(NAD_CDATA_L(nad, 0) == strlen(dbkey) && strncmp(dbkey, NAD_CDATA(nad, 0), NAD_CDATA_L(nad, 0)) == 0) {
-        log_debug(ZONE, "valid dialback key %s, verify succeeded", dbkey);
+        LOG_DEBUG(in->s2s->log, "valid dialback key %s, verify succeeded", dbkey);
         type = "valid";
     } else {
-        log_debug(ZONE, "invalid dialback key %s, verify failed", dbkey);
+        LOG_DEBUG(in->s2s->log, "invalid dialback key %s, verify failed", dbkey);
         type = "invalid";
     }
 
-    log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] checking dialback verification from %s: sending %s", in->fd->fd, in->ip, in->port, from->domain, type);
+    LOG_NOTICE(in->s2s->log, "[%d] [%s, port=%d] checking dialback verification from %s: sending %s", in->fd->fd, in->ip, in->port, from->domain, type);
 
-    log_debug(ZONE, "letting them know");
+    LOG_DEBUG(in->s2s->log, "letting them know");
 
     /* now munge the packet and send it back to them */
     stanza_tofrom(nad, 0);
@@ -530,21 +532,21 @@ static void _in_verify(conn_t in, nad_t nad) {
 }
 
 /** they're trying to send us something */
-static void _in_packet(conn_t in, nad_t nad) {
+static void _in_packet(conn_t *in, nad_t *nad) {
     int elem, attr, ns, sns;
-    jid_t from, to;
+    jid_t *from, *to;
     char *rkey;
 
     attr = nad_find_attr(nad, 0, -1, "from", NULL);
     if(attr < 0 || (from = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
-        log_debug(ZONE, "missing or invalid from on incoming packet");
+        LOG_DEBUG(in->s2s->log, "missing or invalid from on incoming packet");
         nad_free(nad);
         return;
     }
 
     attr = nad_find_attr(nad, 0, -1, "to", NULL);
     if(attr < 0 || (to = jid_new(NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr))) == NULL) {
-        log_debug(ZONE, "missing or invalid to on incoming packet");
+        LOG_DEBUG(in->s2s->log, "missing or invalid to on incoming packet");
         jid_free(from);
         nad_free(nad);
         return;
@@ -552,11 +554,11 @@ static void _in_packet(conn_t in, nad_t nad) {
 
     rkey = s2s_route_key(NULL, to->domain, from->domain);
 
-    log_debug(ZONE, "received packet from %s for %s", in->key, rkey);
+    LOG_DEBUG(in->s2s->log, "received packet from %s for %s", in->key, rkey);
 
     /* drop packets received on routes not valid on that connection as per XMPP 8.3.10 */
     if((conn_state_t) xhash_get(in->states, rkey) != conn_VALID) {
-        log_write(in->s2s->log, LOG_NOTICE, "[%d] [%s, port=%d] dropping packet on unvalidated route: '%s'", in->fd->fd, in->ip, in->port, rkey);
+        LOG_NOTICE(in->s2s->log, "[%d] [%s, port=%d] dropping packet on unvalidated route: '%s'", in->fd->fd, in->ip, in->port, rkey);
         free(rkey);
         nad_free(nad);
         jid_free(from);
@@ -568,7 +570,7 @@ static void _in_packet(conn_t in, nad_t nad) {
 
     /* its good, off to the router with it */
 
-    log_debug(ZONE, "incoming packet on valid route, preparing it for the router");
+    LOG_DEBUG(in->s2s->log, "incoming packet on valid route, preparing it for the router");
 
     /* rewrite server packets into client packets */
     ns = nad_find_namespace(nad, 0, uri_SERVER, NULL);
@@ -608,7 +610,7 @@ static void _in_packet(conn_t in, nad_t nad) {
     nad_set_attr(nad, 0, -1, "to", to->domain, 0);
     nad_set_attr(nad, 0, -1, "from", in->s2s->id, 0);   /* route is from s2s, not packet source */
 
-    log_debug(ZONE, "sending packet to %s", to->domain);
+    LOG_DEBUG(in->s2s->log, "sending packet to %s", to->domain);
 
     /* go */
     sx_nad_write(in->s2s->router, nad);

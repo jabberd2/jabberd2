@@ -19,6 +19,9 @@
  */
 
 #include "sm.h"
+#include "lib/datetime.h"
+#include "lib/stanza.h"
+#include "lib/str.h"
 
 /** @file sm/mod_offline.c
   * @brief offline storage
@@ -32,14 +35,14 @@ typedef struct _mod_offline_st {
     int storeheadlines;
     int dropsubscriptions;
     int userquota;
-} *mod_offline_t;
+} mod_offline_t;
 
-static mod_ret_t _offline_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
+static mod_ret_t _offline_in_sess(mod_instance_t *mi, sess_t *sess, pkt_t *pkt) {
     st_ret_t ret;
-    os_t os;
-    os_object_t o;
-    nad_t nad;
-    pkt_t queued;
+    os_t *os;
+    os_object_t *o;
+    nad_t *nad;
+    pkt_t *queued;
     int ns, elem, attr;
     char cttl[15], cstamp[18];
     time_t ttl, stamp;
@@ -49,7 +52,7 @@ static mod_ret_t _offline_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 
         ret = storage_get(pkt->sm->st, "queue", jid_user(sess->jid), NULL, &os);
         if(ret != st_SUCCESS) {
-            log_debug(ZONE, "storage_get returned %d", ret);
+            LOG_DEBUG(mi->sm->log, "storage_get returned %d", ret);
             return mod_PASS;
         }
         
@@ -60,7 +63,7 @@ static mod_ret_t _offline_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                 if(os_object_get_nad(os, o, "xml", &nad)) {
                     queued = pkt_new(pkt->sm, nad_copy(nad));
                     if(queued == NULL) {
-                        log_debug(ZONE, "invalid queued packet, not delivering");
+                        LOG_DEBUG(mi->sm->log, "invalid queued packet, not delivering");
                     } else {
                         /* check expiry as necessary */
                         if((ns = nad_find_scoped_namespace(queued->nad, uri_EXPIRE, NULL)) >= 0 &&
@@ -77,14 +80,14 @@ static mod_ret_t _offline_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                                 stamp = datetime_in(cstamp);
 
                                 if(stamp + ttl <= time(NULL)) {
-                                    log_debug(ZONE, "queued packet has expired, dropping");
+                                    LOG_DEBUG(mi->sm->log, "queued packet has expired, dropping");
                                     pkt_free(queued);
                                     continue;
                                 }
                             }
                         }
 
-                        log_debug(ZONE, "delivering queued packet to %s", jid_full(sess->jid));
+                        LOG_DEBUG(mi->sm->log, "delivering queued packet to %s", jid_full(sess->jid));
                         pkt_sess(queued, sess);
                     }
                 }
@@ -100,18 +103,18 @@ static mod_ret_t _offline_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     return mod_PASS;
 }
 
-static mod_ret_t _offline_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
-    mod_offline_t offline = (mod_offline_t) mi->mod->private;
+static mod_ret_t _offline_pkt_user(mod_instance_t *mi, user_t *user, pkt_t *pkt) {
+    mod_offline_t *offline = mi->mod->private;
     int ns, elem, attr;
-    os_t os;
-    os_object_t o;
-    pkt_t event;
+    os_t *os;
+    os_object_t *o;
+    pkt_t *event;
     st_ret_t ret;
     int queuesize;
 
     /* send messages to the top sessions */
     if(user->top != NULL && (pkt->type & pkt_MESSAGE || pkt->type & pkt_S10N)) {
-        sess_t scan;
+        sess_t *scan;
     
         /* loop over each session */
         for(scan = user->sessions; scan != NULL; scan = scan->next) {
@@ -128,7 +131,7 @@ static mod_ret_t _offline_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
                 continue;
     
             /* deliver to session */
-            log_debug(ZONE, "delivering message to %s", jid_full(scan->jid));
+            LOG_DEBUG(mi->sm->log, "delivering message to %s", jid_full(scan->jid));
             pkt_sess(pkt_dup(pkt, jid_full(scan->jid), jid_full(pkt->from)), scan);
         }
 
@@ -140,7 +143,7 @@ static mod_ret_t _offline_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     if(offline->userquota > 0) {
         ret = storage_count(user->sm->st, "queue", jid_user(user->jid), NULL, &queuesize);
 
-        log_debug(ZONE, "storage_count ret is %i queue size is %i", ret, queuesize);
+        LOG_DEBUG(mi->sm->log, "storage_count ret is %i queue size is %i", ret, queuesize);
 
         /* if the user's quota is exceeded, return an error */
         if (ret == st_SUCCESS && (pkt->type & pkt_MESSAGE) && queuesize >= offline->userquota)
@@ -154,12 +157,12 @@ static mod_ret_t _offline_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
         /* check type of the message and drop headlines and groupchat */
         if((((pkt->type & pkt_MESSAGE_HEADLINE) == pkt_MESSAGE_HEADLINE) && !offline->storeheadlines) ||
             (pkt->type & pkt_MESSAGE_GROUPCHAT) == pkt_MESSAGE_GROUPCHAT) {
-            log_debug(ZONE, "not saving message (type 0x%X) for later", pkt->type);
+            LOG_DEBUG(mi->sm->log, "not saving message (type 0x%X) for later", pkt->type);
             pkt_free(pkt);
             return mod_HANDLED;
         }
 
-	log_debug(ZONE, "saving packet for later");
+    LOG_DEBUG(mi->sm->log, "saving packet for later");
 
         pkt_delay(pkt, time(NULL), user->jid->domain);
 
@@ -216,16 +219,16 @@ static mod_ret_t _offline_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     return mod_PASS;
 }
 
-static void _offline_user_delete(mod_instance_t mi, jid_t jid) {
-    os_t os;
-    os_object_t o;
-    nad_t nad;
-    pkt_t queued;
+static void _offline_user_delete(mod_instance_t *mi, jid_t *jid) {
+    os_t *os;
+    os_object_t *o;
+    nad_t *nad;
+    pkt_t *queued;
     int ns, elem, attr;
     char cttl[15], cstamp[18];
     time_t ttl, stamp;
 
-    log_debug(ZONE, "deleting queue for %s", jid_user(jid));
+    LOG_DEBUG(mi->sm->log, "deleting queue for %s", jid_user(jid));
 
     /* bounce the queue */
     if(storage_get(mi->mod->mm->sm->st, "queue", jid_user(jid), NULL, &os) == st_SUCCESS) {
@@ -236,7 +239,7 @@ static void _offline_user_delete(mod_instance_t mi, jid_t jid) {
                 if(os_object_get_nad(os, o, "xml", &nad)) {
                     queued = pkt_new(mi->mod->mm->sm, nad_copy(nad));
                     if(queued == NULL) {
-                        log_debug(ZONE, "invalid queued packet, not delivering");
+                        LOG_DEBUG(mi->sm->log, "invalid queued packet, not delivering");
                     } else {
                         /* check expiry as necessary */
                         if((ns = nad_find_scoped_namespace(queued->nad, uri_EXPIRE, NULL)) >= 0 &&
@@ -253,14 +256,14 @@ static void _offline_user_delete(mod_instance_t mi, jid_t jid) {
                                 stamp = datetime_in(cstamp);
 
                                 if(stamp + ttl <= time(NULL)) {
-                                    log_debug(ZONE, "queued packet has expired, dropping");
+                                    LOG_DEBUG(mi->sm->log, "queued packet has expired, dropping");
                                     pkt_free(queued);
                                     continue;
                                 }
                             }
                         }
 
-                        log_debug(ZONE, "bouncing queued packet from %s", jid_full(queued->from));
+                        LOG_DEBUG(mi->sm->log, "bouncing queued packet from %s", jid_full(queued->from));
                         pkt_router(pkt_error(queued, stanza_err_ITEM_NOT_FOUND));
                     }
                 }
@@ -272,20 +275,20 @@ static void _offline_user_delete(mod_instance_t mi, jid_t jid) {
     storage_delete(mi->sm->st, "queue", jid_user(jid), NULL);
 }
 
-static void _offline_free(module_t mod) {
-    mod_offline_t offline = (mod_offline_t) mod->private;
+static void _offline_free(module_t *mod) {
+    mod_offline_t *offline = mod->private;
 
     free(offline);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
-    module_t mod = mi->mod;
+DLLEXPORT int module_init(mod_instance_t *mi, const char *arg) {
+    module_t *mod = mi->mod;
     const char *configval;
-    mod_offline_t offline;
+    mod_offline_t *offline;
 
     if(mod->init) return 0;
 
-    offline = (mod_offline_t) calloc(1, sizeof(struct _mod_offline_st));
+    offline = new(mod_offline_t);
 
     configval = config_get_one(mod->mm->sm->config, "offline.dropmessages", 0);
     if (configval != NULL)

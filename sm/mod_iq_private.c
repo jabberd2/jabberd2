@@ -19,6 +19,8 @@
  */
 
 #include "sm.h"
+#include "lib/uri.h"
+#include "lib/stanza.h"
 
 /** @file sm/mod_iq_private.c
   * @brief private xml storage
@@ -27,19 +29,18 @@
   * $Revision: 1.24 $
   */
 
-#define uri_PRIVATE    "jabber:iq:private"
 static int ns_PRIVATE = 0;
 
-static mod_ret_t _iq_private_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
-    module_t mod = mi->mod;
+static mod_ret_t _iq_private_in_sess(mod_instance_t *mi, sess_t *sess, pkt_t *pkt) {
+    module_t *mod = mi->mod;
     int ns, elem, target, targetns;
     st_ret_t ret;
     char filter[4096];
-    os_t os;
-    os_object_t o;
-    nad_t nad;
-    pkt_t result;
-    sess_t sscan;
+    os_t *os;
+    os_object_t *o;
+    nad_t *nad;
+    pkt_t *result;
+    sess_t *sscan;
 
     /* only handle private sets and gets */
     if((pkt->type != pkt_IQ && pkt->type != pkt_IQ_SET) || pkt->ns != ns_PRIVATE)
@@ -72,11 +73,11 @@ static mod_ret_t _iq_private_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) 
     /* gotta have a namespace */
     if(targetns < 0)
     {
-        log_debug(ZONE, "no namespace specified");
+        LOG_DEBUG(mi->sm->log, "no namespace specified");
         return -stanza_err_BAD_REQUEST;
     }
 
-    log_debug(ZONE, "processing private request for %.*s", NAD_NURI_L(pkt->nad, targetns), NAD_NURI(pkt->nad, targetns));
+    LOG_DEBUG(mi->sm->log, "processing private request for %.*s", NAD_NURI_L(pkt->nad, targetns), NAD_NURI(pkt->nad, targetns));
 
     /* get */
     if(pkt->type == pkt_IQ) {
@@ -114,11 +115,11 @@ static mod_ret_t _iq_private_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) 
                 os_free(os);
 
                 /* drop through */
-                log_debug(ZONE, "storage_get succeeded, but couldn't make packet, faking st_NOTFOUND");
+                LOG_DEBUG(mi->sm->log, "storage_get succeeded, but couldn't make packet, faking st_NOTFOUND");
 
             case st_NOTFOUND:
 
-                log_debug(ZONE, "namespace not found, returning");
+                LOG_DEBUG(mi->sm->log, "namespace not found, returning");
 
                 /*
                  * !!! really, we should just return a 404. 1.4 just slaps a
@@ -191,19 +192,19 @@ static mod_ret_t _iq_private_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) 
     return 0;
 }
 
-static void _iq_private_user_delete(mod_instance_t mi, jid_t jid) {
-    log_debug(ZONE, "deleting private xml storage for %s", jid_user(jid));
+static void _iq_private_user_delete(mod_instance_t *mi, jid_t *jid) {
+    LOG_DEBUG(mi->sm->log, "deleting private xml storage for %s", jid_user(jid));
 
     storage_delete(mi->sm->st, "private", jid_user(jid), NULL);
 }
 
-static void _iq_private_free(module_t mod) {
+static void _iq_private_free(module_t *mod) {
      sm_unregister_ns(mod->mm->sm, uri_PRIVATE);
      feature_unregister(mod->mm->sm, uri_PRIVATE);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
-    module_t mod = mi->mod;
+DLLEXPORT int module_init(mod_instance_t *mi, const char *arg) {
+    module_t *mod = mi->mod;
 
     if (mod->init) return 0;
 

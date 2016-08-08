@@ -22,18 +22,19 @@
 #include <string.h>
 
 #include "s2s.h"
+#include "lib/sha1.h"
 
 /** generate a local/remote route key */
-char *s2s_route_key(pool_t p, const char *local, const char *remote) {
+char *s2s_route_key(pool_t *p, const char *local, const char *remote) {
     char *key;
 
     if(local == NULL) local = "";
     if(remote == NULL) remote = "";
 
     if(p == NULL)
-        key = (char *) malloc(strlen(local) + strlen(remote) + 2);
+        key = malloc(strlen(local) + strlen(remote) + 2);
     else
-        key = (char *) pmalloc(p, strlen(local) + strlen(remote) + 2);
+        key = pmalloc(p, strlen(local) + strlen(remote) + 2);
 
     sprintf(key, "%s/%s", local, remote);
 
@@ -58,7 +59,7 @@ int s2s_route_key_match(char *local, const char *remote, const char *rkey, int r
 }
 
 /** generate a dialback key */
-char *s2s_db_key(pool_t p, const char *secret, const char *remote, const char *id) {
+char *s2s_db_key(pool_t *p, const char *secret, const char *remote, const char *id) {
     char hash[41], buf[1024];
 
     _sx_debug(ZONE, "generating dialback key, secret %s, remote %s, id %s", secret, remote, id);

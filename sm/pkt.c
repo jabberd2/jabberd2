@@ -19,6 +19,8 @@
  */
 
 #include "sm.h"
+#include "lib/stanza.h"
+#include "lib/datetime.h"
 
 /** @file sm/pkt.c
   * @brief packet abstraction
@@ -27,12 +29,12 @@
   * $Revision: 1.35 $
   */
 
-pkt_t pkt_error(pkt_t pkt, int err) {
+pkt_t *pkt_error(pkt_t *pkt, int err) {
     if(pkt == NULL) return NULL;
 
     /* if it's an error already, log, free, return */
     if(pkt->type & pkt_ERROR) {
-        log_debug(ZONE, "dropping error pkt");
+//        LOG_DEBUG(sm->log, "dropping error pkt");
         pkt_free(pkt);
         return NULL;
     }
@@ -48,14 +50,14 @@ pkt_t pkt_error(pkt_t pkt, int err) {
         pkt->to = jid_dup(pkt->rto);
 
     /* all done, error'd and addressed */
-    log_debug(ZONE, "processed %d error pkt", err);
+//    LOG_DEBUG(sm->log, "processed %d error pkt", err);
 
     return pkt;
 }
 
 /** swap a packet's to and from attributes */
-pkt_t pkt_tofrom(pkt_t pkt) {
-    jid_t tmp;
+pkt_t *pkt_tofrom(pkt_t *pkt) {
+    jid_t *tmp;
 
     if(pkt == NULL) return NULL;
 
@@ -81,12 +83,12 @@ pkt_t pkt_tofrom(pkt_t pkt) {
 }
 
 /** duplicate pkt, replacing addresses */
-pkt_t pkt_dup(pkt_t pkt, const char *to, const char *from) {
-    pkt_t pnew;
+pkt_t *pkt_dup(pkt_t *pkt, const char *to, const char *from) {
+    pkt_t *pnew;
 
     if(pkt == NULL) return NULL;
 
-    pnew = (pkt_t) calloc(1, sizeof(struct pkt_st));
+    pnew = new(pkt_t);
 
     pnew->sm = pkt->sm;
     pnew->type = pkt->type;
@@ -105,28 +107,28 @@ pkt_t pkt_dup(pkt_t pkt, const char *to, const char *from) {
     } else if(pkt->from != NULL)
         pnew->from = jid_dup(pkt->from);
 
-    log_debug(ZONE, "duplicated packet");
+//    LOG_DEBUG(sm->log, "duplicated packet");
 
     return pnew;
 }
 
-pkt_t pkt_new(sm_t sm, nad_t nad) {
-    pkt_t pkt;
+pkt_t *pkt_new(sm_t *sm, nad_t *nad) {
+    pkt_t *pkt;
     int ns, attr, elem;
     char pri[20];
 
-    log_debug(ZONE, "creating new packet");
+    LOG_DEBUG(sm->log, "creating new packet");
 
     /* find the route */
     ns = nad_find_namespace(nad, 0, uri_COMPONENT, NULL);
     if(ns < 0) {
-        log_debug(ZONE, "packet not in component namespace");
+        LOG_DEBUG(sm->log, "packet not in component namespace");
         nad_free(nad);
         return NULL;
     }
 
     /* create the pkt holder */
-    pkt = (pkt_t) calloc(1, sizeof(struct pkt_st));
+    pkt = new(pkt_t);
 
     pkt->sm = sm;
     pkt->nad = nad;
@@ -221,8 +223,7 @@ pkt_t pkt_new(sm_t sm, nad_t nad) {
             if(NAD_ENAME_L(pkt->nad, 1) == 2 && strncmp("iq", NAD_ENAME(pkt->nad, 1), 2) == 0) {
                 pkt->type = pkt_IQ;
                 if (attr < 0) {
-                    log_write(sm->log, LOG_ERR, "dropping iq without type");
-                    log_debug(ZONE, "dropping iq without type");
+                    LOG_ERROR(sm->log, "dropping iq without type");
                     pkt_free(pkt);
                     return NULL;
                 }
@@ -230,8 +231,7 @@ pkt_t pkt_new(sm_t sm, nad_t nad) {
                 else if (NAD_AVAL_L(pkt->nad, attr) == 5 && strncmp("error", NAD_AVAL(pkt->nad, attr), 5) == 0) pkt->type = pkt_IQ | pkt_ERROR;
                 else if (NAD_AVAL_L(pkt->nad, attr) == 3 && strncmp("set", NAD_AVAL(pkt->nad, attr), 3) == 0) pkt->type = pkt_IQ_SET;
                 else if (NAD_AVAL_L(pkt->nad, attr) != 3 || strncmp("get", NAD_AVAL(pkt->nad, attr), 3)) {
-                    log_write(sm->log, LOG_ERR, "dropping iq with bad type \"%.*s\"", NAD_AVAL_L(pkt->nad, attr), NAD_AVAL(pkt->nad, attr));
-                    log_debug(ZONE, "dropping iq with bad type \"%.*s\"", NAD_AVAL_L(pkt->nad, attr), NAD_AVAL(pkt->nad, attr));
+                    LOG_ERROR(sm->log, "dropping iq with bad type \"%.*s\"", NAD_AVAL_L(pkt->nad, attr), NAD_AVAL(pkt->nad, attr));
                     pkt_free(pkt);
                     return NULL;
                 }
@@ -242,7 +242,7 @@ pkt_t pkt_new(sm_t sm, nad_t nad) {
                 return pkt;
             }
 
-            log_debug(ZONE, "unknown client namespace packet");
+            LOG_DEBUG(sm->log, "unknown client namespace packet");
 
             return pkt;
         }
@@ -277,17 +277,17 @@ pkt_t pkt_new(sm_t sm, nad_t nad) {
 
                     return pkt;
                 } else {
-                    log_debug(ZONE, "missing action on session packet");
+                    LOG_DEBUG(sm->log, "missing action on session packet");
                     return pkt;
                 }
             }
 
-            log_debug(ZONE, "unknown session namespace packet");
+            LOG_DEBUG(sm->log, "unknown session namespace packet");
 
             return pkt;
         }
 
-        log_debug(ZONE, "unknown packet");
+        LOG_DEBUG(sm->log, "unknown packet");
 
         return pkt;
     }
@@ -306,14 +306,14 @@ pkt_t pkt_new(sm_t sm, nad_t nad) {
         return pkt;
     }
 
-    log_debug(ZONE, "invalid component packet");
+    LOG_DEBUG(sm->log, "invalid component packet");
 
     pkt_free(pkt);
     return NULL;
 }
 
-void pkt_free(pkt_t pkt) {
-    log_debug(ZONE, "freeing pkt");
+void pkt_free(pkt_t *pkt) {
+//    LOG_DEBUG(sm->log, "freeing pkt");
 
     if (pkt != NULL) {
         if(pkt->rto != NULL) jid_free(pkt->rto);
@@ -325,8 +325,8 @@ void pkt_free(pkt_t pkt) {
     }
 }
 
-pkt_t pkt_create(sm_t sm, const char *elem, const char *type, const char *to, const char *from) {
-    nad_t nad;
+pkt_t *pkt_create(sm_t *sm, const char *elem, const char *type, const char *to, const char *from) {
+    nad_t *nad;
     int ns;
 
     nad = nad_new();
@@ -350,7 +350,7 @@ pkt_t pkt_create(sm_t sm, const char *elem, const char *type, const char *to, co
 }
 
 /** convenience - copy the packet id from src to dest */
-void pkt_id(pkt_t src, pkt_t dest) {
+void pkt_id(pkt_t *src, pkt_t *dest) {
     int attr;
 
     attr = nad_find_attr(src->nad, 1, -1, "id", NULL);
@@ -361,7 +361,7 @@ void pkt_id(pkt_t src, pkt_t dest) {
 }
 
 /** create an id value for new iq packets */
-void pkt_id_new(pkt_t pkt) {
+void pkt_id_new(pkt_t *pkt) {
     char id[40];
     int i, r;
 
@@ -376,16 +376,16 @@ void pkt_id_new(pkt_t pkt) {
     return;
 }
 
-void pkt_router(pkt_t pkt) {
+void pkt_router(pkt_t *pkt) {
     mod_ret_t ret;
     int ns, scan;
 
     if(pkt == NULL) return;
 
-    log_debug(ZONE, "delivering pkt to router");
+//    LOG_DEBUG(sm->log, "delivering pkt to router");
 
     if(pkt->to == NULL) {
-        log_debug(ZONE, "no to address on packet, unable to route");
+//        LOG_DEBUG(sm->log, "no to address on packet, unable to route");
         pkt_free(pkt);
         return;
     }
@@ -395,7 +395,7 @@ void pkt_router(pkt_t pkt) {
     pkt->rto = jid_new(pkt->to->domain, -1);
 
     if(pkt->rto == NULL) {
-        log_debug(ZONE, "invalid to address on packet, unable to route");
+//        LOG_DEBUG(sm->log, "invalid to address on packet, unable to route");
         pkt_free(pkt);
         return;
     }
@@ -407,7 +407,7 @@ void pkt_router(pkt_t pkt) {
     pkt->rfrom = jid_new(pkt->sm->id, -1);
 
     if(pkt->rfrom == NULL) {
-        log_debug(ZONE, "invalid from address on packet, unable to route");
+//        LOG_DEBUG(sm->log, "invalid from address on packet, unable to route");
         pkt_free(pkt);
         return;
     }
@@ -456,19 +456,19 @@ void pkt_router(pkt_t pkt) {
     }
 }
 
-void pkt_sess(pkt_t pkt, sess_t sess) {
+void pkt_sess(pkt_t *pkt, sess_t *sess) {
     mod_ret_t ret;
 
     if(pkt == NULL) return;
 
-    log_debug(ZONE, "delivering pkt to session %s", jid_full(sess->jid));
+    LOG_DEBUG(sess->user->sm->log, "delivering pkt to session %s", jid_full(sess->jid));
 
     if(pkt->rto != NULL)
         jid_free(pkt->rto);
     pkt->rto = jid_new(sess->c2s, -1);
 
     if(pkt->rto == NULL) {
-        log_debug(ZONE, "invalid to address on packet, unable to route");
+        LOG_DEBUG(sess->user->sm->log, "invalid to address on packet, unable to route");
         pkt_free(pkt);
         return;
     }
@@ -480,7 +480,7 @@ void pkt_sess(pkt_t pkt, sess_t sess) {
     pkt->rfrom = jid_new(pkt->sm->id, -1);
 
     if(pkt->rfrom == NULL) {
-        log_debug(ZONE, "invalid from address on packet, unable to route");
+        LOG_DEBUG(sess->user->sm->log, "invalid from address on packet, unable to route");
         pkt_free(pkt);
         return;
     }
@@ -505,7 +505,7 @@ void pkt_sess(pkt_t pkt, sess_t sess) {
 }
 
 /** add an x:delay stamp */
-void pkt_delay(pkt_t pkt, time_t t, const char *from) {
+void pkt_delay(pkt_t *pkt, time_t t, const char *from) {
     char timestamp[21];
     int ns, elem;
 
@@ -516,7 +516,7 @@ void pkt_delay(pkt_t pkt, time_t t, const char *from) {
     nad_set_attr(pkt->nad, elem, -1, "stamp", timestamp, 0);
     if(from != NULL)
         nad_set_attr(pkt->nad, elem, -1, "from", from, 0);
-    log_debug(ZONE, "added pkt XEP-0091 delay stamp %s", timestamp);
+//    LOG_DEBUG(sm->log, "added pkt XEP-0091 delay stamp %s", timestamp);
 #endif
     datetime_out(t, dt_DATETIME, timestamp, 21);
     ns = nad_add_namespace(pkt->nad, uri_URN_DELAY, NULL);
@@ -524,5 +524,5 @@ void pkt_delay(pkt_t pkt, time_t t, const char *from) {
     nad_set_attr(pkt->nad, elem, -1, "stamp", timestamp, 0);
     if(from != NULL)
         nad_set_attr(pkt->nad, elem, -1, "from", from, 0);
-    log_debug(ZONE, "added pkt XEP-0203 delay stamp %s", timestamp);
+//    LOG_DEBUG(sm->log, "added pkt XEP-0203 delay stamp %s", timestamp);
 }

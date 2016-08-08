@@ -318,7 +318,7 @@ static st_ret_t _st_sqlite_put_guts (st_driver_t drv, const char *type,
 		      /* !!! might not be a good idea to mark nads this way */
 		     case os_type_NAD:
 		      nad_print ((nad_t) val, 0, &xml, &xlen);
-		      cval = (char *) malloc(sizeof(char) * (xlen + 4));
+              cval = malloc(sizeof(char) * (xlen + 4));
 		      memcpy (&cval[3], xml, xlen + 1);
 		      memcpy (cval, "NAD", 3);
 
@@ -657,7 +657,7 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv) {
 	}
     }
 
-    data = (drvdata_t) calloc (1, sizeof (struct drvdata_st));
+    data = new(drvdata_t);
 
     data->db = db;
 

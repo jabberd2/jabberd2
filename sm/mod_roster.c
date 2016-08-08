@@ -19,6 +19,8 @@
  */
 
 #include "sm.h"
+#include "lib/stanza.h"
+#include "lib/str.h"
 
 /** @file sm/mod_roster.c
   * @brief roster managment & subscriptions
@@ -29,19 +31,19 @@
 
 typedef struct _mod_roster_st {
     int maxitems;
-} *mod_roster_t;
+} mod_roster_t;
 
 typedef struct _roster_walker_st {
-    pkt_t  pkt;
+    pkt_t  *pkt;
     int    req_ver;
     int    ver;
-    sess_t sess;
-} *roster_walker_t;
+    sess_t *sess;
+} roster_walker_t;
 
 /** free a single roster item */
 static void _roster_freeuser_walker(const char *key, int keylen, void *val, void *arg)
 {
-    item_t item = (item_t) val;
+    item_t *item = val;
     int i;
 
     jid_free(item->jid);
@@ -57,12 +59,12 @@ static void _roster_freeuser_walker(const char *key, int keylen, void *val, void
 }
 
 /** free the roster */
-static void _roster_freeuser(user_t user)
+static void _roster_freeuser(user_t *user)
 {
     if(user->roster == NULL)
         return;
 
-    log_debug(ZONE, "freeing roster for %s", jid_user(user->jid));
+    LOG_DEBUG(user->sm->log, "freeing roster for %s", jid_user(user->jid));
 
     xhash_walk(user->roster, _roster_freeuser_walker, NULL);
 
@@ -70,13 +72,13 @@ static void _roster_freeuser(user_t user)
     user->roster = NULL;
 }
 
-static void _roster_save_item(user_t user, item_t item) {
-    os_t os;
-    os_object_t o;
+static void _roster_save_item(user_t *user, item_t *item) {
+    os_t *os;
+    os_object_t *o;
     char filter[4096];
     int i;
 
-    log_debug(ZONE, "saving roster item %s for %s", jid_full(item->jid), jid_user(user->jid));
+    LOG_DEBUG(user->sm->log, "saving roster item %s for %s", jid_full(item->jid), jid_user(user->jid));
 
     os = os_new();
     o = os_object_new(os);
@@ -116,7 +118,7 @@ static void _roster_save_item(user_t user, item_t item) {
 }
 
 /** insert a roster item into this pkt, starting at elem */
-static void _roster_insert_item(pkt_t pkt, item_t item, int elem)
+static void _roster_insert_item(pkt_t *pkt, item_t *item, int elem)
 {
     int ns, i;
     char *sub;
@@ -149,10 +151,10 @@ static void _roster_insert_item(pkt_t pkt, item_t item, int elem)
 }
 
 /** push this packet to all sessions except the given one */
-static int _roster_push(user_t user, pkt_t pkt, int mod_index)
+static int _roster_push(user_t *user, pkt_t *pkt, int mod_index)
 {
-    sess_t scan;
-    pkt_t push;
+    sess_t *scan;
+    pkt_t *push;
     int pushes = 0;
 
     /* do the push */
@@ -171,15 +173,15 @@ static int _roster_push(user_t user, pkt_t pkt, int mod_index)
     return pushes;
 }
 
-static mod_ret_t _roster_in_sess_s10n(mod_instance_t mi, sess_t sess, pkt_t pkt)
+static mod_ret_t _roster_in_sess_s10n(mod_instance_t *mi, sess_t *sess, pkt_t *pkt)
 {
-    mod_roster_t mroster = (mod_roster_t) mi->mod->private;
-    module_t mod = mi->mod;
-    item_t item;
-    pkt_t push;
+    mod_roster_t *mroster = mi->mod->private;
+    module_t *mod = mi->mod;
+    item_t *item;
+    pkt_t *push;
     int ns, elem, ret, items = -1;
 
-    log_debug(ZONE, "got s10n packet");
+    LOG_DEBUG(mi->sm->log, "got s10n packet");
 
     /* s10ns have to go to someone */
     if(pkt->to == NULL)
@@ -205,7 +207,7 @@ static mod_ret_t _roster_in_sess_s10n(mod_instance_t mi, sess_t sess, pkt_t pkt)
         if(mroster->maxitems > 0) {
             ret = storage_count(sess->user->sm->st, "roster-items", jid_user(sess->user->jid), NULL, &items);
 
-            log_debug(ZONE, "user has %i roster-items, maximum is %i", items, mroster->maxitems);
+            LOG_DEBUG(mi->sm->log, "user has %i roster-items, maximum is %i", items, mroster->maxitems);
 
             /* if the limit is reached, return an error */
             if (ret == st_SUCCESS && items >= mroster->maxitems)
@@ -213,14 +215,14 @@ static mod_ret_t _roster_in_sess_s10n(mod_instance_t mi, sess_t sess, pkt_t pkt)
         }
 
         /* make a new one */
-        item = (item_t) calloc(1, sizeof(struct item_st));
+        item = new(item_t);
 
         item->jid = jid_dup(pkt->to);
 
         /* remember it */
         xhash_put(sess->user->roster, jid_full(item->jid), (void *) item);
 
-        log_debug(ZONE, "made new empty roster item for %s", jid_full(item->jid));
+        LOG_DEBUG(mi->sm->log, "made new empty roster item for %s", jid_full(item->jid));
     }
 
     /* a request */
@@ -270,8 +272,8 @@ static mod_ret_t _roster_in_sess_s10n(mod_instance_t mi, sess_t sess, pkt_t pkt)
 /** build the iq:roster packet from the hash */
 static void _roster_get_walker(const char *id, int idlen, void *val, void *arg)
 {
-    item_t item = (item_t) val;
-    roster_walker_t rw = (roster_walker_t) arg;
+    item_t *item = val;
+    roster_walker_t *rw = arg;
 
     _roster_insert_item(rw->pkt, item, 2);
 
@@ -282,11 +284,11 @@ static void _roster_get_walker(const char *id, int idlen, void *val, void *arg)
 /** push roster XEP-0237 updates to client */
 static void _roster_update_walker(const char *id, int idlen, void *val, void *arg)
 {
-    pkt_t push;
+    pkt_t *push;
     char *buf;
     int elem, ns;
-    item_t item = (item_t) val;
-    roster_walker_t rw = (roster_walker_t) arg;
+    item_t *item = val;
+    roster_walker_t *rw = arg;
 
     /* skip unneded roster items */
     if(item->ver <= rw->req_ver) return;
@@ -297,7 +299,7 @@ static void _roster_update_walker(const char *id, int idlen, void *val, void *ar
     ns = nad_add_namespace(push->nad, uri_ROSTER, NULL);
     elem = nad_append_elem(push->nad, ns, "query", 3);
 
-    buf = (char *) malloc(sizeof(char) * 128);
+    buf = malloc(sizeof(char) * 128);
     sprintf(buf, "%d", item->ver);
     nad_set_attr(push->nad, elem, -1, "ver", buf, 0);
     free(buf);
@@ -307,21 +309,21 @@ static void _roster_update_walker(const char *id, int idlen, void *val, void *ar
     pkt_sess(push, rw->sess);
 }
 
-static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi)
+static void _roster_set_item(pkt_t *pkt, int elem, sess_t *sess, mod_instance_t *mi)
 {
-    mod_roster_t mroster = (mod_roster_t) mi->mod->private;
-    module_t mod = mi->mod;
+    mod_roster_t *mroster = mi->mod->private;
+    module_t *mod = mi->mod;
     int attr, ns, i, ret, items = -1;
-    jid_t jid;
-    item_t item;
-    pkt_t push;
+    jid_t *jid;
+    item_t *item;
+    pkt_t *push;
     char filter[4096];
 
     /* extract the jid */
     attr = nad_find_attr(pkt->nad, elem, -1, "jid", NULL);
     jid = jid_new(NAD_AVAL(pkt->nad, attr), NAD_AVAL_L(pkt->nad, attr));
     if(jid == NULL) {
-        log_debug(ZONE, "jid failed prep check, skipping");
+        LOG_DEBUG(mi->sm->log, "jid failed prep check, skipping");
         return;
     }
 
@@ -334,14 +336,14 @@ static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi
         {
             /* tell them they're unsubscribed */
             if(item->from) {
-                log_debug(ZONE, "telling %s that they're unsubscribed", jid_user(item->jid));
+                LOG_DEBUG(mi->sm->log, "telling %s that they're unsubscribed", jid_user(item->jid));
                 pkt_router(pkt_create(sess->user->sm, "presence", "unsubscribed", jid_user(item->jid), jid_user(sess->jid)));
             }
             item->from = 0;
 
             /* tell them to unsubscribe us */
             if(item->to) {
-                log_debug(ZONE, "unsubscribing from %s", jid_user(item->jid));
+                LOG_DEBUG(mi->sm->log, "unsubscribing from %s", jid_user(item->jid));
                 pkt_router(pkt_create(sess->user->sm, "presence", "unsubscribe", jid_user(item->jid), jid_user(sess->jid)));
             }
             item->to = 0;
@@ -358,7 +360,7 @@ static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi
             storage_delete(sess->user->sm->st, "roster-groups", jid_user(sess->jid), filter);
         }
 
-        log_debug(ZONE, "removed %s from roster", jid_full(jid));
+        LOG_DEBUG(mi->sm->log, "removed %s from roster", jid_full(jid));
 
         /* build a new packet to push out to everyone */
         push = pkt_create(sess->user->sm, "iq", "set", NULL, NULL);
@@ -389,7 +391,7 @@ static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi
         if(mroster->maxitems > 0) {
             ret = storage_count(sess->user->sm->st, "roster-items", jid_user(sess->user->jid), NULL, &items);
 
-            log_debug(ZONE, "user has %i roster-items, maximum is %i", items, mroster->maxitems);
+            LOG_DEBUG(mi->sm->log, "user has %i roster-items, maximum is %i", items, mroster->maxitems);
 
             /* if the limit is reached, skip it */
             if (ret == st_SUCCESS && items >= mroster->maxitems)
@@ -397,7 +399,7 @@ static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi
         }
 
         /* make a new one */
-        item = (item_t) calloc(1, sizeof(struct item_st));
+        item = new(item_t);
 
         /* add the jid */
         item->jid = jid;
@@ -405,7 +407,7 @@ static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi
         /* add it to the roster */
         xhash_put(sess->user->roster, jid_full(item->jid), (void *) item);
 
-        log_debug(ZONE, "created new roster item %s", jid_full(item->jid));
+        LOG_DEBUG(mi->sm->log, "created new roster item %s", jid_full(item->jid));
     }
 
     else
@@ -423,7 +425,7 @@ static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi
 
         if (NAD_AVAL_L(pkt->nad, attr) > 0)
         {
-            item->name = (const char *) malloc(sizeof(char) * (NAD_AVAL_L(pkt->nad, attr) + 1));
+            item->name = malloc(sizeof(char) * (NAD_AVAL_L(pkt->nad, attr) + 1));
             sprintf((char *)item->name, "%.*s", NAD_AVAL_L(pkt->nad, attr), NAD_AVAL(pkt->nad, attr));
         }
     }
@@ -446,9 +448,9 @@ static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi
         if(NAD_CDATA_L(pkt->nad, elem) >= 0)
         {
             /* make room and shove it in */
-            item->groups = (const char **) realloc(item->groups, sizeof(char *) * (item->ngroups + 1));
+            item->groups = realloc(item->groups, sizeof(char *) * (item->ngroups + 1));
 
-            item->groups[item->ngroups] = (const char *) malloc(sizeof(char) * (NAD_CDATA_L(pkt->nad, elem) + 1));
+            item->groups[item->ngroups] = malloc(sizeof(char) * (NAD_CDATA_L(pkt->nad, elem) + 1));
             sprintf((char *)(item->groups[item->ngroups]), "%.*s", NAD_CDATA_L(pkt->nad, elem), NAD_CDATA(pkt->nad, elem));
 
             item->ngroups++;
@@ -457,7 +459,7 @@ static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi
         elem = nad_find_elem(pkt->nad, elem, NAD_ENS(pkt->nad, elem), "group", 0);
     }
 
-    log_debug(ZONE, "added %s to roster (to %d from %d ask %d name %s ngroups %d)", jid_full(item->jid), item->to, item->from, item->ask, item->name, item->ngroups);
+    LOG_DEBUG(mi->sm->log, "added %s to roster (to %d from %d ask %d name %s ngroups %d)", jid_full(item->jid), item->to, item->from, item->ask, item->name, item->ngroups);
 
     if (sm_storage_rate_limit(sess->user->sm, jid_user(sess->user->jid)))
         return;
@@ -481,13 +483,13 @@ static void _roster_set_item(pkt_t pkt, int elem, sess_t sess, mod_instance_t mi
 }
 
 /** our main handler for packets arriving from a session */
-static mod_ret_t _roster_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)
+static mod_ret_t _roster_in_sess(mod_instance_t *mi, sess_t *sess, pkt_t *pkt)
 {
-    module_t mod = mi->mod;
+    module_t *mod = mi->mod;
     int elem, attr, ver = 0;
-    pkt_t result;
+    pkt_t *result;
     char *buf;
-    roster_walker_t rw;
+    roster_walker_t *rw;
 
     /* handle s10ns in a different function */
     if(pkt->type & pkt_S10N)
@@ -515,7 +517,7 @@ static mod_ret_t _roster_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)
          &&(attr = nad_find_attr(pkt->nad, elem, -1, "ver", NULL)) >= 0) {
             if (NAD_AVAL_L(pkt->nad, attr) > 0)
             {
-                buf = (char *) malloc(sizeof(char) * (NAD_AVAL_L(pkt->nad, attr) + 1));
+                buf = malloc(sizeof(char) * (NAD_AVAL_L(pkt->nad, attr) + 1));
                 sprintf(buf, "%.*s", NAD_AVAL_L(pkt->nad, attr), NAD_AVAL(pkt->nad, attr));
                 ver = j_atoi(buf, 0);
                 free(buf);
@@ -523,7 +525,7 @@ static mod_ret_t _roster_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)
         }
 
         /* build the packet */
-        rw = (roster_walker_t) calloc(1, sizeof(struct _roster_walker_st));
+        rw = new(roster_walker_t);
         rw->pkt = pkt;
         rw->req_ver = ver;
         rw->sess = sess;
@@ -539,7 +541,7 @@ static mod_ret_t _roster_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)
         else {
             xhash_walk(sess->user->roster, _roster_get_walker, (void *) rw);
             if(elem >= 0 && attr >= 0) {
-                buf = (char *) malloc(sizeof(char) * 128);
+                buf = malloc(sizeof(char) * 128);
                 sprintf(buf, "%d", rw->ver);
                 nad_set_attr(pkt->nad, elem, -1, "ver", buf, 0);
                 free(buf);
@@ -568,7 +570,7 @@ static mod_ret_t _roster_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)
         attr = nad_find_attr(pkt->nad, elem, -1, "jid", NULL);
         if(attr < 0 || NAD_AVAL_L(pkt->nad, attr) == 0)
         {
-            log_debug(ZONE, "no jid on this item, aborting");
+            LOG_DEBUG(mi->sm->log, "no jid on this item, aborting");
 
             /* no jid, abort */
             return -stanza_err_BAD_REQUEST;
@@ -596,10 +598,10 @@ static mod_ret_t _roster_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)
 }
 
 /** handle incoming s10ns */
-static mod_ret_t _roster_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt)
+static mod_ret_t _roster_pkt_user(mod_instance_t *mi, user_t *user, pkt_t *pkt)
 {
-    module_t mod = mi->mod;
-    item_t item;
+    module_t *mod = mi->mod;
+    item_t *item;
     int ns, elem;
 
     /* only want s10ns */
@@ -613,7 +615,7 @@ static mod_ret_t _roster_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt)
     }
 
     /* get the roster item */
-    item = (item_t) xhash_get(user->roster, jid_full(pkt->from));
+    item = xhash_get(user->roster, jid_full(pkt->from));
     if(item == NULL) {
         /* subs are handled by the client */
         if(pkt->type == pkt_S10N) {
@@ -735,13 +737,13 @@ static mod_ret_t _roster_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt)
 }
 
 /** load the roster from the database */
-static int _roster_user_load(mod_instance_t mi, user_t user) {
-    os_t os;
-    os_object_t o;
+static int _roster_user_load(mod_instance_t *mi, user_t *user) {
+    os_t *os;
+    os_object_t *o;
     char *str;
-    item_t item, olditem;
+    item_t *item, *olditem;
 
-    log_debug(ZONE, "loading roster for %s", jid_user(user->jid));
+    LOG_DEBUG(mi->sm->log, "loading roster for %s", jid_user(user->jid));
 
     user->roster = xhash_new(101);
 
@@ -753,11 +755,11 @@ static int _roster_user_load(mod_instance_t mi, user_t user) {
 
                 if(os_object_get_str(os, o, "jid", &str)) {
                     /* new one */
-                    item = (item_t) calloc(1, sizeof(struct item_st));
+                    item = new(item_t);
 
                     item->jid = jid_new(str, -1);
                     if(item->jid == NULL) {
-                        log_debug(ZONE, "eek! invalid jid %s, skipping it", str);
+                        LOG_DEBUG(mi->sm->log, "eek! invalid jid %s, skipping it", str);
                         free(item);
 
                     } else {
@@ -771,7 +773,7 @@ static int _roster_user_load(mod_instance_t mi, user_t user) {
 
                         olditem = xhash_get(user->roster, jid_full(item->jid));
                         if(olditem) {
-                            log_debug(ZONE, "removing old %s roster entry", jid_full(item->jid));
+                            LOG_DEBUG(mi->sm->log, "removing old %s roster entry", jid_full(item->jid));
                             xhash_zap(user->roster, jid_full(item->jid));
                             _roster_freeuser_walker(jid_full(item->jid), strlen(jid_full(item->jid)), (void *) olditem, NULL);
                         }
@@ -779,7 +781,7 @@ static int _roster_user_load(mod_instance_t mi, user_t user) {
                         /* its good */
                         xhash_put(user->roster, jid_full(item->jid), (void *) item);
 
-                        log_debug(ZONE, "added %s to roster (to %d from %d ask %d ver %d name %s)",
+                        LOG_DEBUG(mi->sm->log, "added %s to roster (to %d from %d ask %d ver %d name %s)",
                                   jid_full(item->jid), item->to, item->from, item->ask, item->ver, item->name);
                     }
                 }
@@ -802,7 +804,7 @@ static int _roster_user_load(mod_instance_t mi, user_t user) {
                         item->groups[item->ngroups] = strdup(str);
                         item->ngroups++;
 
-                        log_debug(ZONE, "added group %s to item %s", str, jid_full(item->jid));
+                        LOG_DEBUG(mi->sm->log, "added group %s to item %s", str, jid_full(item->jid));
                     }
                 }
             } while(os_iter_next(os));
@@ -815,26 +817,26 @@ static int _roster_user_load(mod_instance_t mi, user_t user) {
     return 0;
 }
 
-static void _roster_user_delete(mod_instance_t mi, jid_t jid) {
-    log_debug(ZONE, "deleting roster data for %s", jid_user(jid));
+static void _roster_user_delete(mod_instance_t *mi, jid_t *jid) {
+    LOG_DEBUG(mi->sm->log, "deleting roster data for %s", jid_user(jid));
 
     storage_delete(mi->sm->st, "roster-items", jid_user(jid), NULL);
     storage_delete(mi->sm->st, "roster-groups", jid_user(jid), NULL);
 }
 
-static void _roster_free(module_t mod)
+static void _roster_free(module_t *mod)
 {
-    mod_roster_t mroster = (mod_roster_t) mod->private;
+    mod_roster_t *mroster = mod->private;
     free(mroster);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
-    module_t mod = mi->mod;
-    mod_roster_t mroster;
+DLLEXPORT int module_init(mod_instance_t *mi, const char *arg) {
+    module_t *mod = mi->mod;
+    mod_roster_t *mroster;
 
     if(mod->init) return 0;
 
-    mroster = (mod_roster_t) calloc(1, sizeof(struct _mod_roster_st));
+    mroster = new(mod_roster_t);
 
     mroster->maxitems = j_atoi(config_get_one(mod->mm->sm->config, "roster.maxitems", 0), 0);
 

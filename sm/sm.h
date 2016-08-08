@@ -33,14 +33,16 @@
 #include "sx/sx.h"
 #include "mio/mio.h"
 #include "lib/util.h"
+#include "lib/jid.h"
+#include "lib/nad.h"
+#include "lib/log.h"
+#include "lib/config.h"
+#include "lib/xhash.h"
+#include "lib/jsignal.h"
 #include "storage/storage.h"
 
-#ifdef HAVE_SIGNAL_H
-  #include <signal.h>
-#endif
-#ifdef HAVE_SYS_STAT_H
-  #include <sys/stat.h>
-#endif
+#include <signal.h>
+#include <sys/stat.h>
 
 #ifdef _WIN32
   #ifdef _USRDLL
@@ -56,11 +58,11 @@
 #endif
 
 /* forward declarations */
-typedef struct sm_st        *sm_t;
-typedef struct user_st      *user_t;
-typedef struct sess_st      *sess_t;
-typedef struct aci_st       *aci_t;
-typedef struct mm_st        *mm_t;
+typedef struct sm_st        sm_t;
+typedef struct user_st      user_t;
+typedef struct sess_st      sess_t;
+typedef struct aci_st       aci_t;
+typedef struct mm_st        mm_t;
 
 /* namespace uri strings */
 #include "lib/uri.h"
@@ -127,28 +129,28 @@ typedef enum {
 
 /** packet summary data wrapper */
 typedef struct pkt_st {
-    sm_t                sm;         /**< sm context */
+    sm_t                *sm;         /**< sm context */
 
-    sess_t              source;     /**< session this packet came from */
+    sess_t              *source;     /**< session this packet came from */
 
-    jid_t               rto, rfrom; /**< addressing of enclosing route */
+    jid_t               *rto, *rfrom; /**< addressing of enclosing route */
 
     route_type_t        rtype;      /**< type of enclosing route */
 
     pkt_type_t          type;       /**< packet type */
 
-    jid_t               to, from;   /**< packet addressing (not used for routing) */
+    jid_t               *to, *from;   /**< packet addressing (not used for routing) */
 
     int                 ns;         /**< iq sub-namespace */
 
     int                 pri;        /**< presence priority */
 
-    nad_t               nad;        /**< nad of the entire packet */
-} *pkt_t;
+    nad_t               *nad;        /**< nad of the entire packet */
+} pkt_t;
 
 /** roster items */
 typedef struct item_st {
-    jid_t               jid;        /**< id of this item */
+    jid_t               *jid;        /**< id of this item */
 
     const char          *name;      /**< display name */
 
@@ -161,7 +163,7 @@ typedef struct item_st {
     int                 ask;        /**< pending subscription (0 == none, 1 == subscribe, 2 == unsubscribe) */
 
     int                 ver;        /**< roster item version number */
-} *item_t;
+} item_t;
 
 /** session manager global context */
 struct sm_st {
@@ -179,40 +181,36 @@ struct sm_st {
 
     mio_t               mio;                /**< mio context */
 
-    sx_env_t            sx_env;             /**< SX environment */
-    sx_plugin_t         sx_sasl;            /**< SX SASL plugin */
-    sx_plugin_t         sx_ssl;             /**< SX SSL plugin */
+    sx_env_t            *sx_env;             /**< SX environment */
+    sx_plugin_t         *sx_sasl;            /**< SX SASL plugin */
+    sx_plugin_t         *sx_ssl;             /**< SX SSL plugin */
 
-    sx_t                router;             /**< SX of router connection */
+    sx_t                *router;             /**< SX of router connection */
     mio_fd_t            fd;                 /**< file descriptor of router connection */
 
-    xht                 users;              /**< pointers to currently loaded users (key is user@@domain) */
+    xht                 *users;              /**< pointers to currently loaded users (key is user@@domain) */
 
-    xht                 sessions;           /**< pointers to all connected sessions (key is random sm id) */
+    xht                 *sessions;           /**< pointers to all connected sessions (key is random sm id) */
 
-    xht                 xmlns;              /**< index of namespaces (for iq sub-namespace in pkt_t) */
-    xht                 xmlns_refcount;     /**< ref-counting for modules namespaces */
+    xht                 *xmlns;              /**< index of namespaces (for iq sub-namespace in pkt_t) */
+    xht                 *xmlns_refcount;     /**< ref-counting for modules namespaces */
 
-    xht                 features;           /**< feature index (key is feature string */
+    xht                 *features;           /**< feature index (key is feature string */
 
-    config_t            config;             /**< config context */
+    config_t            *config;             /**< config context */
 
-    log_t               log;                /**< log context */
-
-    log_type_t          log_type;           /**< log type */
-    const char          *log_facility;      /**< syslog facility (local0 - local7) */
-    const char          *log_ident;         /**< log identifier */
+    log_t               *log;                /**< log context */
 
     int                 retry_init;         /**< number of times to try connecting to the router at startup */
     int                 retry_lost;         /**< number of times to try reconnecting to the router if the connection drops */
     int                 retry_sleep;        /**< sleep interval between retries */
     int                 retry_left;         /**< number of tries left before failure */
 
-    storage_t           st;                 /**< storage subsystem */
+    storage_t           *st;                 /**< storage subsystem */
 
-    mm_t                mm;                 /**< module subsystem */
+    mm_t                *mm;                 /**< module subsystem */
 
-    xht                 acls;               /**< access control lists (key is list name, value is jid_t list) */
+    xht                 *acls;               /**< access control lists (key is list name, value is jid_t list) */
 
     char                signature[2048];    /**< server signature */
     int                 siglen;             /**< length of signature */
@@ -221,27 +219,27 @@ struct sm_st {
 
     int                 online;             /**< true if we're currently bound in the router */
 
-    xht                 hosts;              /**< vHosts map */
+    xht                 *hosts;              /**< vHosts map */
 
     /** Database query rate limits */
     int                 query_rate_total;
     int                 query_rate_seconds;
     int                 query_rate_wait;
-    xht                 query_rates;
+    xht                 *query_rates;
 };
 
 /** data for a single user */
 struct user_st {
-    pool_t              p;                  /**< memory pool this user is allocated off */
+    pool_t              *p;                  /**< memory pool this user is allocated off */
 
-    sm_t                sm;                 /**< sm context */
+    sm_t                *sm;                 /**< sm context */
 
-    jid_t               jid;                /**< user jid (user@@host) */
+    jid_t               *jid;                /**< user jid (user@@host) */
 
-    xht                 roster;             /**< roster for this user (key is full jid of item, value is item_t) */
+    xht                 *roster;             /**< roster for this user (key is full jid of item, value is item_t) */
 
-    sess_t              sessions;           /**< list of action sessions */
-    sess_t              top;                /**< top priority session */
+    sess_t              *sessions;           /**< list of action sessions */
+    sess_t              *top;                /**< top priority session */
     int                 available;          /**< true if this user has any available session */
 
     time_t              active;             /**< time that user first logged in (ever) */
@@ -251,85 +249,85 @@ struct user_st {
 
 /** data for a single session */
 struct sess_st {
-    pool_t              p;                  /**< memory pool this session is allocated off */
+    pool_t              *p;                  /**< memory pool this session is allocated off */
 
-    user_t              user;               /**< user this session belongs to */
+    user_t              *user;               /**< user this session belongs to */
 
-    jid_t               jid;                /**< session jid (user@@host/res) */
+    jid_t               *jid;                /**< session jid (user@@host/res) */
 
     char                c2s[1024];          /**< id of c2s that is handling their connection */
 
     char                sm_id[41];          /**< local id (for session control) */
     char                c2s_id[44];         /**< remote id (for session control) */
 
-    pkt_t               pres;               /**< copy of the last presence packet we received */
+    pkt_t               *pres;               /**< copy of the last presence packet we received */
 
     int                 available;          /**< true if this session is available */
     int                 pri;                /**< current priority of this session */
     int                 fake;               /**< true if session is fake (ie. PBX) */
 
-    jid_t               A;                  /**< list of jids that this session has sent directed presence to */
-    jid_t               E;                  /**< list of jids that bounced presence updates we sent them */
+    jid_t               *A;                  /**< list of jids that this session has sent directed presence to */
+    jid_t               *E;                  /**< list of jids that bounced presence updates we sent them */
 
     void                **module_data;      /**< per-session module data */
 
-    sess_t              next;               /**< next session (in a list of sessions) */
+    sess_t              *next;               /**< next session (in a list of sessions) */
 };
 
 extern sig_atomic_t sm_lost_router;
 
 /* functions */
-SM_API xht             aci_load(sm_t sm);
-SM_API int             aci_check(xht acls, const char *type, jid_t jid);
-SM_API void            aci_unload(xht acls);
+SM_API xht            *aci_load(sm_t *sm);
+SM_API int             aci_check(xht *acls, const char *type, jid_t *jid);
+SM_API void            aci_unload(xht *acls);
 
-SM_API int             sm_sx_callback(sx_t s, sx_event_t e, void *data, void *arg);
+SM_API int             sm_sx_callback(sx_t *s, sx_event_t e, void *data, void *arg);
 SM_API int             sm_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
 SM_API void            sm_timestamp(time_t t, char timestamp[18]);
-SM_API void            sm_c2s_action(sess_t dest, const char *action, const char *target);
-SM_API void            sm_signature(sm_t sm, const char *str);
+SM_API void            sm_c2s_action(sess_t *dest, const char *action, const char *target);
+SM_API void            sm_signature(sm_t *sm, const char *str);
 
-SM_API int             sm_register_ns(sm_t sm, const char *uri);
-SM_API void            sm_unregister_ns(sm_t sm, const char *uri);
-SM_API int             sm_get_ns(sm_t sm, const char *uri);
+SM_API int             sm_register_ns(sm_t *sm, const char *uri);
+SM_API void            sm_unregister_ns(sm_t *sm, const char *uri);
+SM_API int             sm_get_ns(sm_t *sm, const char *uri);
 
-SM_API int             sm_storage_rate_limit(sm_t sm, const char *owner);
+SM_API int             sm_storage_rate_limit(sm_t *sm, const char *owner);
 
-SM_API void            dispatch(sm_t sm, pkt_t pkt);
+SM_API void            dispatch(sm_t *sm, pkt_t *pkt);
 
-SM_API pkt_t           pkt_error(pkt_t pkt, int err);
-SM_API pkt_t           pkt_tofrom(pkt_t pkt);
-SM_API pkt_t           pkt_dup(pkt_t pkt, const char *to, const char *from);
-SM_API pkt_t           pkt_new(sm_t sm, nad_t nad);
-SM_API void            pkt_free(pkt_t pkt);
-SM_API pkt_t           pkt_create(sm_t sm, const char *elem, const char *type, const char *to, const char *from);
-SM_API void            pkt_id(pkt_t src, pkt_t dest);
-SM_API void            pkt_id_new(pkt_t pkt);
-SM_API void            pkt_delay(pkt_t pkt, time_t t, const char *from);
+SM_API pkt_t          *pkt_error(pkt_t *pkt, int err);
+SM_API pkt_t          *pkt_tofrom(pkt_t *pkt);
+SM_API pkt_t          *pkt_dup(pkt_t *pkt, const char *to, const char *from);
+SM_API pkt_t          *pkt_new(sm_t *sm, nad_t *nad);
+SM_API void            pkt_free(pkt_t *pkt);
+SM_API pkt_t          *pkt_create(sm_t *sm, const char *elem, const char *type, const char *to, const char *from);
+SM_API void            pkt_id(pkt_t *src, pkt_t *dest);
+SM_API void            pkt_id_new(pkt_t *pkt);
+SM_API void            pkt_delay(pkt_t *pkt, time_t t, const char *from);
 
-SM_API void            pkt_router(pkt_t pkt);
-SM_API void            pkt_sess(pkt_t pkt, sess_t sess);
+SM_API void            pkt_router(pkt_t *pkt);
+SM_API void            pkt_sess(pkt_t *pkt, sess_t *sess);
 
-SM_API int             pres_trust(user_t user, jid_t jid);
-SM_API void            pres_roster(sess_t sess, item_t item);
-SM_API void            pres_update(sess_t sess, pkt_t pres);
-SM_API void            pres_error(sess_t sess, jid_t jid);
-SM_API void            pres_deliver(sess_t sess, pkt_t pres);
-SM_API void            pres_in(user_t user, pkt_t pres);
-SM_API void            pres_probe(user_t user);
+SM_API int             pres_trust(user_t *user, jid_t *jid);
+SM_API void            pres_roster(sess_t *sess, item_t *item);
+SM_API void            pres_update(sess_t *sess, pkt_t *pres);
+SM_API void            pres_error(sess_t *sess, jid_t *jid);
+SM_API void            pres_deliver(sess_t *sess, pkt_t *pres);
+SM_API void            pres_in(user_t *user, pkt_t *pres);
+SM_API void            pres_probe(user_t *user);
 
-SM_API void            sess_route(sess_t sess, pkt_t pkt);
-SM_API sess_t          sess_start(sm_t sm, jid_t jid);
-SM_API void            sess_end(sess_t sess);
-SM_API sess_t          sess_match(user_t user, const char *resource);
+SM_API void            sess_route(sess_t *sess, pkt_t *pkt);
+SM_API sess_t         *sess_start(sm_t *sm, jid_t *jid);
+SM_API void            sess_end(sess_t *sess);
+SM_API sess_t         *sess_match(user_t *user, const char *resource);
 
-SM_API user_t          user_load(sm_t sm, jid_t jid);
-SM_API void            user_free(user_t user);
-SM_API int             user_create(sm_t sm, jid_t jid);
-SM_API void            user_delete(sm_t sm, jid_t jid);
+SM_API user_t         *user_load(sm_t *sm, jid_t *jid);
+SM_API void            user_free(user_t *user);
+SM_API int             user_create(sm_t *sm, jid_t *jid);
+SM_API void            user_delete(sm_t *sm, jid_t *jid);
 
-SM_API void            feature_register(sm_t sm, const char *feature);
-SM_API void            feature_unregister(sm_t sm, const char *feature);
+SM_API void            feature_register(sm_t *sm, const char *feature);
+SM_API void            feature_unregister(sm_t *sm, const char *feature);
 
 
 /* driver module manager */
@@ -358,50 +356,50 @@ typedef enum {
     chain_DISCO_EXTEND          /**< disco request, extend sm disco#info */
 } mod_chain_t;
 
-typedef struct module_st *module_t;
-typedef struct mod_instance_st *mod_instance_t;
+typedef struct module_st module_t;
+typedef struct mod_instance_st mod_instance_t;
 
 /** module manager data */
 struct mm_st {
-    sm_t                sm;         /**< sm context */
+    sm_t                *sm;         /**< sm context */
 
-    xht                 modules;    /**< pointers to module data (key is module name) */
+    xht                 *modules;    /**< pointers to module data (key is module name) */
 
     int                 nindex;     /**< counter for module instance sequence (!!! should be local to mm_new) */
 
     /** sess-start chain */
-    mod_instance_t      *sess_start;    int nsess_start;
+    mod_instance_t      **sess_start;    int nsess_start;
     /** sess-end chain */
-    mod_instance_t      *sess_end;      int nsess_end;
+    mod_instance_t      **sess_end;      int nsess_end;
     /** in-sess chain */
-    mod_instance_t      *in_sess;       int nin_sess;
+    mod_instance_t      **in_sess;       int nin_sess;
     /** in-router chain */
-    mod_instance_t      *in_router;     int nin_router;
+    mod_instance_t      **in_router;     int nin_router;
     /** out-sess chain */
-    mod_instance_t      *out_sess;      int nout_sess;
+    mod_instance_t      **out_sess;      int nout_sess;
     /** out-router chain */
-    mod_instance_t      *out_router;    int nout_router;
+    mod_instance_t      **out_router;    int nout_router;
     /** pkt-sm chain */
-    mod_instance_t      *pkt_sm;        int npkt_sm;
+    mod_instance_t      **pkt_sm;        int npkt_sm;
     /** pkt-user chain */
-    mod_instance_t      *pkt_user;      int npkt_user;
+    mod_instance_t      **pkt_user;      int npkt_user;
     /** pkt-router chain */
-    mod_instance_t      *pkt_router;    int npkt_router;
+    mod_instance_t      **pkt_router;    int npkt_router;
     /** user-load chain */
-    mod_instance_t      *user_load;     int nuser_load;
+    mod_instance_t      **user_load;     int nuser_load;
     /** user-create chain */
-    mod_instance_t      *user_create;   int nuser_create;
+    mod_instance_t      **user_create;   int nuser_create;
     /** user-delete chain */
-    mod_instance_t      *user_delete;   int nuser_delete;
+    mod_instance_t      **user_delete;   int nuser_delete;
     /** disco-extend chain */
-    mod_instance_t      *disco_extend;  int ndisco_extend;
+    mod_instance_t      **disco_extend;  int ndisco_extend;
     /** user-unload chain */
-    mod_instance_t      *user_unload;     int nuser_unload;
+    mod_instance_t      **user_unload;     int nuser_unload;
 };
 
 /** data for a single module */
 struct module_st {
-    mm_t                mm;         /**< module manager */
+    mm_t                *mm;         /**< module manager */
 
     const char          *name;      /**< name of module */
 
@@ -411,42 +409,42 @@ struct module_st {
 
     void                *handle;    /**< module handle */
 
-    int                 (*module_init_fn)(mod_instance_t);    /**< module init function */
+    int                 (*module_init_fn)(mod_instance_t*);    /**< module init function */
 
     int                 init;       /**< number of times the module intialiser has been called */
 
     void                *private;   /**< module private data */
 
-    int                 (*sess_start)(mod_instance_t mi, sess_t sess);              /**< sess-start handler */
-    void                (*sess_end)(mod_instance_t mi, sess_t sess);                /**< sess-end handler */
+    int                 (*sess_start)(mod_instance_t *mi, sess_t *sess);              /**< sess-start handler */
+    void                (*sess_end)(mod_instance_t *mi, sess_t *sess);                /**< sess-end handler */
 
-    mod_ret_t           (*in_sess)(mod_instance_t mi, sess_t sess, pkt_t pkt);      /**< in-sess handler */
-    mod_ret_t           (*in_router)(mod_instance_t mi, pkt_t pkt);                 /**< in-router handler */
+    mod_ret_t           (*in_sess)(mod_instance_t *mi, sess_t *sess, pkt_t *pkt);      /**< in-sess handler */
+    mod_ret_t           (*in_router)(mod_instance_t *mi, pkt_t *pkt);                 /**< in-router handler */
 
-    mod_ret_t           (*out_sess)(mod_instance_t mi, sess_t sess, pkt_t pkt);     /**< out-sess handler */
-    mod_ret_t           (*out_router)(mod_instance_t mi, pkt_t pkt);                /**< out-router handler */
+    mod_ret_t           (*out_sess)(mod_instance_t *mi, sess_t *sess, pkt_t *pkt);     /**< out-sess handler */
+    mod_ret_t           (*out_router)(mod_instance_t *mi, pkt_t *pkt);                /**< out-router handler */
 
-    mod_ret_t           (*pkt_sm)(mod_instance_t mi, pkt_t pkt);                    /**< pkt-sm handler */
-    mod_ret_t           (*pkt_user)(mod_instance_t mi, user_t user, pkt_t pkt);     /**< pkt-user handler */
+    mod_ret_t           (*pkt_sm)(mod_instance_t *mi, pkt_t *pkt);                    /**< pkt-sm handler */
+    mod_ret_t           (*pkt_user)(mod_instance_t *mi, user_t *user, pkt_t *pkt);     /**< pkt-user handler */
 
-    mod_ret_t           (*pkt_router)(mod_instance_t mi, pkt_t pkt);                /**< pkt-router handler */
+    mod_ret_t           (*pkt_router)(mod_instance_t *mi, pkt_t *pkt);                /**< pkt-router handler */
 
-    int                 (*user_load)(mod_instance_t mi, user_t user);               /**< user-load handler */
-    int                 (*user_unload)(mod_instance_t mi, user_t user);               /**< user-load handler */
+    int                 (*user_load)(mod_instance_t *mi, user_t *user);               /**< user-load handler */
+    int                 (*user_unload)(mod_instance_t *mi, user_t *user);               /**< user-load handler */
 
-    int                 (*user_create)(mod_instance_t mi, jid_t jid);               /**< user-create handler */
-    void                (*user_delete)(mod_instance_t mi, jid_t jid);               /**< user-delete handler */
+    int                 (*user_create)(mod_instance_t *mi, jid_t *jid);               /**< user-create handler */
+    void                (*user_delete)(mod_instance_t *mi, jid_t *jid);               /**< user-delete handler */
 
-    void                (*disco_extend)(mod_instance_t mi, pkt_t pkt);              /**< disco-extend handler */
+    void                (*disco_extend)(mod_instance_t *mi, pkt_t *pkt);              /**< disco-extend handler */
 
-    void                (*free)(module_t mod);                                      /**< called when module is freed */
+    void                (*free)(module_t *mod);                                      /**< called when module is freed */
 };
 
 /** single instance of a module in a chain */
 struct mod_instance_st {
-    sm_t                sm;         /**< sm context */
+    sm_t                *sm;         /**< sm context */
 
-    module_t            mod;        /**< module that this is an instance of */
+    module_t            *mod;        /**< module that this is an instance of */
 
     int                 seq;        /**< number of this instance */
 
@@ -456,43 +454,43 @@ struct mod_instance_st {
 };
 
 /** allocate a module manager instance, and loads the modules */
-SM_API mm_t                    mm_new(sm_t sm);
+SM_API mm_t                   *mm_new(sm_t *sm);
 /** free a mm instance */
-SM_API void                    mm_free(mm_t mm);
+SM_API void                    mm_free(mm_t *mm);
 
 /** fire sess-start chain */
-SM_API int                     mm_sess_start(mm_t mm, sess_t sess);
+SM_API int                     mm_sess_start(mm_t *mm, sess_t *sess);
 /** fire sess-end chain */
-SM_API void                    mm_sess_end(mm_t mm, sess_t sess);
+SM_API void                    mm_sess_end(mm_t *mm, sess_t *sess);
 
 /** fire in-sess chain */
-SM_API mod_ret_t               mm_in_sess(mm_t mm, sess_t sess, pkt_t pkt);
+SM_API mod_ret_t               mm_in_sess(mm_t *mm, sess_t *sess, pkt_t *pkt);
 /** fire in-router chain */
-SM_API mod_ret_t               mm_in_router(mm_t mm, pkt_t pkt);
+SM_API mod_ret_t               mm_in_router(mm_t *mm, pkt_t *pkt);
 
 /** fire out-sess chain */
-SM_API mod_ret_t               mm_out_sess(mm_t mm, sess_t sess, pkt_t pkt);
+SM_API mod_ret_t               mm_out_sess(mm_t *mm, sess_t *sess, pkt_t *pkt);
 /** fire out-router chain */
-SM_API mod_ret_t               mm_out_router(mm_t mm, pkt_t pkt);
+SM_API mod_ret_t               mm_out_router(mm_t *mm, pkt_t *pkt);
 
 /** fire pkt-sm chain */
-SM_API mod_ret_t               mm_pkt_sm(mm_t mm, pkt_t pkt);
+SM_API mod_ret_t               mm_pkt_sm(mm_t *mm, pkt_t *pkt);
 /** fire pkt-user chain */
-SM_API mod_ret_t               mm_pkt_user(mm_t mm, user_t user, pkt_t pkt);
+SM_API mod_ret_t               mm_pkt_user(mm_t *mm, user_t *user, pkt_t *pkt);
 
 /** fire pkt-router chain */
-SM_API mod_ret_t               mm_pkt_router(mm_t mm, pkt_t pkt);
+SM_API mod_ret_t               mm_pkt_router(mm_t *mm, pkt_t *pkt);
 
 /** fire user-load chain */
-SM_API int                     mm_user_load(mm_t mm, user_t user);
+SM_API int                     mm_user_load(mm_t *mm, user_t *user);
 
 /** fire user-unload chain */
-SM_API int                     mm_user_unload(mm_t mm, user_t user);
+SM_API int                     mm_user_unload(mm_t *mm, user_t *user);
 
 /** fire user-create chain */
-SM_API int                     mm_user_create(mm_t mm, jid_t jid);
+SM_API int                     mm_user_create(mm_t *mm, jid_t *jid);
 /** fire user-delete chain */
-SM_API void                    mm_user_delete(mm_t mm, jid_t jid);
+SM_API void                    mm_user_delete(mm_t *mm, jid_t *jid);
 
 /** fire disco-extend chain */
-SM_API void                    mm_disco_extend(mm_t mm, pkt_t pkt);
+SM_API void                    mm_disco_extend(mm_t *mm, pkt_t *pkt);

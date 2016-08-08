@@ -418,7 +418,7 @@ ar_init(authreg_t ar)
         }
     }
 
-    data = (moddata_t) calloc(1, sizeof(struct moddata_st));
+    data = new(moddata_t);
     if (!data) {
     log_write(ar->c2s->log, LOG_ERR,
           "sqlite (authreg): memory error.");

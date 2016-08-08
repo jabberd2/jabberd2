@@ -59,26 +59,6 @@
     </retry>
   </router>
 
-  <!-- Log configuration - type is "syslog", "file" or "stdout" -->
-  <log type='syslog'>
-    <!-- If logging to syslog, this is the log ident -->
-    <ident>jabberd/s2s</ident>
-
-    <!-- If logging to syslog, this is the log facility
-         (local0 - local7)                        [default: local3] -->
-    <facility>local3</facility>
-
-    <!-- if logging to file, this is the filename of the logfile -->
-    <!--
-    <file>@localstatedir@/@package@/log/s2s.log</file>
-    -->
-
-    <!-- Filename of the debug logfile -->
-    <!--
-    <debug>@localstatedir@/@package@/log/debug-${id}.log</debug>
-    -->
-  </log>
-
   <!-- Local network configuration -->
   <local>
     <!-- IP and port to listen for incoming s2s connections on

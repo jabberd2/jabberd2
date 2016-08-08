@@ -20,6 +20,9 @@
 
 #include "storage.h"
 
+#include <stdint.h>
+#include <string.h>
+
 /** @file storage/object.c
   * @brief object sets
   * @author Robert Norris
@@ -31,30 +34,30 @@
 union xhashv
 {
   void **val;
-  os_field_t *osf_val;
+  os_field_t **osf_val;
 };
 
-os_t os_new(void) {
-    pool_t p;
-    os_t os;
+os_t *os_new(void) {
+    pool_t *p;
+    os_t *os;
 
     p = pool_new();
-    os = (os_t) pmalloco(p, sizeof(struct os_st));
+    os = pnew(p, os_t);
 
     os->p = p;
 
     return os;
 }
 
-void os_free(os_t os) {
+void os_free(os_t *os) {
     pool_free(os->p);
 }
 
-int os_count(os_t os) {
+int os_count(os_t *os) {
     return os->count;
 }
 
-int os_iter_first(os_t os) {
+int os_iter_first(os_t *os) {
     os->iter = os->head;
 
     if(os->iter == NULL)
@@ -63,7 +66,7 @@ int os_iter_first(os_t os) {
     return 1;
 }
 
-int os_iter_next(os_t os) {
+int os_iter_next(os_t *os) {
     if(os->iter == NULL)
         return 0;
 
@@ -75,22 +78,26 @@ int os_iter_next(os_t os) {
     return 1;
 }
 
-os_object_t os_iter_object(os_t os) {
+os_object_t *os_iter_object(os_t *os) {
     return os->iter;
 }
 
-os_object_t os_object_new(os_t os) {
-    os_object_t o;
+static void _os_object_pool_xhash_free(void *arg) {
+    xhash_free((xht *) arg);
+}
 
-    log_debug(ZONE, "creating new object");
+os_object_t *os_object_new(os_t *os) {
+    os_object_t *o;
 
-    o = (os_object_t) pmalloco(os->p, sizeof(struct os_object_st));
+    // log_debug(ZONE, "creating new object");
+
+    o = pnew(os->p, os_object_t);
     o->os = os;
 
     o->hash = xhash_new(51);
 
     /* make sure that the hash gets freed when the os pool gets freed */
-    pool_cleanup(os->p, (pool_cleanup_t) xhash_free, (void *)(o->hash) );
+    pool_cleanup(os->p, _os_object_pool_xhash_free, (void *)(o->hash));
 
     /* insert at the end, we have to preserve order */
     o->prev = os->tail;
@@ -103,8 +110,8 @@ os_object_t os_object_new(os_t os) {
     return o;
 }
 
-void os_object_free(os_object_t o) {
-    log_debug(ZONE, "dropping object");
+void os_object_free(os_object_t *o) {
+    // log_debug(ZONE, "dropping object");
 
     if(o->prev != NULL)
         o->prev->next = o->next;
@@ -124,18 +131,22 @@ void os_object_free(os_object_t o) {
 
 /* wrappers for os_object_put to avoid breaking strict-aliasing rules in gcc3 */
 
-void os_object_put_time(os_object_t o, const char *key, const time_t *val) {
+void os_object_put_time(os_object_t *o, const char *key, const time_t *val) {
     void *ptr = (void *) val;
     os_object_put(o, key, ptr, os_type_INTEGER);
 }
 
-void os_object_put(os_object_t o, const char *key, const void *val, os_type_t type) {
-    os_field_t osf;
-    nad_t nad;
+static void _os_object_pool_nad_free(void *arg) {
+    nad_free((nad_t *) arg);
+}
 
-    log_debug(ZONE, "adding field %s (val %x type %d) to object", key, val, type);
+void os_object_put(os_object_t *o, const char *key, const void *val, os_type_t type) {
+    os_field_t *osf;
+    nad_t *nad;
 
-    osf = pmalloco(o->os->p, sizeof(struct os_field_st));
+    // log_debug(ZONE, "adding field %s (val %x type %d) to object", key, val, type);
+
+    osf = pnew(o->os->p, os_field_t);
     osf->key = pstrdup(o->os->p, key);
 
     switch(type) {
@@ -149,10 +160,10 @@ void os_object_put(os_object_t o, const char *key, const void *val, os_type_t ty
             break;
 
         case os_type_NAD:
-            nad = nad_copy((nad_t) val);
+            nad = nad_copy((nad_t*) val);
 
             /* make sure that the nad gets freed when the os pool gets freed */
-            pool_cleanup(o->os->p, (pool_cleanup_t) nad_free, (void *) nad);
+            pool_cleanup(o->os->p, _os_object_pool_nad_free, (void *) nad);
 
             osf->val = (void *) nad;
             break;
@@ -167,18 +178,18 @@ void os_object_put(os_object_t o, const char *key, const void *val, os_type_t ty
 }
 
 /* wrappers for os_object_get to avoid breaking strict-aliasing rules in gcc3 */
-int os_object_get_nad(os_t os, os_object_t o, const char *key, nad_t *val) {
-    void *ptr = (void *) val;
+int os_object_get_nad(os_t *os, os_object_t *o, const char *key, nad_t **val) {
+    void *ptr = val;
     int ret;
 
     ret = os_object_get(os, o, key, &ptr, os_type_NAD, NULL);
-    *val = (nad_t) ptr;
+    *val = (nad_t*) ptr;
 
     return ret;
 }
 
-int os_object_get_str(os_t os, os_object_t o, const char *key, char **val) {
-    void *ptr = (void *) val;
+int os_object_get_str(os_t *os, os_object_t *o, const char *key, char **val) {
+    void *ptr = val;
     int ret;
 
     ret = os_object_get(os, o, key, &ptr, os_type_STRING, NULL);
@@ -187,8 +198,8 @@ int os_object_get_str(os_t os, os_object_t o, const char *key, char **val) {
     return ret;
 }
 
-int os_object_get_int(os_t os, os_object_t o, const char *key, int *val) {
-    void *ptr = (void *) val;
+int os_object_get_int(os_t *os, os_object_t *o, const char *key, int *val) {
+    void *ptr = val;
     int ret;
 
     ret = os_object_get(os, o, key, &ptr, os_type_INTEGER, NULL);
@@ -197,8 +208,8 @@ int os_object_get_int(os_t os, os_object_t o, const char *key, int *val) {
     return ret;
 }
 
-int os_object_get_bool(os_t os, os_object_t o, const char *key, int *val) {
-    void *ptr = (void *) val;
+int os_object_get_bool(os_t *os, os_object_t *o, const char *key, int *val) {
+    void *ptr = val;
     int ret;
 
     ret = os_object_get(os, o, key, &ptr, os_type_INTEGER, NULL);
@@ -207,8 +218,8 @@ int os_object_get_bool(os_t os, os_object_t o, const char *key, int *val) {
     return ret;
 }
 
-int os_object_get_time(os_t os, os_object_t o, const char *key, time_t *val) {
-    void *ptr = (void *) val;
+int os_object_get_time(os_t *os, os_object_t *o, const char *key, time_t *val) {
+    void *ptr = val;
     int ret;
 
     ret = os_object_get(os, o, key, &ptr, os_type_INTEGER, NULL);
@@ -217,15 +228,15 @@ int os_object_get_time(os_t os, os_object_t o, const char *key, time_t *val) {
     return ret;
 }
 
-int os_object_get(os_t os, os_object_t o, const char *key, void **val, os_type_t type, os_type_t *ot) {
-    os_field_t osf;
-    nad_t nad;
+int os_object_get(os_t *os, os_object_t *o, const char *key, void **val, os_type_t type, os_type_t *ot) {
+    os_field_t *osf;
+    nad_t *nad;
 
    /* Type complexity is to deal with string/NADs. If an object contains xml, it will only be 
       parsed and returned as a NAD if type == os_type_NAD, otherwise if type == os_type_UNKNOWN
       it will be returned as string, unless it's already been converted to a NAD */
 
-    osf = (os_field_t) xhash_get(o->hash, key);
+    osf = xhash_get(o->hash, key);
     if(osf == NULL) {
         *val = NULL;
         return 0;
@@ -259,7 +270,7 @@ int os_object_get(os_t os, os_object_t o, const char *key, void **val, os_type_t
                    nad = nad_parse(((char *) osf->val) + 3, strlen(osf->val) - 3); 
                    if(nad == NULL) {
                             /* unparseable NAD */
-                            log_debug(ZONE, "cell returned from storage for key %s has unparseable XML content (%lu bytes)", key, strlen(osf->val)-3);
+                            // log_debug(ZONE, "cell returned from storage for key %s has unparseable XML content (%lu bytes)", key, strlen(osf->val)-3);
                             *val = NULL;
                             return 0;
                    } 
@@ -267,7 +278,7 @@ int os_object_get(os_t os, os_object_t o, const char *key, void **val, os_type_t
                    /* replace the string with a NAD */
                    osf->val = (void *) nad;
 
-                   pool_cleanup(os->p, (pool_cleanup_t) nad_free, (void *) nad);
+                   pool_cleanup(os->p, _os_object_pool_nad_free, (void *) nad);
 
                    *val = osf->val;
                    osf->type = os_type_NAD;
@@ -279,21 +290,21 @@ int os_object_get(os_t os, os_object_t o, const char *key, void **val, os_type_t
             *val = NULL;
     }
 
-    log_debug(ZONE, "got field %s (val %x type %d) to object", key, *val, type);
+    // log_debug(ZONE, "got field %s (val %x type %d) to object", key, *val, type);
 
     return 1;
 }
 
-int os_object_iter_first(os_object_t o) {
+int os_object_iter_first(os_object_t *o) {
     return xhash_iter_first(o->hash);
 }
 
-int os_object_iter_next(os_object_t o) {
+int os_object_iter_next(os_object_t *o) {
     return xhash_iter_next(o->hash);
 }
 
-void os_object_iter_get(os_object_t o, char **key, void **val, os_type_t *type) {
-    os_field_t osf;
+void os_object_iter_get(os_object_t *o, char **key, void **val, os_type_t *type) {
+    os_field_t *osf;
     union xhashv xhv;
 
     int keylen;
@@ -322,5 +333,5 @@ void os_object_iter_get(os_object_t o, char **key, void **val, os_type_t *type) 
             *val = NULL;
     }
     
-    log_debug(ZONE, "got iter field %s (val %x type %d) to object", *key, *val, *type);
+    // log_debug(ZONE, "got iter field %s (val %x type %d) to object", *key, *val, *type);
 }

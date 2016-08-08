@@ -18,24 +18,25 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
-#include "util.h"
-#include "expat.h"
+#include "config.h"
+#include "str.h"
+#include <expat.h>
+#include <errno.h>
+#include <string.h>
+#include <stdio.h>
+
 
 /** new config structure */
-config_t config_new(void)
+config_t *config_new(unsigned int prime)
 {
-    config_t c;
-
-    c = (config_t) calloc(1, sizeof(struct config_st));
-
-    c->hash = xhash_new(501);
-
+    config_t *c = new(config_t);
+    c->hash = xhash_new(prime ? prime : 501);
     return c;
 }
 
 struct build_data
 {
-    nad_t               nad;
+    nad_t               *nad;
     int                 depth;
 };
 
@@ -68,16 +69,16 @@ static void _config_charData(void *arg, const char *str, int len)
     nad_append_cdata(bd->nad, (char *) str, len, bd->depth);
 }
 
-static char *_config_expandx(config_t c, const char *value, int l);
+static char *_config_expandx(config_t *c, const char *value, int l);
 
 /** turn an xml file into a config hash */
-int config_load(config_t c, const char *file)
+int config_load(config_t *c, const char *file)
 {
     return config_load_with_id(c, file, 0);
 }
 
 /** turn an xml file into a config hash */
-int config_load_with_id(config_t c, const char *file, const char *id)
+int config_load_with_id(config_t *c, const char *file, const char *id)
 {
     struct build_data bd;
     FILE *f;
@@ -86,7 +87,7 @@ int config_load_with_id(config_t c, const char *file, const char *id)
     int attr;
     char buf[1024], *next;
     struct nad_elem_st **path;
-    config_elem_t elem;
+    config_elem_t *elem;
     int rv = 0;
 
     /* open the file */
@@ -149,7 +150,7 @@ int config_load_with_id(config_t c, const char *file, const char *id)
 
     // Put id if specified
     if (id) {
-        elem = pmalloco(xhash_pool(c->hash), sizeof(struct config_elem_st));
+        elem = pnew(xhash_pool(c->hash), config_elem_t);
         xhash_put(c->hash, pstrdup(xhash_pool(c->hash), "id"), elem);
         elem->values = calloc(1, sizeof(char *));
         elem->values[0] = pstrdup(xhash_pool(c->hash), id);
@@ -166,7 +167,7 @@ int config_load_with_id(config_t c, const char *file, const char *id)
         if(end <= bd.nad->elems[i].depth)
         {
             end = bd.nad->elems[i].depth + 1;
-            path = (struct nad_elem_st **) realloc((void *) path, sizeof(struct nad_elem_st *) * end);
+            path = realloc((void *) path, sizeof(struct nad_elem_st *) * end);
         }
 
         /* save this path element */
@@ -190,13 +191,13 @@ int config_load_with_id(config_t c, const char *file, const char *id)
         if(elem == NULL)
         {
             /* haven't seen it before, so create it */
-            elem = pmalloco(xhash_pool(c->hash), sizeof(struct config_elem_st));
+            elem = pnew(xhash_pool(c->hash), config_elem_t);
             xhash_put(c->hash, pstrdup(xhash_pool(c->hash), buf), elem);
         }
 
         /* make room for this value .. can't easily realloc off a pool, so
          * we do it this way and let _config_reaper clean up */
-        elem->values = realloc((void *) elem->values, sizeof(char *) * (elem->nvalues + 1));
+        elem->values = realloc(elem->values, sizeof(char *) * (elem->nvalues + 1));
 
         /* and copy it in */
         if(NAD_CDATA_L(bd.nad, i) > 0) {
@@ -215,7 +216,7 @@ int config_load_with_id(config_t c, const char *file, const char *id)
         }
 
         /* make room for the attribute lists */
-        elem->attrs = realloc((void *) elem->attrs, sizeof(char **) * (elem->nvalues + 1));
+        elem->attrs = realloc(elem->attrs, sizeof(char **) * (elem->nvalues + 1));
         elem->attrs[elem->nvalues] = NULL;
 
         /* count the attributes */
@@ -269,15 +270,15 @@ int config_load_with_id(config_t c, const char *file, const char *id)
 }
 
 /** get the config element for this key */
-config_elem_t config_get(config_t c, const char *key)
+config_elem_t *config_get(config_t *c, const char *key)
 {
     return xhash_get(c->hash, key);
 }
 
 /** get config value n for this key */
-const char *config_get_one(config_t c, const char* key, int num)
+const char *config_get_one(config_t *c, const char* key, unsigned int num)
 {
-    config_elem_t elem = xhash_get(c->hash, key);
+    config_elem_t *elem = xhash_get(c->hash, key);
 
     if(elem == NULL)
         return NULL;
@@ -289,7 +290,7 @@ const char *config_get_one(config_t c, const char* key, int num)
 }
 
 /** get config value n for this key, returns default_value if not found */
-const char *config_get_one_default(config_t c, const char *key, int num, const char *default_value)
+const char *config_get_one_default(config_t *c, const char *key, unsigned int num, const char *default_value)
 {
     const char *rv = config_get_one(c, key, num);
 
@@ -301,9 +302,9 @@ const char *config_get_one_default(config_t c, const char *key, int num, const c
 
 
 /** how many values for this key? */
-int config_count(config_t c, const char *key)
+int config_count(config_t *c, const char *key)
 {
-    config_elem_t elem = xhash_get(c->hash, key);
+    config_elem_t *elem = xhash_get(c->hash, key);
 
     if(elem == NULL)
         return 0;
@@ -312,9 +313,9 @@ int config_count(config_t c, const char *key)
 }
 
 /** get an attr for this value */
-char *config_get_attr(config_t c, const char *key, int num, const char *attr)
+char *config_get_attr(config_t *c, const char *key, unsigned int num, const char *attr)
 {
-    config_elem_t elem = xhash_get(c->hash, key);
+    config_elem_t *elem = xhash_get(c->hash, key);
 
     if(elem == NULL || num >= elem->nvalues || elem->attrs == NULL || elem->attrs[num] == NULL)
         return NULL;
@@ -325,18 +326,18 @@ char *config_get_attr(config_t c, const char *key, int num, const char *attr)
 /** cleanup helper */
 static void _config_reaper(const char *key, int keylen, void *val, void *arg)
 {
-    config_elem_t elem = (config_elem_t) val;
+    config_elem_t *elem = val;
 
     free(elem->values);
     free(elem->attrs);
 }
 
-char *config_expand(config_t c, const char *value)
+char *config_expand(config_t *c, const char *value)
 {
     return _config_expandx(c, value, strlen(value));
 }
 
-static char *_config_expandx(config_t c, const char *value, int l)
+static char *_config_expandx(config_t *c, const char *value, int l)
 {
 #ifdef CONFIGEXPAND_GUARDED
     static char guard[] = "deadbeaf";
@@ -408,7 +409,7 @@ static char *_config_expandx(config_t c, const char *value, int l)
 }
 
 /** cleanup */
-void config_free(config_t c)
+void config_free(config_t *c)
 {
     xhash_walk(c->hash, _config_reaper, NULL);
 

@@ -21,10 +21,33 @@
  */
 
 #include "sx.h"
+#include <lib/uri.h>
+#include <lib/log.h>
+#include <lib/miniz.h>
 
-static void _sx_compress_notify_compress(sx_t s, void *arg) {
+#include <string.h>
+#include <assert.h>
 
-    _sx_debug(ZONE, "preparing for compress");
+/* allocation chunk for decompression */
+#define SX_COMPRESS_CHUNK       16384
+
+/** a single conn */
+typedef struct _sx_compress_conn_st {
+    /* miniz *flators */
+    tinfl_decompressor  inflator;
+    tdefl_compressor    deflator;
+
+    /* buffers for compressed and decompressed data */
+    sx_buf_t   *wbuf, *rbuf;
+
+} _sx_compress_conn_t;
+
+#define LOG_CATEGORY "sx.compress"
+static log4c_category_t *log;
+
+static void _sx_compress_notify_compress(sx_t *s, __attribute__ ((unused)) void *arg) {
+
+    LOG_DEBUG(log, "preparing for compress");
 
     _sx_reset(s);
 
@@ -32,31 +55,31 @@ static void _sx_compress_notify_compress(sx_t s, void *arg) {
     sx_server_init(s, s->flags | SX_COMPRESS_WRAPPER);
 }
 
-static int _sx_compress_process(sx_t s, sx_plugin_t p, nad_t nad) {
+static int _sx_compress_process(sx_t *s, __attribute__ ((unused)) sx_plugin_t *p, nad_t *nad) {
     int flags;
     char *ns = NULL, *to = NULL, *from = NULL, *version = NULL;
     sx_error_t sxe;
 
     /* not interested if we're a server and we never offered it */
-    if(s->type == type_SERVER && !(s->flags & SX_COMPRESS_OFFER))
+    if (s->type == type_SERVER && !(s->flags & SX_COMPRESS_OFFER))
         return 1;
 
     /* only want compress packets */
-    if(NAD_ENS(nad, 0) < 0 || NAD_NURI_L(nad, NAD_ENS(nad, 0)) != sizeof(uri_COMPRESS)-1 || strncmp(NAD_NURI(nad, NAD_ENS(nad, 0)), uri_COMPRESS, sizeof(uri_COMPRESS)-1) != 0)
+    if (NAD_ENS(nad, 0) < 0 || NAD_NURI_L(nad, NAD_ENS(nad, 0)) != sizeof(uri_COMPRESS)-1 || strncmp(NAD_NURI(nad, NAD_ENS(nad, 0)), uri_COMPRESS, sizeof(uri_COMPRESS)-1) != 0)
         return 1;
 
     /* compress from client */
-    if(s->type == type_SERVER) {
-        if(NAD_ENAME_L(nad, 0) == 8 && strncmp(NAD_ENAME(nad, 0), "compress", 8) == 0) {
+    if (s->type == type_SERVER) {
+        if (NAD_ENAME_L(nad, 0) == 8 && strncmp(NAD_ENAME(nad, 0), "compress", 8) == 0) {
             nad_free(nad);
 
             /* can't go on if we've been here before */
-            if(s->flags & SX_COMPRESS_WRAPPER) {
-                _sx_debug(ZONE, "compress requested on already compressed channel, dropping packet");
+            if (s->flags & SX_COMPRESS_WRAPPER) {
+                LOG_WARN(log, "compress requested on already compressed channel, dropping packet");
                 return 0;
             }
 
-            _sx_debug(ZONE, "compress requested, setting up");
+            LOG_DEBUG(log, "compress requested, setting up");
 
             /* go ahead */
             jqueue_push(s->wbufq, _sx_buffer_new("<compressed xmlns='" uri_COMPRESS "'/>", sizeof(uri_COMPRESS)-1 + 22, _sx_compress_notify_compress, NULL), 0);
@@ -67,9 +90,9 @@ static int _sx_compress_process(sx_t s, sx_plugin_t p, nad_t nad) {
         }
     }
 
-    else if(s->type == type_CLIENT) {
+    else if (s->type == type_CLIENT) {
         /* kick off the handshake */
-        if(NAD_ENAME_L(nad, 0) == 7 && strncmp(NAD_ENAME(nad, 0), "compressed", 7) == 0) {
+        if (NAD_ENAME_L(nad, 0) == 7 && strncmp(NAD_ENAME(nad, 0), "compressed", 7) == 0) {
             nad_free(nad);
 
             /* save interesting bits */
@@ -77,32 +100,32 @@ static int _sx_compress_process(sx_t s, sx_plugin_t p, nad_t nad) {
 
             if(s->ns != NULL) ns = strdup(s->ns);
 
-            if(s->req_to != NULL) to = strdup(s->req_to);
-            if(s->req_from != NULL) from = strdup(s->req_from);
-            if(s->req_version != NULL) version = strdup(s->req_version);
+            if (s->req_to != NULL) to = strdup(s->req_to);
+            if (s->req_from != NULL) from = strdup(s->req_from);
+            if (s->req_version != NULL) version = strdup(s->req_version);
 
             /* reset state */
             _sx_reset(s);
 
-            _sx_debug(ZONE, "server ready for compression, starting");
+            LOG_DEBUG(log, "server ready for compression, starting");
 
             /* second time round */
             sx_client_init(s, flags | SX_COMPRESS_WRAPPER, ns, to, from, version);
 
             /* free bits */
-            if(ns != NULL) free(ns);
-            if(to != NULL) free(to);
-            if(from != NULL) free(from);
-            if(version != NULL) free(version);
+            if (ns != NULL) free(ns);
+            if (to != NULL) free(to);
+            if (from != NULL) free(from);
+            if (version != NULL) free(version);
 
             return 0;
         }
 
         /* busted server */
-        if(NAD_ENAME_L(nad, 0) == 7 && strncmp(NAD_ENAME(nad, 0), "failure", 7) == 0) {
+        if (NAD_ENAME_L(nad, 0) == 7 && strncmp(NAD_ENAME(nad, 0), "failure", 7) == 0) {
             nad_free(nad);
 
-            _sx_debug(ZONE, "server can't handle compression, business as usual");
+            LOG_NOTICE(log, "server can't handle compression, business as usual");
 
             _sx_gen_error(sxe, SX_ERR_COMPRESS_FAILURE, "compress failure", "Server was unable to establish compression");
             _sx_event(s, event_ERROR, (void *) &sxe);
@@ -111,20 +134,20 @@ static int _sx_compress_process(sx_t s, sx_plugin_t p, nad_t nad) {
         }
     }
 
-    _sx_debug(ZONE, "unknown compress namespace element '%.*s', dropping packet", NAD_ENAME_L(nad, 0), NAD_ENAME(nad, 0));
+    LOG_WARN(log, "unknown compress namespace element '%.*s', dropping packet", NAD_ENAME_L(nad, 0), NAD_ENAME(nad, 0));
     nad_free(nad);
     return 0;
 }
 
-static void _sx_compress_features(sx_t s, sx_plugin_t p, nad_t nad) {
+static void _sx_compress_features(sx_t *s, __attribute__ ((unused)) sx_plugin_t *p, nad_t *nad) {
     int ns;
 
     /* if the session is already compressed, or the app told us not to, or we are on WebSocket framing,
-	 * or STARTTLS is required and stream is not encrypted yet, then we don't offer anything */
-    if((s->flags & SX_COMPRESS_WRAPPER) || !(s->flags & SX_COMPRESS_OFFER) || ((s->flags & SX_SSL_STARTTLS_REQUIRE) && s->ssf == 0) || (s->flags & SX_WEBSOCKET_WRAPPER))
+        * or STARTTLS is required and stream is not encrypted yet, then we don't offer anything */
+    if ((s->flags & SX_COMPRESS_WRAPPER) || !(s->flags & SX_COMPRESS_OFFER) || ((s->flags & SX_SSL_STARTTLS_REQUIRE) && s->ssf == 0) || (s->flags & SX_WEBSOCKET_WRAPPER))
         return;
 
-    _sx_debug(ZONE, "offering compression");
+    LOG_DEBUG(log, "offering compression");
 
     ns = nad_add_namespace(nad, uri_COMPRESS_FEATURE, NULL);
     nad_append_elem(nad, ns, "compression", 1);
@@ -132,20 +155,19 @@ static void _sx_compress_features(sx_t s, sx_plugin_t p, nad_t nad) {
     nad_append_cdata(nad, "zlib", 4, 3);
 }
 
-static int _sx_compress_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
-    _sx_compress_conn_t sc = (_sx_compress_conn_t) s->plugin_data[p->index];
-    int ret;
+static int _sx_compress_wio(sx_t *s, sx_plugin_t *p, sx_buf_t *buf) {
+    _sx_compress_conn_t *sc = (_sx_compress_conn_t*) s->plugin_data[p->index];
     sx_error_t sxe;
 
     /* only bothering if they asked for wrappermode */
-    if(!(s->flags & SX_COMPRESS_WRAPPER))
+    if (!(s->flags & SX_COMPRESS_WRAPPER))
         return 1;
 
-    _sx_debug(ZONE, "in _sx_compress_wio");
+    LOG_TRACE(log, "in _sx_compress_wio");
 
     /* move the data into the zlib write buffer */
-    if(buf->len > 0) {
-        _sx_debug(ZONE, "loading %d bytes into zlib write buffer", buf->len);
+    if (buf->len > 0) {
+        LOG_TRACE(log, "loading %d bytes into zlib write buffer", buf->len);
 
         _sx_buffer_alloc_margin(sc->wbuf, 0, buf->len);
         memcpy(sc->wbuf->data + sc->wbuf->len, buf->data, buf->len);
@@ -155,25 +177,31 @@ static int _sx_compress_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     }
 
     /* compress the data */
-    if(sc->wbuf->len > 0) {
-        sc->wstrm.avail_in = sc->wbuf->len;
-        sc->wstrm.next_in = (Bytef*)sc->wbuf->data;
+    if (sc->wbuf->len > 0) {
+        tdefl_status status;
+        size_t in_bytes, out_bytes, avail_out;
+
         /* deflate() on write buffer until there is data to compress */
         do {
             /* make place for deflated data */
-            _sx_buffer_alloc_margin(buf, 0, sc->wbuf->len + SX_COMPRESS_CHUNK);
+            avail_out = sc->wbuf->len + SX_COMPRESS_CHUNK;
+            _sx_buffer_alloc_margin(buf, 0, avail_out);
 
-                sc->wstrm.avail_out = sc->wbuf->len + SX_COMPRESS_CHUNK;
-            sc->wstrm.next_out = (Bytef*)(buf->data + buf->len);
+            in_bytes = sc->wbuf->len;
+            out_bytes = avail_out;
 
-            ret = deflate(&(sc->wstrm), Z_SYNC_FLUSH);
-            assert(ret != Z_STREAM_ERROR);
+            status = tdefl_compress(&sc->deflator, sc->wbuf->data, &in_bytes, buf->data + buf->len, &out_bytes, TDEFL_SYNC_FLUSH);
+            if (status != TDEFL_STATUS_OKAY) break;
 
-            buf->len += sc->wbuf->len + SX_COMPRESS_CHUNK - sc->wstrm.avail_out;
+            sc->wbuf->data += in_bytes;
+            sc->wbuf->len -= in_bytes;
 
-        } while (sc->wstrm.avail_out == 0);
+            avail_out -= out_bytes;
+            buf->len += out_bytes;
 
-        if(ret != Z_OK || sc->wstrm.avail_in != 0) {
+        } while (avail_out == 0);
+
+        if (status != TDEFL_STATUS_OKAY || sc->wbuf->len != 0) {
             /* throw an error */
             _sx_gen_error(sxe, SX_ERR_COMPRESS, "compression error", "Error during compression");
             _sx_event(s, event_ERROR, (void *) &sxe);
@@ -183,30 +211,26 @@ static int _sx_compress_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
 
             return -2;  /* fatal */
         }
-
-        sc->wbuf->len = sc->wstrm.avail_in;
-        sc->wbuf->data = (char*)sc->wstrm.next_in;
     }
 
-    _sx_debug(ZONE, "passing %d bytes from zlib write buffer", buf->len);
+    LOG_TRACE(log, "passing %d bytes from zlib write buffer", buf->len);
 
     return 1;
 }
 
-static int _sx_compress_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
-    _sx_compress_conn_t sc = (_sx_compress_conn_t) s->plugin_data[p->index];
-    int ret;
+static int _sx_compress_rio(sx_t *s, sx_plugin_t *p, sx_buf_t *buf) {
+    _sx_compress_conn_t *sc = (_sx_compress_conn_t*) s->plugin_data[p->index];
     sx_error_t sxe;
 
     /* only bothering if they asked for wrappermode */
-    if(!(s->flags & SX_COMPRESS_WRAPPER))
+    if (!(s->flags & SX_COMPRESS_WRAPPER))
         return 1;
 
-    _sx_debug(ZONE, "in _sx_compress_rio");
+    LOG_TRACE(log, "in _sx_compress_rio");
 
     /* move the data into the zlib read buffer */
-    if(buf->len > 0) {
-        _sx_debug(ZONE, "loading %d bytes into zlib read buffer", buf->len);
+    if (buf->len > 0) {
+        LOG_TRACE(log, "loading %d bytes into zlib read buffer", buf->len);
 
         _sx_buffer_alloc_margin(sc->rbuf, 0, buf->len);
         memcpy(sc->rbuf->data + sc->rbuf->len, buf->data, buf->len);
@@ -216,23 +240,29 @@ static int _sx_compress_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     }
 
     /* decompress the data */
-    if(sc->rbuf->len > 0) {
-        sc->rstrm.avail_in = sc->rbuf->len;
-        sc->rstrm.next_in = (Bytef*)sc->rbuf->data;
+    if (sc->rbuf->len > 0) {
+        tinfl_status status;
+        size_t in_bytes, out_bytes, avail_out;
+        mz_uint8 *buf_start = (mz_uint8 *)buf->data;
+
         /* run inflate() on read buffer while able to fill the output buffer */
         do {
             /* make place for inflated data */
+            avail_out = SX_COMPRESS_CHUNK;
             _sx_buffer_alloc_margin(buf, 0, SX_COMPRESS_CHUNK);
 
-            sc->rstrm.avail_out = SX_COMPRESS_CHUNK;
-            sc->rstrm.next_out = (Bytef*)(buf->data + buf->len);
+            in_bytes = sc->rbuf->len;
+            out_bytes = avail_out;
 
-            ret = inflate(&(sc->rstrm), Z_SYNC_FLUSH);
-            assert(ret != Z_STREAM_ERROR);
-            switch (ret) {
-            case Z_NEED_DICT:
-            case Z_DATA_ERROR:
-            case Z_MEM_ERROR:
+            status = tinfl_decompress(&sc->inflator, (const mz_uint8 *)sc->rbuf->data, &in_bytes, buf_start, (mz_uint8 *)(buf->data + buf->len), &out_bytes, TINFL_FLAG_HAS_MORE_INPUT | TINFL_FLAG_PARSE_ZLIB_HEADER);
+
+            sc->rbuf->data += in_bytes;
+            sc->rbuf->len -= in_bytes;
+
+            avail_out -= out_bytes;
+            buf->len += out_bytes;
+
+            if (status <= TINFL_STATUS_DONE || buf->len > s->rbytesmax) {
                 /* throw an error */
                 _sx_gen_error(sxe, SX_ERR_COMPRESS, "compression error", "Error during decompression");
                 _sx_event(s, event_ERROR, (void *) &sxe);
@@ -243,49 +273,49 @@ static int _sx_compress_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
                 return -2;
             }
 
-            buf->len += SX_COMPRESS_CHUNK - sc->rstrm.avail_out;
 
-        } while (sc->rstrm.avail_out == 0);
-
-        sc->rbuf->len = sc->rstrm.avail_in;
-        sc->rbuf->data = (char*)sc->rstrm.next_in;
+        } while (avail_out == 0);
     }
 
-    _sx_debug(ZONE, "passing %d bytes from zlib read buffer", buf->len);
+    LOG_TRACE(log, "passing %d bytes from zlib read buffer", buf->len);
 
     /* flag if we want to read */
-    if(sc->rbuf->len > 0)
+    if (sc->rbuf->len > 0)
     s->want_read = 1;
 
-    if(buf->len == 0)
+    if (buf->len == 0)
         return 0;
 
     return 1;
 }
 
-static void _sx_compress_new(sx_t s, sx_plugin_t p) {
-    _sx_compress_conn_t sc = (_sx_compress_conn_t) s->plugin_data[p->index];
+static void _sx_compress_new(sx_t *s, sx_plugin_t *p) {
+    _sx_compress_conn_t *sc = (_sx_compress_conn_t*) s->plugin_data[p->index];
 
     /* only bothering if they asked for wrappermode and not already active */
-    if(!(s->flags & SX_COMPRESS_WRAPPER) || sc)
+    if (!(s->flags & SX_COMPRESS_WRAPPER) || sc)
         return;
 
-    _sx_debug(ZONE, "preparing for compressed connect for %d", s->tag);
+    LOG_DEBUG(log, "preparing for compressed connect for %s:%d", s->ip, s->port);
 
-    sc = (_sx_compress_conn_t) calloc(1, sizeof(struct _sx_compress_conn_st));
+    sc = new(_sx_compress_conn_t);
 
-    /* initialize streams */
-    sc->rstrm.zalloc = Z_NULL;
-    sc->rstrm.zfree = Z_NULL;
-    sc->rstrm.opaque = Z_NULL;
-    sc->rstrm.avail_in = 0;
-    sc->rstrm.next_in = Z_NULL;
-    inflateInit(&(sc->rstrm));
+    /* initialize inflator */
+    tinfl_init(&sc->inflator);
 
-    sc->wstrm.zalloc = Z_NULL;
-    sc->wstrm.zfree = Z_NULL;
-    sc->wstrm.opaque = Z_NULL;
-    deflateInit(&(sc->wstrm), Z_DEFAULT_COMPRESSION);
+    /* initialize deflator */
+    // The number of dictionary probes to use at each compression level (0-10). 0=implies fastest/minimal possible probing.
+    static const mz_uint s_tdefl_num_probes[11] = { 0, 1, 6, 32,  16, 32, 128, 256,  512, 768, 1500 };
+    // create tdefl() compatible flags (we have to compose the low-level flags ourselves, or use tdefl_create_comp_flags_from_zip_params() but that means MINIZ_NO_ZLIB_APIS can't be defined).
+    mz_uint comp_flags = TDEFL_WRITE_ZLIB_HEADER | s_tdefl_num_probes[MZ_DEFAULT_LEVEL] | ((MZ_DEFAULT_LEVEL <= 3) ? TDEFL_GREEDY_PARSING_FLAG : 0);
+    if (!MZ_DEFAULT_LEVEL) comp_flags |= TDEFL_FORCE_ALL_RAW_BLOCKS;
+
+    tdefl_status status = tdefl_init(&sc->deflator, NULL, NULL, comp_flags);
+    if (status != TDEFL_STATUS_OKAY) {
+        LOG_WARN(log, "failure %d initializing deflator for %s:%d", status, s->ip, s->port);
+        s->flags &= !SX_COMPRESS_WRAPPER;
+        return;
+    }
 
     /* read and write buffers */
     sc->rbuf = _sx_buffer_new(NULL, 0, NULL, NULL);
@@ -298,22 +328,18 @@ static void _sx_compress_new(sx_t s, sx_plugin_t p) {
 }
 
 /** cleanup */
-static void _sx_compress_free(sx_t s, sx_plugin_t p) {
-    _sx_compress_conn_t sc = (_sx_compress_conn_t) s->plugin_data[p->index];
+static void _sx_compress_free(sx_t *s, sx_plugin_t *p) {
+    _sx_compress_conn_t *sc = (_sx_compress_conn_t*) s->plugin_data[p->index];
 
-    if(sc == NULL)
+    if (sc == NULL)
         return;
 
-    log_debug(ZONE, "cleaning up compression state");
+    LOG_DEBUG(log, "cleaning up compression state");
 
-    if(s->type == type_NONE) {
+    if (s->type == type_NONE) {
         free(sc);
         return;
     }
-
-    /* end streams */
-    inflateEnd(&(sc->rstrm));
-    deflateEnd(&(sc->wstrm));
 
     /* free buffers */
     _sx_buffer_free(sc->rbuf);
@@ -325,9 +351,10 @@ static void _sx_compress_free(sx_t s, sx_plugin_t p) {
 }
 
 /** args: none */
-int sx_compress_init(sx_env_t env, sx_plugin_t p, va_list args) {
+int sx_compress_init(__attribute__ ((unused)) sx_env_t *env, sx_plugin_t *p, __attribute__ ((unused)) va_list args) {
 
-    _sx_debug(ZONE, "initialising compression plugin");
+    log = log4c_category_get(LOG_CATEGORY);
+    LOG_INFO(log, "initialising compression sx plugin");
 
     p->client = _sx_compress_new;
     p->server = _sx_compress_new;
@@ -340,23 +367,23 @@ int sx_compress_init(sx_env_t env, sx_plugin_t p, va_list args) {
     return 0;
 }
 
-int sx_compress_client_compress(sx_plugin_t p, sx_t s, const char *pemfile) {
+int sx_compress_client_compress(sx_plugin_t *p, sx_t *s, __attribute__ ((unused)) const char *pemfile) {
     assert((int) (p != NULL));
     assert((int) (s != NULL));
 
     /* sanity */
-    if(s->type != type_CLIENT || s->state != state_STREAM) {
-        _sx_debug(ZONE, "wrong conn type or state for client compress");
+    if (s->type != type_CLIENT || s->state != state_STREAM) {
+        LOG_WARN(log, "wrong conn type or state for client compress");
         return 1;
     }
 
     /* check if we're already compressed */
-    if((s->flags & SX_COMPRESS_WRAPPER)) {
-        _sx_debug(ZONE, "channel already compressed");
+    if ((s->flags & SX_COMPRESS_WRAPPER)) {
+        LOG_WARN(log, "channel already compressed");
         return 1;
     }
 
-    _sx_debug(ZONE, "initiating compress sequence");
+    LOG_DEBUG(log, "initiating compress sequence");
 
     /* go */
     jqueue_push(s->wbufq, _sx_buffer_new("<compress xmlns='" uri_COMPRESS "'><method>zlib</method></compress>", sizeof(uri_COMPRESS)-1 + 51, NULL, NULL), 0);

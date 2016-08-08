@@ -7,26 +7,6 @@
        the process ID from outside the process (eg for control scripts) -->
   <pidfile>@localstatedir@/@package@/pid/${id}.pid</pidfile>
 
-  <!-- Log configuration - type is "syslog", "file" or "stdout" -->
-  <log type='syslog'>
-    <!-- If logging to syslog, this is the log ident -->
-    <ident>jabberd/router</ident>
-
-    <!-- If logging to syslog, this is the log facility
-         (local0 - local7)                        [default: local3] -->
-    <facility>local3</facility>
-
-    <!-- If logging to file, this is the filename of the logfile -->
-    <!--
-    <file>@localstatedir@/@package@/log/router.log</file>
-    -->
-
-    <!-- Filename of the debug logfile -->
-    <!--
-    <debug>@localstatedir@/@package@/log/debug-${id}.log</debug>
-    -->
-  </log>
-
   <!-- Local network configuration -->
   <local>
     <!-- IP address to bind to (default: 0.0.0.0) -->

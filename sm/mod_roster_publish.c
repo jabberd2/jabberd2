@@ -19,6 +19,7 @@
  */
 
 #include "sm.h"
+#include "lib/str.h"
 
 /** @file sm/mod_roster_publish.c
   * @brief roster publishing
@@ -26,13 +27,13 @@
   */
 
 #ifndef NO_SM_CACHE
-typedef struct _roster_publish_active_cache_st *_roster_publish_active_cache_t;
+typedef struct _roster_publish_active_cache_st _roster_publish_active_cache_t;
 struct _roster_publish_active_cache_st {
     time_t time; // when cache was updated
     time_t active;
     char *jid_user;
 };
-typedef struct _roster_publish_group_cache_st *_roster_publish_group_cache_t;
+typedef struct _roster_publish_group_cache_st _roster_publish_group_cache_t;
 struct _roster_publish_group_cache_st {
     time_t time; // when cache was updated
     char *groupid;
@@ -48,23 +49,23 @@ typedef struct _roster_publish_st {
     time_t active_cache_ttl;
     time_t group_cache_ttl;
 #ifndef NO_SM_CACHE
-    xht active_cache; // cache of values from 'active' storage,
-                      // used to check that user exists in sm database
-    xht group_cache; // cache of values from published-roster-groups storage
-                     // used to map group id to group name
+    xht *active_cache; // cache of values from 'active' storage,
+    // used to check that user exists in sm database
+    xht *group_cache; // cache of values from published-roster-groups storage
+    // used to map group id to group name
 #endif
-} *roster_publish_t;
+} roster_publish_t;
 
 #ifndef NO_SM_CACHE
 /* free single item of active cache */
 static void _roster_publish_free_active_cache_walker(const char *key, int keylen, void *val, void *arg) {
-    _roster_publish_active_cache_t item = (_roster_publish_active_cache_t)val;
+    _roster_publish_active_cache_t *item = val;
     free(item->jid_user);
     free(item);
 }
 /* free single item of group cache */
 static void _roster_publish_free_group_cache_walker(const char *key, int keylen, void *val, void *arg) {
-    _roster_publish_group_cache_t item = (_roster_publish_group_cache_t)val;
+    _roster_publish_group_cache_t *item = val;
     free(item->groupid);
     free(item->groupname);
     free(item);
@@ -75,36 +76,36 @@ static void _roster_publish_free_group_cache_walker(const char *key, int keylen,
  * get group's descriptive name by it's text id
  * returned value needs to be freed by caller
  */
-static const char *_roster_publish_get_group_name(sm_t sm, roster_publish_t rp, const char *groupid)
+static const char *_roster_publish_get_group_name(sm_t *sm, roster_publish_t *rp, const char *groupid)
 {
-    os_t os;
-    os_object_t o;
+    os_t *os;
+    os_object_t *o;
     char *str;
     char *group;
 
 #ifndef NO_SM_CACHE
-    _roster_publish_group_cache_t group_cached;
+    _roster_publish_group_cache_t *group_cached;
 #endif
 
     if(!groupid) return groupid;
 
 #ifndef NO_SM_CACHE
     /* check for remembered group value in cache */
-    if( rp->group_cache_ttl ) {
-        if( rp->group_cache ) {
+    if(rp->group_cache_ttl ) {
+        if(rp->group_cache ) {
             group_cached = xhash_get(rp->group_cache, groupid);
-            if( group_cached != NULL ) {
-                if( (time(NULL) - group_cached->time) >= rp->group_cache_ttl ) {
-                    log_debug(ZONE,"group cache: expiring cached value for %s",groupid);
+            if(group_cached != NULL ) {
+                if((time(NULL) - group_cached->time) >= rp->group_cache_ttl ) {
+                    LOG_DEBUG(sm->log, "group cache: expiring cached value for %s",groupid);
                     xhash_zap(rp->group_cache, groupid);
                     free(group_cached);
                 } else {
-                    log_debug(ZONE,"group cache: returning cached value for %s",groupid);
+                    LOG_DEBUG(sm->log, "group cache: returning cached value for %s",groupid);
                     return strdup(group_cached->groupname);
                 }
             }
         } else {
-            log_debug(ZONE,"group cache: creating cache");
+            LOG_DEBUG(sm->log, "group cache: creating cache");
             rp->group_cache = xhash_new(401);
         }
     }
@@ -112,16 +113,16 @@ static const char *_roster_publish_get_group_name(sm_t sm, roster_publish_t rp, 
 
     if(storage_get(sm->st, "published-roster-groups", groupid, NULL, &os) == st_SUCCESS && os_iter_first(os)) {
         o = os_iter_object(os);
-        if( os_object_get_str(os, o, "groupname", &str) && str ) {
+        if(os_object_get_str(os, o, "groupname", &str) && str ) {
             group=strdup(str);
         } else {
             group=NULL;
         }
         os_free(os);
 #ifndef NO_SM_CACHE
-        if( rp->group_cache_ttl && group ) {
-            log_debug(ZONE,"group cache: updating cache value for %s",groupid);
-            group_cached = calloc(1, sizeof(struct _roster_publish_group_cache_st));
+        if(rp->group_cache_ttl && group ) {
+            LOG_DEBUG(sm->log, "group cache: updating cache value for %s",groupid);
+            group_cached = new(_roster_publish_group_cache_t);
             group_cached->time = time(NULL);
             group_cached->groupid = strdup(groupid);
             group_cached->groupname = strdup(group);
@@ -135,9 +136,9 @@ static const char *_roster_publish_get_group_name(sm_t sm, roster_publish_t rp, 
 }
 
 /* free a single roster item */
-static void _roster_publish_free_walker(xht roster, const char *key, void *val, void *arg)
+static void _roster_publish_free_walker(xht *roster, const char *key, void *val, void *arg)
 {
-    item_t item = (item_t) val;
+    item_t *item = val;
     int i;
 
     jid_free(item->jid);
@@ -152,13 +153,13 @@ static void _roster_publish_free_walker(xht roster, const char *key, void *val, 
     free(item);
 }
 
-static void _roster_publish_save_item(user_t user, item_t item) {
-    os_t os;
-    os_object_t o;
+static void _roster_publish_save_item(user_t *user, item_t *item) {
+    os_t *os;
+    os_object_t *o;
     char filter[4096];
     int i;
 
-    log_debug(ZONE, "saving roster item %s for %s", jid_full(item->jid), jid_user(user->jid));
+    LOG_DEBUG(user->sm->log, "saving roster item %s for %s", jid_full(item->jid), jid_user(user->jid));
 
     os = os_new();
     o = os_object_new(os);
@@ -200,27 +201,27 @@ static void _roster_publish_save_item(user_t user, item_t item) {
 }
 
 /** publish the roster from the database */
-static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
-    roster_publish_t roster_publish = (roster_publish_t) mi->mod->private;
-    os_t os, os_active;
-    os_object_t o, o_active;
+static int _roster_publish_user_load(mod_instance_t *mi, user_t *user) {
+    roster_publish_t *roster_publish = mi->mod->private;
+    os_t *os, *os_active;
+    os_object_t *o, *o_active;
     char *str;
     const char *group;
     char filter[4096];
     const char *fetchkey;
     int i,j,gpos,found,delete,checksm,tmp_to,tmp_from,tmp_do_change;
-    item_t item;
-    jid_t jid;
+    item_t *item;
+    jid_t *jid;
 
     /* update roster to match published roster */
-    if( roster_publish->publish) {
+    if(roster_publish->publish) {
         /* free if necessary */
         if(user->roster == NULL) {
-            log_write(user->sm->log, LOG_NOTICE, "roster_publish: no roster for %s",jid_user(user->jid));
+            LOG_NOTICE(user->sm->log, "roster_publish: no roster for %s",jid_user(user->jid));
             return 0;
         }
 
-        log_debug(ZONE, "publishing roster for %s",jid_user(user->jid));
+        LOG_DEBUG(mi->sm->log, "publishing roster for %s",jid_user(user->jid));
         /* get published roster */
         if(roster_publish->fetchfixed)
             fetchkey = roster_publish->fetchfixed;
@@ -231,7 +232,7 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
         else
             fetchkey = "";
 
-        if( storage_get(user->sm->st, (roster_publish->dbtable ? roster_publish->dbtable : "published-roster"), fetchkey, NULL, &os) == st_SUCCESS ) {
+        if(storage_get(user->sm->st, (roster_publish->dbtable ? roster_publish->dbtable : "published-roster"), fetchkey, NULL, &os) == st_SUCCESS ) {
             if(os_iter_first(os)) {
                 /* iterate on published roster */
                 jid = NULL;
@@ -240,37 +241,37 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                     if(os_object_get_str(os, o, "jid", &str)) {
                         int userinsm;
 #ifndef NO_SM_CACHE
-                        _roster_publish_active_cache_t active_cached = 0;
+                        _roster_publish_active_cache_t *active_cached = NULL;
 #endif
-                        log_debug(ZONE, "got %s item for inserting in", str);
-                        if( strcmp(str,jid_user(user->jid)) == 0 ) {
+                        LOG_DEBUG(mi->sm->log, "got %s item for inserting in", str);
+                        if(strcmp(str,jid_user(user->jid)) == 0 ) {
                             /* not adding self */
                             continue; /* do { } while( os_iter_next ) */
                         }
                         /* check that published item exists in sm database */
-                        checksm=0;
-                        if( jid ) jid_free(jid);
+                        checksm = 0;
+                        if(jid ) jid_free(jid);
                         jid = jid_new(str, -1);
-                        if( roster_publish->removedomain ) {
-                            if( strcmp("1", roster_publish->removedomain) == 0 || /* XXX HACKY!!! "1" is very config.c dependant */
-                                strcmp(jid->domain, roster_publish->removedomain) == 0 ) {
+                        if(roster_publish->removedomain ) {
+                            if(strcmp("1", roster_publish->removedomain) == 0 || /* XXX HACKY!!! "1" is very config.c dependant */
+                                    strcmp(jid->domain, roster_publish->removedomain) == 0 ) {
                                 checksm = 1;
                             }
                         }
-                        if( checksm ) {
+                        if(checksm) {
                             /* is this a hack? but i want to know was the user activated in sm or no? */
 #ifndef NO_SM_CACHE
                             /* check for remembered active value in cache */
                             userinsm = -1;
-                            if( roster_publish->active_cache_ttl ) {
-                                if( roster_publish->active_cache ) {
+                            if(roster_publish->active_cache_ttl ) {
+                                if(roster_publish->active_cache ) {
                                     active_cached = xhash_get(roster_publish->active_cache, jid_user(jid));
-                                    if( active_cached != NULL ) {
-                                        if( (time(NULL) - active_cached->time) >= roster_publish->active_cache_ttl ) {
+                                    if(active_cached != NULL ) {
+                                        if((time(NULL) - active_cached->time) >= roster_publish->active_cache_ttl ) {
                                             xhash_zap(roster_publish->active_cache, jid_user(jid));
                                             free(active_cached);
                                         } else {
-                                            if( active_cached->active ) {
+                                            if(active_cached->active ) {
                                                 userinsm = 1;
                                             } else {
                                                 userinsm = 0;
@@ -281,16 +282,16 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                                     roster_publish->active_cache = xhash_new(401);
                                 }
                             }
-                            if( userinsm == -1 ) {
-                                if( roster_publish->active_cache_ttl ) {
-                                    active_cached = calloc(1, sizeof(struct _roster_publish_active_cache_st));
+                            if(userinsm == -1 ) {
+                                if(roster_publish->active_cache_ttl ) {
+                                    active_cached = new(_roster_publish_active_cache_t);
                                     active_cached->time = time(NULL);
                                 }
 #endif
                                 if(storage_get(user->sm->st, "active", jid_user(jid), NULL, &os_active) == st_SUCCESS
                                         && os_iter_first(os_active)) {
 #ifndef NO_SM_CACHE
-                                    if( roster_publish->active_cache_ttl ) {
+                                    if(roster_publish->active_cache_ttl ) {
                                         o_active = os_iter_object(os_active);
                                         os_object_get_time(os_active, o_active, "time", &active_cached->active);
                                     }
@@ -299,41 +300,41 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                                     userinsm = 1;
                                 } else {
 #ifndef NO_SM_CACHE
-                                    if( roster_publish->active_cache_ttl ) {
+                                    if(roster_publish->active_cache_ttl ) {
                                         active_cached->active = 0;
                                     }
 #endif
                                     userinsm = 0;
                                 }
 #ifndef NO_SM_CACHE
-                                if( roster_publish->active_cache_ttl ) {
+                                if(roster_publish->active_cache_ttl ) {
                                     active_cached->jid_user = strdup(jid_user(jid));
                                     xhash_put(roster_publish->active_cache, active_cached->jid_user, active_cached);
                                 }
-                            } // if( userinsm == -1 )
+                            } // if(userinsm == -1 )
 #endif
-                        } else userinsm = 0; // if( checksm )
+                        } else userinsm = 0; // if(checksm )
                         item = xhash_get(user->roster,jid_user(jid));
-                        if( item == NULL ) {
+                        if(item == NULL ) {
                             /* user has no this jid in his roster */
                             /* if we checking sm database and user is not in it, not adding */
-                            if( checksm && !userinsm ) {
-                                log_debug(ZONE, "published user %s has no record in sm, not adding", jid_user(jid));
+                            if(checksm && !userinsm ) {
+                                LOG_DEBUG(mi->sm->log, "published user %s has no record in sm, not adding", jid_user(jid));
                                 continue; /* do { } while( os_iter_next ) */
                             }
-                            log_debug(ZONE, "user has no %s in roster, adding", jid_user(jid));
-                            item = (item_t) calloc(1, sizeof(struct item_st));
+                            LOG_DEBUG(mi->sm->log, "user has no %s in roster, adding", jid_user(jid));
+                            item = new(item_t);
 
                             item->jid = jid_new(jid_user(jid), -1);
                             if(item->jid == NULL) {
-                                log_debug(ZONE, "eek! invalid jid %s, skipping it", jid_user(jid));
-                                log_write(user->sm->log, LOG_ERR, "roster_publish: eek! invalid jid %s, skipping it", jid_user(jid));
+                                LOG_DEBUG(mi->sm->log, "eek! invalid jid %s, skipping it", jid_user(jid));
+                                LOG_ERROR(user->sm->log, "roster_publish: eek! invalid jid %s, skipping it", jid_user(jid));
                                 /* nvs: is it needed? */
                                 free(item);
                                 /* nvs: is it needed? */
                             } else {
                                 os_object_get_str(os, o, "group", &str);
-                                if( roster_publish->mappedgroups ) {
+                                if(roster_publish->mappedgroups ) {
                                     group = _roster_publish_get_group_name(user->sm, roster_publish, str); // don't forget to free group
                                 } else {
                                     if(str)
@@ -341,7 +342,7 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                                     else
                                         group = NULL;
                                 }
-                                if( group ) {
+                                if(group ) {
                                     item->groups = realloc(item->groups, sizeof(char *) * (item->ngroups + 1));
                                     item->groups[item->ngroups] = group;
                                     item->ngroups++;
@@ -353,26 +354,26 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                                     os_object_get_bool(os, o, "from", &item->from);
                                     os_object_get_int(os, o, "ask", &item->ask);
 
-                                    log_debug(ZONE, "adding %s to roster from template (to %d from %d ask %d name %s)", jid_full(item->jid), item->to, item->from, item->ask, item->name);
+                                    LOG_DEBUG(mi->sm->log, "adding %s to roster from template (to %d from %d ask %d name %s)", jid_full(item->jid), item->to, item->from, item->ask, item->name);
 
                                     /* its good */
                                     xhash_put(user->roster, jid_full(item->jid), (void *) item);
                                     _roster_publish_save_item(user,item);
                                 } else {
-                                    log_write(user->sm->log, LOG_ERR, "roster_publish: unknown published group id '%s' for %s",str,jid_full(item->jid));
+                                    LOG_ERROR(user->sm->log, "roster_publish: unknown published group id '%s' for %s",str,jid_full(item->jid));
                                     free(item);
                                 }
-                                if (roster_publish->fixexist &&
-                                     ( (checksm && !userinsm) ||
-                                       (!checksm && storage_get(user->sm->st, "active", jid_user(jid), NULL, &os_active) == st_SUCCESS && os_iter_first(os_active))
-                                     )
-                                   ) {
+                                if(roster_publish->fixexist &&
+                                        ( (checksm && !userinsm) ||
+                                          (!checksm && storage_get(user->sm->st, "active", jid_user(jid), NULL, &os_active) == st_SUCCESS && os_iter_first(os_active))
+                                          )
+                                        ) {
                                     /* Add thise jid to active table*/
-                                    log_debug(ZONE, "adding published user %s to sm", jid_user(jid));
+                                    LOG_DEBUG(mi->sm->log, "adding published user %s to sm", jid_user(jid));
                                     time_t tfe;
-                                    os_t osfe;
+                                    os_t *osfe;
 
-                                    os_object_t ofe;
+                                    os_object_t *ofe;
                                     tfe = time(NULL);
                                     osfe = os_new();
                                     ofe = os_object_new(osfe);
@@ -382,11 +383,11 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                                 }
                             }
                         }
-                        else /* if( item == NULL ) else ... : here item != NULL : user has this jid in his roster */
+                        else /* if(item == NULL ) else ... : here item != NULL : user has this jid in his roster */
                         {
                             /* if we checking sm database and user is not in it, remove it from roster */
-                            if( checksm && !userinsm ) {
-                                log_debug(ZONE, "published user %s has no record in sm, deleting from roster", jid_user(jid));
+                            if(checksm && !userinsm ) {
+                                LOG_DEBUG(mi->sm->log, "published user %s has no record in sm, deleting from roster", jid_user(jid));
                                 snprintf(filter, 4096, "(jid=%s)", jid_full(jid));
                                 storage_delete(user->sm->st, "roster-items", jid_user(user->jid), filter);
                                 snprintf(filter, 4096, "(jid=%s)", jid_full(jid));
@@ -396,48 +397,48 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                                 _roster_publish_free_walker(NULL, (const char *) jid_full(jid), (void *) item, NULL);
                                 continue; /* do { } while( os_iter_next ) */
                             }
-                            if( roster_publish->fixsubs ) {
+                            if(roster_publish->fixsubs ) {
                                 /* check subscriptions and correct if needed */
                                 os_object_get_bool(os, o, "to", &tmp_to);
                                 os_object_get_bool(os, o, "from", &tmp_from);
-                                if( item->to != tmp_to || item->from != tmp_from ) {
+                                if(item->to != tmp_to || item->from != tmp_from ) {
                                     item->to = tmp_to;
                                     item->from = tmp_from;
-                                    log_debug(ZONE, "fixsubs in roster %s, item %s",jid_user(user->jid),jid_user(item->jid));
+                                    LOG_DEBUG(mi->sm->log, "fixsubs in roster %s, item %s",jid_user(user->jid),jid_user(item->jid));
                                     xhash_put(user->roster, jid_full(item->jid), (void *) item);
                                     _roster_publish_save_item(user,item);
                                 }
                             }
-                            if( roster_publish->overridenames ) {
+                            if(roster_publish->overridenames ) {
                                 /* override display name if it differs */
                                 if(os_object_get_str(os, o, "name", &str)) {
-                                    if( str ) {
+                                    if(str ) {
                                         tmp_do_change = 0;
-                                        if( ! item->name ) {
+                                        if(! item->name ) {
                                             tmp_do_change = 1;
                                         } else {
-                                            if( strcmp(item->name,str) != 0 ) {
+                                            if(strcmp(item->name,str) != 0 ) {
                                                 tmp_do_change = 1;
                                             }
                                         }
-                                        if( tmp_do_change ) {
-                                            log_debug(ZONE, "replacing name for %s in roster of %s", jid_full(item->jid),jid_user(user->jid));
+                                        if(tmp_do_change ) {
+                                            LOG_DEBUG(mi->sm->log, "replacing name for %s in roster of %s", jid_full(item->jid),jid_user(user->jid));
                                             item->name = strdup(str);
                                             xhash_put(user->roster, jid_full(item->jid), (void *) item);
                                             _roster_publish_save_item(user,item);
                                         }
                                     } else {
-                                        log_debug(ZONE,"warning: name is null in published roster for item %s",jid_full(item->jid));
+                                        LOG_DEBUG(mi->sm->log, "warning: name is null in published roster for item %s",jid_full(item->jid));
                                     }
                                 }
                             }
-                            if( roster_publish->forcegroups ) {
+                            if(roster_publish->forcegroups ) {
                                 /* item already in roster, check groups if needed */
                                 os_object_get_str(os, o, "group", &str);
-                                if( roster_publish->mappedgroups ) {
+                                if(roster_publish->mappedgroups ) {
                                     group = _roster_publish_get_group_name(user->sm, roster_publish, str); // don't forget to free group
-                                    if( !group ) {
-                                        log_write(user->sm->log, LOG_ERR, "roster_publish: unknown published group id '%s' for %s",str, jid_full(item->jid));
+                                    if(!group ) {
+                                        LOG_ERROR(user->sm->log, "roster_publish: unknown published group id '%s' for %s",str, jid_full(item->jid));
                                         continue; /* do { } while( os_iter_next ) */
                                     }
                                 } else {
@@ -446,7 +447,7 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                                 /* find published roster item's group in user's roster */
                                 found = 0;
                                 for(i = 0; i < item->ngroups; i++) {
-                                    if( strcmp(item->groups[i],group) == 0 ) {
+                                    if(strcmp(item->groups[i],group) == 0 ) {
                                         found = 1;
                                         /* do not break loop, give groups that matches
                                          * prefix and suffix to be deleted
@@ -457,21 +458,21 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                                          * and delete such groups (and thus they will be replaced)
                                          */
                                         delete = 0;
-                                        if( roster_publish->groupprefix ) {
-                                            if( strncmp(item->groups[i],roster_publish->groupprefix,roster_publish->groupprefixlen) == 0 ) {
+                                        if(roster_publish->groupprefix ) {
+                                            if(strncmp(item->groups[i],roster_publish->groupprefix,roster_publish->groupprefixlen) == 0 ) {
                                                 delete = 1;
                                             }
                                         }
-                                        if( !delete && roster_publish->groupsuffix ) {
+                                        if(!delete && roster_publish->groupsuffix ) {
                                             gpos=strlen(item->groups[i])-roster_publish->groupsuffixlen;
-                                            if( gpos > 0 ) {
-                                                if( strcmp(item->groups[i]+gpos,roster_publish->groupsuffix) == 0 ) {
+                                            if(gpos > 0 ) {
+                                                if(strcmp(item->groups[i]+gpos,roster_publish->groupsuffix) == 0 ) {
                                                     delete = 1;
                                                 }
                                             }
                                         }
                                         /* remove group from roster item */
-                                        if( delete ) {
+                                        if(delete ) {
                                             free((void*)item->groups[i]);
                                             for(j = i; j < item->ngroups-1; j++) {
                                                 item->groups[j]=item->groups[j+1];
@@ -481,8 +482,8 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                                         }
                                     }
                                 } /* for(i... */
-                                if( !found ) {
-                                    log_debug(ZONE, "adding group %s to item %s for user %s",group,jid_user(item->jid),jid_user(user->jid));
+                                if(!found ) {
+                                    LOG_DEBUG(mi->sm->log, "adding group %s to item %s for user %s",group,jid_user(item->jid),jid_user(user->jid));
                                     item->groups = realloc(item->groups, sizeof(char *) * (item->ngroups + 1));
                                     item->groups[item->ngroups] = group; // will be freed
                                     item->ngroups++;
@@ -492,11 +493,11 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
                                 } else {
                                     free((void*)group);
                                 }
-                            } /* else if( roster_publish->forcegroups ) */
-                        } /* end of if if( item == NULL ) */
-                    } /* if( os_object_get(...) */
+                            } /* else if(roster_publish->forcegroups ) */
+                        } /* end of if if(item == NULL ) */
+                    } /* if(os_object_get(...) */
                 } while(os_iter_next(os));
-                if( jid ) jid_free(jid);
+                if(jid ) jid_free(jid);
             }
             os_free(os);
         }
@@ -504,15 +505,15 @@ static int _roster_publish_user_load(mod_instance_t mi, user_t user) {
     return 0;
 }
 
-static void _roster_publish_free(module_t mod) {
-    roster_publish_t roster_publish = (roster_publish_t) mod->private;
+static void _roster_publish_free(module_t *mod) {
+    roster_publish_t *roster_publish = mod->private;
 
 #ifndef NO_SM_CACHE
-    if( roster_publish->active_cache ) {
+    if(roster_publish->active_cache ) {
         xhash_walk(roster_publish->active_cache,_roster_publish_free_active_cache_walker,NULL);
         xhash_free(roster_publish->active_cache);
     }
-    if( roster_publish->group_cache ) {
+    if(roster_publish->group_cache ) {
         xhash_walk(roster_publish->group_cache,_roster_publish_free_group_cache_walker,NULL);
         xhash_free(roster_publish->group_cache);
     }
@@ -520,15 +521,15 @@ static void _roster_publish_free(module_t mod) {
     free(roster_publish);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
-    module_t mod = mi->mod;
-    roster_publish_t roster_publish;
+DLLEXPORT int module_init(mod_instance_t *mi, const char *arg) {
+    module_t *mod = mi->mod;
+    roster_publish_t *roster_publish;
 
     if(mod->init) return 0;
 
-    roster_publish = (roster_publish_t) calloc(1, sizeof(struct _roster_publish_st));
+    roster_publish = new(roster_publish_t);
 
-    if( config_get_one(mod->mm->sm->config, "user.template.publish", 0) ) {
+    if(config_get_one(mod->mm->sm->config, "user.template.publish", 0) ) {
         roster_publish->publish = 1;
         roster_publish->fetchdomain = config_get_one(mod->mm->sm->config, "user.template.publish.fetch-key.domain", 0);
         roster_publish->fetchuser = config_get_one(mod->mm->sm->config, "user.template.publish.fetch-key.user", 0);
@@ -543,14 +544,14 @@ DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
         roster_publish->active_cache_ttl = j_atoi(config_get_one(mod->mm->sm->config, "user.template.publish.active-cache-ttl", 0), 0);
         roster_publish->group_cache_ttl = j_atoi(config_get_one(mod->mm->sm->config, "user.template.publish.mapped-groups.group-cache-ttl", 0), 0);
 #endif
-        if( config_get_one(mod->mm->sm->config, "user.template.publish.force-groups", 0) ) {
+        if(config_get_one(mod->mm->sm->config, "user.template.publish.force-groups", 0) ) {
             roster_publish->forcegroups = 1;
             roster_publish->groupprefix = config_get_one(mod->mm->sm->config, "user.template.publish.force-groups.prefix", 0);
-            if( roster_publish->groupprefix ) {
+            if(roster_publish->groupprefix ) {
                 roster_publish->groupprefixlen = strlen(roster_publish->groupprefix);
             }
             roster_publish->groupsuffix = config_get_one(mod->mm->sm->config, "user.template.publish.force-groups.suffix", 0);
-            if( roster_publish->groupsuffix ) {
+            if(roster_publish->groupsuffix ) {
                 roster_publish->groupsuffixlen = strlen(roster_publish->groupsuffix);
             }
         } else {

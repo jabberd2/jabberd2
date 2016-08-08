@@ -19,14 +19,17 @@
  */
 
 #include "c2s.h"
+#include "lib/jsignal.h"
+#include "lib/str.h"
 
+#include <assert.h>
 #include <stringprep.h>
-#include <string.h>
-#include <ctype.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 static sig_atomic_t c2s_shutdown = 0;
 sig_atomic_t c2s_lost_router = 0;
-static sig_atomic_t c2s_logrotate = 0;
 static sig_atomic_t c2s_sighup = 0;
 
 static void _c2s_signal(int signum)
@@ -37,22 +40,21 @@ static void _c2s_signal(int signum)
 
 static void _c2s_signal_hup(int signum)
 {
-    c2s_logrotate = 1;
     c2s_sighup = 1;
 }
 
 static void _c2s_signal_usr1(int signum)
 {
-    set_debug_flag(0);
+    log4c_category_set_priority(log4c_category_get(""), LOG4C_PRIORITY_NOTSET);
 }
 
 static void _c2s_signal_usr2(int signum)
 {
-    set_debug_flag(1);
+    log4c_category_set_priority(log4c_category_get(""), LOG4C_PRIORITY_TRACE);
 }
 
 /** store the process id */
-static void _c2s_pidfile(c2s_t c2s) {
+static void _c2s_pidfile(c2s_t* c2s) {
     const char *pidfile;
     FILE *f;
     pid_t pid;
@@ -64,30 +66,28 @@ static void _c2s_pidfile(c2s_t c2s) {
     pid = getpid();
 
     if((f = fopen(pidfile, "w+")) == NULL) {
-        log_write(c2s->log, LOG_ERR, "couldn't open %s for writing: %s", pidfile, strerror(errno));
+        LOG_ERROR(c2s->log, "couldn't open %s for writing: %s", pidfile, strerror(errno));
         return;
     }
 
     if(fprintf(f, "%d", pid) < 0) {
-        log_write(c2s->log, LOG_ERR, "couldn't write to %s: %s", pidfile, strerror(errno));
+        LOG_ERROR(c2s->log, "couldn't write to %s: %s", pidfile, strerror(errno));
         fclose(f);
         return;
     }
 
     fclose(f);
 
-    log_write(c2s->log, LOG_INFO, "process id is %d, written to %s", pid, pidfile);
+    LOG_INFO(c2s->log, "process id is %d, written to %s", pid, pidfile);
 }
 /** pull values out of the config file */
-static void _c2s_config_expand(c2s_t c2s)
+static void _c2s_config_expand(c2s_t *c2s)
 {
     const char *str, *ip, *mask;
     char *req_domain, *to_address, *to_port;
-    config_elem_t elem;
+    config_elem_t *elem;
     int i;
-    stream_redirect_t sr;
-
-    set_debug_log_from_config(c2s->config);
+    stream_redirect_t *sr;
 
     c2s->id = config_get_one(c2s->config, "id", 0);
     if(c2s->id == NULL)
@@ -117,24 +117,6 @@ static void _c2s_config_expand(c2s_t c2s)
     c2s->retry_lost = j_atoi(config_get_one(c2s->config, "router.retry.lost", 0), 3);
     if((c2s->retry_sleep = j_atoi(config_get_one(c2s->config, "router.retry.sleep", 0), 2)) < 1)
         c2s->retry_sleep = 1;
-
-    c2s->log_type = log_STDOUT;
-    if(config_get(c2s->config, "log") != NULL) {
-        if((str = config_get_attr(c2s->config, "log", 0, "type")) != NULL) {
-            if(strcmp(str, "file") == 0)
-                c2s->log_type = log_FILE;
-            else if(strcmp(str, "syslog") == 0)
-                c2s->log_type = log_SYSLOG;
-        }
-    }
-
-    if(c2s->log_type == log_SYSLOG) {
-        c2s->log_facility = config_get_one(c2s->config, "log.facility", 0);
-        c2s->log_ident = config_get_one(c2s->config, "log.ident", 0);
-        if(c2s->log_ident == NULL)
-            c2s->log_ident = "jabberd/c2s";
-    } else if(c2s->log_type == log_FILE)
-        c2s->log_ident = config_get_one(c2s->config, "log.file", 0);
 
     c2s->packet_stats = config_get_one(c2s->config, "stats.packet", 0);
 
@@ -175,9 +157,9 @@ static void _c2s_config_expand(c2s_t c2s)
     {
         for(i = 0; i < elem->nvalues; i++)
         {
-            sr = (stream_redirect_t) pmalloco(xhash_pool(c2s->stream_redirects), sizeof(struct stream_redirect_st));
+            sr = pnew(xhash_pool(c2s->stream_redirects), stream_redirect_t);
             if(!sr) {
-                log_write(c2s->log, LOG_ERR, "cannot allocate memory for new stream redirection record, aborting");
+                LOG_ERROR(c2s->log, "cannot allocate memory for new stream redirection record, aborting");
                 exit(1);
             }
             req_domain = j_attr((const char **) elem->attrs[i], "requested_domain");
@@ -185,7 +167,7 @@ static void _c2s_config_expand(c2s_t c2s)
             to_port = j_attr((const char **) elem->attrs[i], "to_port");
 
             if(req_domain == NULL || to_address == NULL || to_port == NULL) {
-                log_write(c2s->log, LOG_ERR, "Error reading a stream_redirect.redirect element from file, skipping");
+                LOG_ERROR(c2s->log, "Error reading a stream_redirect.redirect element from file, skipping");
                 continue;
             }
 
@@ -294,22 +276,22 @@ static void _c2s_config_expand(c2s_t c2s)
     }
 }
 
-static void _c2s_hosts_expand(c2s_t c2s)
+static void _c2s_hosts_expand(c2s_t *c2s)
 {
     char *realm;
-    config_elem_t elem;
+    config_elem_t *elem;
     char id[1024];
     int i;
 
     elem = config_get(c2s->config, "local.id");
     if(!elem) {
-        log_write(c2s->log, LOG_NOTICE, "no local.id configured - skipping local domains configuration");
+        LOG_NOTICE(c2s->log, "no local.id configured - skipping local domains configuration");
         return;
     }
     for(i = 0; i < elem->nvalues; i++) {
-        host_t host = (host_t) pmalloco(xhash_pool(c2s->hosts), sizeof(struct host_st));
+        host_t *host = pnew(xhash_pool(c2s->hosts), host_t);
         if(!host) {
-            log_write(c2s->log, LOG_ERR, "cannot allocate memory for new host, aborting");
+            LOG_ERROR(c2s->log, "cannot allocate memory for new host, aborting");
             exit(1);
         }
 
@@ -319,7 +301,7 @@ static void _c2s_hosts_expand(c2s_t c2s)
         strncpy(id, elem->values[i], 1024);
         id[1023] = '\0';
         if (stringprep_nameprep(id, 1024) != 0) {
-            log_write(c2s->log, LOG_ERR, "cannot stringprep id %s, aborting", id);
+            LOG_ERROR(c2s->log, "cannot stringprep id %s, aborting", id);
             exit(1);
         }
 
@@ -340,12 +322,12 @@ static void _c2s_hosts_expand(c2s_t c2s)
             if(c2s->sx_ssl == NULL) {
                 c2s->sx_ssl = sx_env_plugin(c2s->sx_env, sx_ssl_init, host->realm, host->host_pemfile, host->host_cachain, host->host_verify_mode, host->host_private_key_password, host->host_ciphers);
                 if(c2s->sx_ssl == NULL) {
-                    log_write(c2s->log, LOG_ERR, "failed to load %s SSL pemfile", host->realm);
+                    LOG_ERROR(c2s->log, "failed to load %s SSL pemfile", host->realm);
                     host->host_pemfile = NULL;
                 }
             } else {
                 if(sx_ssl_server_addcert(c2s->sx_ssl, host->realm, host->host_pemfile, host->host_cachain, host->host_verify_mode, host->host_private_key_password, host->host_ciphers) != 0) {
-                    log_write(c2s->log, LOG_ERR, "failed to load %s SSL pemfile", host->realm);
+                    LOG_ERROR(c2s->log, "failed to load %s SSL pemfile", host->realm);
                     host->host_pemfile = NULL;
                 }
             }
@@ -357,7 +339,7 @@ static void _c2s_hosts_expand(c2s_t c2s)
         host->ar_module_name = j_attr((const char **) elem->attrs[i], "authreg-module");
         if(host->ar_module_name) {
             if((host->ar = authreg_init(c2s, host->ar_module_name)) == NULL) {
-                log_write(c2s->log, LOG_NOTICE, "failed to load %s authreg module - using default", host->realm);
+                LOG_NOTICE(c2s->log, "failed to load %s authreg module - using default", host->realm);
                 host->ar = c2s->ar;
             }
         } else
@@ -392,7 +374,7 @@ static void _c2s_hosts_expand(c2s_t c2s)
             xhash_put(c2s->hosts, pstrdup(xhash_pool(c2s->hosts), id), host);
         }
 
-        log_write(c2s->log, LOG_NOTICE, "[%s] configured; realm=%s, authreg=%s, registration %s, using PEM:%s",
+        LOG_NOTICE(c2s->log, "[%s] configured; realm=%s, authreg=%s, registration %s, using PEM:%s",
                   id, (host->realm != NULL ? host->realm : "no realm set"),
                   (host->ar_module_name ? host->ar_module_name : c2s->ar_module_name),
                   (host->ar_register_enable ? "enabled" : "disabled"),
@@ -400,42 +382,38 @@ static void _c2s_hosts_expand(c2s_t c2s)
     }
 }
 
-static int _c2s_router_connect(c2s_t c2s) {
-    log_write(c2s->log, LOG_NOTICE, "attempting connection to router at %s, port=%d", c2s->router_ip, c2s->router_port);
+static int _c2s_router_connect(c2s_t *c2s) {
+    LOG_NOTICE(c2s->log, "attempting connection to router at %s, port=%d", c2s->router_ip, c2s->router_port);
 
     c2s->fd = mio_connect(c2s->mio, c2s->router_port, c2s->router_ip, NULL, c2s_router_mio_callback, (void *) c2s);
     if(c2s->fd == NULL) {
         if(errno == ECONNREFUSED)
             c2s_lost_router = 1;
-        log_write(c2s->log, LOG_NOTICE, "connection attempt to router failed: %s (%d)", MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+        LOG_NOTICE(c2s->log, "connection attempt to router failed: %s (%d)", MIO_STRERROR(MIO_ERROR), MIO_ERROR);
         return 1;
     }
 
-    c2s->router = sx_new(c2s->sx_env, c2s->fd->fd, c2s_router_sx_callback, (void *) c2s);
+    c2s->router = sx_new(c2s->sx_env, c2s->router_ip, c2s->router_port, c2s_router_sx_callback, (void *) c2s);
     sx_client_init(c2s->router, 0, NULL, NULL, NULL, "1.0");
 
     return 0;
 }
 
-static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cbarg) {
-    c2s_t c2s = (c2s_t) cbarg;
+static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t *s, void *cbarg) {
+    c2s_t *c2s = cbarg;
     const char *my_realm, *mech;
-    sx_sasl_creds_t creds;
+    sx_sasl_creds_t *creds;
     static char buf[3072];
     char mechbuf[256];
-    struct jid_st jid;
-    jid_static_buf jid_buf;
+    jid_t *jid;
     int i, r;
-    sess_t sess;
+    sess_t *sess;
     char skey[44];
-    host_t host;
-
-    /* init static jid */
-    jid_static(&jid,&jid_buf);
+    host_t *host;
 
     /* retrieve our session */
     assert(s != NULL);
-    sprintf(skey, "%d", s->tag);
+    sprintf(skey, "%s:%d", s->ip, s->port);
 
     /*
      * Retrieve the session, note that depending on the operation,
@@ -453,7 +431,7 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
                 /* get host for request */
                 host = xhash_get(c2s->hosts, s->req_to);
                 if(host == NULL) {
-                    log_write(c2s->log, LOG_ERR, "SASL callback for non-existing host: %s", s->req_to);
+                    LOG_ERROR(c2s->log, "SASL callback for non-existing host: %s", s->req_to);
                     *res = (void *)NULL;
                     return sx_sasl_ret_FAIL;
                 }
@@ -466,15 +444,15 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
             strncpy(buf, my_realm, 256);
             *res = (void *)buf;
 
-            log_debug(ZONE, "sx sasl callback: get realm: realm is '%s'", buf);
+            LOG_DEBUG(c2s->log, "sx sasl callback: get realm: realm is '%s'", buf);
             return sx_sasl_ret_OK;
             break;
 
         case sx_sasl_cb_GET_PASS:
             assert(sess != NULL);
-            creds = (sx_sasl_creds_t) arg;
+            creds = arg;
 
-            log_debug(ZONE, "sx sasl callback: get pass (authnid=%s, realm=%s)", creds->authnid, creds->realm);
+            LOG_DEBUG(c2s->log, "sx sasl callback: get pass (authnid=%s, realm=%s)", creds->authnid, creds->realm);
 
             if(sess->host->ar->get_password && (sess->host->ar->get_password)(
                         sess->host->ar, sess, (char *)creds->authnid, (creds->realm != NULL) ? (char *)creds->realm: "", buf) == 0) {
@@ -486,9 +464,9 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
 
         case sx_sasl_cb_CHECK_PASS:
             assert(sess != NULL);
-            creds = (sx_sasl_creds_t) arg;
+            creds = arg;
 
-            log_debug(ZONE, "sx sasl callback: check pass (authnid=%s, realm=%s)", creds->authnid, creds->realm);
+            LOG_DEBUG(c2s->log, "sx sasl callback: check pass (authnid=%s, realm=%s)", creds->authnid, creds->realm);
 
             if(sess->host->ar->check_password != NULL) {
                 if ((sess->host->ar->check_password)(
@@ -511,49 +489,53 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
 
         case sx_sasl_cb_CHECK_AUTHZID:
             assert(sess != NULL);
-            creds = (sx_sasl_creds_t) arg;
+            creds = arg;
 
             /* we need authzid to validate */
             if(creds->authzid == NULL || creds->authzid[0] == '\0')
                 return sx_sasl_ret_FAIL;
 
             /* authzid must be a valid jid */
-            if(jid_reset(&jid, creds->authzid, -1) == NULL)
+            jid = jid_new(creds->authzid, -1);
+            if(jid == NULL)
                 return sx_sasl_ret_FAIL;
 
             /* and have domain == stream to addr */
-            if(!s->req_to || (strcmp(jid.domain, s->req_to) != 0))
-                return sx_sasl_ret_FAIL;
+            if(!s->req_to || (strcmp(jid->domain, s->req_to) != 0))
+                goto fail;
 
             /* and have no resource */
-            if(jid.resource[0] != '\0')
-                return sx_sasl_ret_FAIL;
+            if(jid->resource[0] != '\0')
+                goto fail;
 
             /* and user has right to authorize as */
-            if (sess->host->ar->user_authz_allowed) {
-                if (sess->host->ar->user_authz_allowed(sess->host->ar, sess, (char *)creds->authnid, (char *)creds->realm, (char *)creds->authzid))
-                        return sx_sasl_ret_OK;
-            } else {
-                if (strcmp(creds->authnid, jid.node) == 0 &&
-                    (sess->host->ar->user_exists)(sess->host->ar, sess, jid.node, jid.domain))
+            if ((sess->host->ar->user_authz_allowed &&
+                    sess->host->ar->user_authz_allowed(sess->host->ar, sess, (char *)creds->authnid, (char *)creds->realm, (char *)creds->authzid))
+                    ||
+                    (strcmp(creds->authnid, jid->node) == 0 &&
+                        (sess->host->ar->user_exists)(sess->host->ar, sess, jid->node, jid->domain))) {
+                    jid_free(jid);
                     return sx_sasl_ret_OK;
             }
 
+            fail:
+            jid_free(jid);
             return sx_sasl_ret_FAIL;
 
         case sx_sasl_cb_GEN_AUTHZID:
             /* generate a jid for SASL ANONYMOUS */
-            jid_reset(&jid, s->req_to, -1);
+            jid = jid_new(s->req_to, -1);
 
             /* make node a random string */
-            jid_random_part(&jid, jid_NODE);
+            jid_random_part(jid, jid_NODE);
 
-            strcpy(buf, jid.node);
+            strcpy(buf, jid->node);
+
+            jid_free(jid);
 
             *res = (void *)buf;
 
             return sx_sasl_ret_OK;
-            break;
 
         case sx_sasl_cb_CHECK_MECH:
             mech = (char *)arg;
@@ -565,7 +547,7 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
             /* get host for request */
             host = xhash_get(c2s->hosts, s->req_to);
             if(host == NULL) {
-                log_write(c2s->log, LOG_WARNING, "SASL callback for non-existing host: %s", s->req_to);
+                LOG_WARN(c2s->log, "SASL callback for non-existing host: %s", s->req_to);
                 return sx_sasl_ret_FAIL;
             }
 
@@ -602,14 +584,12 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
                 return sx_sasl_ret_OK;
             else
                 return sx_sasl_ret_FAIL;
-        default:
-            break;
     }
 
     return sx_sasl_ret_FAIL;
 }
-static void _c2s_time_checks(c2s_t c2s) {
-    sess_t sess;
+static void _c2s_time_checks(c2s_t *c2s) {
+    sess_t *sess;
     time_t now;
     union xhashv xhv;
 
@@ -623,7 +603,7 @@ static void _c2s_time_checks(c2s_t c2s) {
             if(!sess->s) continue;
 
             if(c2s->io_check_idle > 0 && now > sess->last_activity + c2s->io_check_idle) {
-                log_write(c2s->log, LOG_NOTICE, "[%d] [%s, port=%d] timed out", sess->fd->fd, sess->ip, sess->port);
+                LOG_NOTICE(c2s->log, "[%d] [%s, port=%d] timed out", sess->fd->fd, sess->ip, sess->port);
 
                 sx_error(sess->s, stream_err_HOST_GONE, "connection timed out");
                 sx_close(sess->s);
@@ -632,14 +612,14 @@ static void _c2s_time_checks(c2s_t c2s) {
             }
 
             if(c2s->io_check_keepalive > 0 && now > sess->last_activity + c2s->io_check_keepalive && sess->s->state >= state_STREAM) {
-                log_debug(ZONE, "sending keepalive for %d", sess->fd->fd);
+                LOG_DEBUG(c2s->log, "sending keepalive for %d", sess->fd->fd);
 
                 sx_raw_write(sess->s, " ", 1);
             }
 
             if(sess->rate != NULL && sess->rate->bad != 0 && rate_check(sess->rate) != 0) {
                 /* read the pending bytes when rate limit is no longer in effect */
-                log_debug(ZONE, "reading throttled %d", sess->fd->fd);
+                LOG_DEBUG(c2s->log, "reading throttled %d", sess->fd->fd);
                 sess->s->want_read = 1;
                 sx_can_read(sess->s);
             }
@@ -648,18 +628,18 @@ static void _c2s_time_checks(c2s_t c2s) {
 }
 
 static void _c2s_ar_free(const char *module, int modulelen, void *val, void *arg) {
-    authreg_t ar = (authreg_t) val;
+    authreg_t *ar = val;
     authreg_free(ar);
 }
 
 JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to Server", "jabberd2router\0")
 {
-    c2s_t c2s;
+    c2s_t *c2s;
     char *config_file;
     int optchar;
     int mio_timeout;
-    sess_t sess;
-    bres_t res;
+    sess_t *sess;
+    bres_t *res;
     union xhashv xhv;
     time_t check_time = 0;
     const char *cli_id = 0;
@@ -698,11 +678,15 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     jabber_signal(SIGUSR1, _c2s_signal_usr1);
     jabber_signal(SIGUSR2, _c2s_signal_usr2);
 
+    if (log4c_init()) {
+        fputs("log4c init failed\n", stderr);
+        exit(EXIT_FAILURE);
+    }
 
-    c2s = (c2s_t) calloc(1, sizeof(struct c2s_st));
+    c2s = new(c2s_t);
 
     /* load our config */
-    c2s->config = config_new();
+    c2s->config = config_new(0);
 
     config_file = CONFIG_DIR "/c2s.xml";
 
@@ -714,13 +698,6 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
             case 'c':
                 config_file = optarg;
                 break;
-            case 'D':
-#ifdef DEBUG
-                set_debug_flag(1);
-#else
-                printf("WARN: Debugging not enabled.  Ignoring -D.\n");
-#endif
-                break;
             case 'i':
                 cli_id = optarg;
                 break;
@@ -731,9 +708,6 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
                     "Options are:\n"
                     "   -c <config>     config file to use [default: " CONFIG_DIR "/c2s.xml]\n"
                     "   -i id           Override <id> config element\n"
-#ifdef DEBUG
-                    "   -D              Show debug output\n"
-#endif
                     ,
                     stdout);
                 config_free(c2s->config);
@@ -756,18 +730,18 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
 
     c2s->ar_modules = xhash_new(5);
     if(c2s->ar_module_name == NULL) {
-        log_write(c2s->log, LOG_NOTICE, "no default authreg module specified in config file");
+        fputs("c2s: no default authreg module specified in config file\n", stderr);
     }
     else if((c2s->ar = authreg_init(c2s, c2s->ar_module_name)) == NULL) {
+        fprintf(stderr, "c2s: failed to initialize authreg module: %s, aborting\n", c2s->ar_module_name);
         access_free(c2s->access);
         config_free(c2s->config);
-        log_free(c2s->log);
         free(c2s);
         exit(1);
     }
 
-    c2s->log = log_new(c2s->log_type, c2s->log_ident, c2s->log_facility);
-    log_write(c2s->log, LOG_NOTICE, "starting up");
+    c2s->log = log_get(c2s->id);
+    LOG_NOTICE(c2s->log, "starting up");
 
     _c2s_pidfile(c2s);
 
@@ -786,7 +760,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     if(c2s->local_pemfile != NULL) {
         c2s->sx_ssl = sx_env_plugin(c2s->sx_env, sx_ssl_init, NULL, c2s->local_pemfile, c2s->local_cachain, c2s->local_verify_mode, c2s->local_private_key_password, c2s->local_ciphers);
         if(c2s->sx_ssl == NULL) {
-            log_write(c2s->log, LOG_ERR, "failed to load local SSL pemfile, SSL will not be available to clients");
+            LOG_ERROR(c2s->log, "failed to load local SSL pemfile, SSL will not be available to clients");
             c2s->local_pemfile = NULL;
         }
     }
@@ -795,7 +769,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     if(c2s->sx_ssl == NULL && c2s->router_pemfile != NULL) {
         c2s->sx_ssl = sx_env_plugin(c2s->sx_env, sx_ssl_init, NULL, c2s->router_pemfile, c2s->router_cachain, NULL, c2s->router_private_key_password, c2s->router_ciphers);
         if(c2s->sx_ssl == NULL) {
-            log_write(c2s->log, LOG_ERR, "failed to load router SSL pemfile, channel to router will not be SSL encrypted");
+            LOG_ERROR(c2s->log, "failed to load router SSL pemfile, channel to router will not be SSL encrypted");
             c2s->router_pemfile = NULL;
         }
     }
@@ -808,10 +782,10 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     }
 #else
     if(c2s->websocket) {
-        log_write(c2s->log, LOG_ERR, "websocket support not built-in - not enabling");
+        LOG_ERROR(c2s->log, "websocket support not built-in - not enabling");
     }
     if(c2s->http_forward) {
-        log_write(c2s->log, LOG_ERR, "httpforward available only with websocket support built-in");
+        LOG_ERROR(c2s->log, "httpforward available only with websocket support built-in");
     }
 #endif
 
@@ -831,7 +805,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     /* get sasl online */
     c2s->sx_sasl = sx_env_plugin(c2s->sx_env, sx_sasl_init, "xmpp", _c2s_sx_sasl_callback, (void *) c2s);
     if(c2s->sx_sasl == NULL) {
-        log_write(c2s->log, LOG_ERR, "failed to initialise SASL context, aborting");
+        LOG_ERROR(c2s->log, "failed to initialise SASL context, aborting");
         exit(1);
     }
 
@@ -840,7 +814,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
 
     c2s->mio = mio_new(c2s->io_max_fds);
     if(c2s->mio == NULL) {
-        log_write(c2s->log, LOG_ERR, "failed to create MIO, aborting");
+        LOG_ERROR(c2s->log, "failed to create MIO, aborting");
         exit(1);
     }
 
@@ -858,38 +832,27 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     while(!c2s_shutdown) {
         mio_run(c2s->mio, mio_timeout);
 
-        if(c2s_logrotate) {
-            set_debug_log_from_config(c2s->config);
-
-            log_write(c2s->log, LOG_NOTICE, "reopening log ...");
-            log_free(c2s->log);
-            c2s->log = log_new(c2s->log_type, c2s->log_ident, c2s->log_facility);
-            log_write(c2s->log, LOG_NOTICE, "log started");
-
-            c2s_logrotate = 0;
-        }
-
         if(c2s_sighup) {
-            log_write(c2s->log, LOG_NOTICE, "reloading some configuration items ...");
-            config_t conf;
-            conf = config_new();
+            LOG_NOTICE(c2s->log, "reloading some configuration items ...");
+            config_t *conf;
+            conf = config_new(0);
             if (conf && config_load(conf, config_file) == 0) {
                 xhash_free(c2s->stream_redirects);
                 c2s->stream_redirects = xhash_new(11);
 
                 char *req_domain, *to_address, *to_port;
-                config_elem_t elem;
+                config_elem_t *elem;
                 int i;
-                stream_redirect_t sr;
+                stream_redirect_t *sr;
 
                 elem = config_get(conf, "stream_redirect.redirect");
                 if(elem != NULL)
                 {
                     for(i = 0; i < elem->nvalues; i++)
                     {
-                        sr = (stream_redirect_t) pmalloco(xhash_pool(c2s->stream_redirects), sizeof(struct stream_redirect_st));
+                        sr = pnew(xhash_pool(c2s->stream_redirects), stream_redirect_t);
                         if(!sr) {
-                            log_write(c2s->log, LOG_ERR, "cannot allocate memory for new stream redirection record, aborting");
+                            LOG_ERROR(c2s->log, "cannot allocate memory for new stream redirection record, aborting");
                             exit(1);
                         }
                         req_domain = j_attr((const char **) elem->attrs[i], "requested_domain");
@@ -897,7 +860,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
                         to_port = j_attr((const char **) elem->attrs[i], "to_port");
 
                         if(req_domain == NULL || to_address == NULL || to_port == NULL) {
-                            log_write(c2s->log, LOG_ERR, "Error reading a stream_redirect.redirect element from file, skipping");
+                            LOG_ERROR(c2s->log, "Error reading a stream_redirect.redirect element from file, skipping");
                             continue;
                         }
 
@@ -910,7 +873,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
                 }
                 config_free(conf);
             } else {
-                log_write(c2s->log, LOG_WARNING, "couldn't reload config (%s)", config_file);
+                LOG_WARN(c2s->log, "couldn't reload config (%s)", config_file);
                 if (conf) config_free(conf);
             }
             c2s_sighup = 0;
@@ -918,7 +881,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
 
         if(c2s_lost_router) {
             if(c2s->retry_left < 0) {
-                log_write(c2s->log, LOG_NOTICE, "attempting reconnect");
+                LOG_NOTICE(c2s->log, "attempting reconnect");
                 sleep(c2s->retry_sleep);
                 c2s_lost_router = 0;
                 if (c2s->router) sx_free(c2s->router);
@@ -930,7 +893,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
             }
 
             else {
-                log_write(c2s->log, LOG_NOTICE, "attempting reconnect (%d left)", c2s->retry_left);
+                LOG_NOTICE(c2s->log, "attempting reconnect (%d left)", c2s->retry_left);
                 c2s->retry_left--;
                 sleep(c2s->retry_sleep);
                 c2s_lost_router = 0;
@@ -941,7 +904,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
 
         /* cleanup dead sess (before sx_t as sess->result uses sx_t nad cache) */
         while(jqueue_size(c2s->dead_sess) > 0) {
-            sess = (sess_t) jqueue_pull(c2s->dead_sess);
+            sess = jqueue_pull(c2s->dead_sess);
 
             /* free sess data */
             if(sess->ip != NULL) free((void*)sess->ip);
@@ -949,7 +912,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
             if(sess->result != NULL) nad_free(sess->result);
             if(sess->resources != NULL)
                 for(res = sess->resources; res != NULL;) {
-                    bres_t tmp = res->next;
+                    bres_t *tmp = res->next;
                     jid_free(res->jid);
                     free(res);
                     res = tmp;
@@ -962,16 +925,16 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
 
         /* cleanup dead sx_ts */
         while(jqueue_size(c2s->dead) > 0)
-            sx_free((sx_t) jqueue_pull(c2s->dead));
+            sx_free(jqueue_pull(c2s->dead));
 
         /* time checks */
         if(c2s->io_check_interval > 0 && time(NULL) >= c2s->next_check) {
-            log_debug(ZONE, "running time checks");
+            LOG_DEBUG(c2s->log, "running time checks");
 
             _c2s_time_checks(c2s);
 
             c2s->next_check = time(NULL) + c2s->io_check_interval;
-            log_debug(ZONE, "next time check at %d", c2s->next_check);
+            LOG_DEBUG(c2s->log, "next time check in %d: %lld", c2s->io_check_interval, (long long)c2s->next_check);
         }
 
         if(time(NULL) > check_time + 60) {
@@ -989,7 +952,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
                     } else close(fd);
                 }
                 if (fd < 0) {
-                    log_write(c2s->log, LOG_ERR, "failed to write packet statistics to: %s", c2s->packet_stats);
+                    LOG_ERROR(c2s->log, "failed to write packet statistics to: %s", c2s->packet_stats);
                     c2s_shutdown = 1;
                 }
             }
@@ -998,7 +961,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
         }
     }
 
-    log_write(c2s->log, LOG_NOTICE, "shutting down");
+    LOG_NOTICE(c2s->log, "shutting down");
 
     if(xhash_iter_first(c2s->sessions))
         do {
@@ -1012,14 +975,14 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
 
     /* cleanup dead sess */
     while(jqueue_size(c2s->dead_sess) > 0) {
-        sess = (sess_t) jqueue_pull(c2s->dead_sess);
+        sess = jqueue_pull(c2s->dead_sess);
 
         /* free sess data */
         if(sess->ip != NULL) free((void*)sess->ip);
         if(sess->result != NULL) nad_free(sess->result);
         if(sess->resources != NULL)
             for(res = sess->resources; res != NULL;) {
-                bres_t tmp = res->next;
+                bres_t *tmp = res->next;
                 jid_free(res->jid);
                 free(res);
                 res = tmp;
@@ -1029,7 +992,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     }
 
     while(jqueue_size(c2s->dead) > 0)
-        sx_free((sx_t) jqueue_pull(c2s->dead));
+        sx_free(jqueue_pull(c2s->dead));
 
     if (c2s->fd != NULL) mio_close(c2s->mio, c2s->fd);
     sx_free(c2s->router);
@@ -1057,8 +1020,6 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
 
     access_free(c2s->access);
 
-    log_free(c2s->log);
-
     config_free(c2s->config);
 
     free(c2s);
@@ -1070,6 +1031,12 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
 #ifdef HAVE_WINSOCK2_H
     WSACleanup();
 #endif
+
+    /* shutdown logging system - should be last before exit! */
+    if (log4c_fini()) {
+        fputs("log4c finish failed\n", stderr);
+        exit(EXIT_FAILURE);
+    }
 
     return 0;
 }

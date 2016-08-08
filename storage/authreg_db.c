@@ -31,6 +31,7 @@
  */
 
 #include "c2s.h"
+#include "lib/log.h"
 #include <db.h>
 
 /** internal structure, holds auth credentials for one user */
@@ -39,7 +40,7 @@ typedef struct creds_st
     char    username[257];
     char    realm[257];
     char    password[257];
-} *creds_t;
+} creds_t;
 
 /** internal structure, holds our data */
 typedef struct moddata_st
@@ -49,14 +50,14 @@ typedef struct moddata_st
     const char *path;
     int     sync;
 
-    xht     realms;
+    xht     *realms;
     DB      *def_realm;
-} *moddata_t;
+} moddata_t;
 
 /** open/create the database for this realm */
-static DB *_ar_db_get_realm_db(authreg_t ar, const char *realm)
+static DB *_ar_db_get_realm_db(authreg_t *ar, const char *realm)
 {
-    moddata_t data = (moddata_t) ar->private;
+    moddata_t *data = ar->private;
     DB *db;
     int err;
 
@@ -67,19 +68,19 @@ static DB *_ar_db_get_realm_db(authreg_t ar, const char *realm)
     if(db != NULL)
         return db;
 
-    log_debug(ZONE, "creating new db handle for realm '%s'", realm);
+    LOG_DEBUG(ar->c2s->log, "creating new db handle for realm '%s'", realm);
 
     err = db_create(&db, data->env, 0);
     if(err != 0)
     {
-        log_write(ar->c2s->log, LOG_ERR, "db: couldn't create db: %s", db_strerror(err));
+        LOG_ERROR(ar->c2s->log, "db: couldn't create db: %s", db_strerror(err));
         return NULL;
     }
 
     err = db->open(db, NULL, "authreg.db", realm, DB_HASH, DB_CREATE, 0);
     if(err != 0)
     {
-        log_write(ar->c2s->log, LOG_ERR, "db: couldn't open db for realm '%s': %s", realm, db_strerror(err));
+        LOG_ERROR(ar->c2s->log, "db: couldn't open db for realm '%s': %s", realm, db_strerror(err));
         db->close(db, 0);
         return NULL;
     }
@@ -89,20 +90,20 @@ static DB *_ar_db_get_realm_db(authreg_t ar, const char *realm)
     else
         xhash_put(data->realms, pstrdup(xhash_pool(data->realms), realm), (void *) db);
 
-    log_debug(ZONE, "db for realm '%s' is online", realm);
+    LOG_DEBUG(ar->c2s->log, "db for realm '%s' is online", realm);
 
     return db;
 }
 
 /** pull a user out of the db */
-static creds_t _ar_db_fetch_user(authreg_t ar, const char *username, const char *realm)
+static creds_t *_ar_db_fetch_user(authreg_t *ar, const char *username, const char *realm)
 {
     DB *db;
     DBT key, val;
     int err;
-    creds_t creds;
+    creds_t *creds;
 
-    log_debug(ZONE, "fetching auth creds for user '%s' realm '%s'", username, realm);
+    LOG_DEBUG(ar->c2s->log, "fetching auth creds for user '%s' realm '%s'", username, realm);
 
     db = _ar_db_get_realm_db(ar, realm);
     if(db == NULL)
@@ -116,29 +117,29 @@ static creds_t _ar_db_fetch_user(authreg_t ar, const char *username, const char 
 
     err = db->get(db, NULL, &key, &val, 0);
     if(err == 0)
-        creds = (creds_t) val.data;
+        creds = val.data;
     else if(err == DB_NOTFOUND)
         creds = NULL;
     else
     {
-        log_write(ar->c2s->log, LOG_ERR, "db: couldn't fetch auth creds for user '%s' (realm '%s'): %s", username, realm, db_strerror(err));
+        LOG_ERROR(ar->c2s->log, "db: couldn't fetch auth creds for user '%s' (realm '%s'): %s", username, realm, db_strerror(err));
         return NULL;
     }
 
-    log_debug(ZONE, "auth creds: 0x%4X", creds);
+    LOG_DEBUG(ar->c2s->log, "auth creds: 0x%p", creds);
 
     return creds;
 }
 
 /** store the user into the db */
-static int _ar_db_store_user(authreg_t ar, creds_t creds)
+static int _ar_db_store_user(authreg_t *ar, creds_t *creds)
 {
-    moddata_t data = (moddata_t) ar->private;
+    moddata_t *data = ar->private;
     DB *db;
     DBT key, val;
     int err;
 
-    log_debug(ZONE, "storing auth creds for user '%s' realm '%s'", creds->username, creds->realm);
+    LOG_DEBUG(ar->c2s->log, "storing auth creds for user '%s' realm '%s'", creds->username, creds->realm);
 
     db = _ar_db_get_realm_db(ar, creds->realm);
     if(db == NULL)
@@ -156,7 +157,7 @@ static int _ar_db_store_user(authreg_t ar, creds_t creds)
     err = db->put(db, NULL, &key, &val, 0);
     if(err != 0)
     {
-        log_write(ar->c2s->log, LOG_ERR, "db: couldn't store auth creds for user '%s' (realm '%s'): %s", creds->username, creds->realm, db_strerror(err));
+        LOG_ERROR(ar->c2s->log, "db: couldn't store auth creds for user '%s' (realm '%s'): %s", creds->username, creds->realm, db_strerror(err));
         return 1;
     }
 
@@ -166,14 +167,14 @@ static int _ar_db_store_user(authreg_t ar, creds_t creds)
     return 0;
 }
 
-static int _ar_db_user_exists(authreg_t ar, sess_t sess, const char *username, const char *realm)
+static int _ar_db_user_exists(authreg_t *ar, sess_t *sess, const char *username, const char *realm)
 {
     return (int) (long) _ar_db_fetch_user(ar, username, realm);
 }
 
-static int _ar_db_get_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257])
+static int _ar_db_get_password(authreg_t *ar, sess_t *sess, const char *username, const char *realm, char password[257])
 {
-    creds_t creds;
+    creds_t *creds;
 
     if((creds = _ar_db_fetch_user(ar, username, realm)) == NULL)
         return 1;
@@ -183,9 +184,9 @@ static int _ar_db_get_password(authreg_t ar, sess_t sess, const char *username, 
     return 0;
 }
 
-static int _ar_db_set_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257])
+static int _ar_db_set_password(authreg_t *ar, sess_t *sess, const char *username, const char *realm, char password[257])
 {
-    creds_t creds;
+    creds_t *creds;
 
     if((creds = _ar_db_fetch_user(ar, username, realm)) == NULL)
         return 1;
@@ -199,15 +200,15 @@ static int _ar_db_set_password(authreg_t ar, sess_t sess, const char *username, 
     return 0;
 }
 
-static int _ar_db_create_user(authreg_t ar, sess_t sess, const char *username, const char *realm)
+static int _ar_db_create_user(authreg_t *ar, sess_t *sess, const char *username, const char *realm)
 {
-    creds_t creds;
+    creds_t *creds;
     int ret;
 
     if((creds = _ar_db_fetch_user(ar, username, realm)) != NULL)
         return 1;
 
-    creds = (creds_t) calloc(1, sizeof(struct creds_st));
+    creds = new(creds_t);
 
     strncpy(creds->username, username, 256);
     creds->username[256] = 0;
@@ -220,7 +221,7 @@ static int _ar_db_create_user(authreg_t ar, sess_t sess, const char *username, c
     return ret;
 }
 
-static int _ar_db_delete_user(authreg_t ar, sess_t sess, const char *username, const char *realm)
+static int _ar_db_delete_user(authreg_t *ar, sess_t *sess, const char *username, const char *realm)
 {
     DB *db;
     DBT key;
@@ -240,29 +241,30 @@ static int _ar_db_delete_user(authreg_t ar, sess_t sess, const char *username, c
 
     err = db->del(db, NULL, &key, 0);
     if(err != 0)
-        log_write(ar->c2s->log, LOG_ERR, "db: couldn't delete auth creds for user '%s' (realm '%s'): %s", username, realm, db_strerror(err));
+        LOG_ERROR(ar->c2s->log, "db: couldn't delete auth creds for user '%s' (realm '%s'): %s", username, realm, db_strerror(err));
 
     return err;
 }
 
 static void _ar_db_free_walker(const char *key, int keylen, void *val, void *arg)
 {
-    DB *db = (DB *) val;
+    DB *db = val;
+    authreg_t *ar = arg;
 
-    log_debug(ZONE, "closing '%.*s' db", keylen, key);
+    LOG_DEBUG(ar->c2s->log, "closing '%.*s' db", keylen, key);
 
     db->close(db, 0);
 }
 
-static void _ar_db_free(authreg_t ar)
+static void _ar_db_free(authreg_t *ar)
 {
     DB_ENV *env;
 
-    moddata_t data = (moddata_t) ar->private;
+    moddata_t *data = ar->private;
 
-    log_debug(ZONE, "db module shutting down");
+    LOG_DEBUG(ar->c2s->log, "db module shutting down");
 
-    xhash_walk(data->realms, _ar_db_free_walker, NULL);
+    xhash_walk(data->realms, _ar_db_free_walker, ar);
 
     xhash_free(data->realms);
 
@@ -278,39 +280,39 @@ static void _ar_db_free(authreg_t ar)
 /** panic function */
 static void _ar_db_panic(DB_ENV *env, int errval)
 {
-    log_t log = (log_t) env->app_private;
+    log_t *log = env->app_private;
 
-    log_write(log, LOG_CRIT, "db: corruption detected! close all jabberd processes and run db_recover");
+    LOG_CRIT(log, "db: corruption detected! close all jabberd processes and run db_recover");
 
     exit(2);
 }
 
 /** start me up */
-int ar_init(authreg_t ar)
+int ar_init(authreg_t *ar)
 {
     const char *path;
     int err;
     DB_ENV *env;
-    moddata_t data;
+    moddata_t *data;
 
     path = config_get_one(ar->c2s->config, "authreg.db.path", 0);
     if(path == NULL)
     {
-        log_write(ar->c2s->log, LOG_ERR, "db: no authreg path specified in config file");
+        LOG_ERROR(ar->c2s->log, "db: no authreg path specified in config file");
         return 1;
     }
 
     err = db_env_create(&env, 0);
     if(err != 0)
     {
-        log_write(ar->c2s->log, LOG_ERR, "db: couldn't create environment: %s", db_strerror(err));
+        LOG_ERROR(ar->c2s->log, "db: couldn't create environment: %s", db_strerror(err));
         return 1;
     }
 
     err = env->set_paniccall(env, _ar_db_panic);
     if(err != 0)
     {
-        log_write(ar->c2s->log, LOG_ERR, "db: couldn't set panic call: %s", db_strerror(err));
+        LOG_ERROR(ar->c2s->log, "db: couldn't set panic call: %s", db_strerror(err));
         return 1;
     }
 
@@ -320,7 +322,7 @@ int ar_init(authreg_t ar)
     err = env->set_flags(env, DB_AUTO_COMMIT, 1);
     if(err != 0)
     {
-        log_write(ar->c2s->log, LOG_ERR, "db: couldn't set environment for automatic transaction commit: %s", db_strerror(err));
+        LOG_ERROR(ar->c2s->log, "db: couldn't set environment for automatic transaction commit: %s", db_strerror(err));
         env->close(env, 0);
         return 1;
     }
@@ -328,12 +330,12 @@ int ar_init(authreg_t ar)
     err = env->open(env, path, DB_INIT_LOCK | DB_INIT_MPOOL | DB_INIT_LOG | DB_INIT_TXN | DB_CREATE, 0);
     if(err != 0)
     {
-        log_write(ar->c2s->log, LOG_ERR, "db: couldn't open environment: %s", db_strerror(err));
+        LOG_ERROR(ar->c2s->log, "db: couldn't open environment: %s", db_strerror(err));
         env->close(env, 0);
         return 1;
     }
 
-    data = (moddata_t) calloc(1, sizeof(struct moddata_st));
+    data = new(moddata_t);
 
     data->env = env;
     data->path = path;

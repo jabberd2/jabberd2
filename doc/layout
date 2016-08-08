@@ -1,6 +1,6 @@
 jabber2/
 
-    docs/       - Documentation
+    doc/        - Documentation
         code/   - Doxygen generated
         dev/    - Hacker docs
 

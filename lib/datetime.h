@@ -18,34 +18,17 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
-/** @file lib/datetime.h
+/** @file util/datetime.h
   * @brief ISO 8610 / JEP 82 date/time manipulation
   * @author Robert Norris
-  * $Date: 2004/05/05 23:49:38 $
-  * $Revision: 1.1 $
   */
 
 #ifndef INCL_UTIL_DATETIME_H
 #define INCL_UTIL_DATETIME_H 1
 
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
+#include "util.h"
 
 #include <time.h>
-
-/* jabberd2 Windows DLL */
-#ifndef JABBERD2_API
-# ifdef _WIN32
-#  ifdef JABBERD2_EXPORTS
-#   define JABBERD2_API  __declspec(dllexport)
-#  else /* JABBERD2_EXPORTS */
-#   define JABBERD2_API  __declspec(dllimport)
-#  endif /* JABBERD2_EXPORTS */
-# else /* _WIN32 */
-#  define JABBERD2_API extern
-# endif /* _WIN32 */
-#endif /* JABBERD2_API */
 
 typedef enum {
     dt_DATE     = 1,
@@ -54,7 +37,7 @@ typedef enum {
     dt_LEGACY   = 4
 } datetime_t;
 
-JABBERD2_API time_t  datetime_in(char *date);
-JABBERD2_API void    datetime_out(time_t t, datetime_t type, const char *date, int datelen);
+JABBERD2_API time_t  datetime_in(const char * const date);
+JABBERD2_API void    datetime_out(time_t t, datetime_t type, char * const date, int datelen);
 
 #endif

@@ -19,6 +19,7 @@
  */
 
 #include "sm.h"
+#include "lib/stanza.h"
 
 /** @file sm/dispatch.c
   * @brief packet dispatcher
@@ -28,13 +29,13 @@
   */
 
 /** main packet dispatcher */
-void dispatch(sm_t sm, pkt_t pkt) {
-    user_t user;
+void dispatch(sm_t *sm, pkt_t *pkt) {
+    user_t *user;
     mod_ret_t ret;
 
     /* handle broadcasts */
     if(pkt->rtype == route_BROADCAST) {
-        log_debug(ZONE, "can't handle broadcast routes (yet), dropping");
+        LOG_DEBUG(sm->log, "can't handle broadcast routes (yet), dropping");
         pkt_free(pkt);
         return;
     }

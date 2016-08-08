@@ -18,11 +18,9 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
-/** @file lib/uri.h
+/** @file util/uri.h
   * @brief common URIs
   * @author Robert Norris
-  * $Revision: 1.1 $
-  * $Date: 2004/04/30 00:53:54 $
   */
 
 #ifndef INCL_UTIL_URI_H
@@ -72,13 +70,18 @@
 #define uri_GATEWAY     "jabber:iq:gateway"
 #define uri_EXPIRE      "jabber:x:expire"
 #define uri_PRIVACY     "jabber:iq:privacy"
+#define uri_LAST        "jabber:iq:last"
+#define uri_PRIVATE     "jabber:iq:private"
+#define uri_SEARCH      "jabber:iq:search"
+#define uri_VCARD       "vcard-temp"
 #define urn_BLOCKING    "urn:xmpp:blocking"
 #define urn_BLOCKING_ERR "urn:xmpp:blocking:errors"
-#define uri_SEARCH      "jabber:iq:search"
 #define urn_PING        "urn:xmpp:ping"
 #define uri_DISCO       "http://jabber.org/protocol/disco"
 #define uri_DISCO_ITEMS "http://jabber.org/protocol/disco#items"
 #define uri_DISCO_INFO  "http://jabber.org/protocol/disco#info"
+#define uri_PUBSUB      "http://jabber.org/protocol/pubsub"
+#define uri_VACATION    "http://jabber.org/protocol/vacation"
 #define uri_SERVERINFO  "http://jabber.org/network/serverinfo"
 #define urn_SOFTWAREINFO "urn:xmpp:dataforms:softwareinfo"
 

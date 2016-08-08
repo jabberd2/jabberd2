@@ -593,7 +593,7 @@ int ar_init(authreg_t ar) {
     int fail = 0;
 
     /* configure the database context with field names and SQL statements */
-    pgsqlcontext = (pgsqlcontext_t) calloc(1, sizeof( struct pgsqlcontext_st ) );
+    pgsqlcontext = new(pgsqlcontext_t);
     ar->private = pgsqlcontext;
     ar->free = _ar_pgsql_free;
 

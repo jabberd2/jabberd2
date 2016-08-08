@@ -19,6 +19,12 @@
  */
 
 #include "util.h"
+#include "stanza.h"
+#include "uri.h"
+
+#include <stddef.h>
+#include <stdio.h>
+#include <assert.h>
 
 /** if you change these, reflect your changes in the defines in util.h */
 struct _stanza_error_st _stanza_errors[] = {
@@ -49,7 +55,7 @@ struct _stanza_error_st _stanza_errors[] = {
 };
 
 /** error the packet */
-nad_t stanza_error(nad_t nad, int elem, int err) {
+nad_t *stanza_error(nad_t *nad, int elem, int err) {
     int ns;
 
     assert((int) (nad != NULL));
@@ -61,12 +67,12 @@ nad_t stanza_error(nad_t nad, int elem, int err) {
     nad_set_attr(nad, elem, -1, "type", "error", 5);
 
     elem = nad_insert_elem(nad, elem, 0, "error", NULL);
-    if(_stanza_errors[err].code != NULL)
+    if (_stanza_errors[err].code != NULL)
     nad_set_attr(nad, elem, -1, "code", _stanza_errors[err].code, 0);
-    if(_stanza_errors[err].type != NULL)
+    if (_stanza_errors[err].type != NULL)
         nad_set_attr(nad, elem, -1, "type", _stanza_errors[err].type, 0);
 
-    if(_stanza_errors[err].name != NULL) {
+    if (_stanza_errors[err].name != NULL) {
         ns = nad_add_namespace(nad, uri_STANZA_ERR, NULL);
         nad_insert_elem(nad, elem, ns, _stanza_errors[err].name, NULL);
     }
@@ -75,7 +81,7 @@ nad_t stanza_error(nad_t nad, int elem, int err) {
 }
 
 /** flip the to and from attributes on this elem */
-nad_t stanza_tofrom(nad_t nad, int elem) {
+nad_t *stanza_tofrom(nad_t *nad, int elem) {
     int attr;
     char to[3072], from[3072];
 
@@ -85,11 +91,11 @@ nad_t stanza_tofrom(nad_t nad, int elem) {
     from[0] = '\0';
 
     attr = nad_find_attr(nad, elem, -1, "to", NULL);
-    if(attr >= 0)
+    if (attr >= 0)
         snprintf(to, 3072, "%.*s", NAD_AVAL_L(nad, attr), NAD_AVAL(nad, attr));
-    
+
     attr = nad_find_attr(nad, elem, -1, "from", NULL);
-    if(attr >= 0)
+    if (attr >= 0)
         snprintf(from, 3072, "%.*s", NAD_AVAL_L(nad, attr), NAD_AVAL(nad, attr));
 
     nad_set_attr(nad, elem, -1, "to", from[0] != '\0' ? from : NULL, 0);

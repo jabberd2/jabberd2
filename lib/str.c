@@ -18,12 +18,42 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
-#include "pool.h"
-#include "util.h"
+#include "str.h"
+#include "hex.h"
+#include "sha1.h"
+#include <stddef.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <errno.h>
+
+#define BLOCKSIZE 128
+
+/**
+ * Reallocate the given buffer to make it larger.
+ *
+ * @param oblocks A pointer to a buffer that will be made larger.
+ * @param len     The minimum size in bytes to make the buffer.  The
+ *                actual size of the buffer will be rounded up to the
+ *                nearest block of BLOCKSIZE bytes.
+ *
+ * @return The new size of the buffer in bytes.
+ */
+size_t _buf_realloc(void **oblocks, size_t len)
+{
+    size_t nlen;
+
+    /* round up to standard block sizes */
+    nlen = (((len-1)/BLOCKSIZE)+1)*BLOCKSIZE;
+
+    /* get new or resize previous */
+    *oblocks = *oblocks ? realloc(*oblocks, nlen) : malloc(nlen);
+    return nlen;
+}
 
 char *j_strdup(const char *str)
 {
-    if(str == NULL)
+    if (str == NULL)
         return NULL;
     else
         return strdup(str);
@@ -31,9 +61,9 @@ char *j_strdup(const char *str)
 
 char *j_strcat(char *dest, const char *txt)
 {
-    if(!txt) return(dest);
+    if (!txt) return(dest);
 
-    while(*txt)
+    while (*txt)
         *dest++ = *txt++;
     *dest = '\0';
 
@@ -42,19 +72,19 @@ char *j_strcat(char *dest, const char *txt)
 
 int j_strcmp(const char *a, const char *b)
 {
-    if(a == NULL || b == NULL)
+    if (a == NULL || b == NULL)
         return -1;
 
-    while(*a == *b && *a != '\0' && *b != '\0'){ a++; b++; }
+    while (*a == *b && *a != '\0' && *b != '\0') { a++; b++; }
 
-    if(*a == *b) return 0;
+    if (*a == *b) return 0;
 
     return -1;
 }
 
 int j_strcasecmp(const char *a, const char *b)
 {
-    if(a == NULL || b == NULL)
+    if (a == NULL || b == NULL)
         return -1;
     else
         return strcasecmp(a, b);
@@ -62,7 +92,7 @@ int j_strcasecmp(const char *a, const char *b)
 
 int j_strncmp(const char *a, const char *b, int i)
 {
-    if(a == NULL || b == NULL)
+    if (a == NULL || b == NULL)
         return -1;
     else
         return strncmp(a, b, i);
@@ -70,15 +100,15 @@ int j_strncmp(const char *a, const char *b, int i)
 
 int j_strncasecmp(const char *a, const char *b, int i)
 {
-    if(a == NULL || b == NULL)
+    if (a == NULL || b == NULL)
         return -1;
     else
         return strncasecmp(a, b, i);
 }
 
-int j_strlen(const char *a)
+size_t j_strlen(const char *a)
 {
-    if(a == NULL)
+    if (a == NULL)
         return 0;
     else
         return strlen(a);
@@ -86,19 +116,21 @@ int j_strlen(const char *a)
 
 int j_atoi(const char *a, int def)
 {
-    if(a == NULL)
+    if (a == NULL)
         return def;
-    else
-        return atoi(a);
+
+    errno = 0;
+    long temp = strtol(a, NULL, 10);
+    return errno ? def : (int)temp;
 }
 
 char *j_attr(const char** atts, const char *attr)
 {
     int i = 0;
 
-    while(atts[i] != '\0')
+    while (atts[i] != '\0')
     {
-        if(j_strcmp(atts[i],attr) == 0) return (char*)atts[i+1];
+        if (j_strcmp(atts[i],attr) == 0) return (char*)atts[i+1];
         i += 2;
     }
 
@@ -109,264 +141,9 @@ char *j_attr(const char** atts, const char *attr)
 char *j_strnchr(const char *s, int c, int n) {
     int count;
 
-    for(count = 0; count < n; count++)
-        if(s[count] == (char) c)
+    for (count = 0; count < n; count++)
+        if (s[count] == (char) c)
             return &((char *)s)[count];
-    
+
     return NULL;
-}
-
-spool spool_new(pool_t p)
-{
-    spool s;
-
-    s = pmalloc(p, sizeof(struct spool_struct));
-    s->p = p;
-    s->len = 0;
-    s->last = NULL;
-    s->first = NULL;
-    return s;
-}
-
-static void _spool_add(spool s, const char *goodstr)
-{
-    struct spool_node *sn;
-
-    sn = pmalloc(s->p, sizeof(struct spool_node));
-    sn->c = goodstr;
-    sn->next = NULL;
-
-    s->len += strlen(goodstr);
-    if(s->last != NULL)
-        s->last->next = sn;
-    s->last = sn;
-    if(s->first == NULL)
-        s->first = sn;
-}
-
-void spool_add(spool s, const char *str)
-{
-    if(str == NULL || strlen(str) == 0)
-        return;
-
-    _spool_add(s, pstrdup(s->p, str));
-}
-
-void spool_escape(spool s, const char *raw, int len)
-{
-    if(raw == NULL || len <= 0)
-        return;
-
-    _spool_add(s, strescape(s->p, raw, len));
-}
-
-void spooler(spool s, ...)
-{
-    va_list ap;
-    char *arg = NULL;
-
-    if(s == NULL)
-        return;
-
-    va_start(ap, s);
-
-    /* loop till we hit our end flag, the first arg */
-    while(1)
-    {
-        arg = va_arg(ap,char *);
-        if((spool)arg == s)
-            break;
-        else
-            spool_add(s, arg);
-    }
-
-    va_end(ap);
-}
-
-const char *spool_print(spool s)
-{
-    char *ret,*tmp;
-    struct spool_node *next;
-
-    if(s == NULL || s->len == 0 || s->first == NULL)
-        return NULL;
-
-    ret = pmalloc(s->p, s->len + 1);
-    *ret = '\0';
-
-    next = s->first;
-    tmp = ret;
-    while(next != NULL)
-    {
-        tmp = j_strcat(tmp,next->c);
-        next = next->next;
-    }
-
-    return ret;
-}
-
-/** convenience :) */
-const char *spools(pool_t p, ...)
-{
-    va_list ap;
-    spool s;
-    char *arg = NULL;
-
-    if(p == NULL)
-        return NULL;
-
-    s = spool_new(p);
-
-    va_start(ap, p);
-
-    /* loop till we hit our end flag, the first arg */
-    while(1)
-    {
-        arg = va_arg(ap,char *);
-        if((pool_t)arg == p)
-            break;
-        else
-            spool_add(s, arg);
-    }
-
-    va_end(ap);
-
-    return spool_print(s);
-}
-
-
-char *strunescape(pool_t p, char *buf)
-{
-    int i,j=0;
-    char *temp;
-
-    if (buf == NULL) return(NULL);
-
-    if (strchr(buf,'&') == NULL) return(buf);
-
-    if(p != NULL)
-        temp = pmalloc(p,strlen(buf)+1);
-    else
-        temp = malloc(strlen(buf)+1);
-
-    if (temp == NULL) return(NULL);
-
-    for(i=0;i<strlen(buf);i++)
-    {
-        if (buf[i]=='&')
-        {
-            if (strncmp(&buf[i],"&amp;",5)==0)
-            {
-                temp[j] = '&';
-                i += 4;
-            } else if (strncmp(&buf[i],"&quot;",6)==0) {
-                temp[j] = '\"';
-                i += 5;
-            } else if (strncmp(&buf[i],"&apos;",6)==0) {
-                temp[j] = '\'';
-                i += 5;
-            } else if (strncmp(&buf[i],"&lt;",4)==0) {
-                temp[j] = '<';
-                i += 3;
-            } else if (strncmp(&buf[i],"&gt;",4)==0) {
-                temp[j] = '>';
-                i += 3;
-            }
-        } else {
-            temp[j]=buf[i];
-        }
-        j++;
-    }
-    temp[j]='\0';
-    return(temp);
-}
-
-
-char *strescape(pool_t p, const char *buf, int len)
-{
-    int i,j,newlen = len;
-    char *temp;
-
-    if (buf == NULL || len < 0) return NULL;
-
-    for(i=0;i<len;i++)
-    {
-        switch(buf[i])
-        {
-        case '&':
-            newlen+=5;
-            break;
-        case '\'':
-            newlen+=6;
-            break;
-        case '\"':
-            newlen+=6;
-            break;
-        case '<':
-            newlen+=4;
-            break;
-        case '>':
-            newlen+=4;
-            break;
-        }
-    }
-
-    if(p != NULL)
-        temp = pmalloc(p,newlen+1);
-    else
-        temp = malloc(newlen+1);
-    if(newlen == len)
-    {
-        memcpy(temp,buf,len);
-        temp[len] = '\0';
-        return temp;
-    }
-
-    for(i=j=0;i<len;i++)
-    {
-        switch(buf[i])
-        {
-        case '&':
-            memcpy(&temp[j],"&amp;",5);
-            j += 5;
-            break;
-        case '\'':
-            memcpy(&temp[j],"&apos;",6);
-            j += 6;
-            break;
-        case '\"':
-            memcpy(&temp[j],"&quot;",6);
-            j += 6;
-            break;
-        case '<':
-            memcpy(&temp[j],"&lt;",4);
-            j += 4;
-            break;
-        case '>':
-            memcpy(&temp[j],"&gt;",4);
-            j += 4;
-            break;
-        default:
-            temp[j++] = buf[i];
-        }
-    }
-    temp[j] = '\0';
-    return temp;
-}
-
-/** convenience (originally by Thomas Muldowney) */
-void shahash_r(const char* str, char hashbuf[41]) {
-    unsigned char hashval[20];
-    
-    shahash_raw(str, hashval);
-    hex_from_raw(hashval, 20, hashbuf);
-}
-void shahash_raw(const char* str, unsigned char hashval[20]) {
-#ifdef HAVE_SSL
-    /* use OpenSSL functions when available */
-#   include <openssl/sha.h>
-    SHA1((unsigned char *)str, strlen(str), hashval);
-#else
-    sha1_hash((unsigned char *)str, strlen(str), hashval);
-#endif
 }

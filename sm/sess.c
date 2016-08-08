@@ -19,6 +19,9 @@
  */
 
 #include "sm.h"
+#include "lib/sha1.h"
+#include "lib/datetime.h"
+#include "lib/hex.h"
 
 /** @file sm/sess.c
   * @brief session management
@@ -28,10 +31,10 @@
   */
 
 /** send a packet to the client for this session */
-void sess_route(sess_t sess, pkt_t pkt) {
+void sess_route(sess_t *sess, pkt_t *pkt) {
     int ns;
 
-    log_debug(ZONE, "routing pkt 0x%X to %s (%s) for %s", pkt, sess->c2s, sess->c2s_id, jid_full(sess->jid));
+    LOG_DEBUG(sess->user->sm->log, "routing pkt %p to %s (%s) for %s", pkt, sess->c2s, sess->c2s_id, jid_full(sess->jid));
 
     if(pkt == NULL)
         return;
@@ -59,8 +62,8 @@ void sess_route(sess_t sess, pkt_t pkt) {
     free(pkt);
 }
 
-static void _sess_end_guts(sess_t sess) {
-    sess_t scan;
+static void _sess_end_guts(sess_t *sess) {
+    sess_t *scan;
 
     /* fake an unavailable presence from this session, so that modules and externals know we're gone */
     if(sess->available || sess->A != NULL)
@@ -82,17 +85,17 @@ static void _sess_end_guts(sess_t sess) {
     xhash_zap(sess->user->sm->sessions, sess->sm_id);
 }
 
-void sess_end(sess_t sess) {
-    log_debug(ZONE, "shutting down session %s", jid_full(sess->jid));
+void sess_end(sess_t *sess) {
+    LOG_DEBUG(sess->user->sm->log, "shutting down session %s", jid_full(sess->jid));
 
     _sess_end_guts(sess);
 
-    log_write(sess->user->sm->log, LOG_NOTICE, "session ended: jid=%s", jid_full(sess->jid));
+    LOG_NOTICE(sess->user->sm->log, "session ended: jid=%s", jid_full(sess->jid));
 
     /* if it was the last session, free the user */
     if(sess->user->sessions == NULL) {
         mm_user_unload(sess->user->sm->mm, sess->user);
-        log_write(sess->user->sm->log, LOG_NOTICE, "user unloaded jid=%s", jid_user(sess->jid));
+        LOG_NOTICE(sess->user->sm->log, "user unloaded jid=%s", jid_user(sess->jid));
         user_free(sess->user);
     }
 
@@ -100,19 +103,19 @@ void sess_end(sess_t sess) {
     pool_free(sess->p);
 }
 
-sess_t sess_start(sm_t sm, jid_t jid) {
-    pool_t p;
-    user_t user;
-    sess_t sess, scan;
+sess_t *sess_start(sm_t *sm, jid_t *jid) {
+    pool_t *p;
+    user_t *user;
+    sess_t *sess, *scan;
     sha1_state_t sha1;
     unsigned char hash[20];
     int replaced = 0;
 
-    log_debug(ZONE, "session requested for %s", jid_full(jid));
+    LOG_DEBUG(sm->log, "session requested for %s", jid_full(jid));
 
     /* check whether it is to serviced domain */
     if(xhash_get(sm->hosts, jid->domain) == NULL) {
-        log_write(sm->log, LOG_ERR, "request to start session in non-serviced domain: jid=%s", jid_full(jid));
+        LOG_ERROR(sm->log, "request to start session in non-serviced domain: jid=%s", jid_full(jid));
         return NULL;
     }
 
@@ -122,18 +125,18 @@ sess_t sess_start(sm_t sm, jid_t jid) {
     /* unknown user */
     if(user == NULL) {
         if(config_get(sm->config, "user.auto-create") == NULL) {
-            log_write(sm->log, LOG_NOTICE, "user not found and user.auto-create not enabled, can't start session: jid=%s", jid_full(jid));
+            LOG_NOTICE(sm->log, "user not found and user.auto-create not enabled, can't start session: jid=%s", jid_full(jid));
             return NULL;
         }
 
-        log_debug(ZONE, "auto-creating user %s", jid_user(jid));
+        LOG_DEBUG(sm->log, "auto-creating user %s", jid_user(jid));
 
         if(user_create(sm, jid) != 0)
             return NULL;
 
         user = user_load(sm, jid);
         if(user == NULL) {
-            log_write(sm->log, LOG_NOTICE, "couldn't load user, can't start session: jid=%s", jid_full(jid));
+            LOG_NOTICE(sm->log, "couldn't load user, can't start session: jid=%s", jid_full(jid));
             return NULL;
         }
     }
@@ -141,7 +144,7 @@ sess_t sess_start(sm_t sm, jid_t jid) {
     /* kill their old session if they have one */
     for(scan = user->sessions; scan != NULL; scan = scan->next)
         if(jid_compare_full(scan->jid, jid) == 0) {
-            log_debug(ZONE, "replacing session %s (%s)", jid_full(jid), scan->c2s_id);
+            LOG_DEBUG(sm->log, "replacing session %s (%s)", jid_full(jid), scan->c2s_id);
 
             /* !!! this "replaced" stuff is a hack - its really a subaction of "ended".
              *     hurrah, another control protocol rewrite is needed :(
@@ -160,7 +163,7 @@ sess_t sess_start(sm_t sm, jid_t jid) {
     /* make a new session */
     p = pool_new();
 
-    sess = (sess_t) pmalloco(p, sizeof(struct sess_st));
+    sess = pnew(p, sess_t);
     sess->p = p;
 
     /* fill it out */
@@ -185,7 +188,7 @@ sess_t sess_start(sm_t sm, jid_t jid) {
     sha1_finish(&sha1, hash);
     hex_from_raw(hash, 20, sess->sm_id);
 
-    log_debug(ZONE, "smid is %s", sess->sm_id);
+    LOG_DEBUG(sm->log, "smid is %s", sess->sm_id);
 
     /* remember it */
     xhash_put(sm->sessions, sess->sm_id, sess);
@@ -194,17 +197,18 @@ sess_t sess_start(sm_t sm, jid_t jid) {
     /* !!! catch the return value - if its 1, don't let them in */
     mm_sess_start(sm->mm, sess);
 
-    if(replaced)
-        log_write(sm->log, LOG_NOTICE, "session replaced: jid=%s", jid_full(sess->jid));
-    else
-        log_write(sm->log, LOG_NOTICE, "session started: jid=%s", jid_full(sess->jid));
+    if(replaced) {
+        LOG_NOTICE(sm->log, "session replaced: jid=%s", jid_full(sess->jid));
+    } else {
+        LOG_NOTICE(sm->log, "session started: jid=%s", jid_full(sess->jid));
+    }
             
     return sess;
 }
 
 /** match a session by resource */
-sess_t sess_match(user_t user, const char *resource) {
-    sess_t sess;
+sess_t *sess_match(user_t *user, const char *resource) {
+    sess_t *sess;
 
     for(sess = user->sessions; sess != NULL; sess = sess->next) {
         /* exact matches */

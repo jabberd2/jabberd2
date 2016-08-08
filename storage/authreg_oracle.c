@@ -386,7 +386,7 @@ int ar_init(authreg_t ar) {
     OCIStmt    *ociStatement;
 
     /* configure the database context with field names and SQL statements */
-    oraclecontext = (Oracle_context_t)malloc( sizeof( struct Oracle_context_st ) );
+    oraclecontext = (Oracle_context_t) malloc( sizeof( struct Oracle_context_st ) );
     ar->private = oraclecontext;
     ar->free = _ar_oracle_free;
 

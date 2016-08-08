@@ -29,7 +29,7 @@
 
 static int ns_PING = 0;
 
-void _iq_ping_reply(pkt_t pkt) {
+void _iq_ping_reply(pkt_t *pkt) {
     int ns, elem;
 
     ns = nad_find_scoped_namespace(pkt->nad, urn_PING, NULL);
@@ -42,7 +42,7 @@ void _iq_ping_reply(pkt_t pkt) {
     return;
 }
 
-static mod_ret_t _iq_ping_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
+static mod_ret_t _iq_ping_in_sess(mod_instance_t *mi, sess_t *sess, pkt_t *pkt) {
     if(pkt->to != NULL || pkt->type != pkt_IQ || pkt->ns != ns_PING)
         return mod_PASS;
     _iq_ping_reply(pkt);
@@ -50,7 +50,7 @@ static mod_ret_t _iq_ping_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     return mod_HANDLED;
 }
 
-static mod_ret_t _iq_ping_pkt_sm(mod_instance_t mi, pkt_t pkt) {
+static mod_ret_t _iq_ping_pkt_sm(mod_instance_t *mi, pkt_t *pkt) {
     if(pkt->type != pkt_IQ || pkt->ns != ns_PING)
         return mod_PASS;
     _iq_ping_reply(pkt);
@@ -58,13 +58,13 @@ static mod_ret_t _iq_ping_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     return mod_HANDLED;
 }
 
-static void _iq_ping_free(module_t mod) {
+static void _iq_ping_free(module_t *mod) {
     sm_unregister_ns(mod->mm->sm, urn_PING);
     feature_unregister(mod->mm->sm, urn_PING);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
-    module_t mod = mi->mod;
+DLLEXPORT int module_init(mod_instance_t *mi, const char *arg) {
+    module_t *mod = mi->mod;
 
     if(mod->init) return 0;
 

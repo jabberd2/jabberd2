@@ -34,37 +34,28 @@
  */
 
 #include "storage.h"
+#include "lib/util.h"
+#include "lib/str.h"
 #include <ctype.h>
+#include <errno.h>
+#include <string.h>
+#include <dirent.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <inttypes.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
-#ifdef HAVE_DIRENT_H
-# include <dirent.h>
-# define NAMELEN(dirent) strlen((dirent)->d_name)
-#else
-# define dirent direct
-# define NAMELEN(dirent) (dirent)->d_namelen
-# ifdef HAVE_SYS_NDIR_H
-#  include <sys/ndir.h>
-# endif
-# ifdef HAVE_SYS_DIR_H
-#  include <sys/dir.h>
-# endif
-# ifdef HAVE_NDIR_H
-#  include <ndir.h>
-# endif
-#endif
-#ifdef HAVE_SYS_STAT_H
-#  include <sys/stat.h>
-#endif
-
+#define NAMELEN(dirent) strlen((dirent)->d_name)
 #define STORAGE_FS_READ_BLOCKSIZE 8192
 
 /** internal structure, holds our data */
 typedef struct drvdata_st {
     const char *path;
-} *drvdata_t;
+} drvdata_t;
 
-static st_ret_t _st_fs_add_type(st_driver_t drv, const char *type) {
-    drvdata_t data = (drvdata_t) drv->private;
+static st_ret_t _st_fs_add_type(st_driver_t *drv, const char *type) {
+    drvdata_t *data = drv->private;
     char path[1024];
     struct stat sbuf;
     int ret;
@@ -73,15 +64,15 @@ static st_ret_t _st_fs_add_type(st_driver_t drv, const char *type) {
     ret = stat(path, &sbuf);
     if(ret < 0) {
         if(errno != ENOENT) {
-            log_write(drv->st->log, LOG_ERR, "fs: couldn't stat '%s': %s", path, strerror(errno));
+            LOG_ERROR(drv->st->log, "fs: couldn't stat '%s': %s", path, strerror(errno));
             return st_FAILED;
         }
 
-        log_debug(ZONE, "creating new type dir '%s'", path);
+        LOG_DEBUG(drv->st->log, "creating new type dir '%s'", path);
 
         ret = mkdir(path, 0755);
         if(ret < 0) {
-            log_write(drv->st->log, LOG_ERR, "fs: couldn't create directory '%s': %s", path, strerror(errno));
+            LOG_ERROR(drv->st->log, "fs: couldn't create directory '%s': %s", path, strerror(errno));
             return st_FAILED;
         }
     }
@@ -89,19 +80,19 @@ static st_ret_t _st_fs_add_type(st_driver_t drv, const char *type) {
     return st_SUCCESS;
 }
 
-static st_ret_t _st_fs_put(st_driver_t drv, const char *type, const char *owner, os_t os) {
-    drvdata_t data = (drvdata_t) drv->private;
+static st_ret_t _st_fs_put(st_driver_t *drv, const char *type, const char *owner, os_t *os) {
+    drvdata_t *data = drv->private;
     char path[1024];
     struct stat sbuf;
     int ret;
     int file;
     FILE *f;
-    os_object_t o;
+    os_object_t *o;
     char *key;
     void *val = NULL;
     os_type_t ot;
-    const char *xml;
-    int len;
+    char *xml;
+    unsigned int len;
 
     if(os_count(os) == 0)
         return st_SUCCESS;
@@ -109,7 +100,7 @@ static st_ret_t _st_fs_put(st_driver_t drv, const char *type, const char *owner,
     snprintf(path, 1024, "%s/%s", data->path, type);
     ret = stat(path, &sbuf);
     if(ret < 0) {
-        log_write(drv->st->log, LOG_ERR, "fs: couldn't stat '%s': %s", path, strerror(errno));
+        LOG_ERROR(drv->st->log, "fs: couldn't stat '%s': %s", path, strerror(errno));
         return st_FAILED;
     }
 
@@ -117,15 +108,15 @@ static st_ret_t _st_fs_put(st_driver_t drv, const char *type, const char *owner,
     ret = stat(path, &sbuf);
     if(ret < 0) {
         if(errno != ENOENT) {
-            log_write(drv->st->log, LOG_ERR, "fs: couldn't stat '%s': %s", path, strerror(errno));
+            LOG_ERROR(drv->st->log, "fs: couldn't stat '%s': %s", path, strerror(errno));
             return st_FAILED;
         }
 
-        log_debug(ZONE, "creating new collection dir '%s'", path);
+        LOG_DEBUG(drv->st->log, "creating new collection dir '%s'", path);
 
         ret = mkdir(path, 0755);
         if(ret < 0) {
-            log_write(drv->st->log, LOG_ERR, "fs: couldn't create directory '%s': %s", path, strerror(errno));
+            LOG_ERROR(drv->st->log, "fs: couldn't create directory '%s': %s", path, strerror(errno));
             return st_FAILED;
         }
     }
@@ -142,16 +133,16 @@ static st_ret_t _st_fs_put(st_driver_t drv, const char *type, const char *owner,
                     break;
 
                 if(ret < 0) {
-                    log_write(drv->st->log, LOG_ERR, "fs: couldn't stat '%s': %s", path, strerror(errno));
+                    LOG_ERROR(drv->st->log, "fs: couldn't stat '%s': %s", path, strerror(errno));
                     return st_FAILED;
                 }
             }
                 
-            log_debug(ZONE, "will store object to %s", path);
+            LOG_DEBUG(drv->st->log, "will store object to %s", path);
 
             f = fopen(path, "w");
             if(f == NULL) {
-                log_write(drv->st->log, LOG_ERR, "fs: couldn't open '%s' for writing: %s", path, strerror(errno));
+                LOG_ERROR(drv->st->log, "fs: couldn't open '%s' for writing: %s", path, strerror(errno));
                 return st_FAILED;
             }
 
@@ -166,15 +157,15 @@ static st_ret_t _st_fs_put(st_driver_t drv, const char *type, const char *owner,
                     val = NULL;
                     os_object_iter_get(o, &key, &val, &ot);
 
-                    log_debug(ZONE, "writing field %s type %d", key, ot);
+                    LOG_DEBUG(drv->st->log, "writing field %s type %d", key, ot);
 
                     switch(ot) {
                         case os_type_BOOLEAN:
-                            fprintf(f, "%s %d %d\n", key, ot, ((int)val != 0) ? 1 : 0);
+                            fprintf(f, "%s %d %d\n", key, ot, ((intptr_t)val != 0) ? 1 : 0);
                             break;
                             
                         case os_type_INTEGER:
-                            fprintf(f, "%s %d %d\n", key, ot, (int) val);
+                            fprintf(f, "%s %d %" PRIdPTR "\n", key, ot, (intptr_t) val);
                             break;
 
                         case os_type_STRING:
@@ -182,7 +173,7 @@ static st_ret_t _st_fs_put(st_driver_t drv, const char *type, const char *owner,
                             break;
 
                         case os_type_NAD:
-                            nad_print((nad_t) val, 0, &xml, &len);
+                            nad_print((nad_t*) val, 0, &xml, &len);
                             fprintf(f, "%s %d %.*s\n", key, ot, len, xml);
                             break;
 
@@ -199,8 +190,8 @@ static st_ret_t _st_fs_put(st_driver_t drv, const char *type, const char *owner,
     return st_SUCCESS;
 }
 
-static st_ret_t _st_fs_get(st_driver_t drv, const char *type, const char *owner, const char *filter, os_t *os) {
-    drvdata_t data = (drvdata_t) drv->private;
+static st_ret_t _st_fs_get(st_driver_t *drv, const char *type, const char *owner, const char *filter, os_t **os) {
+    drvdata_t *data = drv->private;
     char path[1024], file[1024];
     struct stat sbuf;
     int ret;
@@ -208,24 +199,24 @@ static st_ret_t _st_fs_get(st_driver_t drv, const char *type, const char *owner,
     struct dirent *dirent;
     FILE *f;
     char buf[STORAGE_FS_READ_BLOCKSIZE], *otc, *val, *c;
-    os_object_t o;
+    os_object_t *o;
     os_type_t ot;
     int i, size;
-    nad_t nad;
-    st_filter_t sf;
+    nad_t *nad;
+    st_filter_t *sf;
 
     snprintf(path, 1024, "%s/%s/%s", data->path, type, owner);
     ret = stat(path, &sbuf);
     if(ret < 0) {
         if(errno == ENOENT)
             return st_NOTFOUND;
-        log_write(drv->st->log, LOG_ERR, "fs: couldn't stat '%s': %s", path, strerror(errno));
+        LOG_ERROR(drv->st->log, "fs: couldn't stat '%s': %s", path, strerror(errno));
         return st_FAILED;
     }
 
     dir = opendir(path);
     if(dir == NULL) {
-        log_write(drv->st->log, LOG_ERR, "fs: couldn't open directory '%s': %s", path, strerror(errno));
+        LOG_ERROR(drv->st->log, "fs: couldn't open directory '%s': %s", path, strerror(errno));
         return st_FAILED;
     }
 
@@ -239,7 +230,7 @@ static st_ret_t _st_fs_get(st_driver_t drv, const char *type, const char *owner,
         snprintf(file, 1024, "%s/%s", path, dirent->d_name);
         f = fopen(file, "r");
         if(f == NULL) {
-            log_write(drv->st->log, LOG_ERR, "fs: couldn't open '%s' for reading: %s", path, strerror(errno));
+            LOG_ERROR(drv->st->log, "fs: couldn't open '%s' for reading: %s", path, strerror(errno));
             os_free(*os);
             *os = NULL;
             *os = NULL;
@@ -258,12 +249,12 @@ static st_ret_t _st_fs_get(st_driver_t drv, const char *type, const char *owner,
             val = strchr(otc, ' ');
             *val = '\0'; val++;
 
-            ot = (os_type_t) atoi(otc);
+            ot = (os_type_t) j_atoi(otc, os_type_UNKNOWN);
 
             switch(ot) {
                 case os_type_BOOLEAN:
                 case os_type_INTEGER:
-                    i = atoi(val);
+                    i = j_atoi(val, 0);
                     os_object_put(o, buf, &i, ot);
 
                     break;
@@ -285,7 +276,7 @@ static st_ret_t _st_fs_get(st_driver_t drv, const char *type, const char *owner,
                         }
                     }
                     if(nad == NULL) {
-                        log_write(drv->st->log, LOG_ERR, "fs: unable to parse stored XML; type=%s, owner=%s", type, owner);
+                        LOG_ERROR(drv->st->log, "fs: unable to parse stored XML; type=%s, owner=%s", type, owner);
                         os_free(*os);
                         *os = NULL;
                         fclose(f);
@@ -303,7 +294,7 @@ static st_ret_t _st_fs_get(st_driver_t drv, const char *type, const char *owner,
         }
 
         if(!feof(f)) {
-            log_write(drv->st->log, LOG_ERR, "fs: couldn't read from '%s': %s", path, strerror(errno));
+            LOG_ERROR(drv->st->log, "fs: couldn't read from '%s': %s", path, strerror(errno));
             os_free(*os);
             *os = NULL;
             fclose(f);
@@ -317,7 +308,7 @@ static st_ret_t _st_fs_get(st_driver_t drv, const char *type, const char *owner,
     }
 
     if(errno != 0) {
-        log_write(drv->st->log, LOG_ERR, "fs: couldn't read from directory '%s': %s", path, strerror(errno));
+        LOG_ERROR(drv->st->log, "fs: couldn't read from directory '%s': %s", path, strerror(errno));
         closedir(dir);
         os_free(*os);
         *os = NULL;
@@ -340,34 +331,34 @@ static st_ret_t _st_fs_get(st_driver_t drv, const char *type, const char *owner,
     return st_SUCCESS;
 }
 
-static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *owner, const char *filter) {
-    drvdata_t data = (drvdata_t) drv->private;
+static st_ret_t _st_fs_delete(st_driver_t *drv, const char *type, const char *owner, const char *filter) {
+    drvdata_t *data = drv->private;
     char path[1024], file[1024];
     struct stat sbuf;
     int ret;
     DIR *dir;
-    os_t os;
+    os_t *os;
     struct dirent *dirent;
     FILE *f;
     char buf[STORAGE_FS_READ_BLOCKSIZE], *otc, *val, *c;
-    os_object_t o;
+    os_object_t *o;
     os_type_t ot;
     int i, size;
-    nad_t nad;
-    st_filter_t sf;
+    nad_t *nad;
+    st_filter_t *sf;
 
     snprintf(path, 1024, "%s/%s/%s", data->path, type, owner);
     ret = stat(path, &sbuf);
     if(ret < 0) {
         if(errno == ENOENT)
             return st_NOTFOUND;
-        log_write(drv->st->log, LOG_ERR, "fs: couldn't stat '%s': %s", path, strerror(errno));
+        LOG_ERROR(drv->st->log, "fs: couldn't stat '%s': %s", path, strerror(errno));
         return st_FAILED;
     }
 
     dir = opendir(path);
     if(dir == NULL) {
-        log_write(drv->st->log, LOG_ERR, "fs: couldn't open directory '%s': %s", path, strerror(errno));
+        LOG_ERROR(drv->st->log, "fs: couldn't open directory '%s': %s", path, strerror(errno));
         return st_FAILED;
     }
 
@@ -383,7 +374,7 @@ static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *own
         snprintf(file, 1024, "%s/%s", path, dirent->d_name);
         f = fopen(file, "r");
         if(f == NULL) {
-            log_write(drv->st->log, LOG_ERR, "fs: couldn't open '%s' for reading: %s", path, strerror(errno));
+            LOG_ERROR(drv->st->log, "fs: couldn't open '%s' for reading: %s", path, strerror(errno));
             os_free(os);
             closedir(dir);
             return st_FAILED;
@@ -400,12 +391,12 @@ static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *own
             val = strchr(otc, ' ');
             *val = '\0'; val++;
 
-            ot = (os_type_t) atoi(otc);
+            ot = (os_type_t) j_atoi(otc, os_type_UNKNOWN);
 
             switch(ot) {
                 case os_type_BOOLEAN:
                 case os_type_INTEGER:
-                    i = atoi(val);
+                    i = j_atoi(val, 0);
                     os_object_put(o, buf, &i, ot);
 
                     break;
@@ -426,9 +417,9 @@ static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *own
                             nad = nad_parse(val, 0);
                         }
                     }
-                    if(nad == NULL)
-                        log_write(drv->st->log, LOG_ERR, "fs: unable to parse stored XML; type=%s, owner=%s", type, owner);
-                    else {
+                    if(nad == NULL) {
+                        LOG_ERROR(drv->st->log, "fs: unable to parse stored XML; type=%s, owner=%s", type, owner);
+                    } else {
                         os_object_put(o, buf, nad, ot);
                         nad_free(nad);
                     }
@@ -441,7 +432,7 @@ static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *own
         }
 
         if(!feof(f)) {
-            log_write(drv->st->log, LOG_ERR, "fs: couldn't read from '%s': %s", path, strerror(errno));
+            LOG_ERROR(drv->st->log, "fs: couldn't read from '%s': %s", path, strerror(errno));
             os_free(os);
             fclose(f);
             closedir(dir);
@@ -453,7 +444,7 @@ static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *own
         if(storage_match(sf, o, os)) {
             ret = unlink(file);
             if(ret < 0) {
-                log_write(drv->st->log, LOG_ERR, "fs: couldn't unlink '%s': %s", path, strerror(errno));
+                LOG_ERROR(drv->st->log, "fs: couldn't unlink '%s': %s", path, strerror(errno));
                 if(sf != NULL) pool_free(sf->p);
                 os_free(os);
                 closedir(dir);
@@ -465,7 +456,7 @@ static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *own
     }
 
     if(errno != 0) {
-        log_write(drv->st->log, LOG_ERR, "fs: couldn't read from directory '%s': %s", path, strerror(errno));
+        LOG_ERROR(drv->st->log, "fs: couldn't read from directory '%s': %s", path, strerror(errno));
         closedir(dir);
         os_free(os);
         return st_FAILED;
@@ -480,7 +471,7 @@ static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *own
     return st_SUCCESS;
 }
 
-static st_ret_t _st_fs_replace(st_driver_t drv, const char *type, const char *owner, const char *filter, os_t os) {
+static st_ret_t _st_fs_replace(st_driver_t *drv, const char *type, const char *owner, const char *filter, os_t *os) {
     st_ret_t ret;
 
     ret = _st_fs_delete(drv, type, owner, filter);
@@ -490,31 +481,31 @@ static st_ret_t _st_fs_replace(st_driver_t drv, const char *type, const char *ow
     return ret;
 }
 
-static void _st_fs_free(st_driver_t drv) {
-    drvdata_t data = (drvdata_t) drv->private;
+static void _st_fs_free(st_driver_t *drv) {
+    drvdata_t *data = drv->private;
 
     free(data);
 }
 
-st_ret_t st_init(st_driver_t drv) {
+st_ret_t st_init(st_driver_t *drv) {
     const char *path;
     struct stat sbuf;
     int ret;
-    drvdata_t data;
+    drvdata_t *data;
 
     path = config_get_one(drv->st->config, "storage.fs.path", 0);
     if(path == NULL) {
-        log_write(drv->st->log, LOG_ERR, "fs: no path specified in config file");
+        LOG_ERROR(drv->st->log, "fs: no path specified in config file");
         return st_FAILED;
     }
 
     ret = stat(path, &sbuf);
     if(ret < 0) {
-        log_write(drv->st->log, LOG_ERR, "fs: couldn't stat path '%s': %s", path, strerror(errno));
+        LOG_ERROR(drv->st->log, "fs: couldn't stat path '%s': %s", path, strerror(errno));
         return st_FAILED;
     }
 
-    data = (drvdata_t) calloc(1, sizeof(struct drvdata_st));
+    data = new(drvdata_t);
 
     data->path = path;
 
@@ -527,7 +518,7 @@ st_ret_t st_init(st_driver_t drv) {
     drv->replace = _st_fs_replace;
     drv->free = _st_fs_free;
 
-    log_write(drv->st->log, LOG_WARNING, "fs: the filesystem storage driver should only be used for testing!");
+    LOG_WARN(drv->st->log, "fs: the filesystem storage driver should only be used for testing!");
 
     return st_SUCCESS;
 }

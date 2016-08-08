@@ -19,6 +19,9 @@
  */
 
 #include "sm.h"
+#include "lib/uri.h"
+#include "lib/stanza.h"
+#include "lib/str.h"
 
 /** @file sm/mod_iq_vcard.c
   * @brief user profiles (vcard)
@@ -27,7 +30,6 @@
   * $Revision: 1.25 $
   */
 
-#define uri_VCARD    "vcard-temp"
 static int ns_VCARD = 0;
 
 #define VCARD_MAX_FIELD_SIZE    (16384)
@@ -35,7 +37,7 @@ static int ns_VCARD = 0;
 typedef struct _mod_iq_vcard_st {
     size_t vcard_max_field_size_default;
     size_t vcard_max_field_size_avatar;
-} *mod_iq_vcard_t;
+} mod_iq_vcard_t;
 
 /**
  * these are the vcard attributes that gabber supports. they're also
@@ -95,16 +97,16 @@ static const char *_iq_vcard_map[] = {
     NULL,           NULL
 };
 
-static os_t _iq_vcard_to_object(mod_instance_t mi, pkt_t pkt) {
-    os_t os;
-    os_object_t o;
+static os_t *_iq_vcard_to_object(mod_instance_t *mi, pkt_t *pkt) {
+    os_t *os;
+    os_object_t *o;
     int i = 0, elem;
     char ekey[10], *cdata;
     const char *vkey, *dkey, *vskey;
     size_t fieldsize;
-    mod_iq_vcard_t iq_vcard = (mod_iq_vcard_t) mi->mod->private;
+    mod_iq_vcard_t *iq_vcard = mi->mod->private;
 
-    log_debug(ZONE, "building object from packet");
+    LOG_DEBUG(mi->sm->log, "building object from packet");
 
     os = os_new();
     o = os_object_new(os);
@@ -137,7 +139,7 @@ static os_t _iq_vcard_to_object(mod_instance_t mi, pkt_t pkt) {
         if(elem < 0 || NAD_CDATA_L(pkt->nad, elem) == 0)
             continue;
 
-        log_debug(ZONE, "extracted vcard key %s val '%.*s' for db key %s", vkey, NAD_CDATA_L(pkt->nad, elem), NAD_CDATA(pkt->nad, elem), dkey);
+        LOG_DEBUG(mi->sm->log, "extracted vcard key %s val '%.*s' for db key %s", vkey, NAD_CDATA_L(pkt->nad, elem), NAD_CDATA(pkt->nad, elem), dkey);
 
         cdata = malloc(fieldsize);
         if(cdata) {
@@ -151,14 +153,14 @@ static os_t _iq_vcard_to_object(mod_instance_t mi, pkt_t pkt) {
     return os;
 }
 
-static pkt_t _iq_vcard_to_pkt(sm_t sm, os_t os) {
-    pkt_t pkt;
-    os_object_t o;
+static pkt_t *_iq_vcard_to_pkt(sm_t *sm, os_t *os) {
+    pkt_t *pkt;
+    os_object_t *o;
     int i = 0, elem;
     char ekey[10], *dval;
     const char *vkey, *dkey, *vskey;
     
-    log_debug(ZONE, "building packet from object");
+    LOG_DEBUG(sm->log, "building packet from object");
 
     pkt = pkt_create(sm, "iq", "result", NULL, NULL);
     nad_append_elem(pkt->nad, nad_add_namespace(pkt->nad, uri_VCARD, NULL), "vCard", 2);
@@ -188,7 +190,7 @@ static pkt_t _iq_vcard_to_pkt(sm_t sm, os_t os) {
             vskey++;
         }
 
-        log_debug(ZONE, "extracted dbkey %s val '%s' for vcard key %s", dkey, dval, vkey);
+        LOG_DEBUG(sm->log, "extracted dbkey %s val '%s' for vcard key %s", dkey, dval, vkey);
 
         if (!strcmp(dkey, "tel")) {
             nad_append_elem(pkt->nad, NAD_ENS(pkt->nad, 2), "VOICE", pkt->nad->elems[elem].depth + 1);
@@ -200,10 +202,10 @@ static pkt_t _iq_vcard_to_pkt(sm_t sm, os_t os) {
     return pkt;
 }
 
-static mod_ret_t _iq_vcard_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
-    os_t os;
+static mod_ret_t _iq_vcard_in_sess(mod_instance_t *mi, sess_t *sess, pkt_t *pkt) {
+    os_t *os;
     st_ret_t ret;
-    pkt_t result;
+    pkt_t *result;
 
     /* only handle vcard sets and gets that aren't to anyone */
     if(pkt->to != NULL || (pkt->type != pkt_IQ && pkt->type != pkt_IQ_SET) || pkt->ns != ns_VCARD)
@@ -286,10 +288,10 @@ static mod_ret_t _iq_vcard_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
  * You can have one for every virtual host
  * you can populate it using your DBMS frontend
  */
-static mod_ret_t _iq_vcard_pkt_sm(mod_instance_t mi, pkt_t pkt) {
-    os_t os;
+static mod_ret_t _iq_vcard_pkt_sm(mod_instance_t *mi, pkt_t *pkt) {
+    os_t *os;
     st_ret_t ret;
-    pkt_t result;
+    pkt_t *result;
 
     /* only handle vcard sets and gets */
     if((pkt->type != pkt_IQ && pkt->type != pkt_IQ_SET) || pkt->ns != ns_VCARD)
@@ -335,10 +337,10 @@ static mod_ret_t _iq_vcard_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     return mod_HANDLED;
 }
 
-static mod_ret_t _iq_vcard_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
-    os_t os;
+static mod_ret_t _iq_vcard_pkt_user(mod_instance_t *mi, user_t *user, pkt_t *pkt) {
+    os_t *os;
     st_ret_t ret;
-    pkt_t result;
+    pkt_t *result;
 
     /* only handle vcard sets and gets, without resource */
     if((pkt->type != pkt_IQ && pkt->type != pkt_IQ_SET) || pkt->ns != ns_VCARD || pkt->to->resource[0] !='\0')
@@ -386,21 +388,21 @@ static mod_ret_t _iq_vcard_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
     return mod_HANDLED;
 }
 
-static void _iq_vcard_user_delete(mod_instance_t mi, jid_t jid) {
-    log_debug(ZONE, "deleting vcard for %s", jid_user(jid));
+static void _iq_vcard_user_delete(mod_instance_t *mi, jid_t *jid) {
+    LOG_DEBUG(mi->sm->log, "deleting vcard for %s", jid_user(jid));
 
     storage_delete(mi->sm->st, "vcard", jid_user(jid), NULL);
 }
 
-static void _iq_vcard_free(module_t mod) {
+static void _iq_vcard_free(module_t *mod) {
     sm_unregister_ns(mod->mm->sm, uri_VCARD);
     feature_unregister(mod->mm->sm, uri_VCARD);
     free(mod->private);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
-    module_t mod = mi->mod;
-    mod_iq_vcard_t iq_vcard;
+DLLEXPORT int module_init(mod_instance_t *mi, const char *arg) {
+    module_t *mod = mi->mod;
+    mod_iq_vcard_t *iq_vcard;
 
     if(mod->init) return 0;
 
@@ -413,7 +415,7 @@ DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
     ns_VCARD = sm_register_ns(mod->mm->sm, uri_VCARD);
     feature_register(mod->mm->sm, uri_VCARD);
 
-    iq_vcard = (mod_iq_vcard_t) calloc(1, sizeof(struct _mod_iq_vcard_st));
+    iq_vcard = new(mod_iq_vcard_t);
     iq_vcard->vcard_max_field_size_default = j_atoi(config_get_one(mod->mm->sm->config, "user.vcard.max-field-size.default", 0), VCARD_MAX_FIELD_SIZE);
     iq_vcard->vcard_max_field_size_avatar = j_atoi(config_get_one(mod->mm->sm->config, "user.vcard.max-field-size.avatar", 0), VCARD_MAX_FIELD_SIZE);
     mod->private = iq_vcard;

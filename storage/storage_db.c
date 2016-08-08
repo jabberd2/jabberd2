@@ -36,7 +36,13 @@
  */
 
 #include "storage.h"
+#include "lib/util.h"
+#include "lib/serial.h"
+
 #include <db.h>
+
+#include <stdlib.h>
+#include <string.h>
 
 /** internal structure, holds our data */
 typedef struct drvdata_st {
@@ -45,48 +51,48 @@ typedef struct drvdata_st {
     const char *path;
     int sync;
 
-    xht dbs;
+    xht *dbs;
 
-    xht filters;
-} *drvdata_t;
+    xht *filters;
+} drvdata_t;
 
 /** internal structure, holds a single db handle */
 typedef struct dbdata_st {
-    drvdata_t data;
+    drvdata_t *data;
 
     DB *db;
-} *dbdata_t;
+} dbdata_t;
 
 /* union for strict alias rules in gcc3 */
 union xhashv {
   void **val;
-  dbdata_t *dbd_val;
+  dbdata_t **dbd_val;
 };
 
-static st_ret_t _st_db_add_type(st_driver_t drv, const char *type) {
-    drvdata_t data = (drvdata_t) drv->private;
-    dbdata_t dbd;
+static st_ret_t _st_db_add_type(st_driver_t *drv, const char *type) {
+    drvdata_t *data = drv->private;
+    dbdata_t *dbd;
     int err;
 
-    dbd = (dbdata_t) calloc(1, sizeof(struct dbdata_st));
+    dbd = new(dbdata_t);
 
     dbd->data = data;
 
     if((err = db_create(&(dbd->db), data->env, 0)) != 0) {
-        log_write(drv->st->log, LOG_ERR, "db: couldn't create db handle: %s", db_strerror(err));
+        LOG_ERROR(drv->st->log, "db: couldn't create db handle: %s", db_strerror(err));
         free(dbd);
         return st_FAILED;
     }
 
     if((err = dbd->db->set_flags(dbd->db, DB_DUP)) != 0) {
-        log_write(drv->st->log, LOG_ERR, "db: couldn't set database for duplicate storage: %s", db_strerror(err));
+        LOG_ERROR(drv->st->log, "db: couldn't set database for duplicate storage: %s", db_strerror(err));
         dbd->db->close(dbd->db, 0);
         free(dbd);
         return st_FAILED;
     }
 
     if((err = dbd->db->open(dbd->db, NULL, "sm.db", type, DB_HASH, DB_AUTO_COMMIT | DB_CREATE, 0)) != 0) {
-        log_write(drv->st->log, LOG_ERR, "db: couldn't open storage db: %s", db_strerror(err));
+        LOG_ERROR(drv->st->log, "db: couldn't open storage db: %s", db_strerror(err));
         dbd->db->close(dbd->db, 0);
         free(dbd);
         return st_FAILED;
@@ -98,12 +104,12 @@ static st_ret_t _st_db_add_type(st_driver_t drv, const char *type) {
 }
 
 /** make a new cursor (optionally wrapped in a txn) */
-static st_ret_t _st_db_cursor_new(st_driver_t drv, dbdata_t dbd, DBC **cursor, DB_TXN **txnid) {
+static st_ret_t _st_db_cursor_new(st_driver_t *drv, dbdata_t *dbd, DBC **cursor, DB_TXN **txnid) {
     int err;
 
     if(txnid != NULL)
         if((err = dbd->data->env->txn_begin(dbd->data->env, NULL, txnid, DB_TXN_SYNC)) != 0) {
-            log_write(drv->st->log, LOG_ERR, "db: couldn't begin new transaction: %s", db_strerror(err));
+            LOG_ERROR(drv->st->log, "db: couldn't begin new transaction: %s", db_strerror(err));
             return st_FAILED;
         }
 
@@ -113,7 +119,7 @@ static st_ret_t _st_db_cursor_new(st_driver_t drv, dbdata_t dbd, DBC **cursor, D
         err = dbd->db->cursor(dbd->db, *txnid, cursor, 0);
 
     if(err != 0) {
-        log_write(drv->st->log, LOG_ERR, "db: couldn't create cursor: %s", db_strerror(err));
+        LOG_ERROR(drv->st->log, "db: couldn't create cursor: %s", db_strerror(err));
         if(txnid != NULL)
             (*txnid)->abort(*txnid);
         return st_FAILED;
@@ -123,11 +129,11 @@ static st_ret_t _st_db_cursor_new(st_driver_t drv, dbdata_t dbd, DBC **cursor, D
 }
 
 /** close down a cursor */
-static st_ret_t _st_db_cursor_free(st_driver_t drv, dbdata_t dbd, DBC *cursor, DB_TXN *txnid) {
+static st_ret_t _st_db_cursor_free(st_driver_t *drv, dbdata_t *dbd, DBC *cursor, DB_TXN *txnid) {
     int err;
 
     if((err = cursor->c_close(cursor)) != 0) {
-        log_write(drv->st->log, LOG_ERR, "db: couldn't close cursor: %s", db_strerror(err));
+        LOG_ERROR(drv->st->log, "db: couldn't close cursor: %s", db_strerror(err));
         if(txnid != NULL)
             txnid->abort(txnid);
         return st_FAILED;
@@ -135,21 +141,22 @@ static st_ret_t _st_db_cursor_free(st_driver_t drv, dbdata_t dbd, DBC *cursor, D
 
     if(txnid != NULL)
         if((err = txnid->commit(txnid, DB_TXN_SYNC)) != 0) {
-            log_write(drv->st->log, LOG_ERR, "db: couldn't commit transaction: %s", db_strerror(err));
+            LOG_ERROR(drv->st->log, "db: couldn't commit transaction: %s", db_strerror(err));
             return st_FAILED;
         }
 
     return st_SUCCESS;
 }
 
-static void _st_db_object_serialise(os_object_t o, char **buf, int *len) {
+static void _st_db_object_serialise(os_object_t *o, char **buf, int *len) {
     char *key, *xmlstr;
-    const char *xml;
+    char *xml;
     void *val;
     os_type_t ot;
-    int cur = 0, xlen;
+    int cur = 0;
+    unsigned int xlen;
 
-    log_debug(ZONE, "serialising object");
+//    LOG_DEBUG(drv->st->log, "serialising object");
 
     *buf = NULL;
     *len = 0;
@@ -163,7 +170,7 @@ static void _st_db_object_serialise(os_object_t o, char **buf, int *len) {
             val = NULL;
             os_object_iter_get(o, &key, &val, &ot);
 
-            log_debug(ZONE, "serialising key %s", key);
+//            LOG_DEBUG(drv->st->log, "serialising key %s", key);
 
             ser_string_set(key, &cur, buf, len);
             ser_int_set(ot, &cur, buf, len);
@@ -182,8 +189,8 @@ static void _st_db_object_serialise(os_object_t o, char **buf, int *len) {
                     break;
 
                 case os_type_NAD:
-                    nad_print((nad_t) val, 0, &xml, &xlen);
-                    xmlstr = (char *) malloc(sizeof(char) * (xlen + 1));
+                    nad_print((nad_t *) val, 0, &xml, &xlen);
+                    xmlstr = malloc(xlen + 1);
                     sprintf(xmlstr, "%.*s", xlen, xml);
                     ser_string_set(xmlstr, &cur, buf, len);
                     free(xmlstr);
@@ -197,32 +204,32 @@ static void _st_db_object_serialise(os_object_t o, char **buf, int *len) {
     *len = cur;
 }
 
-static os_object_t _st_db_object_deserialise(st_driver_t drv, os_t os, const char *buf, int len) {
-    os_object_t o;
+static os_object_t *_st_db_object_deserialise(st_driver_t *drv, os_t *os, const char *buf, int len) {
+    os_object_t *o;
     int cur;
     char *key, *sval;
     int ot;
     int ival;
-    nad_t nad;
+    nad_t *nad;
 
-    log_debug(ZONE, "deserialising object");
+    LOG_DEBUG(drv->st->log, "deserialising object");
 
     o = os_object_new(os);
 
     cur = 0;
     while(cur < len) {
         if(ser_string_get(&key, &cur, buf, len) != 0) {
-            log_debug(ZONE, "ran off the end of the buffer");
+            LOG_DEBUG(drv->st->log, "ran off the end of the buffer");
             return o;
         }
 
         if(ser_int_get(&ot, &cur, buf, len) != 0) {
-            log_debug(ZONE, "ran off the end of the buffer");
+            LOG_DEBUG(drv->st->log, "ran off the end of the buffer");
             free(key);
             return o;
         }
 
-        log_debug(ZONE, "deserialising key %s", key);
+        LOG_DEBUG(drv->st->log, "deserialising key %s", key);
 
         switch((os_type_t) ot) {
             case os_type_BOOLEAN:
@@ -247,7 +254,7 @@ static os_object_t _st_db_object_deserialise(st_driver_t drv, os_t os, const cha
                 nad = nad_parse(sval, strlen(sval));
                 free(sval);
                 if(nad == NULL) {
-                    log_write(drv->st->log, LOG_ERR, "db: unable to parse stored XML - database corruption?");
+                    LOG_ERROR(drv->st->log, "db: unable to parse stored XML - database corruption?");
                     free(key);
                     return NULL;
                 }
@@ -265,9 +272,9 @@ static os_object_t _st_db_object_deserialise(st_driver_t drv, os_t os, const cha
     return o;
 }
 
-static st_ret_t _st_db_put_guts(st_driver_t drv, const char *type, const char *owner, os_t os, dbdata_t dbd, DBC *c, DB_TXN *t) {
+static st_ret_t _st_db_put_guts(st_driver_t *drv, const char *type, const char *owner, os_t *os, dbdata_t *dbd, DBC *c, DB_TXN *t) {
     DBT key, val;
-    os_object_t o;
+    os_object_t *o;
     char *buf;
     int len, err;
 
@@ -286,7 +293,7 @@ static st_ret_t _st_db_put_guts(st_driver_t drv, const char *type, const char *o
             val.size = len;
 
             if((err = c->c_put(c, &key, &val, DB_KEYLAST)) != 0) {
-                log_write(drv->st->log, LOG_ERR, "db: couldn't store value for type %s owner %s in storage db: %s", type, owner, db_strerror(err));
+                LOG_ERROR(drv->st->log, "db: couldn't store value for type %s owner %s in storage db: %s", type, owner, db_strerror(err));
                 free(buf);
                 return st_FAILED;
             }
@@ -298,9 +305,9 @@ static st_ret_t _st_db_put_guts(st_driver_t drv, const char *type, const char *o
     return st_SUCCESS;
 }
 
-static st_ret_t _st_db_put(st_driver_t drv, const char *type, const char *owner, os_t os) {
-    drvdata_t data = (drvdata_t) drv->private;
-    dbdata_t dbd = xhash_get(data->dbs, type);
+static st_ret_t _st_db_put(st_driver_t *drv, const char *type, const char *owner, os_t *os) {
+    drvdata_t *data = drv->private;
+    dbdata_t *dbd = xhash_get(data->dbs, type);
     DBC *c;
     DB_TXN *t;
     st_ret_t ret;
@@ -326,16 +333,20 @@ static st_ret_t _st_db_put(st_driver_t drv, const char *type, const char *owner,
     return _st_db_cursor_free(drv, dbd, c, t);
 }
 
-static st_ret_t _st_db_get(st_driver_t drv, const char *type, const char *owner, const char *filter, os_t *os) {
-    drvdata_t data = (drvdata_t) drv->private;
-    dbdata_t dbd = xhash_get(data->dbs, type);
+static void _st_db_pool_pool_free(void *arg) {
+    pool_free((pool_t *) arg);
+}
+
+static st_ret_t _st_db_get(st_driver_t *drv, const char *type, const char *owner, const char *filter, os_t **os) {
+    drvdata_t *data = drv->private;
+    dbdata_t *dbd = xhash_get(data->dbs, type);
     DBC *c;
     DB_TXN *t;
     st_ret_t ret;
     DBT key, val;
-    st_filter_t f;
+    st_filter_t *f;
     int err;
-    os_object_t o;
+    os_object_t *o;
     char *cfilter;
 
     if(dbd == NULL) {
@@ -353,7 +364,7 @@ static st_ret_t _st_db_get(st_driver_t drv, const char *type, const char *owner,
             f = storage_filter(filter);
             cfilter = pstrdup(xhash_pool(data->filters), filter);
             xhash_put(data->filters, cfilter, (void *) f);
-            pool_cleanup(xhash_pool(data->filters), (pool_cleanup_t) pool_free, f->p);
+            pool_cleanup(xhash_pool(data->filters), _st_db_pool_pool_free, f->p);
         }
     }
 
@@ -376,7 +387,7 @@ static st_ret_t _st_db_get(st_driver_t drv, const char *type, const char *owner,
     }
 
     if(err != 0 && err != DB_NOTFOUND) {
-        log_write(drv->st->log, LOG_ERR, "db: couldn't move cursor for type %s owner %s in storage db: %s", type, owner, db_strerror(err));
+        LOG_ERROR(drv->st->log, "db: couldn't move cursor for type %s owner %s in storage db: %s", type, owner, db_strerror(err));
         t->abort(t);
         _st_db_cursor_free(drv, dbd, c, NULL);
         os_free(*os);
@@ -400,13 +411,13 @@ static st_ret_t _st_db_get(st_driver_t drv, const char *type, const char *owner,
     return st_SUCCESS;
 }
 
-static st_ret_t _st_db_delete_guts(st_driver_t drv, const char *type, const char *owner, const char *filter, dbdata_t dbd, DBC *c, DB_TXN *t) {
-    drvdata_t data = (drvdata_t) drv->private;
+static st_ret_t _st_db_delete_guts(st_driver_t *drv, const char *type, const char *owner, const char *filter, dbdata_t *dbd, DBC *c, DB_TXN *t) {
+    drvdata_t *data = drv->private;
     DBT key, val;
-    st_filter_t f;
+    st_filter_t *f;
     int err;
-    os_t os;
-    os_object_t o;
+    os_t *os;
+    os_object_t *o;
     char *cfilter;
 
     f = NULL;
@@ -416,7 +427,7 @@ static st_ret_t _st_db_delete_guts(st_driver_t drv, const char *type, const char
             f = storage_filter(filter);
             cfilter = pstrdup(xhash_pool(data->filters), filter);
             xhash_put(data->filters, cfilter, (void *) f);
-            pool_cleanup(xhash_pool(data->filters), (pool_cleanup_t) pool_free, f->p);
+            pool_cleanup(xhash_pool(data->filters), _st_db_pool_pool_free, f->p);
         }
     }
 
@@ -442,16 +453,16 @@ static st_ret_t _st_db_delete_guts(st_driver_t drv, const char *type, const char
     os_free(os);
 
     if(err != 0 && err != DB_NOTFOUND) {
-        log_write(drv->st->log, LOG_ERR, "db: couldn't move cursor for type %s owner %s in storage db: %s", type, owner, db_strerror(err));
+        LOG_ERROR(drv->st->log, "db: couldn't move cursor for type %s owner %s in storage db: %s", type, owner, db_strerror(err));
         return st_FAILED;
     }
 
     return st_SUCCESS;
 }
 
-static st_ret_t _st_db_delete(st_driver_t drv, const char *type, const char *owner, const char *filter) {
-    drvdata_t data = (drvdata_t) drv->private;
-    dbdata_t dbd = xhash_get(data->dbs, type);
+static st_ret_t _st_db_delete(st_driver_t *drv, const char *type, const char *owner, const char *filter) {
+    drvdata_t *data = drv->private;
+    dbdata_t *dbd = xhash_get(data->dbs, type);
     DBC *c;
     DB_TXN *t;
     st_ret_t ret;
@@ -474,9 +485,9 @@ static st_ret_t _st_db_delete(st_driver_t drv, const char *type, const char *own
     return _st_db_cursor_free(drv, dbd, c, t);
 }
 
-static st_ret_t _st_db_replace(st_driver_t drv, const char *type, const char *owner, const char *filter, os_t os) {
-    drvdata_t data = (drvdata_t) drv->private;
-    dbdata_t dbd = xhash_get(data->dbs, type);
+static st_ret_t _st_db_replace(st_driver_t *drv, const char *type, const char *owner, const char *filter, os_t *os) {
+    drvdata_t *data = drv->private;
+    dbdata_t *dbd = xhash_get(data->dbs, type);
     DBC *c;
     DB_TXN *t;
     st_ret_t ret;
@@ -509,11 +520,11 @@ static st_ret_t _st_db_replace(st_driver_t drv, const char *type, const char *ow
     return _st_db_cursor_free(drv, dbd, c, t);
 }
 
-static void _st_db_free(st_driver_t drv) {
-    drvdata_t data = (drvdata_t) drv->private;
+static void _st_db_free(st_driver_t *drv) {
+    drvdata_t *data = drv->private;
     const char *key;
     int keylen;
-    dbdata_t dbd;
+    dbdata_t *dbd;
     DB_ENV *env;
     union xhashv xhv;
 
@@ -522,7 +533,7 @@ static void _st_db_free(st_driver_t drv) {
         do {
             xhash_iter_get(data->dbs, &key, &keylen, xhv.val);
 
-            log_debug(ZONE, "closing %.*s db", keylen, key);
+            LOG_DEBUG(drv->st->log, "closing %.*s db", keylen, key);
 
             dbd->db->close(dbd->db, 0);
             free(dbd);
@@ -543,32 +554,32 @@ static void _st_db_free(st_driver_t drv) {
 
 /** panic function */
 static void _st_db_panic(DB_ENV *env, int errval) {
-    log_t log = (log_t) env->app_private;
+    log_t *log = env->app_private;
 
-    log_write(log, LOG_CRIT, "db: corruption detected! close all jabberd processes and run db_recover");
+    LOG_CRIT(log, "db: corruption detected! close all jabberd processes and run db_recover");
 
     exit(2);
 }
 
-st_ret_t st_init(st_driver_t drv) {
+st_ret_t st_init(st_driver_t *drv) {
     const char *path;
     int err;
     DB_ENV *env;
-    drvdata_t data;
+    drvdata_t *data;
 
     path = config_get_one(drv->st->config, "storage.db.path", 0);
     if(path == NULL) {
-        log_write(drv->st->log, LOG_ERR, "db: no path specified in config file");
+        LOG_ERROR(drv->st->log, "db: no path specified in config file");
         return st_FAILED;
     }
 
     if((err = db_env_create(&env, 0)) != 0) {
-        log_write(drv->st->log, LOG_ERR, "db: couldn't create environment: %s", db_strerror(err));
+        LOG_ERROR(drv->st->log, "db: couldn't create environment: %s", db_strerror(err));
         return st_FAILED;
     }
 
     if((err = env->set_paniccall(env, _st_db_panic)) != 0) {
-        log_write(drv->st->log, LOG_ERR, "db: couldn't set panic call: %s", db_strerror(err));
+        LOG_ERROR(drv->st->log, "db: couldn't set panic call: %s", db_strerror(err));
         return st_FAILED;
     }
 
@@ -576,12 +587,12 @@ st_ret_t st_init(st_driver_t drv) {
     env->app_private = drv->st->log;
 
     if((err = env->open(env, path, DB_INIT_LOCK | DB_INIT_MPOOL | DB_INIT_LOG | DB_INIT_TXN | DB_CREATE | DB_RECOVER, 0)) != 0) {
-        log_write(drv->st->log, LOG_ERR, "db: couldn't open environment: %s", db_strerror(err));
+        LOG_ERROR(drv->st->log, "db: couldn't open environment: %s", db_strerror(err));
         env->close(env, 0);
         return st_FAILED;
     }
 
-    data = (drvdata_t) calloc(1, sizeof(struct drvdata_st));
+    data = new(drvdata_t);
 
     data->env = env;
     data->path = path;

@@ -18,63 +18,25 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
-#ifndef INCL_INADDR_H
-#define INCL_INADDR_H
+#ifndef INCL_UTIL_INADDR_H
+#define INCL_UTIL_INADDR_H
 
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
+#include "util.h"
 
-#include "ac-stdint.h"
-
-#ifdef HAVE_STRING_H
-#include <string.h>
-#endif
-
-#ifdef HAVE_NETINET_IN_H
-#include <netinet/in.h>
-#endif
-
-#ifdef HAVE_ARPA_INET_H
-#include <arpa/inet.h>
-#endif
-
-#ifdef HAVE_SYS_SOCKET_H
+#include <stddef.h>
 #include <sys/socket.h>
-#endif
-
-/* jabberd2 Windows DLL */
-#ifndef JABBERD2_API
-# ifdef _WIN32
-#  ifdef JABBERD2_EXPORTS
-#   define JABBERD2_API  __declspec(dllexport)
-#  else /* JABBERD2_EXPORTS */
-#   define JABBERD2_API  __declspec(dllimport)
-#  endif /* JABBERD2_EXPORTS */
-# else /* _WIN32 */
-#  define JABBERD2_API extern
-# endif /* _WIN32 */
-#endif /* JABBERD2_API */
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 /*
  * helpers for ip addresses
  */
-
-#include <lib/util_compat.h>
 
 JABBERD2_API int         j_inet_pton(const char *src, struct sockaddr_storage *dst);
 JABBERD2_API const char *j_inet_ntop(struct sockaddr_storage* src, char* dst, size_t size);
 JABBERD2_API int         j_inet_getport(struct sockaddr_storage *sa);
 JABBERD2_API int	     j_inet_setport(struct sockaddr_storage *sa, in_port_t port);
 JABBERD2_API socklen_t   j_inet_addrlen(struct sockaddr_storage *sa);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif    /* INCL_UTIL_H */
 

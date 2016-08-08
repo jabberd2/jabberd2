@@ -30,10 +30,9 @@
   * @author Tomasz Sterna
   */
 
-#define uri_PUBSUB   "http://jabber.org/protocol/pubsub"
 static int ns_PUBSUB = 0;
 
-static mod_ret_t _pep_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
+static mod_ret_t _pep_in_sess(mod_instance_t *mi, sess_t *sess, pkt_t *pkt) {
     int ns, elem;
 
     /* only handle private sets and gets */
@@ -47,11 +46,11 @@ static mod_ret_t _pep_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     ns = nad_find_scoped_namespace(pkt->nad, uri_PUBSUB, NULL);
     elem = nad_find_elem(pkt->nad, 1, ns, "pubsub", 1);
 
-    log_debug(ZONE, "_pep_in_sess() %d %d", ns, elem);
+    LOG_DEBUG(mi->sm->log, "_pep_in_sess() %d %d", ns, elem);
     return mod_PASS;
 }
 
-static mod_ret_t _pep_out_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
+static mod_ret_t _pep_out_sess(mod_instance_t *mi, sess_t *sess, pkt_t *pkt) {
     /* add pep identity to disco results from bare JID */
     if(!(pkt->type & pkt_IQ) || pkt->ns != ns_DISCO_INFO || (pkt->from != NULL && strcmp(jid_user(sess->jid), jid_full(pkt->from))))
         return mod_PASS;
@@ -75,8 +74,8 @@ static mod_ret_t _pep_out_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     return mod_PASS;
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
-    module_t mod = mi->mod;
+DLLEXPORT int module_init(mod_instance_t *mi, const char *arg) {
+    module_t *mod = mi->mod;
 
     if(mod->init) return 0;
 

@@ -19,6 +19,7 @@
  */
 
 #include "sm.h"
+#include "lib/str.h"
 #include <stringprep.h>
 
 /** @file sm/main.c
@@ -29,8 +30,7 @@
   */
 
 static sig_atomic_t sm_shutdown = 0;
-static sig_atomic_t sm_logrotate = 0;
-static sm_t sm = NULL;
+static sm_t *sm = NULL;
 static char* config_file;
 
 static void _sm_signal(int signum)
@@ -39,23 +39,18 @@ static void _sm_signal(int signum)
     sm_lost_router = 0;
 }
 
-static void _sm_signal_hup(int signum)
-{
-    sm_logrotate = 1;
-}
-
 static void _sm_signal_usr1(int signum)
 {
-    set_debug_flag(0);
+    log4c_category_set_priority(log4c_category_get(""), LOG4C_PRIORITY_NOTSET);
 }
 
 static void _sm_signal_usr2(int signum)
 {
-    set_debug_flag(1);
+    log4c_category_set_priority(log4c_category_get(""), LOG4C_PRIORITY_TRACE);
 }
 
 /** store the process id */
-static void _sm_pidfile(sm_t sm) {
+static void _sm_pidfile(sm_t *sm) {
     const char *pidfile;
     FILE *f;
     pid_t pid;
@@ -67,28 +62,25 @@ static void _sm_pidfile(sm_t sm) {
     pid = getpid();
 
     if((f = fopen(pidfile, "w+")) == NULL) {
-        log_write(sm->log, LOG_ERR, "couldn't open %s for writing: %s", pidfile, strerror(errno));
+        LOG_ERROR(sm->log, "couldn't open %s for writing: %s", pidfile, strerror(errno));
         return;
     }
 
     if(fprintf(f, "%d", pid) < 0) {
-        log_write(sm->log, LOG_ERR, "couldn't write to %s: %s", pidfile, strerror(errno));
+        LOG_ERROR(sm->log, "couldn't write to %s: %s", pidfile, strerror(errno));
         fclose(f);
         return;
     }
 
     fclose(f);
 
-    log_write(sm->log, LOG_INFO, "process id is %d, written to %s", pid, pidfile);
+    LOG_INFO(sm->log, "process id is %d, written to %s", pid, pidfile);
 }
 
 /** pull values out of the config file */
-static void _sm_config_expand(sm_t sm)
+static void _sm_config_expand(sm_t *sm)
 {
-    char *str;
-    config_elem_t elem;
-
-    set_debug_log_from_config(sm->config);
+    config_elem_t *elem;
 
     sm->id = config_get_one(sm->config, "id", 0);
     if(sm->id == NULL)
@@ -117,24 +109,6 @@ static void _sm_config_expand(sm_t sm)
     if((sm->retry_sleep = j_atoi(config_get_one(sm->config, "router.retry.sleep", 0), 2)) < 1)
         sm->retry_sleep = 1;
 
-    sm->log_type = log_STDOUT;
-    if(config_get(sm->config, "log") != NULL) {
-        if((str = config_get_attr(sm->config, "log", 0, "type")) != NULL) {
-            if(strcmp(str, "file") == 0)
-                sm->log_type = log_FILE;
-            else if(strcmp(str, "syslog") == 0)
-                sm->log_type = log_SYSLOG;
-        }
-    }
-
-    if(sm->log_type == log_SYSLOG) {
-        sm->log_facility = config_get_one(sm->config, "log.facility", 0);
-        sm->log_ident = config_get_one(sm->config, "log.ident", 0);
-        if(sm->log_ident == NULL)
-            sm->log_ident = "jabberd/sm";
-    } else if(sm->log_type == log_FILE)
-        sm->log_ident = config_get_one(sm->config, "log.file", 0);
-        
     elem = config_get(sm->config, "storage.limits.queries");
     if(elem != NULL)
     {
@@ -147,9 +121,9 @@ static void _sm_config_expand(sm_t sm)
     }
 }
 
-static void _sm_hosts_expand(sm_t sm)
+static void _sm_hosts_expand(sm_t *sm)
 {
-    config_elem_t elem;
+    config_elem_t *elem;
     char id[1024];
     int i;
 
@@ -157,7 +131,7 @@ static void _sm_hosts_expand(sm_t sm)
     if(!elem) {
         /* use SM id */
         xhash_put(sm->hosts, pstrdup(xhash_pool(sm->hosts), sm->id), sm);
-        log_write(sm->log, LOG_NOTICE, "id: %s", sm->id);
+        LOG_ERROR(sm->log, "id: %s", sm->id);
         return;
     }
 
@@ -166,29 +140,29 @@ static void _sm_hosts_expand(sm_t sm)
         strncpy(id, elem->values[i], 1024);
         id[1023] = '\0';
         if (stringprep_nameprep(id, 1024) != 0) {
-            log_write(sm->log, LOG_ERR, "cannot stringprep id %s, aborting", id);
+            LOG_ERROR(sm->log, "cannot stringprep id %s, aborting", id);
             exit(1);
         }
 
         /* insert into vHosts xhash */
         xhash_put(sm->hosts, pstrdup(xhash_pool(sm->hosts), id), sm);
 
-        log_write(sm->log, LOG_NOTICE, "[%s] configured", id);
+        LOG_ERROR(sm->log, "[%s] configured", id);
     }
 }
 
-static int _sm_router_connect(sm_t sm) {
-    log_write(sm->log, LOG_NOTICE, "attempting connection to router at %s, port=%d", sm->router_ip, sm->router_port);
+static int _sm_router_connect(sm_t *sm) {
+    LOG_ERROR(sm->log, "attempting connection to router at %s, port=%d", sm->router_ip, sm->router_port);
 
     sm->fd = mio_connect(sm->mio, sm->router_port, sm->router_ip, NULL, sm_mio_callback, (void *) sm);
     if(sm->fd == NULL) {
         if(errno == ECONNREFUSED)
             sm_lost_router = 1;
-        log_write(sm->log, LOG_NOTICE, "connection attempt to router failed: %s (%d)", MIO_STRERROR(MIO_ERROR), MIO_ERROR);
+        LOG_ERROR(sm->log, "connection attempt to router failed: %s (%d)", MIO_STRERROR(MIO_ERROR), MIO_ERROR);
         return 1;
     }
 
-    sm->router = sx_new(sm->sx_env, sm->fd->fd, sm_sx_callback, (void *) sm);
+    sm->router = sx_new(sm->sx_env, sm->router_ip, sm->router_port, sm_sx_callback, (void *) sm);
     sx_client_init(sm->router, 0, NULL, NULL, NULL, "1.0");
 
     return 0;
@@ -197,7 +171,7 @@ static int _sm_router_connect(sm_t sm) {
 JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server: Session Manager", "jabberd2router\0")
 {
     int optchar;
-    sess_t sess;
+    sess_t *sess;
     char id[1024];
 #ifdef POOL_DEBUG
     time_t pool_time = 0;
@@ -229,20 +203,21 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
 
     jabber_signal(SIGINT, _sm_signal);
     jabber_signal(SIGTERM, _sm_signal);
-#ifdef SIGHUP
-    jabber_signal(SIGHUP, _sm_signal_hup);
-#endif
 #ifdef SIGPIPE
     jabber_signal(SIGPIPE, SIG_IGN);
 #endif
     jabber_signal(SIGUSR1, _sm_signal_usr1);
     jabber_signal(SIGUSR2, _sm_signal_usr2);
 
+    if (log4c_init()) {
+        fputs("log4c init failed\n", stderr);
+        exit(EXIT_FAILURE);
+    }
 
-    sm = (sm_t) calloc(1, sizeof(struct sm_st));
+    sm = new(sm_t);
 
     /* load our config */
-    sm->config = config_new();
+    sm->config = config_new(0);
 
     config_file = CONFIG_DIR "/sm.xml";
 
@@ -254,13 +229,6 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
             case 'c':
                 config_file = optarg;
                 break;
-            case 'D':
-#ifdef DEBUG
-                set_debug_flag(1);
-#else
-                printf("WARN: Debugging not enabled.  Ignoring -D.\n");
-#endif
-                break;
             case 'i':
                 cli_id = optarg;
                 break;
@@ -271,9 +239,6 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
                     "Options are:\n"
                     "   -c <config>     config file to use [default: " CONFIG_DIR "/sm.xml]\n"
                     "   -i id           Override <id> config element\n"
-#ifdef DEBUG
-                    "   -D              Show debug output\n"
-#endif
                     ,
                     stdout);
                 config_free(sm->config);
@@ -292,14 +257,14 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
 
     _sm_config_expand(sm);
 
-    sm->log = log_new(sm->log_type, sm->log_ident, sm->log_facility);
-    log_write(sm->log, LOG_NOTICE, "starting up");
+    sm->log = log_get(sm->id);
+    LOG_ERROR(sm->log, "starting up");
 
     /* stringprep id (domain name) so that it's in canonical form */
     strncpy(id, sm->id, 1024);
     id[sizeof(id)-1] = '\0';
     if (stringprep_nameprep(id, 1024) != 0) {
-        log_write(sm->log, LOG_ERR, "cannot stringprep id %s, aborting", sm->id);
+        LOG_ERROR(sm->log, "cannot stringprep id %s, aborting", sm->id);
         exit(1);
     }
     sm->id = id;
@@ -311,7 +276,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
     /* start storage */
     sm->st = storage_new(sm->config, sm->log);
     if (sm->st == NULL) {
-        log_write(sm->log, LOG_ERR, "failed to initialise one or more storage drivers, aborting");
+        LOG_ERROR(sm->log, "failed to initialise one or more storage drivers, aborting");
         exit(1);
     }
 
@@ -344,7 +309,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
     /* startup the modules */
     sm->mm = mm_new(sm);
 
-    log_write(sm->log, LOG_NOTICE, "version: %s", sm->signature);
+    LOG_ERROR(sm->log, "version: %s", sm->signature);
 
     sm->sessions = xhash_new(401);
 
@@ -358,7 +323,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
     if(sm->router_pemfile != NULL) {
         sm->sx_ssl = sx_env_plugin(sm->sx_env, sx_ssl_init, NULL, sm->router_pemfile, NULL, NULL, sm->router_private_key_password, sm->router_ciphers);
         if(sm->sx_ssl == NULL) {
-            log_write(sm->log, LOG_ERR, "failed to load SSL pemfile, SSL disabled");
+            LOG_ERROR(sm->log, "failed to load SSL pemfile, SSL disabled");
             sm->router_pemfile = NULL;
         }
     }
@@ -367,7 +332,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
     /* get sasl online */
     sm->sx_sasl = sx_env_plugin(sm->sx_env, sx_sasl_init, "xmpp", NULL, NULL);
     if(sm->sx_sasl == NULL) {
-        log_write(sm->log, LOG_ERR, "failed to initialise SASL context, aborting");
+        LOG_ERROR(sm->log, "failed to initialise SASL context, aborting");
         exit(1);
     }
 
@@ -383,20 +348,9 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
     while(!sm_shutdown) {
         mio_run(sm->mio, 5);
 
-        if(sm_logrotate) {
-            set_debug_log_from_config(sm->config);
-
-            log_write(sm->log, LOG_NOTICE, "reopening log ...");
-            log_free(sm->log);
-            sm->log = log_new(sm->log_type, sm->log_ident, sm->log_facility);
-            log_write(sm->log, LOG_NOTICE, "log started");
-
-            sm_logrotate = 0;
-        }
-
         if(sm_lost_router) {
             if(sm->retry_left < 0) {
-                log_write(sm->log, LOG_NOTICE, "attempting reconnect");
+                LOG_ERROR(sm->log, "attempting reconnect");
                 sleep(sm->retry_sleep);
                 sm_lost_router = 0;
                 if (sm->router) sx_free(sm->router);
@@ -408,7 +362,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
             }
 
             else {
-                log_write(sm->log, LOG_NOTICE, "attempting reconnect (%d left)", sm->retry_left);
+                LOG_ERROR(sm->log, "attempting reconnect (%d left)", sm->retry_left);
                 sm->retry_left--;
                 sleep(sm->retry_sleep);
                 sm_lost_router = 0;
@@ -425,7 +379,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
 #endif
     }
 
-    log_write(sm->log, LOG_NOTICE, "shutting down");
+    LOG_ERROR(sm->log, "shutting down");
 
     /* shut down sessions */
     if(xhash_iter_first(sm->sessions))
@@ -456,8 +410,6 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
 
     sx_env_free(sm->sx_env);
 
-    log_free(sm->log);
-
     config_free(sm->config);
 
     free(sm);
@@ -469,6 +421,12 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
 #ifdef HAVE_WINSOCK2_H
     WSACleanup();
 #endif
+
+    /* shutdown logging system - should be last before exit! */
+    if (log4c_fini()) {
+        fputs("log4c finish failed\n", stderr);
+        exit(EXIT_FAILURE);
+    }
 
     return 0;
 }

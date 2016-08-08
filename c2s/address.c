@@ -22,16 +22,15 @@
  */
 
 #include "c2s.h"
+#include "lib/uri.h"
 
 /** sx features callback */
-static void _address_features(sx_t s, sx_plugin_t p, nad_t nad) {
+static void _address_features(sx_t *s, sx_plugin_t *p, nad_t *nad) {
     int ns;
 
     /* offer feature only when not authenticated yet */
     if(s->state >= state_OPEN)
         return;
-
-    _sx_debug(ZONE, "adding address feature");
 
     ns = nad_add_namespace(nad, uri_ADDRESS_FEATURE, NULL);
     nad_append_elem(nad, ns, "address", 1);
@@ -39,8 +38,7 @@ static void _address_features(sx_t s, sx_plugin_t p, nad_t nad) {
 }
 
 /** args: none */
-int address_init(sx_env_t env, sx_plugin_t p, va_list args) {
-    log_debug(ZONE, "initialising address sx plugin");
+int address_init(sx_env_t *env, sx_plugin_t *p, va_list args) {
 
     p->features = _address_features;
 

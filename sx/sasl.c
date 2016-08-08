@@ -21,12 +21,19 @@
 /* SASL authentication handler */
 
 #include "sx.h"
+#include <lib/uri.h>
+#include <lib/log.h>
 #include "sasl.h"
 #include <gsasl.h>
 #include <gsasl-mech.h>
-#include <string.h>
 
-/** our sasl application context */
+#include <string.h>
+#include <assert.h>
+
+#define LOG_CATEGORY "sx.sasl"
+static log4c_category_t *log;
+
+/** our context */
 typedef struct _sx_sasl_st {
     char                        *appname;
     Gsasl                       *gsasl_ctx;
@@ -35,77 +42,77 @@ typedef struct _sx_sasl_st {
     void                        *cbarg;
 
     char                        *ext_id[SX_CONN_EXTERNAL_ID_MAX_COUNT];
-} *_sx_sasl_t;
+} _sx_sasl_t;
 
 /** our sasl per session context */
 typedef struct _sx_sasl_sess_st {
-    sx_t            s;
-    _sx_sasl_t      ctx;
-} *_sx_sasl_sess_t;
+    sx_t            *s;
+    _sx_sasl_t      *ctx;
+} _sx_sasl_sess_t;
 
 /** utility: generate a success nad */
-static nad_t _sx_sasl_success(sx_t s, const char *data, int dlen) {
-    nad_t nad;
+static nad_t *_sx_sasl_success(__attribute__ ((unused)) sx_t *s, const char *data, int dlen) {
+    nad_t *nad;
     int ns;
 
     nad = nad_new();
     ns = nad_add_namespace(nad, uri_SASL, NULL);
 
     nad_append_elem(nad, ns, "success", 0);
-    if(data != NULL)
+    if (data != NULL)
         nad_append_cdata(nad, data, dlen, 1);
 
     return nad;
 }
 
 /** utility: generate a failure nad */
-static nad_t _sx_sasl_failure(sx_t s, const char *err) {
-    nad_t nad;
+static nad_t *_sx_sasl_failure(__attribute__ ((unused)) sx_t *s, const char *err) {
+    nad_t *nad;
     int ns;
 
     nad = nad_new();
     ns = nad_add_namespace(nad, uri_SASL, NULL);
 
     nad_append_elem(nad, ns, "failure", 0);
-    if(err != NULL)
+    if (err != NULL)
         nad_append_elem(nad, ns, err, 1);
 
     return nad;
 }
 
 /** utility: generate a challenge nad */
-static nad_t _sx_sasl_challenge(sx_t s, const char *data, int dlen) {
-    nad_t nad;
+static nad_t *_sx_sasl_challenge(__attribute__ ((unused)) sx_t *s, const char *data, int dlen) {
+    nad_t *nad;
     int ns;
 
     nad = nad_new();
     ns = nad_add_namespace(nad, uri_SASL, NULL);
 
     nad_append_elem(nad, ns, "challenge", 0);
-    if(data != NULL)
+    if (data != NULL)
         nad_append_cdata(nad, data, dlen, 1);
 
     return nad;
 }
 
 /** utility: generate a response nad */
-static nad_t _sx_sasl_response(sx_t s, const char *data, int dlen) {
-    nad_t nad;
+static nad_t *_sx_sasl_response(__attribute__ ((unused)) sx_t *s, const char *data, int dlen) {
+    nad_t *nad;
     int ns;
 
     nad = nad_new();
     ns = nad_add_namespace(nad, uri_SASL, NULL);
 
     nad_append_elem(nad, ns, "response", 0);
-    if(data != NULL)
+    if (data != NULL)
         nad_append_cdata(nad, data, dlen, 1);
 
     return nad;
 }
 
 /** utility: generate an abort nad */
-static nad_t _sx_sasl_abort(sx_t s) {
-    nad_t nad;
+static nad_t *_sx_sasl_abort(__attribute__ ((unused)) sx_t *s) {
+    nad_t *nad;
     int ns;
 
     nad = nad_new();
@@ -116,19 +123,19 @@ static nad_t _sx_sasl_abort(sx_t s) {
     return nad;
 }
 
-static int _sx_sasl_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
+static int _sx_sasl_wio(sx_t *s, sx_plugin_t *p, sx_buf_t *buf) {
     sx_error_t sxe;
     size_t len;
     int ret;
     char *out;
     Gsasl_session *sd = (Gsasl_session *) s->plugin_data[p->index];
 
-    _sx_debug(ZONE, "doing sasl encode");
+    LOG_TRACE(log, "doing sasl encode");
 
     /* encode the output */
     ret = gsasl_encode(sd, buf->data, buf->len, &out, &len);
     if (ret != GSASL_OK) {
-        _sx_debug(ZONE, "gsasl_encode failed (%d): %s", ret, gsasl_strerror (ret));
+        LOG_ERROR(log, "gsasl_encode failed (%d): %s", ret, gsasl_strerror (ret));
         /* Fatal error */
         _sx_gen_error(sxe, SX_ERR_AUTH, "SASL Stream encoding failed", (char*) gsasl_strerror (ret));
         _sx_event(s, event_ERROR, (void *) &sxe);
@@ -139,24 +146,24 @@ static int _sx_sasl_wio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     _sx_buffer_set(buf, out, len, NULL);
     free(out);
 
-    _sx_debug(ZONE, "%d bytes encoded for sasl channel", buf->len);
+    LOG_TRACE(log, "%d bytes encoded for sasl channel", buf->len);
 
     return 1;
 }
 
-static int _sx_sasl_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
+static int _sx_sasl_rio(sx_t *s, sx_plugin_t *p, sx_buf_t *buf) {
     sx_error_t sxe;
     size_t len;
     int ret;
     char *out;
     Gsasl_session *sd = (Gsasl_session *) s->plugin_data[p->index];
 
-    _sx_debug(ZONE, "doing sasl decode");
+    LOG_TRACE(log, "doing sasl decode");
 
     /* decode the input */
     ret = gsasl_decode(sd, buf->data, buf->len, &out, &len);
     if (ret != GSASL_OK) {
-        _sx_debug(ZONE, "gsasl_decode failed (%d): %s", ret, gsasl_strerror (ret));
+        LOG_ERROR(log, "gsasl_decode failed (%d): %s", ret, gsasl_strerror (ret));
         /* Fatal error */
         _sx_gen_error(sxe, SX_ERR_AUTH, "SASL Stream decoding failed", (char*) gsasl_strerror (ret));
         _sx_event(s, event_ERROR, (void *) &sxe);
@@ -167,22 +174,22 @@ static int _sx_sasl_rio(sx_t s, sx_plugin_t p, sx_buf_t buf) {
     _sx_buffer_set(buf, out, len, NULL);
     free(out);
 
-    _sx_debug(ZONE, "%d bytes decoded from sasl channel", len);
+    LOG_TRACE(log, "%zu bytes decoded from sasl channel", len);
 
     return 1;
 }
 
 /** move the stream to the auth state */
-void _sx_sasl_open(sx_t s, Gsasl_session *sd) {
+void _sx_sasl_open(sx_t *s, Gsasl_session *sd) {
     char *method, *authzid;
     const char *realm = NULL;
     struct sx_sasl_creds_st creds = {NULL, NULL, NULL, NULL};
-    _sx_sasl_sess_t sctx = gsasl_session_hook_get(sd);
-    _sx_sasl_t ctx = sctx->ctx;
+    _sx_sasl_sess_t *sctx = gsasl_session_hook_get(sd);
+    _sx_sasl_t *ctx = sctx->ctx;
     const char *mechname = gsasl_mechanism_name (sd);
 
     /* get the method */
-    method = (char *) malloc(sizeof(char) * (strlen(mechname) + 6));
+    method = malloc(sizeof(char) * (strlen(mechname) + 6));
     sprintf(method, "SASL/%s", mechname);
 
     /* and the authorization identifier */
@@ -190,9 +197,9 @@ void _sx_sasl_open(sx_t s, Gsasl_session *sd) {
     creds.authnid = gsasl_property_fast(sd, GSASL_AUTHID);
     creds.realm   = gsasl_property_fast(sd, GSASL_REALM);
 
-    if(0 && ctx && ctx->cb) { /* not supported yet */
-        if((ctx->cb)(sx_sasl_cb_CHECK_AUTHZID, &creds, NULL, s, ctx->cbarg)!=sx_sasl_ret_OK) {
-            _sx_debug(ZONE, "stream authzid: %s verification failed, not advancing to auth state", creds.authzid);
+    if (0 && ctx && ctx->cb) { /* not supported yet */
+        if ((ctx->cb)(sx_sasl_cb_CHECK_AUTHZID, &creds, NULL, s, ctx->cbarg)!=sx_sasl_ret_OK) {
+            LOG_WARN(log, "stream authzid: %s verification failed, not advancing to auth state", creds.authzid);
             free(method);
             return;
         }
@@ -201,12 +208,12 @@ void _sx_sasl_open(sx_t s, Gsasl_session *sd) {
         authzid = NULL;
     } else {
         /* override unchecked arbitrary authzid */
-        if(creds.realm && creds.realm[0] != '\0') {
+        if (creds.realm && creds.realm[0] != '\0') {
             realm = creds.realm;
         } else {
             realm = s->req_to;
         }
-        authzid = (char *) malloc(sizeof(char) * (strlen(creds.authnid) + strlen(realm) + 2));
+        authzid = malloc(sizeof(char) * (strlen(creds.authnid) + strlen(realm) + 2));
         sprintf(authzid, "%s@%s", creds.authnid, realm);
         creds.authzid = authzid;
     }
@@ -215,20 +222,20 @@ void _sx_sasl_open(sx_t s, Gsasl_session *sd) {
     sx_auth(s, method, creds.authzid);
 
     free(method);
-    if(authzid) free(authzid);
+    if (authzid) free(authzid);
 }
 
 /** make the stream authenticated second time round */
-static void _sx_sasl_stream(sx_t s, sx_plugin_t p) {
+static void _sx_sasl_stream(sx_t *s, sx_plugin_t *p) {
     Gsasl_session *sd = (Gsasl_session *) s->plugin_data[p->index];
 
     /* do nothing the first time */
-    if(sd == NULL)
+    if (sd == NULL)
         return;
 
     /* are we auth'd? */
-    if(NULL == gsasl_property_fast(sd, GSASL_AUTHID)) {
-        _sx_debug(ZONE, "not auth'd, not advancing to auth'd state yet");
+    if (NULL == gsasl_property_fast(sd, GSASL_AUTHID)) {
+        LOG_DEBUG(log, "not auth'd, not advancing to auth'd state yet");
         return;
     }
 
@@ -236,37 +243,37 @@ static void _sx_sasl_stream(sx_t s, sx_plugin_t p) {
     _sx_sasl_open(s, sd);
 }
 
-static void _sx_sasl_features(sx_t s, sx_plugin_t p, nad_t nad) {
-    _sx_sasl_t ctx = (_sx_sasl_t) p->private;
+static void _sx_sasl_features(sx_t *s, sx_plugin_t *p, nad_t *nad) {
+    _sx_sasl_t *ctx = p->private;
     Gsasl_session *sd = (Gsasl_session *) s->plugin_data[p->index];
     int nmechs, ret;
     char *mechs, *mech, *c;
 
-    if(s->type != type_SERVER)
+    if (s->type != type_SERVER)
         return;
 
-    if(sd != NULL) {
-        _sx_debug(ZONE, "already auth'd, not offering sasl mechanisms");
+    if (sd != NULL) {
+        LOG_DEBUG(log, "already auth'd, not offering sasl mechanisms");
         return;
     }
 
-    if(!(s->flags & SX_SASL_OFFER)) {
-        _sx_debug(ZONE, "application didn't ask us to offer sasl, so we won't");
+    if (!(s->flags & SX_SASL_OFFER)) {
+        LOG_DEBUG(log, "application didn't ask us to offer sasl, so we won't");
         return;
     }
 
 #ifdef HAVE_SSL
-    if((s->flags & SX_SSL_STARTTLS_REQUIRE) && s->ssf == 0) {
-        _sx_debug(ZONE, "ssl not established yet but the app requires it, not offering mechanisms");
+    if ((s->flags & SX_SSL_STARTTLS_REQUIRE) && s->ssf == 0) {
+        LOG_DEBUG(log, "ssl not established yet but the app requires it, not offering mechanisms");
         return;
     }
 #endif
 
-    _sx_debug(ZONE, "offering sasl mechanisms");
+    LOG_DEBUG(log, "offering sasl mechanisms");
 
     ret = gsasl_server_mechlist(ctx->gsasl_ctx, &mechs);
-    if(ret != GSASL_OK) {
-        _sx_debug(ZONE, "gsasl_server_mechlist failed (%d): %s, not offering sasl for this conn", ret, gsasl_strerror (ret));
+    if (ret != GSASL_OK) {
+        LOG_ERROR(log, "gsasl_server_mechlist failed (%d): %s, not offering sasl for this conn", ret, gsasl_strerror (ret));
         return;
     }
 
@@ -274,7 +281,7 @@ static void _sx_sasl_features(sx_t s, sx_plugin_t p, nad_t nad) {
     nmechs = 0;
     while(mech != NULL) {
         c = strchr(mech, ' ');
-        if(c != NULL)
+        if (c != NULL)
             *c = '\0';
 
         if ((ctx->cb)(sx_sasl_cb_CHECK_MECH, mech, NULL, s, ctx->cbarg)==sx_sasl_ret_OK) {
@@ -282,14 +289,14 @@ static void _sx_sasl_features(sx_t s, sx_plugin_t p, nad_t nad) {
                 int ns = nad_add_namespace(nad, uri_SASL, NULL);
                 nad_append_elem(nad, ns, "mechanisms", 1);
             }
-            _sx_debug(ZONE, "offering mechanism: %s", mech);
+            LOG_DEBUG(log, "offering mechanism: %s", mech);
 
             nad_append_elem(nad, -1 /*ns*/, "mechanism", 2);
             nad_append_cdata(nad, mech, strlen(mech), 3);
             nmechs++;
         }
 
-        if(c == NULL)
+        if (c == NULL)
             mech = NULL;
         else
             mech = ++c;
@@ -299,11 +306,11 @@ static void _sx_sasl_features(sx_t s, sx_plugin_t p, nad_t nad) {
 }
 
 /** auth done, restart the stream */
-static void _sx_sasl_notify_success(sx_t s, void *arg) {
-    sx_plugin_t p = (sx_plugin_t) arg;
+static void _sx_sasl_notify_success(sx_t *s, void *arg) {
+    sx_plugin_t *p = (sx_plugin_t*) arg;
 
     _sx_chain_io_plugin(s, p);
-    _sx_debug(ZONE, "auth completed, resetting");
+    LOG_DEBUG(log, "auth completed, resetting");
 
     _sx_reset(s);
 
@@ -311,9 +318,9 @@ static void _sx_sasl_notify_success(sx_t s, void *arg) {
 }
 
 /** process handshake packets from the client */
-static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, const char *mech, const char *in, int inlen) {
-    _sx_sasl_t ctx = (_sx_sasl_t) p->private;
-    _sx_sasl_sess_t sctx = NULL;
+static void _sx_sasl_client_process(sx_t *s, sx_plugin_t *p, Gsasl_session *sd, const char *mech, const char *in, int inlen) {
+    _sx_sasl_t *ctx = p->private;
+    _sx_sasl_sess_t *sctx = NULL;
     char *buf = NULL, *out = NULL, *realm = NULL, **ext_id;
     char hostname[256];
     int ret;
@@ -325,19 +332,19 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, co
     assert(ctx);
     assert(ctx->cb);
 
-    if(mech != NULL) {
-        _sx_debug(ZONE, "auth request from client (mechanism=%s)", mech);
+    if (mech != NULL) {
+        LOG_DEBUG(log, "auth request from client (mechanism=%s)", mech);
 
-        if(!gsasl_server_support_p(ctx->gsasl_ctx, mech)) {
-             _sx_debug(ZONE, "client requested mechanism (%s) that we didn't offer", mech);
+        if (!gsasl_server_support_p(ctx->gsasl_ctx, mech)) {
+             LOG_WARN(log, "client requested mechanism (%s) that we didn't offer", mech);
              _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_INVALID_MECHANISM), 0);
              return;
         }
 
         /* startup */
         ret = gsasl_server_start(ctx->gsasl_ctx, mech, &sd);
-        if(ret != GSASL_OK) {
-            _sx_debug(ZONE, "gsasl_server_start failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
+        if (ret != GSASL_OK) {
+            LOG_ERROR(log, "gsasl_server_start failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
             _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_TEMPORARY_FAILURE), 0);
             return;
         }
@@ -350,7 +357,7 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, co
         if (sctx != NULL) free(sctx);
 
         /* allocate and initialize our per session context */
-        sctx = (_sx_sasl_sess_t) calloc(1, sizeof(struct _sx_sasl_sess_st));
+        sctx = new(_sx_sasl_sess_t);
         sctx->s = s;
         sctx->ctx = ctx;
         gsasl_session_hook_set(sd, (void *) sctx);
@@ -366,11 +373,11 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, co
         /* get EXTERNAL data from the ssl plugin */
         ext_id = NULL;
 #ifdef HAVE_SSL
-        for(i = 0; i < s->env->nplugins; i++)
-            if(s->env->plugins[i]->magic == SX_SSL_MAGIC && s->plugin_data[s->env->plugins[i]->index] != NULL)
-                ext_id = ((_sx_ssl_conn_t) s->plugin_data[s->env->plugins[i]->index])->external_id;
+        for (i = 0; i < s->env->nplugins; i++)
+            if (s->env->plugins[i]->magic == SX_SSL_MAGIC && s->plugin_data[s->env->plugins[i]->index] != NULL)
+                ext_id = ((_sx_ssl_conn_t*) s->plugin_data[s->env->plugins[i]->index])->external_id;
         if (ext_id != NULL) {
-            //_sx_debug(ZONE, "sasl context ext id '%s'", ext_id);
+            LOG_TRACE(log, "sasl context ext id '%s'", *ext_id);
             /* if there is, store it for later */
             for (i = 0; i < SX_CONN_EXTERNAL_ID_MAX_COUNT; i++)
                 if (ext_id[i] != NULL) {
@@ -380,13 +387,15 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, co
                     break;
                 }
         }
+#else
+        (void)ext_id;
 #endif
 
-        _sx_debug(ZONE, "sasl context initialised for %d", s->tag);
+        LOG_DEBUG(log, "sasl context initialised for %s:%d", s->ip, s->port);
 
         s->plugin_data[p->index] = (void *) sd;
 
-        if(strcmp(mech, "ANONYMOUS") == 0) {
+        if (strcmp(mech, "ANONYMOUS") == 0) {
             /*
              * special case for SASL ANONYMOUS: ignore the initial
              * response provided by the client and generate a random
@@ -399,26 +408,26 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, co
         } else if (strstr(in, "<") != NULL && strncmp(in, "=", strstr(in, "<") - in ) == 0) {
             /* XXX The above check is hackish, but `in` is just weird */
             /* This is a special case for SASL External c2s. See XEP-0178 */
-            _sx_debug(ZONE, "gsasl auth string is empty");
+            LOG_DEBUG(log, "gsasl auth string is empty");
             buf = strdup("");
             buflen = strlen(buf);
         } else {
             /* decode and process */
             ret = gsasl_base64_from(in, inlen, &buf, &buflen);
             if (ret != GSASL_OK) {
-                _sx_debug(ZONE, "gsasl_base64_from failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
+                LOG_ERROR(log, "gsasl_base64_from failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
                 _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_INCORRECT_ENCODING), 0);
-                if(buf != NULL) free(buf);
+                if (buf != NULL) free(buf);
                 return;
             }
         }
 
         ret = gsasl_step(sd, buf, buflen, &out, &outlen);
-        if(ret != GSASL_OK && ret != GSASL_NEEDS_MORE) {
-            _sx_debug(ZONE, "gsasl_step failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
+        if (ret != GSASL_OK && ret != GSASL_NEEDS_MORE) {
+            LOG_ERROR(log, "gsasl_step failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
             _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_MALFORMED_REQUEST), 0);
-            if(out != NULL) free(out);
-            if(buf != NULL) free(buf);
+            if (out != NULL) free(out);
+            if (buf != NULL) free(buf);
             return;
         }
     }
@@ -427,26 +436,26 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, co
         /* decode and process */
         ret = gsasl_base64_from(in, inlen, &buf, &buflen);
         if (ret != GSASL_OK) {
-            _sx_debug(ZONE, "gsasl_base64_from failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
+            LOG_ERROR(log, "gsasl_base64_from failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
             _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_INCORRECT_ENCODING), 0);
             return;
         }
 
-        if(!sd) {
-            _sx_debug(ZONE, "response send before auth request enabling mechanism (decoded: %.*s)", buflen, buf);
+        if (!sd) {
+            LOG_ERROR(log, "response send before auth request enabling mechanism (decoded: %.*s)", (int)buflen, buf);
             _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_MECH_TOO_WEAK), 0);
-            if(buf != NULL) free(buf);
+            if (buf != NULL) free(buf);
             return;
         }
-        _sx_debug(ZONE, "response from client (decoded: %.*s)", buflen, buf);
+        LOG_TRACE(log, "response from client (decoded: %.*s)", (int)buflen, buf);
         ret = gsasl_step(sd, buf, buflen, &out, &outlen);
     }
 
-    if(buf != NULL) free(buf);
+    if (buf != NULL) free(buf);
 
     /* auth completed */
-    if(ret == GSASL_OK) {
-        _sx_debug(ZONE, "sasl handshake completed");
+    if (ret == GSASL_OK) {
+        LOG_DEBUG(log, "sasl handshake completed");
 
         /* encode the leftover response */
         ret = gsasl_base64_to(out, outlen, &buf, &buflen);
@@ -456,23 +465,23 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, co
             free(buf);
 
             /* set a notify on the success nad buffer */
-            ((sx_buf_t) s->wbufq->front->data)->notify = _sx_sasl_notify_success;
-            ((sx_buf_t) s->wbufq->front->data)->notify_arg = (void *) p;
+            ((sx_buf_t*) s->wbufq->front->data)->notify = _sx_sasl_notify_success;
+            ((sx_buf_t*) s->wbufq->front->data)->notify_arg = (void *) p;
         }
         else {
-            _sx_debug(ZONE, "gsasl_base64_to failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
+            LOG_ERROR(log, "gsasl_base64_to failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
             _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_INCORRECT_ENCODING), 0);
-            if(buf != NULL) free(buf);
+            if (buf != NULL) free(buf);
         }
 
-        if(out != NULL) free(out);
+        if (out != NULL) free(out);
 
         return;
     }
 
     /* in progress */
-    if(ret == GSASL_NEEDS_MORE) {
-        _sx_debug(ZONE, "sasl handshake in progress (challenge: %.*s)", outlen, out);
+    if (ret == GSASL_NEEDS_MORE) {
+        LOG_TRACE(log, "sasl handshake in progress (challenge: %.*s)", (int)outlen, out);
 
         /* encode the challenge */
         ret = gsasl_base64_to(out, outlen, &buf, &buflen);
@@ -481,46 +490,47 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, co
             free(buf);
         }
         else {
-            _sx_debug(ZONE, "gsasl_base64_to failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
+            LOG_ERROR(log, "gsasl_base64_to failed, no sasl for this conn; (%d): %s", ret, gsasl_strerror(ret));
             _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_INCORRECT_ENCODING), 0);
-            if(buf != NULL) free(buf);
+            if (buf != NULL) free(buf);
         }
 
-        if(out != NULL) free(out);
+        if (out != NULL) free(out);
 
         return;
     }
 
-    if(out != NULL) free(out);
+    if (out != NULL) free(out);
 
     /* its over */
-    _sx_debug(ZONE, "sasl handshake failed; (%d): %s", ret, gsasl_strerror(ret));
+    LOG_ERROR(log, "sasl handshake failed; (%d): %s", ret, gsasl_strerror(ret));
 
     /* !!! TODO XXX check ret and flag error appropriately */
     _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_MALFORMED_REQUEST), 0);
 }
 
 /** process handshake packets from the server */
-static void _sx_sasl_server_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, const char *in, int inlen) {
+static void _sx_sasl_server_process(sx_t *s, __attribute__ ((unused)) sx_plugin_t *p, Gsasl_session *sd, const char *in, int inlen) {
     char *buf = NULL, *out = NULL;
     size_t buflen, outlen;
     int ret;
 
-    _sx_debug(ZONE, "data from client");
+    LOG_DEBUG(log, "data from client");
 
     /* decode the response */
     ret = gsasl_base64_from(in, inlen, &buf, &buflen);
 
     if (ret == GSASL_OK) {
-        _sx_debug(ZONE, "decoded data: %.*s", buflen, buf);
+        LOG_TRACE(log, "decoded data: %.*s", (int)buflen, buf);
 
         /* process the data */
         ret = gsasl_step(sd, buf, buflen, &out, &outlen);
-        if(buf != NULL) free(buf); buf = NULL;
+        if (buf != NULL) free(buf);
+        buf = NULL;
 
         /* in progress */
-        if(ret == GSASL_OK || ret == GSASL_NEEDS_MORE) {
-            _sx_debug(ZONE, "sasl handshake in progress (response: %.*s)", outlen, out);
+        if (ret == GSASL_OK || ret == GSASL_NEEDS_MORE) {
+            LOG_TRACE(log, "sasl handshake in progress (response: %.*s)", (int)outlen, out);
 
             /* encode the response */
             ret = gsasl_base64_to(out, outlen, &buf, &buflen);
@@ -529,23 +539,23 @@ static void _sx_sasl_server_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, co
                 _sx_nad_write(s, _sx_sasl_response(s, buf, buflen), 0);
             }
 
-            if(out != NULL) free(out);
-            if(buf != NULL) free(buf);
+            if (out != NULL) free(out);
+            if (buf != NULL) free(buf);
 
             return;
         }
     }
-    if(out != NULL) free(out);
-    if(buf != NULL) free(buf);
+    if (out != NULL) free(out);
+    if (buf != NULL) free(buf);
 
     /* its over */
-    _sx_debug(ZONE, "sasl handshake aborted; (%d): %s", ret, gsasl_strerror(ret));
+    LOG_ERROR(log, "sasl handshake aborted; (%d): %s", ret, gsasl_strerror(ret));
 
     _sx_nad_write(s, _sx_sasl_abort(s), 0);
 }
 
 /** main nad processor */
-static int _sx_sasl_process(sx_t s, sx_plugin_t p, nad_t nad) {
+static int _sx_sasl_process(sx_t *s, sx_plugin_t *p, nad_t *nad) {
     Gsasl_session *sd = (Gsasl_session *) s->plugin_data[p->index];
     int attr;
     char mech[128];
@@ -554,36 +564,36 @@ static int _sx_sasl_process(sx_t s, sx_plugin_t p, nad_t nad) {
     char *ns = NULL, *to = NULL, *from = NULL, *version = NULL;
 
     /* only want sasl packets */
-    if(NAD_ENS(nad, 0) < 0 || NAD_NURI_L(nad, NAD_ENS(nad, 0)) != strlen(uri_SASL) || strncmp(NAD_NURI(nad, NAD_ENS(nad, 0)), uri_SASL, strlen(uri_SASL)) != 0)
+    if (NAD_ENS(nad, 0) < 0 || NAD_NURI_L(nad, NAD_ENS(nad, 0)) != strlen(uri_SASL) || strncmp(NAD_NURI(nad, NAD_ENS(nad, 0)), uri_SASL, strlen(uri_SASL)) != 0)
         return 1;
 
     /* quietly drop it if sasl is disabled, or if not ready */
-    if(s->state != state_STREAM) {
-        _sx_debug(ZONE, "not correct state for sasl, ignoring");
+    if (s->state != state_STREAM) {
+        LOG_WARN(log, "not correct state for sasl, ignoring");
         nad_free(nad);
         return 0;
     }
 
     /* packets from the client */
-    if(s->type == type_SERVER) {
-        if(!(s->flags & SX_SASL_OFFER)) {
-            _sx_debug(ZONE, "they tried to do sasl, but we never offered it, ignoring");
+    if (s->type == type_SERVER) {
+        if (!(s->flags & SX_SASL_OFFER)) {
+            LOG_NOTICE(log, "they tried to do sasl, but we never offered it, ignoring");
             nad_free(nad);
             return 0;
         }
 
 #ifdef HAVE_SSL
-        if((s->flags & SX_SSL_STARTTLS_REQUIRE) && s->ssf == 0) {
-            _sx_debug(ZONE, "they tried to do sasl, but they have to do starttls first, ignoring");
+        if ((s->flags & SX_SSL_STARTTLS_REQUIRE) && s->ssf == 0) {
+            LOG_NOTICE(log, "they tried to do sasl, but they have to do starttls first, ignoring");
             nad_free(nad);
             return 0;
         }
 #endif
 
         /* auth */
-        if(NAD_ENAME_L(nad, 0) == 4 && strncmp("auth", NAD_ENAME(nad, 0), NAD_ENAME_L(nad, 0)) == 0) {
+        if (NAD_ENAME_L(nad, 0) == 4 && strncmp("auth", NAD_ENAME(nad, 0), NAD_ENAME_L(nad, 0)) == 0) {
             /* require mechanism */
-            if((attr = nad_find_attr(nad, 0, -1, "mechanism", NULL)) < 0) {
+            if ((attr = nad_find_attr(nad, 0, -1, "mechanism", NULL)) < 0) {
                 _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_INVALID_MECHANISM), 0);
                 nad_free(nad);
                 return 0;
@@ -600,7 +610,7 @@ static int _sx_sasl_process(sx_t s, sx_plugin_t p, nad_t nad) {
         }
 
         /* response */
-        else if(NAD_ENAME_L(nad, 0) == 8 && strncmp("response", NAD_ENAME(nad, 0), NAD_ENAME_L(nad, 0)) == 0) {
+        else if (NAD_ENAME_L(nad, 0) == 8 && strncmp("response", NAD_ENAME(nad, 0), NAD_ENAME_L(nad, 0)) == 0) {
             /* process it */
             _sx_sasl_client_process(s, p, sd, NULL, NAD_CDATA(nad, 0), NAD_CDATA_L(nad, 0));
 
@@ -609,8 +619,8 @@ static int _sx_sasl_process(sx_t s, sx_plugin_t p, nad_t nad) {
         }
 
         /* abort */
-        else if(NAD_ENAME_L(nad, 0) == 5 && strncmp("abort", NAD_ENAME(nad, 0), NAD_ENAME_L(nad, 0)) == 0) {
-            _sx_debug(ZONE, "sasl handshake aborted");
+        else if (NAD_ENAME_L(nad, 0) == 5 && strncmp("abort", NAD_ENAME(nad, 0), NAD_ENAME_L(nad, 0)) == 0) {
+            LOG_NOTICE(log, "sasl handshake aborted");
 
             _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_ABORTED), 0);
 
@@ -620,15 +630,15 @@ static int _sx_sasl_process(sx_t s, sx_plugin_t p, nad_t nad) {
     }
 
     /* packets from the server */
-    else if(s->type == type_CLIENT) {
-        if(sd == NULL) {
-            _sx_debug(ZONE, "got sasl client packets, but they never started sasl, ignoring");
+    else if (s->type == type_CLIENT) {
+        if (sd == NULL) {
+            LOG_WARN(log, "got sasl client packets, but they never started sasl, ignoring");
             nad_free(nad);
             return 0;
         }
 
         /* challenge */
-        if(NAD_ENAME_L(nad, 0) == 9 && strncmp("challenge", NAD_ENAME(nad, 0), NAD_ENAME_L(nad, 0)) == 0) {
+        if (NAD_ENAME_L(nad, 0) == 9 && strncmp("challenge", NAD_ENAME(nad, 0), NAD_ENAME_L(nad, 0)) == 0) {
             /* process it */
             _sx_sasl_server_process(s, p, sd, NAD_CDATA(nad, 0), NAD_CDATA_L(nad, 0));
 
@@ -637,38 +647,38 @@ static int _sx_sasl_process(sx_t s, sx_plugin_t p, nad_t nad) {
         }
 
         /* success */
-        else if(NAD_ENAME_L(nad, 0) == 7 && strncmp("success", NAD_ENAME(nad, 0), NAD_ENAME_L(nad, 0)) == 0) {
-            _sx_debug(ZONE, "sasl handshake completed, resetting");
+        else if (NAD_ENAME_L(nad, 0) == 7 && strncmp("success", NAD_ENAME(nad, 0), NAD_ENAME_L(nad, 0)) == 0) {
+            LOG_DEBUG(log, "sasl handshake completed, resetting");
             nad_free(nad);
 
             /* save interesting bits */
             flags = s->flags;
 
-            if(s->ns != NULL) ns = strdup(s->ns);
+            if (s->ns != NULL) ns = strdup(s->ns);
 
-            if(s->req_to != NULL) to = strdup(s->req_to);
-            if(s->req_from != NULL) from = strdup(s->req_from);
-            if(s->req_version != NULL) version = strdup(s->req_version);
+            if (s->req_to != NULL) to = strdup(s->req_to);
+            if (s->req_from != NULL) from = strdup(s->req_from);
+            if (s->req_version != NULL) version = strdup(s->req_version);
 
             /* reset state */
             _sx_reset(s);
 
-            _sx_debug(ZONE, "restarting stream with sasl layer established");
+            LOG_DEBUG(log, "restarting stream with sasl layer established");
 
             /* second time round */
             sx_client_init(s, flags, ns, to, from, version);
 
             /* free bits */
-            if(ns != NULL) free(ns);
-            if(to != NULL) free(to);
-            if(from != NULL) free(from);
-            if(version != NULL) free(version);
+            if (ns != NULL) free(ns);
+            if (to != NULL) free(to);
+            if (from != NULL) free(from);
+            if (version != NULL) free(version);
 
             return 0;
         }
 
         /* failure */
-        else if(NAD_ENAME_L(nad, 0) == 7 && strncmp("failure", NAD_ENAME(nad, 0), NAD_ENAME_L(nad, 0)) == 0) {
+        else if (NAD_ENAME_L(nad, 0) == 7 && strncmp("failure", NAD_ENAME(nad, 0), NAD_ENAME_L(nad, 0)) == 0) {
             /* fire the error */
             _sx_gen_error(sxe, SX_ERR_AUTH, "Authentication failed", NULL);
             _sx_event(s, event_ERROR, (void *) &sxe);
@@ -684,25 +694,25 @@ static int _sx_sasl_process(sx_t s, sx_plugin_t p, nad_t nad) {
     }
 
     /* invalid sasl command, quietly drop it */
-    _sx_debug(ZONE, "unknown sasl command '%.*s', ignoring", NAD_ENAME_L(nad, 0), NAD_ENAME(nad, 0));
+    LOG_WARN(log, "unknown sasl command '%.*s', ignoring", NAD_ENAME_L(nad, 0), NAD_ENAME(nad, 0));
 
     nad_free(nad);
     return 0;
 }
 
 /** cleanup */
-static void _sx_sasl_free(sx_t s, sx_plugin_t p) {
+static void _sx_sasl_free(sx_t *s, sx_plugin_t *p) {
     Gsasl_session *sd = (Gsasl_session *) s->plugin_data[p->index];
-    _sx_sasl_sess_t sctx;
+    _sx_sasl_sess_t *sctx;
 
-    if(sd == NULL)
+    if (sd == NULL)
         return;
 
-    _sx_debug(ZONE, "cleaning up conn state");
+    LOG_DEBUG(log, "cleaning up conn state");
 
     /* we need to clean up our per session context but keep sasl ctx */
     sctx = gsasl_session_hook_get(sd);
-    if (sctx != NULL){
+    if (sctx != NULL) {
         free(sctx);
         gsasl_session_hook_set(sd, (void *) NULL);
     }
@@ -711,9 +721,9 @@ static void _sx_sasl_free(sx_t s, sx_plugin_t p) {
     s->plugin_data[p->index] = NULL;
 }
 
-static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_property prop) {
-    _sx_sasl_sess_t sctx = gsasl_session_hook_get(sd);
-    _sx_sasl_t ctx = NULL;
+static int _sx_sasl_gsasl_callback(__attribute__ ((unused)) Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_property prop) {
+    _sx_sasl_sess_t *sctx = gsasl_session_hook_get(sd);
+    _sx_sasl_t *ctx = NULL;
     struct sx_sasl_creds_st creds = {NULL, NULL, NULL, NULL};
     char *value, *node, *host;
     int len, i;
@@ -722,12 +732,11 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
      * session hook data is not always available while its being set up,
      * also not needed in many of the cases below.
      */
-     if(sctx != NULL) {
+     if (sctx != NULL) {
          ctx = sctx->ctx;
      }
 
-    _sx_debug(ZONE, "in _sx_sasl_gsasl_callback, property: %d", prop);
-
+    LOG_DEBUG(log, "in _sx_sasl_gsasl_callback, property: %d", prop);
     switch(prop) {
         case GSASL_PASSWORD:
             /* GSASL_AUTHID, GSASL_AUTHZID, GSASL_REALM */
@@ -735,9 +744,9 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
             assert(ctx->cb);
             creds.authnid = gsasl_property_fast(sd, GSASL_AUTHID);
             creds.realm   = gsasl_property_fast(sd, GSASL_REALM);
-            if(!creds.authnid) return GSASL_NO_AUTHID;
-            if(!creds.realm) return GSASL_NO_AUTHZID;
-            if((ctx->cb)(sx_sasl_cb_GET_PASS, &creds, (void **)&value, sctx->s, ctx->cbarg) == sx_sasl_ret_OK) {
+            if (!creds.authnid) return GSASL_NO_AUTHID;
+            if (!creds.realm) return GSASL_NO_AUTHZID;
+            if ((ctx->cb)(sx_sasl_cb_GET_PASS, &creds, (void **)&value, sctx->s, ctx->cbarg) == sx_sasl_ret_OK) {
                 gsasl_property_set(sd, GSASL_PASSWORD, value);
             }
             return GSASL_NEEDS_MORE;
@@ -765,10 +774,10 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
             creds.authnid = gsasl_property_fast(sd, GSASL_AUTHID);
             creds.realm   = gsasl_property_fast(sd, GSASL_REALM);
             creds.pass    = gsasl_property_fast(sd, GSASL_PASSWORD);
-            if(!creds.authnid) return GSASL_NO_AUTHID;
-            if(!creds.realm) return GSASL_NO_AUTHZID;
-            if(!creds.pass) return GSASL_NO_PASSWORD;
-            if((ctx->cb)(sx_sasl_cb_CHECK_PASS, &creds, NULL, sctx->s, ctx->cbarg) == sx_sasl_ret_OK)
+            if (!creds.authnid) return GSASL_NO_AUTHID;
+            if (!creds.realm) return GSASL_NO_AUTHZID;
+            if (!creds.pass) return GSASL_NO_PASSWORD;
+            if ((ctx->cb)(sx_sasl_cb_CHECK_PASS, &creds, NULL, sctx->s, ctx->cbarg) == sx_sasl_ret_OK)
                 return GSASL_OK;
             else
                 return GSASL_AUTHENTICATION_ERROR;
@@ -776,16 +785,16 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
         case GSASL_VALIDATE_GSSAPI:
             /* GSASL_AUTHZID, GSASL_GSSAPI_DISPLAY_NAME */
             creds.authnid = gsasl_property_fast(sd, GSASL_GSSAPI_DISPLAY_NAME);
-            if(!creds.authnid) return GSASL_NO_AUTHID;
+            if (!creds.authnid) return GSASL_NO_AUTHID;
             creds.authzid = gsasl_property_fast(sd, GSASL_AUTHZID);
-            if(!creds.authzid) return GSASL_NO_AUTHZID;
+            if (!creds.authzid) return GSASL_NO_AUTHZID;
             gsasl_property_set(sd, GSASL_AUTHID, creds.authnid);
             return GSASL_OK;
 
         case GSASL_VALIDATE_ANONYMOUS:
             /* GSASL_ANONYMOUS_TOKEN */
             creds.authnid = gsasl_property_fast(sd, GSASL_ANONYMOUS_TOKEN);
-            if(!creds.authnid) return GSASL_NO_ANONYMOUS_TOKEN;
+            if (!creds.authnid) return GSASL_NO_ANONYMOUS_TOKEN;
             /* set token as authid for later use */
             gsasl_property_set(sd, GSASL_AUTHID, creds.authnid);
             return GSASL_OK;
@@ -795,23 +804,23 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
             assert(ctx);
             assert(ctx->ext_id);
             creds.authzid = gsasl_property_fast(sd, GSASL_AUTHZID);
-            _sx_debug(ZONE, "sasl external");
-            _sx_debug(ZONE, "sasl creds.authzid is '%s'", creds.authzid);
+            LOG_DEBUG(log, "sasl external");
+            LOG_DEBUG(log, "sasl creds.authzid is '%s'", creds.authzid);
 
             for (i = 0; i < SX_CONN_EXTERNAL_ID_MAX_COUNT; i++) {
                 if (ctx->ext_id[i] == NULL)
                     break;
-                _sx_debug(ZONE, "sasl ext_id(%d) is '%s'", i, ctx->ext_id[i]);
+                LOG_DEBUG(log, "sasl ext_id(%d) is '%s'", i, ctx->ext_id[i]);
                 /* XXX hackish.. detect c2s by existance of @ */
                 value = strstr(ctx->ext_id[i], "@");
 
-                if(value == NULL && creds.authzid != NULL && strcmp(ctx->ext_id[i], creds.authzid) == 0) {
+                if (value == NULL && creds.authzid != NULL && strcmp(ctx->ext_id[i], creds.authzid) == 0) {
                     // s2s connection and it's valid
                     /* TODO Handle wildcards and other thigs from XEP-0178 */
-                    _sx_debug(ZONE, "sasl ctx->ext_id doesn't have '@' in it. Assuming s2s");
+                    LOG_DEBUG(log, "sasl ctx->ext_id doesn't have '@' in it. Assuming s2s");
                     return GSASL_OK;
                 }
-                if(value != NULL &&
+                if (value != NULL &&
                     ((creds.authzid != NULL && strcmp(ctx->ext_id[i], creds.authzid) == 0) ||
                      (creds.authzid == NULL)) ) {
                     // c2s connection
@@ -820,12 +829,12 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
                     // This should be freed by gsasl_finish() but I'm not sure
                     // node  = authnid
                     len = value - ctx->ext_id[i];
-                    node = (char *) malloc(sizeof(char) * (len + 1)); // + null termination
+                    node = malloc(sizeof(char) * (len + 1)); // + null termination
                     strncpy(node, ctx->ext_id[i], len);
                     node[len] = '\0'; // null terminate the string
                     // host = realm
                     len = strlen(value) - 1 + 1; // - the @ + null termination
-                    host = (char *) malloc(sizeof(char) * (len));
+                    host = malloc(sizeof(char) * (len));
                     strcpy(host, value + 1); // skip the @
                     gsasl_property_set(sd, GSASL_AUTHID, node);
                     gsasl_property_set(sd, GSASL_REALM, host);
@@ -842,15 +851,15 @@ static int _sx_sasl_gsasl_callback(Gsasl *gsasl_ctx, Gsasl_session *sd, Gsasl_pr
     return GSASL_NO_CALLBACK;
 }
 
-static void _sx_sasl_unload(sx_plugin_t p) {
-    _sx_sasl_t ctx = (_sx_sasl_t) p->private;
+static void _sx_sasl_unload(sx_plugin_t *p) {
+    _sx_sasl_t *ctx = p->private;
     int i;
     assert(ctx);
 
     if (ctx->gsasl_ctx != NULL) gsasl_done (ctx->gsasl_ctx);
     if (ctx->appname != NULL) free(ctx->appname);
     for (i = 0; i < SX_CONN_EXTERNAL_ID_MAX_COUNT; i++)
-        if(ctx->ext_id[i] != NULL)
+        if (ctx->ext_id[i] != NULL)
             free(ctx->ext_id[i]);
         else
             break;
@@ -859,25 +868,26 @@ static void _sx_sasl_unload(sx_plugin_t p) {
 }
 
 /** args: appname, callback, cb arg */
-int sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args) {
+int sx_sasl_init(__attribute__ ((unused)) sx_env_t *env, sx_plugin_t *p, va_list args) {
     const char *appname;
     sx_sasl_callback_t cb;
     void *cbarg;
-    _sx_sasl_t ctx;
+    _sx_sasl_t *ctx;
     int ret, i;
 
-    _sx_debug(ZONE, "initialising sasl plugin");
+    log = log4c_category_get(LOG_CATEGORY);
+    LOG_INFO(log, "initialising sasl sx plugin");
 
     appname = va_arg(args, const char *);
-    if(appname == NULL) {
-        _sx_debug(ZONE, "appname was NULL, failing");
+    if (appname == NULL) {
+        LOG_ERROR(log, "appname was NULL, failing");
         return 1;
     }
 
     cb = va_arg(args, sx_sasl_callback_t);
     cbarg = va_arg(args, void *);
 
-    ctx = (_sx_sasl_t) calloc(1, sizeof(struct _sx_sasl_st));
+    ctx = new(_sx_sasl_t);
 
     ctx->appname = strdup(appname);
     ctx->cb = cb;
@@ -886,15 +896,15 @@ int sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args) {
         ctx->ext_id[i] = NULL;
 
     ret = gsasl_init(&ctx->gsasl_ctx);
-    if(ret != GSASL_OK) {
-        _sx_debug(ZONE, "couldn't initialize libgsasl (%d): %s", ret, gsasl_strerror (ret));
+    if (ret != GSASL_OK) {
+        LOG_ERROR(log, "couldn't initialize libgsasl (%d): %s", ret, gsasl_strerror (ret));
         free(ctx);
         return 1;
     }
 
     gsasl_callback_set (ctx->gsasl_ctx, &_sx_sasl_gsasl_callback);
 
-    _sx_debug(ZONE, "sasl context initialised");
+    LOG_DEBUG(log, "sasl context initialised");
 
     p->private = (void *) ctx;
 
@@ -912,15 +922,15 @@ int sx_sasl_init(sx_env_t env, sx_plugin_t p, va_list args) {
 }
 
 /** kick off the auth handshake */
-int sx_sasl_auth(sx_plugin_t p, sx_t s, const char *appname, const char *mech, const char *user, const char *pass) {
-    _sx_sasl_t ctx = (_sx_sasl_t) p->private;
-    _sx_sasl_sess_t sctx = NULL;
+int sx_sasl_auth(sx_plugin_t *p, sx_t *s, const char *appname, const char *mech, const char *user, const char *pass) {
+    _sx_sasl_t *ctx = p->private;
+    _sx_sasl_sess_t *sctx = NULL;
     Gsasl_session *sd;
     char *buf = NULL, *out = NULL;
     char hostname[256];
     int ret, ns;
     size_t buflen, outlen;
-    nad_t nad;
+    nad_t *nad;
 
     assert((p != NULL));
     assert((s != NULL));
@@ -929,15 +939,15 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, const char *appname, const char *mech, c
     assert((user != NULL));
     assert((pass != NULL));
 
-    if(s->type != type_CLIENT || s->state != state_STREAM) {
-        _sx_debug(ZONE, "need client in stream state for sasl auth");
+    if (s->type != type_CLIENT || s->state != state_STREAM) {
+        LOG_ERROR(log, "need client in stream state for sasl auth");
         return 1;
      }
 
     /* handshake start */
     ret = gsasl_client_start(ctx->gsasl_ctx, mech, &sd);
-    if(ret != GSASL_OK) {
-        _sx_debug(ZONE, "gsasl_client_start failed, not authing; (%d): %s", ret, gsasl_strerror(ret));
+    if (ret != GSASL_OK) {
+        LOG_ERROR(log, "gsasl_client_start failed, not authing; (%d): %s", ret, gsasl_strerror(ret));
 
         return 1;
     }
@@ -952,7 +962,7 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, const char *appname, const char *mech, c
     if (sctx != NULL) free(sctx);
 
     /* allocate and initialize our per session context */
-    sctx = (_sx_sasl_sess_t) calloc(1, sizeof(struct _sx_sasl_sess_st));
+    sctx = new(_sx_sasl_sess_t);
     sctx->s = s;
     sctx->ctx = ctx;
 
@@ -965,8 +975,8 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, const char *appname, const char *mech, c
 
     /* handshake step */
     ret = gsasl_step(sd, NULL, 0, &out, &outlen);
-    if(ret != GSASL_OK && ret != GSASL_NEEDS_MORE) {
-        _sx_debug(ZONE, "gsasl_step failed, not authing; (%d): %s", ret, gsasl_strerror(ret));
+    if (ret != GSASL_OK && ret != GSASL_NEEDS_MORE) {
+        LOG_ERROR(log, "gsasl_step failed, not authing; (%d): %s", ret, gsasl_strerror(ret));
 
         gsasl_finish(sd);
 
@@ -977,12 +987,12 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, const char *appname, const char *mech, c
     s->plugin_data[p->index] = (void *) sd;
 
     /* in progress */
-    _sx_debug(ZONE, "sending auth request to server, mech '%s': %.*s", mech, outlen, out);
+    LOG_TRACE(log, "sending auth request to server, mech '%s': %.*s", mech, (int)outlen, out);
 
     /* encode the challenge */
     ret = gsasl_base64_to(out, outlen, &buf, &buflen);
-    if(ret != GSASL_OK) {
-        _sx_debug(ZONE, "gsasl_base64_to failed, not authing; (%d): %s", ret, gsasl_strerror(ret));
+    if (ret != GSASL_OK) {
+        LOG_ERROR(log, "gsasl_base64_to failed, not authing; (%d): %s", ret, gsasl_strerror(ret));
 
         gsasl_finish(sd);
 
@@ -997,7 +1007,7 @@ int sx_sasl_auth(sx_plugin_t p, sx_t s, const char *appname, const char *mech, c
 
     nad_append_elem(nad, ns, "auth", 0);
     nad_append_attr(nad, -1, "mechanism", mech);
-    if(buf != NULL) {
+    if (buf != NULL) {
         nad_append_cdata(nad, buf, buflen, 1);
         free(buf);
     }

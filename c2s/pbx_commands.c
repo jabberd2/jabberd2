@@ -35,6 +35,9 @@
  */
 
 #include "c2s.h"
+#include "lib/sha1.h"
+#include "lib/uri.h"
+#include "lib/xhash.h"
 
 static int _pbx_command_part_len(const char *cmd)
 {
@@ -43,9 +46,9 @@ static int _pbx_command_part_len(const char *cmd)
 	return i;
 }
 
-static nad_t _pbx_presence_nad(int available, const char *cmd)
+static nad_t *_pbx_presence_nad(int available, const char *cmd)
 {
-	nad_t nad;
+    nad_t *nad;
 	int ns;
 	char *show = NULL;
 
@@ -62,7 +65,6 @@ static nad_t _pbx_presence_nad(int available, const char *cmd)
 		char prioritystr[5]; // -128 to +127 + \0
 
 		priority = strtol(cmd, &cont, 10);
-		log_debug(ZONE, "Read %ld priority", priority);
 		if(cmd == cont) priority = -1; // use -1 priority if not given
 		if(priority < -128) priority = -128;
 		if(priority > 127) priority = 127;
@@ -115,11 +117,11 @@ static nad_t _pbx_presence_nad(int available, const char *cmd)
  * process commandline
  * @return: 0 to indicate that output needs to be written
  */
-int _pbx_process_command(c2s_t c2s, const char *cmd)
+int _pbx_process_command(c2s_t *c2s, const char *cmd)
 {
-	jid_t jid;
+    jid_t *jid;
 	int action = 0, len;
-	sess_t sess;
+    sess_t *sess;
 	char hashbuf[44] = "PBX";
 	char *sesshash;
 
@@ -147,22 +149,22 @@ int _pbx_process_command(c2s_t c2s, const char *cmd)
 
 				switch(action) {
 					case 1:
-						log_debug(ZONE, "STARTing session for %s/%s (%s) with commandline: %s", jid_user(jid), jid->resource, hashbuf, cmd);
+                        LOG_DEBUG(c2s->log, "STARTing session for %s/%s (%s) with commandline: %s", jid_user(jid), jid->resource, hashbuf, cmd);
 
 						if(sess == NULL) {
 						/* create new session */
-							sess = (sess_t) calloc(1, sizeof(struct sess_st));
+                            sess = new(sess_t);
 							sess->c2s = c2s;
 							sess->last_activity = time(NULL);
 							/* put into sessions hash */
 							snprintf(sess->skey, sizeof(sess->skey), "%s", hashbuf);
 							xhash_put(c2s->sessions, sess->skey, (void *) sess);
 							/* generate bound resource */
-							sess->resources = (bres_t) calloc(1, sizeof(struct bres_st));
+                            sess->resources = new(bres_t);
 							snprintf(sess->resources->c2s_id, sizeof(sess->resources->c2s_id), "%s", hashbuf);
 							sess->resources->jid = jid;
 							/* open SM session */
-							log_write(sess->c2s->log, LOG_NOTICE, "[PBX] requesting session: jid=%s", jid_full(jid));
+                            LOG_NOTICE(sess->c2s->log, "[PBX] requesting session: jid=%s", jid_full(jid));
 							sm_start(sess, sess->resources);
 
 							/* generate presence packet to get session online */
@@ -177,7 +179,7 @@ int _pbx_process_command(c2s_t c2s, const char *cmd)
 						break;
 
 					case 2:
-						log_debug(ZONE, "STOPping session for %s/%s with commandline: %s", jid_user(jid), jid->resource, cmd);
+                        LOG_DEBUG(c2s->log, "STOPping session for %s/%s with commandline: %s", jid_user(jid), jid->resource, cmd);
 
 						if(sess != NULL) {
 							/* send unavailable presence */
@@ -199,7 +201,7 @@ int _pbx_process_command(c2s_t c2s, const char *cmd)
 		return -1;
 	}
 	if(!strncasecmp("STATUS", cmd, 6)) {
-		log_write(c2s->log, LOG_INFO, "STATUS PBX command not implemented yet");
+        LOG_INFO(c2s->log, "STATUS PBX command not implemented yet");
 		return -1;
 	}
     return -1;

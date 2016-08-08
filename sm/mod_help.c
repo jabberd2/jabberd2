@@ -41,10 +41,10 @@ static const char *_serverinfo_fields[] = {
     NULL
 };
 
-static mod_ret_t _help_pkt_sm(mod_instance_t mi, pkt_t pkt)
+static mod_ret_t _help_pkt_sm(mod_instance_t *mi, pkt_t *pkt)
 {
-    module_t mod = mi->mod;
-    jid_t all, msg, jid, smjid;
+    module_t *mod = mi->mod;
+    jid_t *all, *msg, *jid, *smjid;
     int subj, subjectl;
     char *org_subject;
     char *subject;
@@ -55,7 +55,7 @@ static mod_ret_t _help_pkt_sm(mod_instance_t mi, pkt_t pkt)
 
     /* answer to probes and subscription requests */
     if(pkt->type == pkt_PRESENCE_PROBE || pkt->type == pkt_S10N) {
-        log_debug(ZONE, "answering presence probe/sub from %s with /help resource", jid_full(pkt->from));
+        LOG_DEBUG(mi->sm->log, "answering presence probe/sub from %s with /help resource", jid_full(pkt->from));
 
         /* send presence */
         pkt_router(pkt_create(mod->mm->sm, "presence", NULL, jid_user(pkt->from), jid_full(smjid)));
@@ -67,7 +67,7 @@ static mod_ret_t _help_pkt_sm(mod_instance_t mi, pkt_t pkt)
     if(!(pkt->type & pkt_MESSAGE) || (pkt->to->resource[0] != '\0' && strcmp(pkt->to->resource, "help")))
         return mod_PASS;
 
-    log_debug(ZONE, "help message from %s", jid_full(pkt->from));
+    LOG_DEBUG(mi->sm->log, "help message from %s", jid_full(pkt->from));
 
     all = xhash_get(mod->mm->sm->acls, "all");
     msg = xhash_get(mod->mm->sm->acls, "messages");
@@ -81,7 +81,7 @@ static mod_ret_t _help_pkt_sm(mod_instance_t mi, pkt_t pkt)
         org_subject = "(none)";
     }
     subjectl = strlen(org_subject) + strlen(jid_full(pkt->from)) + 8;
-    subject = (char *) malloc(sizeof(char) * subjectl);
+    subject = malloc(sizeof(char) * subjectl);
     snprintf(subject, subjectl, "Fwd[%s]: %s", jid_full(pkt->from), org_subject);
     if(subj >= 0 && NAD_CDATA_L(pkt->nad, subj) > 0)
     {
@@ -94,26 +94,26 @@ static mod_ret_t _help_pkt_sm(mod_instance_t mi, pkt_t pkt)
     {
         if (jid_compare_full(pkt->from, jid) == 0) {
             /* make a copy of the nad so it can be dumped to a string */
-            nad_t copy = nad_copy(pkt->nad);
-            const char * xml;
-            int len;
+            nad_t *copy = nad_copy(pkt->nad);
+            char *xml;
+            unsigned len;
             if (!copy) {
-                log_write(mod->mm->sm->log, LOG_ERR, "%s:%d help admin %s is messaging sm for help! packet dropped. (unable to print packet - out of memory?)", ZONE, jid_full(jid));
+                LOG_ERROR(mod->mm->sm->log, "help admin %s is messaging sm for help! packet dropped. (unable to print packet - out of memory?)", jid_full(jid));
                 continue;
             }
             nad_print(copy, 0, &xml, &len);
-            log_write(mod->mm->sm->log, LOG_ERR, "%s:%d help admin %s is messaging sm for help! packet dropped: \"%.*s\"\n", ZONE, jid_full(jid), len, xml);
+            LOG_ERROR(mod->mm->sm->log, "help admin %s is messaging sm for help! packet dropped: \"%.*s\"\n", jid_full(jid), len, xml);
             nad_free(copy);
             continue;
         }
-        log_debug(ZONE, "resending to %s", jid_full(jid));
+        LOG_DEBUG(mi->sm->log, "resending to %s", jid_full(jid));
         pkt_router(pkt_dup(pkt, jid_full(jid), jid_user(pkt->to)));
     }
 
     for(jid = msg; jid != NULL; jid = jid->next)
         if(!jid_search(all, jid))
         {
-            log_debug(ZONE, "resending to %s", jid_full(jid));
+            LOG_DEBUG(mi->sm->log, "resending to %s", jid_full(jid));
             pkt_router(pkt_dup(pkt, jid_full(jid), jid_user(pkt->to)));
         }
 
@@ -125,14 +125,14 @@ static mod_ret_t _help_pkt_sm(mod_instance_t mi, pkt_t pkt)
     return mod_HANDLED;
 }
 
-static void _help_disco_extend(mod_instance_t mi, pkt_t pkt)
+static void _help_disco_extend(mod_instance_t *mi, pkt_t *pkt)
 {
-    module_t mod = mi->mod;
+    module_t *mod = mi->mod;
     int ns, i, n;
-    config_elem_t elem;
+    config_elem_t *elem;
     char confelem[64];
 
-    log_debug(ZONE, "in mod_help disco-extend");
+    LOG_DEBUG(mi->sm->log, "in mod_help disco-extend");
 
     if(config_get(mod->mm->sm->config, "discovery.serverinfo") == NULL)
         return;
@@ -160,7 +160,7 @@ static void _help_disco_extend(mod_instance_t mi, pkt_t pkt)
             nad_append_attr(pkt->nad, -1, "var", _serverinfo_fields[i]);
     
             for(n = 0; n < elem->nvalues; n++) {
-                log_debug(ZONE, "adding %s: %s", confelem, elem->values[n]);
+                LOG_DEBUG(mi->sm->log, "adding %s: %s", confelem, elem->values[n]);
                 nad_append_elem(pkt->nad, -1, "value", 5);
                 nad_append_cdata(pkt->nad, elem->values[n], strlen(elem->values[n]), 6);
             }
@@ -168,8 +168,8 @@ static void _help_disco_extend(mod_instance_t mi, pkt_t pkt)
     }
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
-    module_t mod = mi->mod;
+DLLEXPORT int module_init(mod_instance_t *mi, const char *arg) {
+    module_t *mod = mi->mod;
 
     if(mod->init) return 0;
 

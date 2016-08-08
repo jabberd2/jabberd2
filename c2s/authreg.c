@@ -19,6 +19,10 @@
  */
 
 #include "c2s.h"
+#include "lib/stanza.h"
+#include "lib/uri.h"
+#include "lib/sha1.h"
+
 #include <stringprep.h>
 #ifdef _WIN32
   #include <windows.h>
@@ -37,11 +41,11 @@ typedef struct _authreg_error_st {
 } *authreg_error_t;
 
 /** get a handle for the named module */
-authreg_t authreg_init(c2s_t c2s, const char *name) {
+authreg_t *authreg_init(c2s_t *c2s, const char *name) {
     char mod_fullpath[PATH_MAX];
     const char *modules_path;
     ar_module_init_fn init_fn = NULL;
-    authreg_t ar;
+    authreg_t *ar;
     void *handle;
 
     /* return if already loaded */
@@ -52,12 +56,13 @@ authreg_t authreg_init(c2s_t c2s, const char *name) {
 
     /* load authreg module */
     modules_path = config_get_one(c2s->config, "authreg.path", 0);
-    if (modules_path != NULL)
-        log_write(c2s->log, LOG_NOTICE, "modules search path: %s", modules_path);
-    else
-        log_write(c2s->log, LOG_NOTICE, "modules search path undefined, using default: "LIBRARY_DIR);
+    if (modules_path != NULL) {
+        LOG_NOTICE(c2s->log, "modules search path: %s", modules_path);
+    } else {
+        LOG_NOTICE(c2s->log, "modules search path undefined, using default: "LIBRARY_DIR);
+    }
 
-    log_write(c2s->log, LOG_INFO, "loading '%s' authreg module", name);
+    LOG_INFO(c2s->log, "loading '%s' authreg module", name);
 #ifndef _WIN32
     if (modules_path != NULL)
         snprintf(mod_fullpath, PATH_MAX, "%s/authreg_%s.so", modules_path, name);
@@ -77,14 +82,14 @@ authreg_t authreg_init(c2s_t c2s, const char *name) {
 #endif
 
     if (handle != NULL && init_fn != NULL) {
-        log_debug(ZONE, "preloaded module '%s' (not initialized yet)", name);
+        LOG_DEBUG(c2s->log, "preloaded module '%s' (not initialized yet)", name);
     } else {
 #ifndef _WIN32
-        log_write(c2s->log, LOG_ERR, "failed loading authreg module '%s' (%s)", name, dlerror());
+        LOG_ERROR(c2s->log, "failed loading authreg module '%s' (%s)", name, dlerror());
         if (handle != NULL)
             dlclose(handle);
 #else
-        log_write(c2s->log, LOG_ERR, "failed loading authreg module '%s' (errcode: %x)", name, GetLastError());
+        LOG_ERROR(c2s->log, "failed loading authreg module '%s' (errcode: %x)", name, GetLastError());
         if (handle != NULL)
             FreeLibrary((HMODULE) handle);
 #endif
@@ -92,9 +97,9 @@ authreg_t authreg_init(c2s_t c2s, const char *name) {
     }
 
     /* make a new one */
-    ar = (authreg_t) pmalloco(xhash_pool(c2s->ar_modules), sizeof(struct authreg_st));
+    ar = pnew(xhash_pool(c2s->ar_modules), authreg_t);
     if(!ar) {
-        log_write(c2s->log, LOG_ERR, "cannot allocate memory for new authreg, aborting");
+        LOG_ERROR(c2s->log, "cannot allocate memory for new authreg, aborting");
         exit(1);
     }
 
@@ -106,7 +111,7 @@ authreg_t authreg_init(c2s_t c2s, const char *name) {
     /* call the initialiser */
     if((init_fn)(ar) != 0)
     {
-        log_write(c2s->log, LOG_ERR, "failed to initialize auth module '%s'", name);
+        LOG_ERROR(c2s->log, "failed to initialize auth module '%s'", name);
         authreg_free(ar);
         return NULL;
     }
@@ -114,36 +119,36 @@ authreg_t authreg_init(c2s_t c2s, const char *name) {
     /* we need user_exists(), at the very least */
     if(ar->user_exists == NULL)
     {
-        log_write(c2s->log, LOG_ERR, "auth module '%s' has no check for user existence", name);
+        LOG_ERROR(c2s->log, "auth module '%s' has no check for user existence", name);
         authreg_free(ar);
         return NULL;
     }
     
     /* its good */
     ar->initialized = TRUE;
-    log_write(c2s->log, LOG_NOTICE, "initialized auth module '%s'", name);
+    LOG_NOTICE(c2s->log, "initialized auth module '%s'", name);
 
     return ar;
 }
 
 /** shutdown the authreg system */
-void authreg_free(authreg_t ar) {
+void authreg_free(authreg_t *ar) {
     if (ar && ar->initialized) {
         if(ar->free != NULL) (ar->free)(ar);
     }
 }
 
 /** auth logger */
-inline static void _authreg_auth_log(c2s_t c2s, sess_t sess, const char *method, const char *username, const char *resource, int success) {
-    log_write(c2s->log, LOG_NOTICE, "[%d] %s authentication %s: %s@%s/%s %s:%d %s",
-        sess->s->tag, method, success ? "succeeded" : "failed",
+inline static void _authreg_auth_log(c2s_t *c2s, sess_t *sess, const char *method, const char *username, const char *resource, int success) {
+    LOG_NOTICE(c2s->log, "[%s:%d] %s authentication %s: %s@%s/%s %s:%d %s",
+        sess->s->ip, sess->s->port, method, success ? "succeeded" : "failed",
         username, sess->host->realm, resource,
         sess->s->ip, sess->s->port, _sx_flags(sess->s)
     );
 }
 
 /** auth get handler */
-static void _authreg_auth_get(c2s_t c2s, sess_t sess, nad_t nad) {
+static void _authreg_auth_get(c2s_t *c2s, sess_t *sess, nad_t *nad) {
     int ns, elem, attr, err;
     char username[1024], id[128];
     int ar_mechs;
@@ -159,7 +164,7 @@ static void _authreg_auth_get(c2s_t c2s, sess_t sess, nad_t nad) {
     elem = nad_find_elem(nad, 1, ns, "username", 1);
     if(elem < 0)
     {
-        log_debug(ZONE, "auth get with no username, bouncing it");
+        LOG_DEBUG(c2s->log, "auth get with no username, bouncing it");
 
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_BAD_REQUEST), 0));
 
@@ -168,7 +173,7 @@ static void _authreg_auth_get(c2s_t c2s, sess_t sess, nad_t nad) {
 
     snprintf(username, 1024, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
     if(stringprep_xmpp_nodeprep(username, 1024) != 0) {
-        log_debug(ZONE, "auth get username failed nodeprep, bouncing it");
+        LOG_DEBUG(c2s->log, "auth get username failed nodeprep, bouncing it");
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_JID_MALFORMED), 0));
         return;
     }
@@ -243,7 +248,7 @@ static void _authreg_auth_get(c2s_t c2s, sess_t sess, nad_t nad) {
 }
 
 /** auth set handler */
-static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
+static void _authreg_auth_set(c2s_t *c2s, sess_t *sess, nad_t *nad) {
     int ns, elem, attr, authd = 0;
     char username[1024], resource[1024], str[1024], hash[280];
     int ar_mechs;
@@ -260,7 +265,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
     elem = nad_find_elem(nad, 1, ns, "username", 1);
     if(elem < 0)
     {
-        log_debug(ZONE, "auth set with no username, bouncing it");
+        LOG_DEBUG(c2s->log, "auth set with no username, bouncing it");
 
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_BAD_REQUEST), 0));
 
@@ -269,7 +274,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
 
     snprintf(username, 1024, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
     if(stringprep_xmpp_nodeprep(username, 1024) != 0) {
-        log_debug(ZONE, "auth set username failed nodeprep, bouncing it");
+        LOG_DEBUG(c2s->log, "auth set username failed nodeprep, bouncing it");
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_JID_MALFORMED), 0));
         return;
     }
@@ -278,7 +283,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
     elem = nad_find_elem(nad, 1, ns, "resource", 1);
     if(elem < 0)
     {
-        log_debug(ZONE, "auth set with no resource, bouncing it");
+        LOG_DEBUG(c2s->log, "auth set with no resource, bouncing it");
 
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_BAD_REQUEST), 0));
 
@@ -287,7 +292,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
 
     snprintf(resource, 1024, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
     if(stringprep_xmpp_resourceprep(resource, 1024) != 0) {
-        log_debug(ZONE, "auth set resource failed resourceprep, bouncing it");
+        LOG_DEBUG(c2s->log, "auth set resource failed resourceprep, bouncing it");
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_JID_MALFORMED), 0));
         return;
     }
@@ -317,7 +322,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
             snprintf(str, 1024, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
             if((sess->host->ar->check_response)(sess->host->ar, sess, username, sess->host->realm, sess->auth_challenge, str) == 0)
             {
-                log_debug(ZONE, "crammd5 auth (check) succeded");
+                LOG_DEBUG(c2s->log, "crammd5 auth (check) succeded");
                 authd = 1;
                 _authreg_auth_log(c2s, sess, "traditional.cram-md5", username, resource, TRUE);
             } else {
@@ -339,7 +344,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
 
                 if(strlen(hash) == NAD_CDATA_L(nad, elem) && strncmp(hash, NAD_CDATA(nad, elem), NAD_CDATA_L(nad, elem)) == 0)
                 {
-                    log_debug(ZONE, "digest auth succeeded");
+                    LOG_DEBUG(c2s->log, "digest auth succeeded");
                     authd = 1;
                     _authreg_auth_log(c2s, sess, "traditional.digest", username, resource, TRUE);
                 } else {
@@ -358,7 +363,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
             if((sess->host->ar->get_password)(sess->host->ar, sess, username, sess->host->realm, str) == 0 &&
                     strlen(str) == NAD_CDATA_L(nad, elem) && strncmp(str, NAD_CDATA(nad, elem), NAD_CDATA_L(nad, elem)) == 0)
             {
-                log_debug(ZONE, "plaintext auth (compare) succeeded");
+                LOG_DEBUG(c2s->log, "plaintext auth (compare) succeeded");
                 authd = 1;
                 _authreg_auth_log(c2s, sess, "traditional.plain(compare)", username, resource, TRUE);
             } else {
@@ -376,7 +381,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
             snprintf(str, 1024, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
             if((sess->host->ar->check_password)(sess->host->ar, sess, username, sess->host->realm, str) == 0)
             {
-                log_debug(ZONE, "plaintext auth (check) succeded");
+                LOG_DEBUG(c2s->log, "plaintext auth (check) succeded");
                 authd = 1;
                 _authreg_auth_log(c2s, sess, "traditional.plain", username, resource, TRUE);
             } else {
@@ -390,17 +395,17 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
     {
         /* create new bound jid holder */
         if(sess->resources == NULL) {
-            sess->resources = (bres_t) calloc(1, sizeof(struct bres_st));
+            sess->resources = new(bres_t);
         }
 
         /* our local id */
-        sprintf(sess->resources->c2s_id, "%d", sess->s->tag);
+        sprintf(sess->resources->c2s_id, "%s:%d", sess->s->ip, sess->s->port);
 
         /* the full user jid for this session */
         sess->resources->jid = jid_new(sess->s->req_to, -1);
         jid_reset_components(sess->resources->jid, username, sess->resources->jid->domain, resource);
 
-        log_write(sess->c2s->log, LOG_NOTICE, "[%d] requesting session: jid=%s", sess->s->tag, jid_full(sess->resources->jid));
+        LOG_NOTICE(sess->c2s->log, "[%s:%d] requesting session: jid=%s", sess->s->ip, sess->s->port, jid_full(sess->resources->jid));
 
         /* build a result packet, we'll send this back to the client after we have a session for them */
         sess->result = nad_new();
@@ -432,7 +437,7 @@ static void _authreg_auth_set(c2s_t c2s, sess_t sess, nad_t nad) {
 }
 
 /** register get handler */
-static void _authreg_register_get(c2s_t c2s, sess_t sess, nad_t nad) {
+static void _authreg_register_get(c2s_t *c2s, sess_t *sess, nad_t *nad) {
     int attr, ns;
     char id[128];
 
@@ -485,7 +490,7 @@ static void _authreg_register_get(c2s_t c2s, sess_t sess, nad_t nad) {
 }
 
 /** register set handler */
-static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
+static void _authreg_register_set(c2s_t *c2s, sess_t *sess, nad_t *nad)
 {
     int ns = 0, elem, attr;
     char username[1024], password[1024];
@@ -506,7 +511,7 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
             return;
         }
 
-        log_debug(ZONE, "user remove requested");
+        LOG_DEBUG(c2s->log, "user remove requested");
 
         /* make sure we can delete them */
         if(sess->host->ar->delete_user == NULL) {
@@ -516,14 +521,14 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
 
         /* otherwise, delete them */
         if((sess->host->ar->delete_user)(sess->host->ar, sess, sess->resources->jid->node, sess->host->realm) != 0) {
-            log_debug(ZONE, "user delete failed");
+            LOG_DEBUG(c2s->log, "user delete failed");
             sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_INTERNAL_SERVER_ERROR), 0));
             return;
         }
 
-        log_write(c2s->log, LOG_NOTICE, "[%d] deleted user: user=%s; realm=%s", sess->s->tag, sess->resources->jid->node, sess->host->realm);
+        LOG_NOTICE(c2s->log, "[%s:%d] deleted user: user=%s; realm=%s", sess->s->ip, sess->s->port, sess->resources->jid->node, sess->host->realm);
 
-        log_write(c2s->log, LOG_NOTICE, "[%d] registration remove succeeded, requesting user deletion: jid=%s", sess->s->tag, jid_user(sess->resources->jid));
+        LOG_NOTICE(c2s->log, "[%s:%d] registration remove succeeded, requesting user deletion: jid=%s", sess->s->ip, sess->s->port, jid_user(sess->resources->jid));
 
         /* make a result nad */
         sess->result = nad_new();
@@ -553,14 +558,14 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
     elem = nad_find_elem(nad, 1, ns, "username", 1);
     if(elem < 0)
     {
-        log_debug(ZONE, "register set with no username, bouncing it");
+        LOG_DEBUG(c2s->log, "register set with no username, bouncing it");
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_BAD_REQUEST), 0));
         return;
     }
 
     snprintf(username, 1024, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
     if(stringprep_xmpp_nodeprep(username, 1024) != 0) {
-        log_debug(ZONE, "register set username failed nodeprep, bouncing it");
+        LOG_DEBUG(c2s->log, "register set username failed nodeprep, bouncing it");
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_JID_MALFORMED), 0));
         return;
     }
@@ -568,7 +573,7 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
     elem = nad_find_elem(nad, 1, ns, "password", 1);
     if(elem < 0)
     {
-        log_debug(ZONE, "register set with no password, bouncing it");
+        LOG_DEBUG(c2s->log, "register set with no password, bouncing it");
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_BAD_REQUEST), 0));
         return;
     }
@@ -579,7 +584,7 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
         /* confirm that the username matches their auth id */
         if(strcmp(username, sess->resources->jid->node) != 0)
         {
-            log_debug(ZONE, "%s is trying to change password for %s, bouncing it", jid_full(sess->resources->jid), username);
+            LOG_DEBUG(c2s->log, "%s is trying to change password for %s, bouncing it", jid_full(sess->resources->jid), username);
             sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_OLD_UNAUTH), 0));
             return;
         }
@@ -594,7 +599,7 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
     /* if they exist, bounce */
     else if((sess->host->ar->user_exists)(sess->host->ar, sess, username, sess->host->realm))
     {
-        log_debug(ZONE, "attempt to register %s, but they already exist", username);
+        LOG_DEBUG(c2s->log, "attempt to register %s, but they already exist", username);
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_CONFLICT), 0));
         return;
     }
@@ -609,13 +614,13 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
     /* otherwise, create them */
     else if((sess->host->ar->create_user)(sess->host->ar, sess, username, sess->host->realm) != 0)
     {
-        log_debug(ZONE, "user create failed");
+        LOG_DEBUG(c2s->log, "user create failed");
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_INTERNAL_SERVER_ERROR), 0));
         return;
     }
 
     else
-        log_write(c2s->log, LOG_NOTICE, "[%d] created user: user=%s; realm=%s", sess->s->tag, username, sess->host->realm);
+        LOG_NOTICE(c2s->log, "[%s:%d] created user: user=%s; realm=%s", sess->s->ip, sess->s->port, username, sess->host->realm);
 
     /* extract the password */
     snprintf(password, 257, "%.*s", NAD_CDATA_L(nad, elem), NAD_CDATA(nad, elem));
@@ -623,12 +628,12 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
     /* change it */
     if((sess->host->ar->set_password)(sess->host->ar, sess, username, sess->host->realm, password) != 0)
     {
-        log_debug(ZONE, "password store failed");
+        LOG_DEBUG(c2s->log, "password store failed");
         sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_INTERNAL_SERVER_ERROR), 0));
         return;
     }
 
-    log_debug(ZONE, "updated auth creds for %s", username);
+    LOG_DEBUG(c2s->log, "updated auth creds for %s", username);
 
     /* make a result nad */
     sess->result = nad_new();
@@ -645,7 +650,7 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
 
     /* if they're active, then this was just a password change, and we're done */
     if(sess->active) {
-        log_write(c2s->log, LOG_NOTICE, "[%d] password changed: jid=%s", sess->s->tag, jid_user(sess->resources->jid));
+        LOG_NOTICE(c2s->log, "[%s:%d] password changed: jid=%s", sess->s->ip, sess->s->port, jid_user(sess->resources->jid));
         sx_nad_write(sess->s, sess->result);
         sess->result = NULL;
         return;
@@ -653,17 +658,17 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
 
     /* create new bound jid holder */
     if(sess->resources == NULL) {
-        sess->resources = (bres_t) calloc(1, sizeof(struct bres_st));
+        sess->resources = new(bres_t);
     }
 
     /* our local id */
-    sprintf(sess->resources->c2s_id, "%d", sess->s->tag);
+    sprintf(sess->resources->c2s_id, "%s:%d", sess->s->ip, sess->s->port);
 
     /* the user jid for this transaction */
     sess->resources->jid = jid_new(sess->s->req_to, -1);
     jid_reset_components(sess->resources->jid, username, sess->resources->jid->domain, sess->resources->jid->resource);
 
-    log_write(c2s->log, LOG_NOTICE, "[%d] registration succeeded, requesting user creation: jid=%s", sess->s->tag, jid_user(sess->resources->jid));
+    LOG_NOTICE(c2s->log, "[%s:%d] registration succeeded, requesting user creation: jid=%s", sess->s->ip, sess->s->port, jid_user(sess->resources->jid));
 
     /* get the sm to create them */
     sm_create(sess, sess->resources);
@@ -677,7 +682,7 @@ static void _authreg_register_set(c2s_t c2s, sess_t sess, nad_t nad)
  * processor for iq:auth and iq:register packets
  * return 0 if handled, 1 if not handled
  */
-int authreg_process(c2s_t c2s, sess_t sess, nad_t nad) {
+int authreg_process(c2s_t *c2s, sess_t *sess, nad_t *nad) {
     int ns, query, type, authreg = -1, getset = -1;
 
     /* need iq */
@@ -723,20 +728,20 @@ int authreg_process(c2s_t c2s, sess_t sess, nad_t nad) {
         }
 
         if(getset == 0) {
-            log_debug(ZONE, "auth get");
+            LOG_DEBUG(c2s->log, "auth get");
             _authreg_auth_get(c2s, sess, nad);
         } else if(getset == 1) {
-            log_debug(ZONE, "auth set");
+            LOG_DEBUG(c2s->log, "auth set");
             _authreg_auth_set(c2s, sess, nad);
         }
     }
 
     if(authreg == 1) {
         if(getset == 0) {
-            log_debug(ZONE, "register get");
+            LOG_DEBUG(c2s->log, "register get");
             _authreg_register_get(c2s, sess, nad);
         } else if(getset == 1) {
-            log_debug(ZONE, "register set");
+            LOG_DEBUG(c2s->log, "register set");
             _authreg_register_set(c2s, sess, nad);
         }
     }

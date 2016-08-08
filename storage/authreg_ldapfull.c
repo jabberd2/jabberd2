@@ -230,7 +230,7 @@ int _ldapfull_base64_decode( const char *src, const unsigned char **ret, int *rl
     unsigned char *text;
     EVP_ENCODE_CTX EVP_ctx;
 
-    text = (unsigned char *)malloc(((strlen(src)+3)/4 * 3) + 1);
+    text = malloc(((strlen(src)+3)/4 * 3) + 1);
     if (text == NULL) {
         return 0;
     }
@@ -257,7 +257,7 @@ static int _ldapfull_base64_encode( const unsigned char *src, int srclen, char *
     unsigned char *text;
     EVP_ENCODE_CTX EVP_ctx;
 
-    text = (unsigned char *)malloc((srclen*4/3) + 1 );
+    text = malloc((srclen*4/3) + 1 );
     if (text == NULL) {
         return 0;
     }
@@ -319,7 +319,7 @@ int _ldapfull_set_hashed(moddata_t data, const char *scheme, const char *prefix,
     EVP_DigestInit(&mdctx, md);
     EVP_DigestUpdate(&mdctx, passwd, strlen(passwd));
     if (saltlen) {
-        salt = (unsigned char *)malloc(saltlen);
+        salt = malloc(saltlen);
         if( !salt ) {
             EVP_MD_CTX_cleanup(&mdctx);
             return 0;
@@ -331,7 +331,7 @@ int _ldapfull_set_hashed(moddata_t data, const char *scheme, const char *prefix,
         }
         EVP_DigestUpdate(&mdctx, salt, saltlen);
     }
-    digest = (unsigned char *)malloc(EVP_MD_size(md) + saltlen);
+    digest = malloc(EVP_MD_size(md) + saltlen);
     if( !digest ) {
         if (saltlen) {
             free(salt);
@@ -913,7 +913,7 @@ DLLEXPORT int ar_init(authreg_t ar)
         return 1;
     }
 
-    data = (moddata_t) calloc(1, sizeof(struct moddata_st));
+    data = new(moddata_t);
 
     data->basedn = xhash_new(101);
 

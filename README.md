@@ -89,7 +89,6 @@ get you started. Complete documentation is available at http://jabberd2.org/
   All the processes can take the following switches:
 
     -c use an alternate config file
-    -D output lots of debugging info (if compiled with --enable-debug)
 
 
 ## Upgrade:

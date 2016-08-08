@@ -23,7 +23,7 @@
 #include "c2s.h"
 #include <security/pam_appl.h>
 
-static int _ar_pam_user_exists(authreg_t ar, sess_t sess, const char *username, const char *realm) {
+static int _ar_pam_user_exists(authreg_t *ar, sess_t *sess, const char *username, const char *realm) {
     /* we can't check if a user exists, so we just assume we have them all the time */
     return 1;
 }
@@ -35,7 +35,7 @@ static int _ar_pam_conversation(int nmsg, const struct pam_message **msg, struct
     if(nmsg <= 0)
         return PAM_CONV_ERR;
 
-    reply = (struct pam_response *) calloc(1, sizeof(struct pam_response) * nmsg);
+    reply = new(struct pam_response *);
 
     for(i = 0; i < nmsg; i++) {
         if(msg[i]->msg_style == PAM_PROMPT_ECHO_OFF || msg[i]->msg_style == PAM_PROMPT_ECHO_ON) {
@@ -56,7 +56,7 @@ static int _ar_pam_delay(int ret, unsigned int usec, void *arg) {
 }
 #endif
 
-static int _ar_pam_check_password(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257]) {
+static int _ar_pam_check_password(authreg_t *ar, sess_t *sess, const char *username, const char *realm, char password[257]) {
     struct pam_conv conv;
     pam_handle_t *pam;
     int ret, user_len, realm_len;
@@ -82,14 +82,14 @@ static int _ar_pam_check_password(authreg_t ar, sess_t sess, const char *usernam
     }
     if (user_realm) free(user_realm);
     if(ret != PAM_SUCCESS) {
-        log_write(ar->c2s->log, LOG_ERR, "pam: couldn't initialise PAM: %s", pam_strerror(NULL, ret));
+        LOG_ERROR(ar->c2s->log, "pam: couldn't initialise PAM: %s", pam_strerror(NULL, ret));
         return 1;
     }
 
 #ifdef PAM_FAIL_DELAY
     ret = pam_set_item(pam, PAM_FAIL_DELAY, _ar_pam_delay);
     if(ret != PAM_SUCCESS) {
-        log_write(ar->c2s->log, LOG_ERR, "pam: couldn't disable fail delay: %s", pam_strerror(NULL, ret));
+        LOG_ERROR(ar->c2s->log, "pam: couldn't disable fail delay: %s", pam_strerror(NULL, ret));
         return 1;
     }
 #endif
@@ -101,14 +101,14 @@ static int _ar_pam_check_password(authreg_t ar, sess_t sess, const char *usernam
     }
 
     if(ret != PAM_SUCCESS) {
-        log_write(ar->c2s->log, LOG_ERR, "pam: couldn't authenticate: %s", pam_strerror(NULL, ret));
+        LOG_ERROR(ar->c2s->log, "pam: couldn't authenticate: %s", pam_strerror(NULL, ret));
         pam_end(pam, ret);
         return 1;
     }
 
     ret = pam_acct_mgmt(pam, 0);
     if(ret != PAM_SUCCESS) {
-        log_write(ar->c2s->log, LOG_ERR, "pam: authentication succeeded, but can't use account: %s", pam_strerror(NULL, ret));
+        LOG_ERROR(ar->c2s->log, "pam: authentication succeeded, but can't use account: %s", pam_strerror(NULL, ret));
         pam_end(pam, ret);
         return 1;
     }
@@ -119,7 +119,7 @@ static int _ar_pam_check_password(authreg_t ar, sess_t sess, const char *usernam
 }
 
 /** start me up */
-int ar_init(authreg_t ar) {
+int ar_init(authreg_t *ar) {
     ar->user_exists = _ar_pam_user_exists;
     ar->check_password = _ar_pam_check_password;
 

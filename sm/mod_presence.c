@@ -28,7 +28,7 @@
   */
 
 /** presence from the session */
-static mod_ret_t _presence_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
+static mod_ret_t _presence_in_sess(mod_instance_t *mi, sess_t *sess, pkt_t *pkt) {
     /* only handle presence */
     if(!(pkt->type & pkt_PRESENCE))
         return mod_PASS;
@@ -55,9 +55,9 @@ static mod_ret_t _presence_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 
 /* drop incoming presence if the user isn't around,
  * so we don't have to load them during broadcasts */
-mod_ret_t _presence_in_router(mod_instance_t mi, pkt_t pkt) {
-    user_t user;
-    sess_t sess;
+mod_ret_t _presence_in_router(mod_instance_t *mi, pkt_t *pkt) {
+    user_t *user;
+    sess_t *sess;
 
     /* only check presence to users, pass presence to sm and probes */
     if(!(pkt->type & pkt_PRESENCE) || pkt->to->node[0] == '\0' || pkt->type == pkt_PRESENCE_PROBE)
@@ -84,8 +84,8 @@ mod_ret_t _presence_in_router(mod_instance_t mi, pkt_t pkt) {
 }
 
 /** presence to a user */
-static mod_ret_t _presence_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
-    sess_t sess;
+static mod_ret_t _presence_pkt_user(mod_instance_t *mi, user_t *user, pkt_t *pkt) {
+    sess_t *sess;
 
     /* only handle presence */
     if(!(pkt->type & pkt_PRESENCE))
@@ -96,12 +96,12 @@ static mod_ret_t _presence_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
         /* find the session */
         sess = sess_match(user, pkt->to->resource);
         if(sess == NULL) {
-            log_debug(ZONE, "bounced presence, but no corresponding session anymore, dropping");
+            LOG_DEBUG(mi->sm->log, "bounced presence, but no corresponding session anymore, dropping");
             pkt_free(pkt);
             return mod_HANDLED;
         }
             
-        log_debug(ZONE, "bounced presence, tracking");
+        LOG_DEBUG(mi->sm->log, "bounced presence, tracking");
         pres_error(sess, pkt->from);
 
         /* bounced probes get dropped */
@@ -131,9 +131,9 @@ static mod_ret_t _presence_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt) {
 }
 
 /* presence packets to the sm */
-static mod_ret_t _presence_pkt_sm(mod_instance_t mi, pkt_t pkt) {
-    module_t mod = mi->mod;
-    jid_t smjid;
+static mod_ret_t _presence_pkt_sm(mod_instance_t *mi, pkt_t *pkt) {
+    module_t *mod = mi->mod;
+    jid_t *smjid;
 
     /* only check presence/subs to server JID */
     if(!(pkt->type & pkt_PRESENCE || pkt->type & pkt_S10N))
@@ -143,7 +143,7 @@ static mod_ret_t _presence_pkt_sm(mod_instance_t mi, pkt_t pkt) {
 
     /* handle subscription requests */
     if(pkt->type == pkt_S10N) {
-        log_debug(ZONE, "accepting subscription request from %s", jid_full(pkt->from));
+        LOG_DEBUG(mi->sm->log, "accepting subscription request from %s", jid_full(pkt->from));
 
         /* accept request */
         pkt_router(pkt_create(mod->mm->sm, "presence", "subscribed", jid_user(pkt->from), jid_user(smjid)));
@@ -158,7 +158,7 @@ static mod_ret_t _presence_pkt_sm(mod_instance_t mi, pkt_t pkt) {
 
     /* handle unsubscribe requests */
     if(pkt->type == pkt_S10N_UN) {
-        log_debug(ZONE, "accepting unsubscribe request from %s", jid_full(pkt->from));
+        LOG_DEBUG(mi->sm->log, "accepting unsubscribe request from %s", jid_full(pkt->from));
 
         /* ack the request */
         pkt_router(pkt_create(mod->mm->sm, "presence", "unsubscribed", jid_user(pkt->from), jid_user(smjid)));
@@ -169,19 +169,19 @@ static mod_ret_t _presence_pkt_sm(mod_instance_t mi, pkt_t pkt) {
     }
 
     /* drop the rest */
-    log_debug(ZONE, "dropping presence from %s", jid_full(pkt->from));
+    LOG_DEBUG(mi->sm->log, "dropping presence from %s", jid_full(pkt->from));
     pkt_free(pkt);
     jid_free(smjid);
     return mod_HANDLED;
 
 }
 
-static void _presence_free(module_t mod) {
+static void _presence_free(module_t *mod) {
     feature_unregister(mod->mm->sm, "presence");
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
-    module_t mod = mi->mod;
+DLLEXPORT int module_init(mod_instance_t *mi, const char *arg) {
+    module_t *mod = mi->mod;
 
     if(mod->init) return 0;
 

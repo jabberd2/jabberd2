@@ -22,16 +22,23 @@
  */
 
 #include "sx.h"
+#include <lib/uri.h>
+#include <lib/log.h>
+
+#include <string.h>
+
+#define LOG_CATEGORY "sx.ack"
+static log4c_category_t *log;
 
 #define STREAM_ACK_NS_DECL      " xmlns:ack='" uri_ACK "'"
 
-static void _sx_ack_header(sx_t s, sx_plugin_t p, sx_buf_t buf) {
+static void _sx_ack_header(__attribute__ ((unused)) sx_t *s, __attribute__ ((unused)) sx_plugin_t *p, sx_buf_t *buf) {
 
     /* WebSocket framing has own acks */
     if (s->flags & SX_WEBSOCKET_WRAPPER)
         return;
 
-    log_debug(ZONE, "hacking ack namespace decl onto stream header");
+    LOG_DEBUG(log, "hacking ack namespace decl onto stream header");
 
     /* get enough space */
     _sx_buffer_alloc_margin(buf, 0, strlen(STREAM_ACK_NS_DECL) + 2);
@@ -42,26 +49,26 @@ static void _sx_ack_header(sx_t s, sx_plugin_t p, sx_buf_t buf) {
 }
 
 /** sx features callback */
-static void _sx_ack_features(sx_t s, sx_plugin_t p, nad_t nad) {
+static void _sx_ack_features(sx_t *s, sx_plugin_t *p, nad_t *nad) {
     /* offer feature only when authenticated and not enabled yet and not on WebSocket framing */
-    if(s->state == state_OPEN && s->plugin_data[p->index] == NULL && !(s->flags & SX_WEBSOCKET_WRAPPER))
+    if (s->state == state_OPEN && s->plugin_data[p->index] == NULL && !(s->flags & SX_WEBSOCKET_WRAPPER))
         nad_append_elem(nad, -1, "ack:ack", 1);
 }
 
 /** process handshake packets from the client */
-static int _sx_ack_process(sx_t s, sx_plugin_t p, nad_t nad) {
+static int _sx_ack_process(sx_t *s, sx_plugin_t *p, nad_t *nad) {
     int attr;
 
     /* not interested if we're not a server or have WebSocket framing */
-    if(s->type != type_SERVER || s->flags & SX_WEBSOCKET_WRAPPER)
+    if (s->type != type_SERVER || s->flags & SX_WEBSOCKET_WRAPPER)
         return 1;
 
     /* only want ack packets */
-    if((NAD_ENS(nad, 0) < 0 || NAD_NURI_L(nad, NAD_ENS(nad, 0)) != strlen(uri_ACK) || strncmp(NAD_NURI(nad, NAD_ENS(nad, 0)), uri_ACK, strlen(uri_ACK)) != 0))
+    if ((NAD_ENS(nad, 0) < 0 || NAD_NURI_L(nad, NAD_ENS(nad, 0)) != strlen(uri_ACK) || strncmp(NAD_NURI(nad, NAD_ENS(nad, 0)), uri_ACK, strlen(uri_ACK)) != 0))
         return 1;
 
     /* pings */
-    if(NAD_ENAME_L(nad, 0) == 4 && strncmp(NAD_ENAME(nad, 0), "ping", 4) == 0) {
+    if (NAD_ENAME_L(nad, 0) == 4 && strncmp(NAD_ENAME(nad, 0), "ping", 4) == 0) {
         jqueue_push(s->wbufq, _sx_buffer_new("<ack:pong/>", 11, NULL, NULL), 0);
         s->want_write = 1;
 
@@ -71,7 +78,7 @@ static int _sx_ack_process(sx_t s, sx_plugin_t p, nad_t nad) {
     }
 
     /* enable only when authenticated */
-    if(s->state == state_OPEN && NAD_ENAME_L(nad, 0) == 6 && strncmp(NAD_ENAME(nad, 0), "enable", 6) == 0) {
+    if (s->state == state_OPEN && NAD_ENAME_L(nad, 0) == 6 && strncmp(NAD_ENAME(nad, 0), "enable", 6) == 0) {
         jqueue_push(s->wbufq, _sx_buffer_new("<ack:enabled/>", 14, NULL, NULL), 254);
         s->want_write = 1;
 
@@ -83,29 +90,30 @@ static int _sx_ack_process(sx_t s, sx_plugin_t p, nad_t nad) {
     }
 
     /* 'r' or 'a' when enabled */
-    if(s->plugin_data[p->index] != NULL && NAD_ENAME_L(nad, 0) == 1 && (strncmp(NAD_ENAME(nad, 0), "r", 1) == 0 || strncmp(NAD_ENAME(nad, 0), "a", 1) == 0) ) {
+    if (s->plugin_data[p->index] != NULL && NAD_ENAME_L(nad, 0) == 1 && (strncmp(NAD_ENAME(nad, 0), "r", 1) == 0 || strncmp(NAD_ENAME(nad, 0), "a", 1) == 0) ) {
         attr = nad_find_attr(nad, 0, -1, "c", NULL);
-        if(attr >= 0) {
-            char *buf = (char *) malloc(sizeof(char) * (NAD_AVAL_L(nad, attr) + 13 + 1));
+        if (attr >= 0) {
+            char *buf = malloc(sizeof(char) * (NAD_AVAL_L(nad, attr) + 13 + 1));
             snprintf(buf, NAD_AVAL_L(nad, attr) + 13 + 1, "<ack:a b='%.*s'/>", NAD_AVAL_L(nad, attr), NAD_AVAL(nad, attr));
             jqueue_push(s->wbufq, _sx_buffer_new(buf, NAD_AVAL_L(nad, attr) + 13, NULL, NULL), 255);
             free(buf);
             s->want_write = 1;
         }
-        
+
         /* handled the packet */
         nad_free(nad);
         return 0;
     }
 
-    _sx_debug(ZONE, "unhandled ack namespace element '%.*s', dropping packet", NAD_ENAME_L(nad, 0), NAD_ENAME(nad, 0));
+    LOG_WARN(log, "unhandled ack namespace element '%.*s', dropping packet", NAD_ENAME_L(nad, 0), NAD_ENAME(nad, 0));
     nad_free(nad);
     return 0;
 }
 
 /** args: none */
-int sx_ack_init(sx_env_t env, sx_plugin_t p, va_list args) {
-    log_debug(ZONE, "initialising stanza acknowledgements sx plugin");
+int sx_ack_init(__attribute__ ((unused)) sx_env_t *env, sx_plugin_t *p, __attribute__ ((unused)) va_list args) {
+    log = log4c_category_get(LOG_CATEGORY);
+    LOG_INFO(log, "initialising stanza acknowledgements sx plugin");
 
     p->header = _sx_ack_header;
     p->features = _sx_ack_features;

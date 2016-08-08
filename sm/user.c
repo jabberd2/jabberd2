@@ -28,13 +28,13 @@
   */
 
 /** make a new one */
-static user_t _user_alloc(sm_t sm, jid_t jid) {
-    pool_t p;
-    user_t user;
+static user_t *_user_alloc(sm_t *sm, jid_t *jid) {
+    pool_t *p;
+    user_t *user;
 
     p = pool_new();
 
-    user = (user_t) pmalloco(p, sizeof(struct user_st));
+    user = pnew(p, user_t);
 
     user->p = p;
     user->sm = sm;
@@ -49,13 +49,13 @@ static user_t _user_alloc(sm_t sm, jid_t jid) {
 }
 
 /** fetch user data */
-user_t user_load(sm_t sm, jid_t jid) {
-    user_t user;
+user_t *user_load(sm_t *sm, jid_t *jid) {
+    user_t *user;
 
     /* already loaded */
     user = xhash_get(sm->users, jid_user(jid));
     if(user != NULL) {
-        log_debug(ZONE, "returning previously-created user data for %s", jid_user(jid));
+        LOG_DEBUG(sm->log, "returning previously-created user data for %s", jid_user(jid));
         return user;
     }
 
@@ -64,7 +64,7 @@ user_t user_load(sm_t sm, jid_t jid) {
 
     /* get modules to setup */
     if(mm_user_load(sm->mm, user) != 0) {
-        log_debug(ZONE, "modules failed user load for %s", jid_user(jid));
+        LOG_DEBUG(sm->log, "modules failed user load for %s", jid_user(jid));
         pool_free(user->p);
         return NULL;
     }
@@ -72,61 +72,61 @@ user_t user_load(sm_t sm, jid_t jid) {
     /* save them for later */
     xhash_put(sm->users, jid_user(user->jid), (void *) user);
 
-    log_debug(ZONE, "loaded user data for %s", jid_user(jid));
+    LOG_DEBUG(sm->log, "loaded user data for %s", jid_user(jid));
 
     return user;
 }
 
-void user_free(user_t user) {
-    log_debug(ZONE, "freeing user %s", jid_user(user->jid));
+void user_free(user_t *user) {
+    LOG_DEBUG(user->sm->log, "freeing user %s", jid_user(user->jid));
 
     xhash_zap(user->sm->users, jid_user(user->jid));
     pool_free(user->p);
 }
 
 /** initialise a user */
-int user_create(sm_t sm, jid_t jid) {
-    user_t user;
+int user_create(sm_t *sm, jid_t *jid) {
+    user_t *user;
 
-    log_debug(ZONE, "create user request for %s", jid_user(jid));
+    LOG_DEBUG(sm->log, "create user request for %s", jid_user(jid));
 
     /* check whether it is to serviced domain */
     if(xhash_get(sm->hosts, jid->domain) == NULL) {
-        log_write(sm->log, LOG_ERR, "request to create user for non-serviced domain: jid=%s", jid_user(jid));
-        log_debug(ZONE, "no such domain, not creating");
+        LOG_ERROR(sm->log, "request to create user for non-serviced domain: jid=%s", jid_user(jid));
+        LOG_DEBUG(sm->log, "no such domain, not creating");
         return 1;
     }
 
     user = user_load(sm, jid);
     if(user != NULL) {
-        log_write(sm->log, LOG_ERR, "request to create already-active user: jid=%s", jid_user(jid));
-        log_debug(ZONE, "user already active, not creating");
+        LOG_ERROR(sm->log, "request to create already-active user: jid=%s", jid_user(jid));
+        LOG_DEBUG(sm->log, "user already active, not creating");
         return 1;
     }
 
     /* modules create */
     if(mm_user_create(sm->mm, jid) != 0) {
-        log_write(sm->log, LOG_ERR, "user creation failed: jid=%s", jid_user(jid));
-        log_debug(ZONE, "user create failed, forcing deletion for cleanup");
+        LOG_ERROR(sm->log, "user creation failed: jid=%s", jid_user(jid));
+        LOG_DEBUG(sm->log, "user create failed, forcing deletion for cleanup");
         mm_user_delete(sm->mm, jid);
         return 1;
     }
 
-    log_write(sm->log, LOG_NOTICE, "created user: jid=%s", jid_user(jid));
+    LOG_NOTICE(sm->log, "created user: jid=%s", jid_user(jid));
 
     return 0;
 }
 
 /** trash a user */
-void user_delete(sm_t sm, jid_t jid) {
-    user_t user;
-    sess_t scan, next;
+void user_delete(sm_t *sm, jid_t *jid) {
+    user_t *user;
+    sess_t *scan, *next;
 
-    log_debug(ZONE, "delete user request for %s", jid_user(jid));
+    LOG_DEBUG(sm->log, "delete user request for %s", jid_user(jid));
 
     user = user_load(sm, jid);
     if(user == NULL) {
-        log_debug(ZONE, "user doesn't exist, can't delete");
+        LOG_DEBUG(sm->log, "user doesn't exist, can't delete");
         return;
     }
 
@@ -141,5 +141,5 @@ void user_delete(sm_t sm, jid_t jid) {
 
     mm_user_delete(sm->mm, jid);
 
-    log_write(sm->log, LOG_NOTICE, "deleted user: jid=%s", jid_user(jid));
+    LOG_NOTICE(sm->log, "deleted user: jid=%s", jid_user(jid));
 }

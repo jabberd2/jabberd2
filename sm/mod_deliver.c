@@ -19,6 +19,7 @@
  */
 
 #include "sm.h"
+#include "lib/stanza.h"
 
 /** @file sm/mod_deliver.c
   * @brief packet delivery
@@ -27,7 +28,7 @@
   * $Revision: 1.18 $
   */
 
-static mod_ret_t _deliver_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)
+static mod_ret_t _deliver_in_sess(mod_instance_t *mi, sess_t *sess, pkt_t *pkt)
 {
     /* ensure from is set correctly if not already by client */
     if(pkt->from == NULL || jid_compare_user(pkt->from, sess->jid) != 0
@@ -66,9 +67,9 @@ static mod_ret_t _deliver_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt)
     return mod_HANDLED;
 }
 
-static mod_ret_t _deliver_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt)
+static mod_ret_t _deliver_pkt_user(mod_instance_t *mi, user_t *user, pkt_t *pkt)
 {
-    sess_t sess;
+    sess_t *sess;
 
     /* if there's a resource, send it direct */
     if(*pkt->to->resource != '\0') {
@@ -95,8 +96,8 @@ static mod_ret_t _deliver_pkt_user(mod_instance_t mi, user_t user, pkt_t pkt)
     return mod_PASS;
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
-    module_t mod = mi->mod;
+DLLEXPORT int module_init(mod_instance_t *mi, const char *arg) {
+    module_t *mod = mi->mod;
 
     if(mod->init) return 0;
 

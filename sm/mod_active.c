@@ -27,9 +27,9 @@
 
 #include "sm.h"
 
-static int _active_user_load(mod_instance_t mi, user_t user) {
-    os_t os;
-    os_object_t o;
+static int _active_user_load(mod_instance_t *mi, user_t *user) {
+    os_t *os;
+    os_object_t *o;
 
     /* get their active status */
     if(storage_get(user->sm->st, "active", jid_user(user->jid), NULL, &os) == st_SUCCESS && os_iter_first(os)) {
@@ -43,12 +43,12 @@ static int _active_user_load(mod_instance_t mi, user_t user) {
     return 0;
 }
 
-static int _active_user_create(mod_instance_t mi, jid_t jid) {
+static int _active_user_create(mod_instance_t *mi, jid_t *jid) {
     time_t t;
-    os_t os;
-    os_object_t o;
+    os_t *os;
+    os_object_t *o;
 
-    log_debug(ZONE, "activating user %s", jid_user(jid));
+    LOG_DEBUG(mi->sm->log, "activating user %s", jid_user(jid));
 
     t = time(NULL);
 
@@ -61,14 +61,14 @@ static int _active_user_create(mod_instance_t mi, jid_t jid) {
     return 0;
 }
 
-static void _active_user_delete(mod_instance_t mi, jid_t jid) {
-    log_debug(ZONE, "deactivating user %s", jid_user(jid));
+static void _active_user_delete(mod_instance_t *mi, jid_t *jid) {
+    LOG_DEBUG(mi->sm->log, "deactivating user %s", jid_user(jid));
 
     storage_delete(mi->sm->st, "active", jid_user(jid), NULL);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
-    module_t mod = mi->mod;
+DLLEXPORT int module_init(mod_instance_t *mi, const char *arg) {
+    module_t *mod = mi->mod;
 
     if(mod->init) return 0;
 

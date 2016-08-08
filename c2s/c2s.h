@@ -22,18 +22,19 @@
 # include <config.h>
 #endif
 
-#include <expat.h>
-
 #include "mio/mio.h"
 #include "sx/sx.h"
 #include "lib/util.h"
+#include "lib/config.h"
+#include "lib/jid.h"
+#include "lib/access.h"
+#include "lib/rate.h"
+#include "lib/xhash.h"
 
-#ifdef HAVE_SIGNAL_H
-# include <signal.h>
-#endif
-#ifdef HAVE_SYS_STAT_H
-# include <sys/stat.h>
-#endif
+#include <expat.h>
+
+#include <signal.h>
+#include <sys/stat.h>
 
 #ifdef _WIN32
   #ifdef _USRDLL
@@ -49,22 +50,22 @@
 #endif
 
 /* forward declarations */
-typedef struct host_st      *host_t;
-typedef struct c2s_st       *c2s_t;
-typedef struct bres_st      *bres_t;
-typedef struct sess_st      *sess_t;
-typedef struct authreg_st   *authreg_t;
+typedef struct host_st      host_t;
+typedef struct c2s_st       c2s_t;
+typedef struct bres_st      bres_t;
+typedef struct sess_st      sess_t;
+typedef struct authreg_st   authreg_t;
 
 /** list of resources bound to session */
 struct bres_st {
     /** full bound jid */
-    jid_t               jid;
+    jid_t               *jid;
     /** session id for this jid for us and them */
     char                c2s_id[44], sm_id[41];
     /** this holds the id of the current pending SM request */
     char                sm_request[41];
 
-    bres_t              next;
+    bres_t              *next;
 };
 
 /**
@@ -72,7 +73,7 @@ struct bres_st {
  * this c2s instance.
  */
 struct sess_st {
-    c2s_t               c2s;
+    c2s_t               *c2s;
 
     mio_fd_t            fd;
 
@@ -83,15 +84,15 @@ struct sess_st {
     const char          *ip;
     int                 port;
 
-    sx_t                s;
+    sx_t                *s;
 
     /** host this session belongs to */
-    host_t              host;
+    host_t              *host;
 
-    rate_t              rate;
+    rate_t              *rate;
     int                 rate_log;
 
-    rate_t              stanza_rate;
+    rate_t              *stanza_rate;
     int                 stanza_rate_log;
 
     time_t              last_activity;
@@ -100,12 +101,12 @@ struct sess_st {
     /* count of bound resources */
     int                 bound;
     /* list of bound jids */
-    bres_t              resources;
+    bres_t              *resources;
 
     int                 active;
 
     /* session related packet waiting for sm response */
-    nad_t               result;
+    nad_t               *result;
 
     int                 sasl_authd;     /* 1 = they did a sasl auth */
 
@@ -145,7 +146,7 @@ struct host_st {
 
     /* authreg module if different than default */
     const char          *ar_module_name;
-    authreg_t           ar;
+    authreg_t           *ar;
 
     /** registration */
     int                 ar_register_enable;
@@ -172,15 +173,15 @@ struct c2s_st {
     mio_t               mio;
 
     /** sessions */
-    xht                 sessions;
+    xht                 *sessions;
 
     /** sx environment */
-    sx_env_t            sx_env;
-    sx_plugin_t         sx_ssl;
-    sx_plugin_t         sx_sasl;
+    sx_env_t            *sx_env;
+    sx_plugin_t         *sx_ssl;
+    sx_plugin_t         *sx_sasl;
 
     /** router's conn */
-    sx_t                router;
+    sx_t                *router;
     mio_fd_t            fd;
 
     /** listening sockets */
@@ -190,15 +191,10 @@ struct c2s_st {
 #endif
 
     /** config */
-    config_t            config;
+    config_t            *config;
 
     /** logging */
-    log_t               log;
-
-    /** log data */
-    log_type_t          log_type;
-    const char          *log_facility;
-    const char          *log_ident;
+    log_t               *log;
 
     /** packet counter */
     long long int       packet_count;
@@ -246,7 +242,7 @@ struct c2s_st {
     mio_fd_t            pbx_pipe_mio_fd;
 
     /** stream redirection (see-other-host) on session connect */
-    xht                 stream_redirects;
+    xht                 *stream_redirects;
 
     /** max file descriptors */
     int                 io_max_fds;
@@ -263,10 +259,10 @@ struct c2s_st {
 
     /** default auth/reg module */
     const char          *ar_module_name;
-    authreg_t           ar;
+    authreg_t           *ar;
 
     /** loaded auth/reg modules */
-    xht                 ar_modules;
+    xht                 *ar_modules;
 
     /** allowed mechanisms */
     int                 ar_mechanisms;
@@ -277,7 +273,7 @@ struct c2s_st {
     int                 conn_rate_seconds;
     int                 conn_rate_wait;
 
-    xht                 conn_rates;
+    xht                 *conn_rates;
 
     /** byte rates (karma) */
     int                 byte_rate_total;
@@ -293,13 +289,13 @@ struct c2s_st {
     int                 stanza_size_limit;
 
     /** access controls */
-    access_t            access;
+    access_t            *access;
 
     /** list of sx_t on the way out */
-    jqueue_t            dead;
+    jqueue_t            *dead;
 
     /** list of sess on the way out */
-    jqueue_t            dead_sess;
+    jqueue_t            *dead_sess;
 
     /** this is true if we've connected to the router at least once */
     int                 started;
@@ -308,34 +304,34 @@ struct c2s_st {
     int                 online;
 
     /** hosts mapping */
-    xht                 hosts;
-    host_t              vhost;
+    xht                 *hosts;
+    host_t              *vhost;
 
     /** availability of sms that we are servicing */
-    xht                 sm_avail;
+    xht                 *sm_avail;
 };
 
 extern sig_atomic_t c2s_lost_router;
 
 C2S_API int         c2s_router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
-C2S_API int         c2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg);
+C2S_API int         c2s_router_sx_callback(sx_t *s, sx_event_t e, void *data, void *arg);
 
-C2S_API void        sm_start(sess_t sess, bres_t res);
-C2S_API void        sm_end(sess_t sess, bres_t res);
-C2S_API void        sm_create(sess_t sess, bres_t res);
-C2S_API void        sm_delete(sess_t sess, bres_t res);
-C2S_API void        sm_packet(sess_t sess, bres_t res, nad_t nad);
+C2S_API void        sm_start(sess_t *sess, bres_t *res);
+C2S_API void        sm_end(sess_t *sess, bres_t *res);
+C2S_API void        sm_create(sess_t *sess, bres_t *res);
+C2S_API void        sm_delete(sess_t *sess, bres_t *res);
+C2S_API void        sm_packet(sess_t *sess, bres_t *res, nad_t *nad);
 
-C2S_API int         bind_init(sx_env_t env, sx_plugin_t p, va_list args);
+C2S_API int         bind_init(sx_env_t *env, sx_plugin_t *p, va_list args);
 
-C2S_API void        c2s_pbx_init(c2s_t c2s);
+C2S_API void        c2s_pbx_init(c2s_t *c2s);
 
 /* My IP Address plugin */
-JABBERD2_API int    address_init(sx_env_t env, sx_plugin_t p, va_list args);
+JABBERD2_API int    address_init(sx_env_t *env, sx_plugin_t *p, va_list args);
 
 struct authreg_st
 {
-    c2s_t       c2s;
+    c2s_t       *c2s;
     int         initialized;
 
     /**< loaded module handle */
@@ -345,48 +341,48 @@ struct authreg_st
     void        *private;
 
     /** returns 1 if the user exists, 0 if not */
-    int         (*user_exists)(authreg_t ar, sess_t sess, const char *username,const char *realm);
+    int         (*user_exists)(authreg_t *ar, sess_t *sess, const char *username,const char *realm);
 
     /** return this users cleartext password in the array (digest auth, password auth) */
-    int         (*get_password)(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257]);
+    int         (*get_password)(authreg_t *ar, sess_t *sess, const char *username, const char *realm, char password[257]);
 
     /** check the given password against the stored password, 0 if equal, !0 if not equal (password auth) */
-    int         (*check_password)(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257]);
+    int         (*check_password)(authreg_t *ar, sess_t *sess, const char *username, const char *realm, char password[257]);
 
     /** store this password (register) */
-    int         (*set_password)(authreg_t ar, sess_t sess, const char *username, const char *realm, char password[257]);
+    int         (*set_password)(authreg_t *ar, sess_t *sess, const char *username, const char *realm, char password[257]);
 
     /** make or break the user (register / register remove) */
-    int         (*create_user)(authreg_t ar, sess_t sess, const char *username, const char *realm);
-    int         (*delete_user)(authreg_t ar, sess_t sess, const char *username, const char *realm);
+    int         (*create_user)(authreg_t *ar, sess_t *sess, const char *username, const char *realm);
+    int         (*delete_user)(authreg_t *ar, sess_t *sess, const char *username, const char *realm);
 
     /** called prior to session being closed, to cleanup session specific private data */
-    void        (*sess_end)(authreg_t ar, sess_t sess);
+    void        (*sess_end)(authreg_t *ar, sess_t *sess);
 
     /** called prior to authreg shutdown */
-    void        (*free)(authreg_t ar);
+    void        (*free)(authreg_t *ar);
 
     /* Additions at the end - to preserve offsets for existing modules */
 
     /** returns 1 if the user is permitted to authorize as the requested_user, 0 if not. requested_user is a JID */
-    int         (*user_authz_allowed)(authreg_t ar, sess_t sess, const char *username, const char *realm, const char *requested_user);
+    int         (*user_authz_allowed)(authreg_t *ar, sess_t *sess, const char *username, const char *realm, const char *requested_user);
 
     /** Apple extensions for challenge/response authentication methods */
-    int         (*create_challenge)(authreg_t ar, sess_t sess, const char *username, const char *realm, char *challenge, int maxlen);
-    int         (*check_response)(authreg_t ar, sess_t sess, const char *username, const char *realm, const char *challenge, const char *response);
+    int         (*create_challenge)(authreg_t *ar, sess_t *sess, const char *username, const char *realm, char *challenge, int maxlen);
+    int         (*check_response)(authreg_t *ar, sess_t *sess, const char *username, const char *realm, const char *challenge, const char *response);
 };
 
 /** get a handle for a single module */
-C2S_API authreg_t   authreg_init(c2s_t c2s, const char *name);
+C2S_API authreg_t  *authreg_init(c2s_t *c2s, const char *name);
 
 /** shut down */
-C2S_API void        authreg_free(authreg_t ar);
+C2S_API void        authreg_free(authreg_t *ar);
 
 /** type for the module init function */
-typedef int (*ar_module_init_fn)(authreg_t);
+typedef int (*ar_module_init_fn)(authreg_t *);
 
 /** the main authreg processor */
-C2S_API int         authreg_process(c2s_t c2s, sess_t sess, nad_t nad);
+C2S_API int         authreg_process(c2s_t *c2s, sess_t *sess, nad_t *nad);
 
 /*
 int     authreg_user_exists(authreg_t ar, const char *username, const char *realm);
@@ -403,7 +399,7 @@ union xhashv
 {
   void **val;
   const char **char_val;
-  sess_t *sess_val;
+  sess_t **sess_val;
 };
 
 // Data for stream redirect errors
@@ -411,4 +407,4 @@ typedef struct stream_redirect_st
 {
     const char *to_address;
     const char *to_port;
-} *stream_redirect_t;
+} stream_redirect_t;

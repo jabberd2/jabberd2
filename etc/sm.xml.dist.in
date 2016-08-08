@@ -49,26 +49,6 @@
     </retry>
   </router>
 
-  <!-- Log configuration - type is "syslog", "file" or "stdout" -->
-  <log type='syslog'>
-    <!-- If logging to syslog, this is the log ident -->
-    <ident>jabberd/sm</ident>
-
-    <!-- If logging to syslog, this is the log facility
-         (local0 - local7)                        [default: local3] -->
-    <facility>local3</facility>
-
-    <!-- If logging to file, this is the filename of the logfile -->
-    <!--
-    <file>@localstatedir@/@package@/log/sm.log</file>
-    -->
-
-    <!-- Filename of the debug logfile -->
-    <!--
-    <debug>@localstatedir@/@package@/log/debug-${id}.log</debug>
-    -->
-  </log>
-
   <!-- Local network configuration -->
   <local>
     <!-- Who we identify ourselves as.

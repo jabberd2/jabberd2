@@ -44,16 +44,16 @@
    else it will only search in LD_LIBRARY_PATH or c:\windows\system32
  */
 
-mm_t mm_new(sm_t sm) {
-    mm_t mm;
+mm_t *mm_new(sm_t *sm) {
+    mm_t *mm;
     int celem, melem, attr, *nlist = NULL;
     char id[13], name[32], mod_fullpath[PATH_MAX], arg[1024];
     const char *modules_path;
-    mod_chain_t chain = (mod_chain_t) NULL;
-    mod_instance_t **list = NULL, mi;
-    module_t mod;
+    mod_chain_t chain;
+    mod_instance_t ***list = NULL, *mi;
+    module_t *mod;
 
-    mm = (mm_t) calloc(1, sizeof(struct mm_st));
+    mm = new(mm_t);
 
     mm->sm = sm;
     mm->modules = xhash_new(101);
@@ -62,10 +62,11 @@ mm_t mm_new(sm_t sm) {
         return mm;
 
     modules_path = config_get_one(sm->config, "modules.path", 0);
-    if (modules_path != NULL)
-        log_write(sm->log, LOG_NOTICE, "modules search path: %s", modules_path);
-    else
-        log_write(sm->log, LOG_NOTICE, "modules search path undefined, using default: "LIBRARY_DIR);
+    if (modules_path != NULL) {
+        LOG_NOTICE(sm->log, "modules search path: %s", modules_path);
+    } else {
+        LOG_NOTICE(sm->log, "modules search path undefined, using default: "LIBRARY_DIR);
+    }
 
     celem = nad_find_elem(sm->config->nad, celem, -1, "chain", 1);
     while(celem >= 0) {
@@ -77,7 +78,7 @@ mm_t mm_new(sm_t sm) {
         snprintf(id, 13, "%.*s", NAD_AVAL_L(sm->config->nad, attr), NAD_AVAL(sm->config->nad, attr));
         id[12] = '\0';
 
-        log_debug(ZONE, "processing config for chain '%s'", id);
+        LOG_DEBUG(mm->sm->log, "processing config for chain '%s'", id);
 
         list = NULL;
         if(strcmp(id, "sess-start") == 0) {
@@ -152,7 +153,7 @@ mm_t mm_new(sm_t sm) {
         }
 
         if(list == NULL) {
-            log_write(sm->log, LOG_ERR, "unknown chain type '%s'", id);
+            LOG_ERROR(sm->log, "unknown chain type '%s'", id);
 
             celem = nad_find_elem(sm->config->nad, celem, -1, "chain", 0);
             continue;
@@ -169,14 +170,14 @@ mm_t mm_new(sm_t sm) {
             attr = nad_find_attr(sm->config->nad, melem, -1, "arg", NULL);
             if(attr >= 0) {
                 snprintf(arg, 1024, "%.*s", NAD_AVAL_L(sm->config->nad, attr), NAD_AVAL(sm->config->nad, attr));
-                log_debug(ZONE, "module arg: %s", arg);
+                LOG_DEBUG(mm->sm->log, "module arg: %s", arg);
             }
 
             snprintf(name, 32, "%.*s", NAD_CDATA_L(sm->config->nad, melem), NAD_CDATA(sm->config->nad, melem));
 
             mod = xhash_get(mm->modules, name);
             if(mod == NULL) {
-                mod = (module_t) calloc(1, sizeof(struct module_st));
+                mod = new(module_t);
 
                 mod->mm = mm;
                 mod->index = mm->nindex;
@@ -200,20 +201,20 @@ mm_t mm_new(sm_t sm) {
                 #endif
 
                 if (mod->handle != NULL && mod->module_init_fn != NULL) {
-                    log_debug(ZONE, "preloaded module '%s' to chain '%s' (not added yet)", name, id);
+                    LOG_DEBUG(mm->sm->log, "preloaded module '%s' to chain '%s' (not added yet)", name, id);
                         xhash_put(mm->modules, mod->name, (void *) mod);
                         mm->nindex++;
                 } else {
                     #ifndef _WIN32
-                      log_write(sm->log, LOG_ERR, "failed loading module '%s' to chain '%s' (%s)", name, id, dlerror());
+                      LOG_ERROR(sm->log, "failed loading module '%s' to chain '%s' (%s)", name, id, dlerror());
                       if (mod->handle != NULL)
                           dlclose(mod->handle);
                     #else
-                      log_write(sm->log, LOG_ERR, "failed loading module '%s' to chain '%s' (errcode: %x)", name, id, GetLastError());
+                      LOG_ERROR(sm->log, "failed loading module '%s' to chain '%s' (errcode: %x)", name, id, GetLastError());
                       if (mod->handle != NULL)
                           FreeLibrary((HMODULE) mod->handle);
                     #endif
-                    free(mod->name);
+                    free((void*)mod->name);
                     free(mod);
                     mod = NULL;
 
@@ -222,7 +223,7 @@ mm_t mm_new(sm_t sm) {
                 }
             }
 
-            mi = (mod_instance_t) calloc(1, sizeof(struct mod_instance_st));
+            mi = new(mod_instance_t);
 
             mi->sm = sm;
             mi->mod = mod;
@@ -231,7 +232,7 @@ mm_t mm_new(sm_t sm) {
             mi->seq = mod->init;
 
             if(mod->module_init_fn(mi) != 0) {
-                log_write(sm->log, LOG_ERR, "init for module '%s' (seq %d) failed", name, mi->seq);
+                LOG_ERROR(sm->log, "init for module '%s' (seq %d) failed", name, mi->seq);
                 free(mi);
 
                 if(mod->init == 0) {
@@ -257,10 +258,10 @@ mm_t mm_new(sm_t sm) {
 
             mod->init++;
 
-            *list = (mod_instance_t *) realloc(*list, sizeof(mod_instance_t) * (*nlist + 1));
+            *list = realloc(*list, sizeof(mod_instance_t) * (*nlist + 1));
             (*list)[*nlist] = mi;
 
-            log_write(sm->log, LOG_NOTICE, "module '%s' added to chain '%s' (order %d index %d seq %d)", mod->name, id, *nlist, mod->index, mi->seq);
+            LOG_NOTICE(sm->log, "module '%s' added to chain '%s' (order %d index %d seq %d)", mod->name, id, *nlist, mod->index, mi->seq);
 
             (*nlist)++;
 
@@ -274,7 +275,7 @@ mm_t mm_new(sm_t sm) {
 }
 
 static void _mm_reaper(const char *module, int modulelen, void *val, void *arg) {
-    module_t mod = (module_t) val;
+    module_t *mod = val;
 
     if(mod->free != NULL)
         (mod->free)(mod);
@@ -291,9 +292,9 @@ static void _mm_reaper(const char *module, int modulelen, void *val, void *arg) 
     free(mod);
 }
 
-void mm_free(mm_t mm) {
+void mm_free(mm_t *mm) {
     int i, j, *nlist = NULL;
-    mod_instance_t **list = NULL, mi;
+    mod_instance_t ***list = NULL, *mi;
 
     /* close down modules */
     xhash_walk(mm->modules, _mm_reaper, NULL);
@@ -384,421 +385,421 @@ void mm_free(mm_t mm) {
 }
 
 /** session starting */
-int mm_sess_start(mm_t mm, sess_t sess) {
+int mm_sess_start(mm_t *mm, sess_t *sess) {
     int n, ret = 0;
-    mod_instance_t mi;
+    mod_instance_t *mi;
 
-    log_debug(ZONE, "dispatching sess-start chain");
+    LOG_DEBUG(mm->sm->log, "dispatching sess-start chain");
 
     ret = 0;
     for(n = 0; n < mm->nsess_start; n++) {
         mi = mm->sess_start[n];
         if(mi == NULL) {
-            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            LOG_DEBUG(mm->sm->log, "module at index %d is not loaded yet", n);
             continue;
         }
         if(mi->mod->sess_start == NULL) {
-            log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
+            LOG_DEBUG(mm->sm->log, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
 
-        log_debug(ZONE, "calling module %s", mi->mod->name);
+        LOG_DEBUG(mm->sm->log, "calling module %s", mi->mod->name);
 
         ret = (mi->mod->sess_start)(mi, sess);
         if(ret != 0)
             break;
     }
 
-    log_debug(ZONE, "sess-start chain returning %d", ret);
+    LOG_DEBUG(mm->sm->log, "sess-start chain returning %d", ret);
 
     return ret;
 }
 
 /** session ending */
-void mm_sess_end(mm_t mm, sess_t sess) {
+void mm_sess_end(mm_t *mm, sess_t *sess) {
     int n;
-    mod_instance_t mi;
+    mod_instance_t *mi;
 
-    log_debug(ZONE, "dispatching sess-end chain");
+    LOG_DEBUG(mm->sm->log, "dispatching sess-end chain");
 
     for(n = 0; n < mm->nsess_end; n++) {
         mi = mm->sess_end[n];
         if(mi == NULL) {
-            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            LOG_DEBUG(mm->sm->log, "module at index %d is not loaded yet", n);
             continue;
         }
         if(mi->mod->sess_end == NULL) {
-            log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
+            LOG_DEBUG(mm->sm->log, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
 
-        log_debug(ZONE, "calling module %s", mi->mod->name);
+        LOG_DEBUG(mm->sm->log, "calling module %s", mi->mod->name);
 
         (mi->mod->sess_end)(mi, sess);
     }
 
-    log_debug(ZONE, "sess-end chain returning");
+    LOG_DEBUG(mm->sm->log, "sess-end chain returning");
 }
 
 /** packets from active session */
-mod_ret_t mm_in_sess(mm_t mm, sess_t sess, pkt_t pkt) {
+mod_ret_t mm_in_sess(mm_t *mm, sess_t *sess, pkt_t *pkt) {
     int n;
-    mod_instance_t mi;
+    mod_instance_t *mi;
     mod_ret_t ret = mod_PASS;
 
-    log_debug(ZONE, "dispatching in-sess chain");
+    LOG_DEBUG(mm->sm->log, "dispatching in-sess chain");
 
     ret = mod_PASS;
     for(n = 0; n < mm->nin_sess; n++) {
         mi = mm->in_sess[n];
         if(mi == NULL) {
-            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            LOG_DEBUG(mm->sm->log, "module at index %d is not loaded yet", n);
             continue;
         }
         if(mi->mod->in_sess == NULL) {
-            log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
+            LOG_DEBUG(mm->sm->log, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
 
-        log_debug(ZONE, "calling module %s", mi->mod->name);
+        LOG_DEBUG(mm->sm->log, "calling module %s", mi->mod->name);
 
         ret = (mi->mod->in_sess)(mi, sess, pkt);
         if(ret != mod_PASS)
             break;
     }
 
-    log_debug(ZONE, "in-sess chain returning %d", ret);
+    LOG_DEBUG(mm->sm->log, "in-sess chain returning %d", ret);
 
     return ret;
 }
 
 /** packets from router */
-mod_ret_t mm_in_router(mm_t mm, pkt_t pkt) {
+mod_ret_t mm_in_router(mm_t *mm, pkt_t *pkt) {
     int n;
-    mod_instance_t mi;
+    mod_instance_t *mi;
     mod_ret_t ret = mod_PASS;
 
-    log_debug(ZONE, "dispatching in-router chain");
+    LOG_DEBUG(mm->sm->log, "dispatching in-router chain");
 
     if (mm != NULL && pkt != NULL )
     for(n = 0; n < mm->nin_router; n++) {
         mi = mm->in_router[n];
         if(mi == NULL) {
-            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            LOG_DEBUG(mm->sm->log, "module at index %d is not loaded yet", n);
             continue;
         }
         if(mi->mod == NULL || mi->mod->in_router == NULL) {
-            log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
+            LOG_DEBUG(mm->sm->log, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
 
-        log_debug(ZONE, "calling module %s", mi->mod->name);
+        LOG_DEBUG(mm->sm->log, "calling module %s", mi->mod->name);
 
         ret = (mi->mod->in_router)(mi, pkt);
         if(ret != mod_PASS)
             break;
     }
 
-    log_debug(ZONE, "in-router chain returning %d", ret);
+    LOG_DEBUG(mm->sm->log, "in-router chain returning %d", ret);
 
     return ret;
 }
 
 /** packets to active session */
-mod_ret_t mm_out_sess(mm_t mm, sess_t sess, pkt_t pkt) {
+mod_ret_t mm_out_sess(mm_t *mm, sess_t *sess, pkt_t *pkt) {
     int n;
-    mod_instance_t mi;
+    mod_instance_t *mi;
     mod_ret_t ret = mod_PASS;
 
-    log_debug(ZONE, "dispatching out-sess chain");
+    LOG_DEBUG(mm->sm->log, "dispatching out-sess chain");
 
     for(n = 0; n < mm->nout_sess; n++) {
         mi = mm->out_sess[n];
         if(mi == NULL) {
-            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            LOG_DEBUG(mm->sm->log, "module at index %d is not loaded yet", n);
             continue;
         }
         if(mi->mod->out_sess == NULL) {
-            log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
+            LOG_DEBUG(mm->sm->log, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
 
-        log_debug(ZONE, "calling module %s", mi->mod->name);
+        LOG_DEBUG(mm->sm->log, "calling module %s", mi->mod->name);
 
         ret = (mi->mod->out_sess)(mi, sess, pkt);
         if(ret != mod_PASS)
             break;
     }
 
-    log_debug(ZONE, "out-sess chain returning %d", ret);
+    LOG_DEBUG(mm->sm->log, "out-sess chain returning %d", ret);
 
     return ret;
 }
 
 /** packets to router */
-mod_ret_t mm_out_router(mm_t mm, pkt_t pkt) {
+mod_ret_t mm_out_router(mm_t *mm, pkt_t *pkt) {
     int n;
-    mod_instance_t mi;
+    mod_instance_t *mi;
     mod_ret_t ret = mod_PASS;
 
-    log_debug(ZONE, "dispatching out-router chain");
+    LOG_DEBUG(mm->sm->log, "dispatching out-router chain");
 
     for(n = 0; n < mm->nout_router; n++) {
         mi = mm->out_router[n];
         if(mi == NULL) {
-            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            LOG_DEBUG(mm->sm->log, "module at index %d is not loaded yet", n);
             continue;
         }
         if(mi->mod->out_router == NULL) {
-            log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
+            LOG_DEBUG(mm->sm->log, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
 
-        log_debug(ZONE, "calling module %s", mi->mod->name);
+        LOG_DEBUG(mm->sm->log, "calling module %s", mi->mod->name);
 
         ret = (mi->mod->out_router)(mi, pkt);
         if(ret != mod_PASS)
             break;
     }
 
-    log_debug(ZONE, "out-router chain returning %d", ret);
+    LOG_DEBUG(mm->sm->log, "out-router chain returning %d", ret);
 
     return ret;
 }
 
 /** packets for sm */
-mod_ret_t mm_pkt_sm(mm_t mm, pkt_t pkt) {
+mod_ret_t mm_pkt_sm(mm_t *mm, pkt_t *pkt) {
     int n, ret = 0;
-    mod_instance_t mi;
+    mod_instance_t *mi;
 
-    log_debug(ZONE, "dispatching pkt-sm chain");
+    LOG_DEBUG(mm->sm->log, "dispatching pkt-sm chain");
 
     for(n = 0; n < mm->npkt_sm; n++) {
         mi = mm->pkt_sm[n];
         if(mi == NULL) {
-            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            LOG_DEBUG(mm->sm->log, "module at index %d is not loaded yet", n);
             continue;
         }
         if(mi->mod->pkt_sm == NULL) {
-            log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
+            LOG_DEBUG(mm->sm->log, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
 
-        log_debug(ZONE, "calling module %s", mi->mod->name);
+        LOG_DEBUG(mm->sm->log, "calling module %s", mi->mod->name);
 
         ret = (mi->mod->pkt_sm)(mi, pkt);
         if(ret != mod_PASS)
             break;
     }
 
-    log_debug(ZONE, "pkt-sm chain returning %d", ret);
+    LOG_DEBUG(mm->sm->log, "pkt-sm chain returning %d", ret);
 
     return ret;
 }
 
 /** packets for user */
-mod_ret_t mm_pkt_user(mm_t mm, user_t user, pkt_t pkt) {
+mod_ret_t mm_pkt_user(mm_t *mm, user_t *user, pkt_t *pkt) {
     int n;
-    mod_instance_t mi;
+    mod_instance_t *mi;
     mod_ret_t ret = mod_PASS;
 
-    log_debug(ZONE, "dispatching pkt-user chain");
+    LOG_DEBUG(mm->sm->log, "dispatching pkt-user chain");
 
     for(n = 0; n < mm->npkt_user; n++) {
         mi = mm->pkt_user[n];
         if(mi == NULL) {
-            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            LOG_DEBUG(mm->sm->log, "module at index %d is not loaded yet", n);
             continue;
         }
         if(mi->mod->pkt_user == NULL) {
-            log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
+            LOG_DEBUG(mm->sm->log, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
 
-        log_debug(ZONE, "calling module %s", mi->mod->name);
+        LOG_DEBUG(mm->sm->log, "calling module %s", mi->mod->name);
 
         ret = (mi->mod->pkt_user)(mi, user, pkt);
         if(ret != mod_PASS)
             break;
     }
 
-    log_debug(ZONE, "pkt-user chain returning %d", ret);
+    LOG_DEBUG(mm->sm->log, "pkt-user chain returning %d", ret);
 
     return ret;
 }
 
 /** packets from the router */
-mod_ret_t mm_pkt_router(mm_t mm, pkt_t pkt) {
+mod_ret_t mm_pkt_router(mm_t *mm, pkt_t *pkt) {
     int n;
-    mod_instance_t mi;
+    mod_instance_t *mi;
     mod_ret_t ret = mod_PASS;
 
-    log_debug(ZONE, "dispatching pkt-router chain");
+    LOG_DEBUG(mm->sm->log, "dispatching pkt-router chain");
 
     for(n = 0; n < mm->npkt_router; n++) {
         mi = mm->pkt_router[n];
         if(mi == NULL) {
-            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            LOG_DEBUG(mm->sm->log, "module at index %d is not loaded yet", n);
             continue;
         }
         if(mi->mod->pkt_router == NULL) {
-            log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
+            LOG_DEBUG(mm->sm->log, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
 
-        log_debug(ZONE, "calling module %s", mi->mod->name);
+        LOG_DEBUG(mm->sm->log, "calling module %s", mi->mod->name);
 
         ret = (mi->mod->pkt_router)(mi, pkt);
         if(ret != mod_PASS)
             break;
     }
 
-    log_debug(ZONE, "pkt-router chain returning %d", ret);
+    LOG_DEBUG(mm->sm->log, "pkt-router chain returning %d", ret);
 
     return ret;
 }
 
 /** load user data */
-int mm_user_load(mm_t mm, user_t user) {
+int mm_user_load(mm_t *mm, user_t *user) {
     int n;
-    mod_instance_t mi;
+    mod_instance_t *mi;
     int ret = 0;
 
-    log_debug(ZONE, "dispatching user-load chain");
+    LOG_DEBUG(mm->sm->log, "dispatching user-load chain");
 
     for(n = 0; n < mm->nuser_load; n++) {
         mi = mm->user_load[n];
         if(mi == NULL) {
-            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            LOG_DEBUG(mm->sm->log, "module at index %d is not loaded yet", n);
             continue;
         }
         if(mi->mod->user_load == NULL) {
-            log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
+            LOG_DEBUG(mm->sm->log, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
 
-        log_debug(ZONE, "calling module %s", mi->mod->name);
+        LOG_DEBUG(mm->sm->log, "calling module %s", mi->mod->name);
 
         ret = (mi->mod->user_load)(mi, user);
         if(ret != 0)
             break;
     }
 
-    log_debug(ZONE, "user-load chain returning %d", ret);
+    LOG_DEBUG(mm->sm->log, "user-load chain returning %d", ret);
 
     return ret;
 }
 
 /** user data is about to be unloaded */
-int mm_user_unload(mm_t mm, user_t user) {
+int mm_user_unload(mm_t *mm, user_t *user) {
     int n;
-    mod_instance_t mi;
+    mod_instance_t *mi;
     int ret = 0;
 
-    log_debug(ZONE, "dispatching user-unload chain");
+    LOG_DEBUG(mm->sm->log, "dispatching user-unload chain");
 
     for(n = 0; n < mm->nuser_unload; n++) {
         mi = mm->user_unload[n];
         if(mi == NULL) {
-            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            LOG_DEBUG(mm->sm->log, "module at index %d is not loaded yet", n);
             continue;
         }
         if(mi->mod->user_unload == NULL) {
-            log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
+            LOG_DEBUG(mm->sm->log, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
 
-        log_debug(ZONE, "calling module %s", mi->mod->name);
+        LOG_DEBUG(mm->sm->log, "calling module %s", mi->mod->name);
 
         ret = (mi->mod->user_unload)(mi, user);
         if(ret != 0)
             break;
     }
 
-    log_debug(ZONE, "user-unload chain returning %d", ret);
+    LOG_DEBUG(mm->sm->log, "user-unload chain returning %d", ret);
 
     return ret;
 }
 
 /** create user */
-int mm_user_create(mm_t mm, jid_t jid) {
+int mm_user_create(mm_t *mm, jid_t *jid) {
     int n;
-    mod_instance_t mi;
+    mod_instance_t *mi;
     int ret = 0;
 
-    log_debug(ZONE, "dispatching user-create chain");
+    LOG_DEBUG(mm->sm->log, "dispatching user-create chain");
 
     for(n = 0; n < mm->nuser_create; n++) {
         mi = mm->user_create[n];
         if(mi == NULL) {
-            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            LOG_DEBUG(mm->sm->log, "module at index %d is not loaded yet", n);
             continue;
         }
         if(mi->mod->user_create == NULL) {
-            log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
+            LOG_DEBUG(mm->sm->log, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
 
-        log_debug(ZONE, "calling module %s", mi->mod->name);
+        LOG_DEBUG(mm->sm->log, "calling module %s", mi->mod->name);
 
         ret = (mi->mod->user_create)(mi, jid);
         if(ret != 0)
             break;
     }
 
-    log_debug(ZONE, "user-create chain returning %d", ret);
+    LOG_DEBUG(mm->sm->log, "user-create chain returning %d", ret);
 
     return ret;
 }
 
 /** delete user */
-void mm_user_delete(mm_t mm, jid_t jid) {
+void mm_user_delete(mm_t *mm, jid_t *jid) {
     int n;
-    mod_instance_t mi;
+    mod_instance_t *mi;
 
-    log_debug(ZONE, "dispatching user-delete chain");
+    LOG_DEBUG(mm->sm->log, "dispatching user-delete chain");
 
     for(n = 0; n < mm->nuser_delete; n++) {
         mi = mm->user_delete[n];
         if(mi == NULL) {
-            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            LOG_DEBUG(mm->sm->log, "module at index %d is not loaded yet", n);
             continue;
         }
         if(mi->mod->user_delete == NULL) {
-            log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
+            LOG_DEBUG(mm->sm->log, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
 
-        log_debug(ZONE, "calling module %s", mi->mod->name);
+        LOG_DEBUG(mm->sm->log, "calling module %s", mi->mod->name);
 
         (mi->mod->user_delete)(mi, jid);
     }
 
-    log_debug(ZONE, "user-delete chain returning");
+    LOG_DEBUG(mm->sm->log, "user-delete chain returning");
 }
 
 /** disco extend */
-void mm_disco_extend(mm_t mm, pkt_t pkt) {
+void mm_disco_extend(mm_t *mm, pkt_t *pkt) {
     int n;
-    mod_instance_t mi;
+    mod_instance_t *mi;
 
-    log_debug(ZONE, "dispatching disco-extend chain");
+    LOG_DEBUG(mm->sm->log, "dispatching disco-extend chain");
 
     for(n = 0; n < mm->ndisco_extend; n++) {
         mi = mm->disco_extend[n];
         if(mi == NULL) {
-            log_debug(ZONE, "module at index %d is not loaded yet", n);
+            LOG_DEBUG(mm->sm->log, "module at index %d is not loaded yet", n);
             continue;
         }
         if(mi->mod->disco_extend == NULL) {
-            log_debug(ZONE, "module %s has no handler for this chain", mi->mod->name);
+            LOG_DEBUG(mm->sm->log, "module %s has no handler for this chain", mi->mod->name);
             continue;
         }
 
-        log_debug(ZONE, "calling module %s", mi->mod->name);
+        LOG_DEBUG(mm->sm->log, "calling module %s", mi->mod->name);
 
         (mi->mod->disco_extend)(mi, pkt);
     }
 
-    log_debug(ZONE, "disco-extend chain returning");
+    LOG_DEBUG(mm->sm->log, "disco-extend chain returning");
 }

@@ -19,6 +19,8 @@
  */
 
 #include "sm.h"
+#include "lib/stanza.h"
+#include <assert.h>
 
 /** @file sm/mod_privacy.c
   * @brief XEP-0016 Privacy Lists and XEP-0191 Simple Comunications Blocking
@@ -30,9 +32,9 @@
 static int ns_PRIVACY = 0;
 static int ns_BLOCKING = 0;
 
-typedef struct zebra_st         *zebra_t;
-typedef struct zebra_list_st    *zebra_list_t;
-typedef struct zebra_item_st    *zebra_item_t;
+typedef struct zebra_st         zebra_t;
+typedef struct zebra_list_st    zebra_list_t;
+typedef struct zebra_item_st    zebra_item_t;
 
 typedef enum {
     zebra_NONE,
@@ -51,23 +53,23 @@ typedef enum {
 
 /** zebra data for a single user */
 struct zebra_st {
-    xht             lists;
+    xht             *lists;
 
-    zebra_list_t    def;
+    zebra_list_t    *def;
 };
 
 struct zebra_list_st {
-    pool_t          p;
+    pool_t          *p;
 
     char            *name;
 
-    zebra_item_t    items, last;
+    zebra_item_t    *items, *last;
 };
 
 struct zebra_item_st {
     zebra_item_type_t   type;
 
-    jid_t               jid;
+    jid_t               *jid;
 
     char                *group;
 
@@ -80,29 +82,29 @@ struct zebra_item_st {
 
     zebra_block_type_t  block;
 
-    zebra_item_t        next, prev;
+    zebra_item_t        *next, *prev;
 };
 
 typedef struct privacy_st {
     /* currently active list */
-    zebra_list_t        active;
+    zebra_list_t        *active;
 
     /* was blocklist requested */
     int                 blocklist;
-} *privacy_t;
+} privacy_t;
 
 /* union for xhash_iter_get to comply with strict-alias rules for gcc3 */
 union xhashv
 {
   void **val;
-  zebra_list_t *z_val;
+  zebra_list_t **z_val;
 };
 
-static void _privacy_free_z(zebra_t z) {
-    zebra_list_t zlist;
+static void _privacy_free_z(zebra_t *z) {
+    zebra_list_t *zlist;
     union xhashv xhv;
 
-    log_debug(ZONE, "freeing zebra ctx");
+//    LOG_DEBUG(mi->sm->log, "freeing zebra ctx");
 
     if(xhash_iter_first(z->lists))
         do {
@@ -115,29 +117,29 @@ static void _privacy_free_z(zebra_t z) {
     free(z);
 }
 
-static void _privacy_user_free(zebra_t *z) {
+static void _privacy_user_free(zebra_t **z) {
     if(*z != NULL)
         _privacy_free_z(*z);
 }
 
-static int _privacy_user_load(mod_instance_t mi, user_t user) {
-    module_t mod = mi->mod;
-    zebra_t z;
-    os_t os;
-    os_object_t o;
-    zebra_list_t zlist;
-    pool_t p;
-    zebra_item_t zitem, scan;
+static int _privacy_user_load(mod_instance_t *mi, user_t *user) {
+    module_t *mod = mi->mod;
+    zebra_t *z;
+    os_t *os;
+    os_object_t *o;
+    zebra_list_t *zlist;
+    pool_t *p;
+    zebra_item_t *zitem, *scan;
     char *str;
 
-    log_debug(ZONE, "loading privacy lists for %s", jid_user(user->jid));
+    LOG_DEBUG(mi->sm->log, "loading privacy lists for %s", jid_user(user->jid));
 
     /* free if necessary */
     z = user->module_data[mod->index];
     if(z != NULL)
         _privacy_free_z(z);
 
-    z = (zebra_t) calloc(1, sizeof(struct zebra_st));
+    z = new(zebra_t);
 
     z->lists = xhash_new(101);
 
@@ -153,21 +155,21 @@ static int _privacy_user_load(mod_instance_t mi, user_t user) {
 
                 /* list name */
                 if(!os_object_get_str(os, o, "list", &str)) {
-                    log_debug(ZONE, "item with no list field, skipping");
+                    LOG_DEBUG(mi->sm->log, "item with no list field, skipping");
                     continue;
                 }
 
-                log_debug(ZONE, "got item for list %s", str);
+                LOG_DEBUG(mi->sm->log, "got item for list %s", str);
 
                 zlist = xhash_get(z->lists, str);
 
                 /* new list */
                 if(zlist == NULL) {
-                    log_debug(ZONE, "creating list %s", str);
+                    LOG_DEBUG(mi->sm->log, "creating list %s", str);
 
                     p = pool_new();
 
-                    zlist = (zebra_list_t) pmalloco(p, sizeof(struct zebra_list_st));
+                    zlist = pnew(p, zebra_list_t);
 
                     zlist->p = p;
                     zlist->name = pstrdup(p, str);
@@ -176,7 +178,7 @@ static int _privacy_user_load(mod_instance_t mi, user_t user) {
                 }
 
                 /* new item */
-                zitem = (zebra_item_t) pmalloco(zlist->p, sizeof(struct zebra_item_st));
+                zitem = pnew(zlist->p, zebra_item_t);
 
                 /* item type */
                 if(os_object_get_str(os, o, "type", &str))
@@ -197,7 +199,7 @@ static int _privacy_user_load(mod_instance_t mi, user_t user) {
                 /* item value, according to type */
                 if(zitem->type != zebra_NONE) {
                     if(!os_object_get_str(os, o, "value", &str)) {
-                        log_debug(ZONE, "no value on non-fall-through item, dropping this item");
+                        LOG_DEBUG(mi->sm->log, "no value on non-fall-through item, dropping this item");
                         continue;
                     }
 
@@ -206,20 +208,20 @@ static int _privacy_user_load(mod_instance_t mi, user_t user) {
                         case zebra_JID:
                             zitem->jid = jid_new(str, strlen(str));
                             if(zitem->jid == NULL) {
-                                log_debug(ZONE, "invalid jid '%s' on item, dropping this item", str);
+                                LOG_DEBUG(mi->sm->log, "invalid jid '%s' on item, dropping this item", str);
                                 continue;
                             }
 
                             pool_cleanup(zlist->p, (void *) jid_free, zitem->jid);
 
-                            log_debug(ZONE, "jid item with value '%s'", jid_full(zitem->jid));
+                            LOG_DEBUG(mi->sm->log, "jid item with value '%s'", jid_full(zitem->jid));
 
                             break;
 
                         case zebra_GROUP:
                             zitem->group = pstrdup(zlist->p, str);
 
-                            log_debug(ZONE, "group item with value '%s'", zitem->group);
+                            LOG_DEBUG(mi->sm->log, "group item with value '%s'", zitem->group);
 
                             break;
 
@@ -231,11 +233,11 @@ static int _privacy_user_load(mod_instance_t mi, user_t user) {
                             else if(strcmp(str, "both") == 0)
                                 zitem->to = zitem->from = 1;
                             else if(strcmp(str, "none") != 0) {
-                                log_debug(ZONE, "invalid value '%s' on s10n item, dropping this item", str);
+                                LOG_DEBUG(mi->sm->log, "invalid value '%s' on s10n item, dropping this item", str);
                                 continue;
                             }
 
-                            log_debug(ZONE, "s10n item with value '%s' (to %d from %d)", str, zitem->to, zitem->from);
+                            LOG_DEBUG(mi->sm->log, "s10n item with value '%s' (to %d from %d)", str, zitem->to, zitem->from);
 
                             break;
 
@@ -248,16 +250,16 @@ static int _privacy_user_load(mod_instance_t mi, user_t user) {
                 /* action */
                 os_object_get_bool(os, o, "deny", &zitem->deny);
                 if(zitem->deny) {
-                    log_debug(ZONE, "deny rule");
+                    LOG_DEBUG(mi->sm->log, "deny rule");
                 } else {
-                    log_debug(ZONE, "accept rule");
+                    LOG_DEBUG(mi->sm->log, "accept rule");
                 }
 
                 os_object_get_int(os, o, "order", &(zitem->order));
-                log_debug(ZONE, "order %d", zitem->order);
+                LOG_DEBUG(mi->sm->log, "order %d", zitem->order);
 
                 os_object_get_int(os, o, "block", (int*) &(zitem->block));
-                log_debug(ZONE, "block 0x%x", zitem->block);
+                LOG_DEBUG(mi->sm->log, "block 0x%x", zitem->block);
 
                 /* insert it */
                 for(scan = zlist->items; scan != NULL; scan = scan->next)
@@ -300,11 +302,11 @@ static int _privacy_user_load(mod_instance_t mi, user_t user) {
                 o = os_iter_object(os);
 
                 if(os_object_get_str(os, o, "default", &str)) {
-                    z->def = (zebra_list_t) xhash_get(z->lists, str);
+                    z->def = xhash_get(z->lists, str);
                     if(z->def == NULL) {
-                        log_debug(ZONE, "storage says the default list for %s is %s, but it doesn't exist!", jid_user(user->jid), str);
+                        LOG_DEBUG(mi->sm->log, "storage says the default list for %s is %s, but it doesn't exist!", jid_user(user->jid), str);
                     } else {
-                        log_debug(ZONE, "user %s has default list %s", jid_user(user->jid), str);
+                        LOG_DEBUG(mi->sm->log, "user %s has default list %s", jid_user(user->jid), str);
                     }
                 }
             } while(os_iter_next(os));
@@ -316,13 +318,13 @@ static int _privacy_user_load(mod_instance_t mi, user_t user) {
 }
 
 /** returns 0 if the packet should be allowed, otherwise 1 */
-static int _privacy_action(user_t user, zebra_list_t zlist, jid_t jid, pkt_type_t ptype, int in) {
-    zebra_item_t scan;
+static int _privacy_action(user_t *user, zebra_list_t *zlist, jid_t *jid, pkt_type_t ptype, int in) {
+    zebra_item_t *scan;
     int match, i;
-    item_t ritem;
+    item_t *ritem;
     char domres[2048];
 
-    log_debug(ZONE, "running match on list %s for %s (packet type 0x%x) (%s)", zlist->name, jid_full(jid), ptype, in ? "incoming" : "outgoing");
+    LOG_DEBUG(user->sm->log, "running match on list %s for %s (packet type 0x%x) (%s)", zlist->name, jid_full(jid), ptype, in ? "incoming" : "outgoing");
 
     /* loop over the list, trying to find a match */
     for(scan = zlist->items; scan != NULL; scan = scan->next) {
@@ -402,12 +404,12 @@ static int _privacy_action(user_t user, zebra_list_t zlist, jid_t jid, pkt_type_
 }
 
 /** check incoming packets */
-static mod_ret_t _privacy_in_router(mod_instance_t mi, pkt_t pkt) {
-    module_t mod = mi->mod;
-    user_t user;
-    zebra_t z;
-    sess_t sess = NULL;
-    zebra_list_t zlist = NULL;
+static mod_ret_t _privacy_in_router(mod_instance_t *mi, pkt_t *pkt) {
+    module_t *mod = mi->mod;
+    user_t *user;
+    zebra_t *z;
+    sess_t *sess = NULL;
+    zebra_list_t *zlist = NULL;
 
     /* if its coming to the sm, let it in */
     if(pkt->to == NULL || pkt->to->node[0] == '\0')
@@ -416,12 +418,12 @@ static mod_ret_t _privacy_in_router(mod_instance_t mi, pkt_t pkt) {
     /* get the user */
     user = user_load(mod->mm->sm, pkt->to);
     if(user == NULL) {
-        log_debug(ZONE, "no user %s, passing packet", jid_user(pkt->to));
+        LOG_DEBUG(mi->sm->log, "no user %s, passing packet", jid_user(pkt->to));
         return mod_PASS;
     }
 
     /* get our lists */
-    z = (zebra_t) user->module_data[mod->index];
+    z = user->module_data[mod->index];
 
     /* find a session */
     if(*pkt->to->resource != '\0')
@@ -433,7 +435,7 @@ static mod_ret_t _privacy_in_router(mod_instance_t mi, pkt_t pkt) {
 
     /* get the active list for the session */
     if(sess != NULL && sess->module_data[mod->index] != NULL)
-        zlist = ((privacy_t) sess->module_data[mod->index])->active;
+        zlist = ((privacy_t*) sess->module_data[mod->index])->active;
 
     /* no active list, so use the default list */
     if(zlist == NULL)
@@ -448,7 +450,7 @@ static mod_ret_t _privacy_in_router(mod_instance_t mi, pkt_t pkt) {
         return mod_PASS;
 
     /* deny */
-    log_debug(ZONE, "denying incoming packet based on privacy policy");
+    LOG_DEBUG(mi->sm->log, "denying incoming packet based on privacy policy");
 
     /* iqs get special treatment */
     if(pkt->type == pkt_IQ || pkt->type == pkt_IQ_SET)
@@ -460,12 +462,12 @@ static mod_ret_t _privacy_in_router(mod_instance_t mi, pkt_t pkt) {
 }
 
 /** check outgoing packets */
-static mod_ret_t _privacy_out_router(mod_instance_t mi, pkt_t pkt) {
-    module_t mod = mi->mod;
-    user_t user;
-    zebra_t z;
-    sess_t sess = NULL;
-    zebra_list_t zlist = NULL;
+static mod_ret_t _privacy_out_router(mod_instance_t *mi, pkt_t *pkt) {
+    module_t *mod = mi->mod;
+    user_t *user;
+    zebra_t *z;
+    sess_t *sess = NULL;
+    zebra_list_t *zlist = NULL;
     int err, ns;
 
     /* if its coming from the sm, let it go */
@@ -475,12 +477,12 @@ static mod_ret_t _privacy_out_router(mod_instance_t mi, pkt_t pkt) {
     /* get the user */
     user = user_load(mod->mm->sm, pkt->from);
     if(user == NULL) {
-        log_debug(ZONE, "no user %s, passing packet", jid_user(pkt->to));
+        LOG_DEBUG(mi->sm->log, "no user %s, passing packet", jid_user(pkt->to));
         return mod_PASS;
     }
 
     /* get our lists */
-    z = (zebra_t) user->module_data[mod->index];
+    z = user->module_data[mod->index];
 
     /* find a session */
     if(*pkt->from->resource != '\0')
@@ -488,7 +490,7 @@ static mod_ret_t _privacy_out_router(mod_instance_t mi, pkt_t pkt) {
 
     /* get the active list for the session */
     if(sess != NULL && sess->module_data[mod->index] != NULL)
-        zlist = ((privacy_t) sess->module_data[mod->index])->active;
+        zlist = ((privacy_t*) sess->module_data[mod->index])->active;
 
     /* no active list, so use the default list */
     if(zlist == NULL)
@@ -503,7 +505,7 @@ static mod_ret_t _privacy_out_router(mod_instance_t mi, pkt_t pkt) {
         return mod_PASS;
 
     /* deny */
-    log_debug(ZONE, "denying outgoing packet based on privacy policy");
+    LOG_DEBUG(mi->sm->log, "denying outgoing packet based on privacy policy");
 
     /* messages get special treatment */
     if(pkt->type & pkt_MESSAGE) {
@@ -522,11 +524,11 @@ static mod_ret_t _privacy_out_router(mod_instance_t mi, pkt_t pkt) {
 }
 
 /** add a list to the return packet */
-static void _privacy_result_builder(xht zhash, const char *name, void *val, void *arg) {
-    zebra_list_t zlist = (zebra_list_t) val;
-    pkt_t pkt = (pkt_t) arg;
+static void _privacy_result_builder(xht *zhash, const char *name, void *val, void *arg) {
+    zebra_list_t *zlist = val;
+    pkt_t *pkt = arg;
     int ns, query, list, item;
-    zebra_item_t zitem;
+    zebra_item_t *zitem;
     char order[14];
 
     ns = nad_find_scoped_namespace(pkt->nad, uri_PRIVACY, NULL);
@@ -591,8 +593,8 @@ static void _privacy_result_builder(xht zhash, const char *name, void *val, void
 
 /** add a list to the return packet */
 static void _privacy_lists_result_builder(const char *name, int namelen, void *val, void *arg) {
-    zebra_list_t zlist = (zebra_list_t) val;
-    pkt_t pkt = (pkt_t) arg;
+    zebra_list_t *zlist = val;
+    pkt_t *pkt = arg;
     int ns, query, list;
 
     ns = nad_find_scoped_namespace(pkt->nad, uri_PRIVACY, NULL);
@@ -605,11 +607,11 @@ static void _privacy_lists_result_builder(const char *name, int namelen, void *v
 /** remove jid deny ocurrences from the privacy list,
     unblock all if no jid given to match,
     then update unblocked contact with presence information */
-static void _unblock_jid(user_t user, storage_t st, zebra_list_t zlist, jid_t jid) {
+static void _unblock_jid(user_t *user, storage_t *st, zebra_list_t *zlist, jid_t *jid) {
     char filter[1024];
-    zebra_item_t scan;
-    sess_t sscan;
-    jid_t notify_jid = NULL;
+    zebra_item_t *scan;
+    sess_t *sscan;
+    jid_t *notify_jid = NULL;
 
     for(scan = zlist->items; scan != NULL; scan = scan->next) {
         if(scan->type == zebra_JID && scan->deny && (jid == NULL || jid_compare_full(scan->jid, jid) == 0)) {
@@ -648,26 +650,26 @@ static void _unblock_jid(user_t user, storage_t st, zebra_list_t zlist, jid_t ji
                 if(!sscan->available || jid_search(sscan->A, notify_jid) || jid_search(sscan->E, notify_jid))
                     continue;
 
-                log_debug(ZONE, "updating unblocked %s with presence from %s", jid_full(notify_jid), jid_full(sscan->jid));
+                LOG_DEBUG(user->sm->log, "updating unblocked %s with presence from %s", jid_full(notify_jid), jid_full(sscan->jid));
                 pkt_router(pkt_dup(sscan->pres, jid_full(notify_jid), jid_full(sscan->jid)));
             }
     }
 }
 
 /** list management requests */
-static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
-    module_t mod = mi->mod;
+static mod_ret_t _privacy_in_sess(mod_instance_t *mi, sess_t *sess, pkt_t *pkt) {
+    module_t *mod = mi->mod;
     int ns, query, list, name, active, def, item, type, value, action, order, blocking, jid, push = 0;
     char corder[14], str[256], filter[1024];
-    zebra_t z;
-    zebra_list_t zlist, old;
-    pool_t p;
-    zebra_item_t zitem, scan;
-    sess_t sscan;
-    jid_t jidt;
-    pkt_t result;
-    os_t os;
-    os_object_t o;
+    zebra_t *z;
+    zebra_list_t *zlist, *old;
+    pool_t *p;
+    zebra_item_t *zitem, *scan;
+    sess_t *sscan;
+    jid_t *jidt;
+    pkt_t *result;
+    os_t *os;
+    os_object_t *o;
     st_ret_t ret;
 
     /* we only want to play with iq:privacy and urn:xmpp:blocking packets */
@@ -679,11 +681,11 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
         return -stanza_err_BAD_REQUEST;
 
     /* get our lists */
-    z = (zebra_t) sess->user->module_data[mod->index];
+    z = sess->user->module_data[mod->index];
 
     /* create session privacy description */
     if(sess->module_data[mod->index] == NULL)
-        sess->module_data[mod->index] = (void *) pmalloco(sess->p, sizeof(struct privacy_st));
+        sess->module_data[mod->index] = (void *) pnew(sess->p, privacy_t);
 
     /* handle XEP-0191: Simple Communications Blocking
      * as simplified frontend to default privacy list */
@@ -714,7 +716,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 
                 /* create new zebra list with name 'urn:xmpp:blocking' */
                 p = pool_new();
-                zlist = (zebra_list_t) pmalloco(p, sizeof(struct zebra_list_st));
+                zlist = pnew(p, zebra_list_t);
                 zlist->p = p;
                 zlist->name = pstrdup(p, urn_BLOCKING);
                 xhash_put(z->lists, zlist->name, (void *) zlist);
@@ -731,14 +733,14 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                 if(ret != st_SUCCESS)
                     return -stanza_err_INTERNAL_SERVER_ERROR;
 
-                log_debug(ZONE, "blocking created '%s' privacy list and set it default", zlist->name);
+                LOG_DEBUG(mi->sm->log, "blocking created '%s' privacy list and set it default", zlist->name);
             } else {
                 /* use the default one */
                 zlist = z->def;
             }
             /* activate this list */
-            ((privacy_t) sess->module_data[mod->index])->active = zlist;
-            log_debug(ZONE, "session '%s' has now active list '%s'", jid_full(sess->jid), zlist->name);
+            ((privacy_t*) sess->module_data[mod->index])->active = zlist;
+            LOG_DEBUG(mi->sm->log, "session '%s' has now active list '%s'", jid_full(sess->jid), zlist->name);
 
             item = nad_find_elem(pkt->nad, blocking, ns, "item", 1);
             if(item < 0) {
@@ -783,12 +785,12 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                                 if(!sscan->available || jid_search(sscan->A, jidt) || jid_search(sscan->E, jidt))
                                     continue;
 
-                                log_debug(ZONE, "forcing unavailable to %s from %s after block", jid_full(jidt), jid_full(sscan->jid));
+                                LOG_DEBUG(mi->sm->log, "forcing unavailable to %s from %s after block", jid_full(jidt), jid_full(sscan->jid));
                                 pkt_router(pkt_create(sess->user->sm, "presence", "unavailable", jid_full(jidt), jid_full(sscan->jid)));
                             }
 
                         /* new item */
-                        zitem = (zebra_item_t) pmalloco(zlist->p, sizeof(struct zebra_item_st));
+                        zitem = pnew(zlist->p, zebra_item_t);
                         zitem->type = zebra_JID;
 
                         zitem->jid = jid_new(NAD_AVAL(pkt->nad, jid), NAD_AVAL_L(pkt->nad, jid));
@@ -854,7 +856,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
             if(push) {
                 for(sscan = sess->user->sessions; sscan != NULL; sscan = sscan->next) {
                     /* don't push to us or to anyone who hasn't requested blocklist */
-                    if(sscan == sess || sscan->module_data[mod->index] == NULL || ((privacy_t) sscan->module_data[mod->index])->blocklist == 0)
+                    if(sscan == sess || sscan->module_data[mod->index] == NULL || ((privacy_t*) sscan->module_data[mod->index])->blocklist == 0)
                         continue;
 
                     result = pkt_dup(pkt, jid_full(sscan->jid), NULL);
@@ -885,7 +887,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 
         /* insert items only from the default list */
         if(z->def != NULL) {
-            log_debug(ZONE, "blocking list is '%s'", z->def->name);
+            LOG_DEBUG(mi->sm->log, "blocking list is '%s'", z->def->name);
             zlist = xhash_get(z->lists, z->def->name);
             /* run through the items and build the nad */
             for(zitem = zlist->items; zitem != NULL; zitem = zitem->next) {
@@ -897,7 +899,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
             }
 
             /* mark that the blocklist was requested */
-            ((privacy_t) sess->module_data[mod->index])->blocklist = 1;
+            ((privacy_t*) sess->module_data[mod->index])->blocklist = 1;
         }
 
         /* give it to the session */
@@ -934,19 +936,19 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
             /* get the list name */
             name = nad_find_attr(pkt->nad, list, -1, "name", NULL);
             if(name < 0) {
-                log_debug(ZONE, "no list name specified, failing request");
+                LOG_DEBUG(mi->sm->log, "no list name specified, failing request");
                 return -stanza_err_BAD_REQUEST;
             }
 
             snprintf(str, 256, "%.*s", NAD_AVAL_L(pkt->nad, name), NAD_AVAL(pkt->nad, name));
             str[255] = '\0';
 
-            log_debug(ZONE, "updating list %s", str);
+            LOG_DEBUG(mi->sm->log, "updating list %s", str);
 
             /* make a new one */
             p = pool_new();
 
-            zlist = (zebra_list_t) pmalloco(p, sizeof(struct zebra_list_st));
+            zlist = pnew(p, zebra_list_t);
 
             zlist->p = p;
             zlist->name = pstrdup(p, str);
@@ -970,7 +972,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                 }
 
                 /* new item */
-                zitem = (zebra_item_t) pmalloco(p, sizeof(struct zebra_item_st));
+                zitem = pnew(p, zebra_item_t);
 
                 /* have to store it too */
                 o = os_object_new(os);
@@ -983,7 +985,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 
                         zitem->jid = jid_new(NAD_AVAL(pkt->nad, value), NAD_AVAL_L(pkt->nad, value));
                         if(zitem->jid == NULL) {
-                            log_debug(ZONE, "invalid jid '%.*s', failing request", NAD_AVAL_L(pkt->nad, value), NAD_AVAL(pkt->nad, value));
+                            LOG_DEBUG(mi->sm->log, "invalid jid '%.*s', failing request", NAD_AVAL_L(pkt->nad, value), NAD_AVAL(pkt->nad, value));
                             pool_free(p);
                             os_free(os);
                             return -stanza_err_BAD_REQUEST;
@@ -991,7 +993,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 
                         pool_cleanup(p, (void *) jid_free, zitem->jid);
 
-                        log_debug(ZONE, "jid item with value '%s'", jid_full(zitem->jid));
+                        LOG_DEBUG(mi->sm->log, "jid item with value '%s'", jid_full(zitem->jid));
 
                         os_object_put(o, "type", "jid", os_type_STRING);
                         os_object_put(o, "value", jid_full(zitem->jid), os_type_STRING);
@@ -1004,7 +1006,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 
                         /* !!! check if the group exists */
 
-                        log_debug(ZONE, "group item with value '%s'", zitem->group);
+                        LOG_DEBUG(mi->sm->log, "group item with value '%s'", zitem->group);
 
                         os_object_put(o, "type", "group", os_type_STRING);
                         os_object_put(o, "value", zitem->group, os_type_STRING);
@@ -1027,25 +1029,25 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                         } else if(NAD_AVAL_L(pkt->nad, value) == 4 && strncmp("none", NAD_AVAL(pkt->nad, value), 4) == 0)
                             os_object_put(o, "value", "none", os_type_STRING);
                         else {
-                            log_debug(ZONE, "invalid value '%.*s' on s10n item, failing request", NAD_AVAL_L(pkt->nad, value), NAD_AVAL(pkt->nad, value));
+                            LOG_DEBUG(mi->sm->log, "invalid value '%.*s' on s10n item, failing request", NAD_AVAL_L(pkt->nad, value), NAD_AVAL(pkt->nad, value));
                             pool_free(p);
                             os_free(os);
                             return -stanza_err_BAD_REQUEST;
                         }
 
-                        log_debug(ZONE, "s10n item with value '%.*s' (to %d from %d)", NAD_AVAL_L(pkt->nad, value), NAD_AVAL(pkt->nad, value), zitem->to, zitem->from);
+                        LOG_DEBUG(mi->sm->log, "s10n item with value '%.*s' (to %d from %d)", NAD_AVAL_L(pkt->nad, value), NAD_AVAL(pkt->nad, value), zitem->to, zitem->from);
                     }
                 }
 
                 /* action */
                 if(NAD_AVAL_L(pkt->nad, action) == 4 && strncmp("deny", NAD_AVAL(pkt->nad, action), 4) == 0) {
                     zitem->deny = 1;
-                    log_debug(ZONE, "deny rule");
+                    LOG_DEBUG(mi->sm->log, "deny rule");
                 } else if(NAD_AVAL_L(pkt->nad, action) == 5 && strncmp("allow", NAD_AVAL(pkt->nad, action), 5) == 0) {
                     zitem->deny = 0;
-                    log_debug(ZONE, "allow rule");
+                    LOG_DEBUG(mi->sm->log, "allow rule");
                 } else {
-                    log_debug(ZONE, "unknown action '%.*s', failing request", NAD_AVAL_L(pkt->nad, action), NAD_AVAL(pkt->nad, action));
+                    LOG_DEBUG(mi->sm->log, "unknown action '%.*s', failing request", NAD_AVAL_L(pkt->nad, action), NAD_AVAL(pkt->nad, action));
                     pool_free(p);
                     os_free(os);
                     return -stanza_err_BAD_REQUEST;
@@ -1130,13 +1132,13 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 
             /* removed list */
             if(zlist->items == NULL) {
-                log_debug(ZONE, "removed list %s", zlist->name);
+                LOG_DEBUG(mi->sm->log, "removed list %s", zlist->name);
                 xhash_zap(z->lists, zlist->name);
                 pool_free(zlist->p);
                 if(old != NULL) pool_free(old->p);
                 zlist = NULL;
             } else {
-                log_debug(ZONE, "updated list %s", zlist->name);
+                LOG_DEBUG(mi->sm->log, "updated list %s", zlist->name);
                 xhash_put(z->lists, zlist->name, (void *) zlist);
                 if(old != NULL) pool_free(old->p);
             }
@@ -1145,13 +1147,13 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
             if(old != NULL) {
 
                 /* relink */
-                log_debug(ZONE, "relinking sessions");
+                LOG_DEBUG(mi->sm->log, "relinking sessions");
 
                 /* loop through sessions, relink */
                 for(sscan = sess->user->sessions; sscan != NULL; sscan = sscan->next)
-                    if(sscan->module_data[mod->index] != NULL && ((privacy_t) sscan->module_data[mod->index])->active == old) {
-                        ((privacy_t) sscan->module_data[mod->index])->active = zlist;
-                        log_debug(ZONE, "session '%s' now has active list '%s'", jid_full(sscan->jid), (zlist != NULL) ? zlist->name : "(NONE)");
+                    if(sscan->module_data[mod->index] != NULL && ((privacy_t*) sscan->module_data[mod->index])->active == old) {
+                        ((privacy_t*) sscan->module_data[mod->index])->active = zlist;
+                        LOG_DEBUG(mi->sm->log, "session '%s' now has active list '%s'", jid_full(sscan->jid), (zlist != NULL) ? zlist->name : "(NONE)");
                     }
 
                 /* default list */
@@ -1160,7 +1162,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 
                     if(zlist == NULL) {
                         storage_delete(mod->mm->sm->st, "privacy-default", jid_user(sess->user->jid), NULL);
-                        log_debug(ZONE, "removed default list");
+                        LOG_DEBUG(mi->sm->log, "removed default list");
                     }
                     else {
                         os = os_new();
@@ -1172,7 +1174,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 
                         os_free(os);
 
-                        log_debug(ZONE, "default list is now '%s'", zlist->name);
+                        LOG_DEBUG(mi->sm->log, "default list is now '%s'", zlist->name);
                     }
                 }
             }
@@ -1183,8 +1185,8 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
             name = nad_find_attr(pkt->nad, active, -1, "name", NULL);
             if(name < 0) {
                 /* no name, no active list */
-                log_debug(ZONE, "clearing active list for session '%s'", jid_full(sess->jid));
-                ((privacy_t) sess->module_data[mod->index])->active = NULL;
+                LOG_DEBUG(mi->sm->log, "clearing active list for session '%s'", jid_full(sess->jid));
+                ((privacy_t*) sess->module_data[mod->index])->active = NULL;
             }
             else {
                 snprintf(str, 256, "%.*s", NAD_AVAL_L(pkt->nad, name), NAD_AVAL(pkt->nad, name));
@@ -1192,13 +1194,13 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 
                 zlist = xhash_get(z->lists, str);
                 if(zlist == NULL) {
-                    log_debug(ZONE, "request to make list '%s' active, but there's no such list", str);
+                    LOG_DEBUG(mi->sm->log, "request to make list '%s' active, but there's no such list", str);
                     return -stanza_err_ITEM_NOT_FOUND;
                 }
 
-                ((privacy_t) sess->module_data[mod->index])->active = zlist;
+                ((privacy_t*) sess->module_data[mod->index])->active = zlist;
 
-                log_debug(ZONE, "session '%s' now has active list '%s'", jid_full(sess->jid), str);
+                LOG_DEBUG(mi->sm->log, "session '%s' now has active list '%s'", jid_full(sess->jid), str);
             }
         }
 
@@ -1207,7 +1209,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
             name = nad_find_attr(pkt->nad, def, -1, "name", NULL);
             if(name < 0) {
                 /* no name, no default list */
-                log_debug(ZONE, "clearing default list for '%s'", jid_user(sess->user->jid));
+                LOG_DEBUG(mi->sm->log, "clearing default list for '%s'", jid_user(sess->user->jid));
                 z->def = NULL;
             }
             else {
@@ -1216,7 +1218,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 
                 zlist = xhash_get(z->lists, str);
                 if(zlist == NULL) {
-                    log_debug(ZONE, "request to make list '%s' default, but there's no such list");
+                    LOG_DEBUG(mi->sm->log, "request to make list '%s' default, but there's no such list", str);
                     return -stanza_err_ITEM_NOT_FOUND;
                 }
 
@@ -1231,7 +1233,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
 
                 os_free(os);
 
-                log_debug(ZONE, "'%s' now has default list '%s'", jid_user(sess->user->jid), str);
+                LOG_DEBUG(mi->sm->log, "'%s' now has default list '%s'", jid_user(sess->user->jid), str);
             }
         }
 
@@ -1283,9 +1285,9 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     /* tell them about current active and default list if they asked for everything */
     if(list < 0) {
         /* active */
-        if(((privacy_t) sess->module_data[mod->index])->active != NULL) {
+        if(((privacy_t*) sess->module_data[mod->index])->active != NULL) {
             active = nad_insert_elem(result->nad, query, ns, "active", NULL);
-            nad_set_attr(result->nad, active, -1, "name", ((privacy_t) sess->module_data[mod->index])->active->name, 0);
+            nad_set_attr(result->nad, active, -1, "name", ((privacy_t*) sess->module_data[mod->index])->active->name, 0);
         }
 
         /* and the default list */
@@ -1305,20 +1307,20 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
     return mod_HANDLED;
 }
 
-static void _privacy_user_delete(mod_instance_t mi, jid_t jid) {
-    log_debug(ZONE, "deleting privacy data for %s", jid_user(jid));
+static void _privacy_user_delete(mod_instance_t *mi, jid_t *jid) {
+    LOG_DEBUG(mi->sm->log, "deleting privacy data for %s", jid_user(jid));
 
     storage_delete(mi->sm->st, "privacy-items", jid_user(jid), NULL);
     storage_delete(mi->sm->st, "privacy-default", jid_user(jid), NULL);
 }
 
-static void _privacy_free(module_t mod) {
+static void _privacy_free(module_t *mod) {
      sm_unregister_ns(mod->mm->sm, uri_PRIVACY);
      feature_unregister(mod->mm->sm, uri_PRIVACY);
 }
 
-DLLEXPORT int module_init(mod_instance_t mi, const char *arg) {
-    module_t mod = mi->mod;
+DLLEXPORT int module_init(mod_instance_t *mi, const char *arg) {
+    module_t *mod = mi->mod;
 
     if (mod->init) return 0;
 

@@ -24,24 +24,27 @@
 
 #include "mio/mio.h"
 #include "sx/sx.h"
-
-#ifdef HAVE_SIGNAL_H
-# include <signal.h>
-#endif
-#ifdef HAVE_SYS_STAT_H
-# include <sys/stat.h>
-#endif
+#include "lib/config.h"
+#include "lib/log.h"
+#include "lib/jid.h"
+#include "lib/jqueue.h"
+#include "lib/nad.h"
+#include "lib/xhash.h"
 
 #include <udns.h>
 
+#include <signal.h>
+#include <sys/stat.h>
+
+
 /* forward decl */
-typedef struct host_st      *host_t;
-typedef struct s2s_st       *s2s_t;
-typedef struct pkt_st       *pkt_t;
-typedef struct conn_st      *conn_t;
-typedef struct dnsquery_st  *dnsquery_t;
-typedef struct dnscache_st  *dnscache_t;
-typedef struct dnsres_st    *dnsres_t;
+typedef struct host_st      host_t;
+typedef struct s2s_st       s2s_t;
+typedef struct pkt_st       pkt_t;
+typedef struct conn_st      conn_t;
+typedef struct dnsquery_st  dnsquery_t;
+typedef struct dnscache_st  dnscache_t;
+typedef struct dnsres_st    dnsres_t;
 
 struct host_st {
     /** our realm */
@@ -82,28 +85,23 @@ struct s2s_st {
     mio_t               mio;
 
     /** sx environment */
-    sx_env_t            sx_env;
-    sx_plugin_t         sx_ssl;
-    sx_plugin_t         sx_sasl;
-    sx_plugin_t         sx_db;
+    sx_env_t            *sx_env;
+    sx_plugin_t         *sx_ssl;
+    sx_plugin_t         *sx_sasl;
+    sx_plugin_t         *sx_db;
 
     /** router's conn */
-    sx_t                router;
+    sx_t                *router;
     mio_fd_t            fd;
 
     /** listening sockets */
     mio_fd_t            server_fd;
 
     /** config */
-    config_t            config;
+    config_t            *config;
 
     /** logging */
-    log_t               log;
-
-    /** log data */
-    log_type_t          log_type;
-    const char          *log_facility;
-    const char          *log_ident;
+    log_t               *log;
 
     /** packet counter */
     long long int       packet_count;
@@ -142,7 +140,7 @@ struct s2s_st {
     const char          *local_ciphers;
 
     /** hosts mapping */
-    xht                 hosts;
+    xht                 *hosts;
 
     /** max file descriptors */
     int                 io_max_fds;
@@ -189,10 +187,10 @@ struct s2s_st {
 	int					n_whitelist_domains;
 
     /** list of sx_t on the way out */
-    jqueue_t            dead;
+    jqueue_t            *dead;
 
     /** list of conn_t on the way out */
-    jqueue_t            dead_conn;
+    jqueue_t            *dead_conn;
 
     /** this is true if we've connected to the router at least once */
     int                 started;
@@ -201,41 +199,41 @@ struct s2s_st {
     int                 online;
 
     /** queues of packets waiting to go out (key is route) */
-    xht                 outq;
+    xht                 *outq;
 
     /** reuse outgoing conns keyed by ip/port */
     int                 out_reuse;
 
     /** outgoing conns (key is ip/port) */
-    xht                 out_host;
+    xht                 *out_host;
 
     /** outgoing conns (key is dest) */
-    xht                 out_dest;
+    xht                 *out_dest;
 
     /** incoming conns (key is stream id) */
-    xht                 in;
+    xht                 *in;
 
     /** incoming conns prior to stream initiation (key is ip/port) */
-    xht                 in_accept;
+    xht                 *in_accept;
 
     /** udns fds */
     int                 udns_fd;
     mio_fd_t            udns_mio_fd;
 
     /** dns resolution cache */
-    xht                 dnscache;
+    xht                 *dnscache;
     int                 dns_cache_enabled;
 
     /** dns resolution bad host cache */
-    xht                 dns_bad;
+    xht                 *dns_bad;
     int                 dns_bad_timeout;
 };
 
 struct pkt_st {
-    nad_t               nad;
+    nad_t               *nad;
 
-    jid_t               from;
-    jid_t               to;
+    jid_t               *from;
+    jid_t               *to;
 
     int                 db;
 
@@ -251,25 +249,25 @@ typedef enum {
 } conn_state_t;
 
 struct conn_st {
-    s2s_t               s2s;
+    s2s_t               *s2s;
 
     const char          *key;
     const char          *dkey;
 
-    sx_t                s;
+    sx_t                *s;
     mio_fd_t            fd;
 
     char                ip[INET6_ADDRSTRLEN+1];
     int                 port;
 
     /** states of outgoing dialbacks (key is local/remote) */
-    xht                 states;
+    xht                 *states;
 
     /** time of the last state change (key is local/remote) */
-    xht                 states_time;
+    xht                 *states_time;
 
     /** routes that this conn handles (key is local/remote) */
-    xht                 routes;
+    xht                 *routes;
 
     time_t              init_time;
 
@@ -290,7 +288,7 @@ struct conn_st {
 
 /** dns query data */
 struct dnsquery_st {
-    s2s_t               s2s;
+    s2s_t               *s2s;
 
     /** domain name */
     const char          *name;
@@ -299,7 +297,7 @@ struct dnsquery_st {
     int                 srv_i;
 
     /** srv lookup results (key host/port) */
-    xht                 hosts;
+    xht                 *hosts;
 
     /** current host lookup name */
     const char          *cur_host;
@@ -317,7 +315,7 @@ struct dnsquery_st {
     int                 cur_weight;
 
     /** host lookup results (key ip/port) */
-    xht                 results;
+    xht                 *results;
 
     /** time that all entries expire */
     time_t              expiry;
@@ -332,7 +330,7 @@ struct dnscache_st {
     char                name[1024];
 
     /** results (key ip/port) */
-    xht                 results;
+    xht                 *results;
 
     /** time that this entry expires */
     time_t              expiry;
@@ -341,7 +339,7 @@ struct dnscache_st {
 
     /** set when we're waiting for a resolve response */
     int                 pending;
-    dnsquery_t          query;
+    dnsquery_t          *query;
 };
 
 /** dns resolution results */
@@ -362,25 +360,25 @@ struct dnsres_st {
 extern sig_atomic_t s2s_lost_router;
 
 int             s2s_router_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
-int             s2s_router_sx_callback(sx_t s, sx_event_t e, void *data, void *arg);
-int             s2s_domain_in_whitelist(s2s_t s2s, const char *in_domain);
+int             s2s_router_sx_callback(sx_t *s, sx_event_t e, void *data, void *arg);
+int             s2s_domain_in_whitelist(s2s_t *s2s, const char *in_domain);
 
-char            *s2s_route_key(pool_t p, const char *local, const char *remote);
+char            *s2s_route_key(pool_t *p, const char *local, const char *remote);
 int             s2s_route_key_match(char *local, const char *remote, const char *rkey, int rkeylen);
-char            *s2s_db_key(pool_t p, const char *secret, const char *remote, const char *id);
+char            *s2s_db_key(pool_t *p, const char *secret, const char *remote, const char *id);
 char            *dns_make_ipport(const char* host, int port);
 
-int             out_packet(s2s_t s2s, pkt_t pkt);
-int             out_route(s2s_t s2s, const char *route, int routelen, conn_t *out, int allow_bad);
-int             dns_select(s2s_t s2s, char* ip, int* port, time_t now, dnscache_t dns, int allow_bad);
-void            dns_resolve_domain(s2s_t s2s, dnscache_t dns);
-void            out_resolve(s2s_t s2s, const char *domain, xht results, time_t expiry);
-void            out_dialback(s2s_t s2s, pkt_t pkt);
-int             out_bounce_domain_queues(s2s_t s2s, const char *domain, int err);
-int             out_bounce_route_queue(s2s_t s2s, const char *rkey, int rkeylen, int err);
-int             out_bounce_conn_queues(conn_t out, int err);
-void            out_flush_domain_queues(s2s_t s2s, const char *domain);
-void            out_flush_route_queue(s2s_t s2s, const char *rkey, int rkeylen);
+int             out_packet(s2s_t *s2s, pkt_t *pkt);
+int             out_route(s2s_t *s2s, const char *route, int routelen, conn_t **out, int allow_bad);
+int             dns_select(s2s_t *s2s, char* ip, int* port, time_t now, dnscache_t *dns, int allow_bad);
+void            dns_resolve_domain(s2s_t *s2s, dnscache_t *dns);
+void            out_resolve(s2s_t *s2s, const char *domain, xht *results, time_t expiry);
+void            out_dialback(s2s_t *s2s, pkt_t *pkt);
+int             out_bounce_domain_queues(s2s_t *s2s, const char *domain, int err);
+int             out_bounce_route_queue(s2s_t *s2s, const char *rkey, int rkeylen, int err);
+int             out_bounce_conn_queues(conn_t *out, int err);
+void            out_flush_domain_queues(s2s_t *s2s, const char *domain);
+void            out_flush_route_queue(s2s_t *s2s, const char *rkey, int rkeylen);
 
 int             in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data, void *arg);
 
@@ -390,18 +388,18 @@ int             in_mio_callback(mio_t m, mio_action_t a, mio_fd_t fd, void *data
 /* max length of FQDN for whitelist matching */
 #define MAX_DOMAIN_LEN	1023
 
-int             s2s_db_init(sx_env_t env, sx_plugin_t p, va_list args);
+int             s2s_db_init(sx_env_t *env, sx_plugin_t *p, va_list args);
 
 /* union for xhash_iter_get to comply with strict-alias rules for gcc3 */
 union xhashv
 {
   void **val;
   char **char_val;
-  conn_t *conn_val;
-  conn_state_t *state_val;
-  jqueue_t *jq_val;
-  dnscache_t *dns_val;
-  dnsres_t *dnsres_val;
+  conn_t **conn_val;
+  conn_state_t **state_val;
+  jqueue_t **jq_val;
+  dnscache_t **dns_val;
+  dnsres_t **dnsres_val;
 };
 
-void out_pkt_free(pkt_t pkt);
+void out_pkt_free(pkt_t *pkt);
