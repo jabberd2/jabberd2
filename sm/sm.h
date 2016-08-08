@@ -39,7 +39,7 @@
 #include "lib/config.h"
 #include "lib/xhash.h"
 #include "lib/jsignal.h"
-#include "storage/storage.h"
+#include "storage.h"
 
 #include <signal.h>
 #include <sys/stat.h>

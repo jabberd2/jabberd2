@@ -2,7 +2,7 @@ EXTRA_DIST = Doxyfile.in README.md README.win32 README.protocol README.config co
 
 LIBTOOL += --quiet
 
-SUBDIRS = etc man tools lib mio sx router c2s s2s storage sm
+SUBDIRS = etc man tools lib mio sx router c2s s2s sm
 if ENABLE_TESTS
 SUBDIRS += tests
 endif

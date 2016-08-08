@@ -446,9 +446,9 @@ AM_CONDITIONAL(USE_WEBSOCKET, [test "x-$want_websocket" = "x-yes"])
 AC_ARG_ENABLE(anon, AC_HELP_STRING([--enable-anon], [enable anonymous auth/reg support (no)]),
               want_anon=$enableval, want_anon=no)
 if test "x-$want_anon" = "x-yes" ; then
-    AC_DEFINE(STORAGE_ANON,1,[Define to 1 if you want anonymous auth.])
+    AC_DEFINE(AUTHREG_ANON,1,[Define to 1 if you want anonymous auth.])
 fi
-AM_CONDITIONAL(STORAGE_ANON, [test "x-$want_anon" = "x-yes"])
+AM_CONDITIONAL(AUTHREG_ANON, [test "x-$want_anon" = "x-yes"])
 
 AC_ARG_ENABLE(superseded, AS_HELP_STRING([--enable-superseded],[enable superseded XEP support (yes)]),
               want_superseded=$enableval, want_superseded=no)
@@ -496,7 +496,6 @@ AC_CONFIG_FILES([Doxyfile
                  lib/Makefile
                  mio/Makefile
                  sx/Makefile
-                 storage/Makefile
                  c2s/Makefile
                  router/Makefile
                  s2s/Makefile
