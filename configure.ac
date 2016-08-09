@@ -8,7 +8,7 @@ AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIRS([m4])
 AM_INIT_AUTOMAKE
 AM_SILENT_RULES([yes])
-LT_PREREQ([2.4.6])
+LT_PREREQ([2.4.2])
 LT_INIT([shared disable-static dlopen])
 AC_SUBST([LIBTOOL_DEPS])
 

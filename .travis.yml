@@ -1,3 +1,5 @@
+sudo: required
+dist: trusty
 language: c
 compiler:
   - clang
@@ -10,15 +12,15 @@ env:
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -qq autoconf-archive
-  - sudo apt-get install -qq libssl-dev libgsasl7-dev libdb-dev libpam0g-dev libmysqlclient-dev libpq-dev libldap2-dev libsqlite3-dev libidn11-dev libexpat1-dev libudns-dev check
-before_script: autoreconf -fi
-script: ./configure --enable-ssl --enable-mysql --enable-pgsql --enable-sqlite --enable-db --enable-ldap --enable-pam --enable-pipe --enable-anon --enable-fs --without-subst && make && make check
+  - sudo apt-get install -qq libexpat1-dev liblog4c-dev libudns-dev libidn11-dev libssl-dev libgsasl7-dev libdb-dev libpam0g-dev libmysqlclient-dev libpq-dev libldap2-dev libsqlite3-dev check
+before_script: autoreconf -fi && mkdir build
+script: cd build && ../configure --enable-ssl --enable-mysql --enable-pgsql --enable-sqlite --enable-db --enable-ldap --enable-pam --enable-pipe --enable-anon --enable-fs --without-subst && make && make check
 addons:
   coverity_scan:
     project:
       name: "jabberd2/jabberd2"
       description: "Build submitted via Travis CI"
     notification_email: tomek@xiaoka.com
-    build_command_prepend: "./configure --enable-ssl --enable-mysql --enable-pgsql --enable-sqlite --enable-db --enable-ldap --enable-pam --enable-pipe --enable-anon --enable-fs --without-subst"
+    build_command_prepend: "mkdir build && cd build && ../configure --enable-ssl --enable-mysql --enable-pgsql --enable-sqlite --enable-db --enable-ldap --enable-pam --enable-pipe --enable-anon --enable-fs --without-subst"
     build_command:   "make -j 4"
     branch_pattern: coverity_scan
