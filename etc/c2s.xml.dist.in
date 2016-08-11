@@ -363,10 +363,8 @@
 
   <!-- Authentication/registration database configuration -->
   <authreg>
-    <!-- Dynamic authreg modules path -->
-    <path>@pkglibdir@</path>
-
-    <!-- Backend module to use -->
+    <!-- Authreg backend module to use.
+         You can specify bare module name, or full path to .so file. -->
     <module>sqlite</module>
 
     <!-- Available authentication mechanisms -->

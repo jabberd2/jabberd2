@@ -23,6 +23,7 @@
 #include "lib/uri.h"
 #include "lib/sha1.h"
 
+#include <string.h>
 #include <stringprep.h>
 #ifdef _WIN32
   #include <windows.h>
@@ -43,7 +44,6 @@ typedef struct _authreg_error_st {
 /** get a handle for the named module */
 authreg_t *authreg_init(c2s_t *c2s, const char *name) {
     char mod_fullpath[PATH_MAX];
-    const char *modules_path;
     ar_module_init_fn init_fn = NULL;
     authreg_t *ar;
     void *handle;
@@ -54,18 +54,12 @@ authreg_t *authreg_init(c2s_t *c2s, const char *name) {
         return ar->initialized ? ar : NULL;
     }
 
-    /* load authreg module */
-    modules_path = config_get_one(c2s->config, "authreg.path", 0);
-    if (modules_path != NULL) {
-        LOG_NOTICE(c2s->log, "modules search path: %s", modules_path);
-    } else {
-        LOG_NOTICE(c2s->log, "modules search path undefined, using default: "LIBRARY_DIR);
-    }
+    LOG_NOTICE(c2s->log, "using modules search path: " LIBRARY_DIR);
 
     LOG_INFO(c2s->log, "loading '%s' authreg module", name);
 #ifndef _WIN32
-    if (modules_path != NULL)
-        snprintf(mod_fullpath, PATH_MAX, "%s/authreg_%s.so", modules_path, name);
+    if (strchr(name, '/'))
+        snprintf(mod_fullpath, PATH_MAX, "%s", name);
     else
         snprintf(mod_fullpath, PATH_MAX, "%s/authreg_%s.so", LIBRARY_DIR, name);
     handle = dlopen(mod_fullpath, RTLD_LAZY);
