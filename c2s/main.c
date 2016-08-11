@@ -138,13 +138,13 @@ static void _c2s_config_expand(c2s_t *c2s)
 
     c2s->local_ssl_port = j_atoi(config_get_one(c2s->config, "local.ssl-port", 0), 0);
 
-    c2s->http_forward = config_get_one(c2s->config, "local.httpforward", 0);
-
-    c2s->websocket = (config_get(c2s->config, "io.websocket") != NULL);
-
     c2s->io_max_fds = j_atoi(config_get_one(c2s->config, "io.max_fds", 0), 1024);
 
     c2s->compression = (config_get(c2s->config, "io.compression") != NULL);
+
+    c2s->websocket = (config_get(c2s->config, "io.websocket") != NULL);
+
+    c2s->http_forward = config_get_one(c2s->config, "io.httpforward", 0);
 
     c2s->io_check_interval = j_atoi(config_get_one(c2s->config, "io.check.interval", 0), 0);
     c2s->io_check_idle = j_atoi(config_get_one(c2s->config, "io.check.idle", 0), 0);

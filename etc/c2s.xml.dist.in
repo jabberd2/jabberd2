@@ -184,11 +184,6 @@
     <!--
     <cachain>@sysconfdir@/client_ca_certs.pem</cachain>  
     -->
-
-    <!-- Forward incoming HTTP clients to a real HTTP server -->
-    <!--
-    <httpforward>http://www.jabber.org/</httpforward>
-    -->
   </local>
 
   <!-- Input/output settings -->
@@ -259,6 +254,12 @@
     <!-- Enable WebSocket protocol support -->
     <!--
     <websocket/>
+    -->
+
+    <!-- Forward incoming HTTP clients to a real HTTP server.
+         (Requires WebSocket support.) -->
+    <!--
+    <httpforward>http://www.jabber.org/</httpforward>
     -->
 
     <!-- IP-based access controls. If a connection IP matches an allow
