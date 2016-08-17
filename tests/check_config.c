@@ -33,7 +33,7 @@ START_TEST (check_config_parse)
 
     ck_assert_str_eq ("test_id", config_get_one(c, "id", 0));
     ck_assert_str_eq ("value if id is test_id", config_get_one(c, "value_with_id", 0));
-    ck_assert_str_eq ("1", config_get_one(c, "simple_value", 0));
+    ck_assert_str_eq ("", config_get_one(c, "simple_value", 0));
     ck_assert_int_eq (0, config_count(c, "does_not_exists"));
     ck_assert_int_eq (1, config_count(c, "simple_value"));
     ck_assert_int_eq (3, config_count(c, "multiple.val"));

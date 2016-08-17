@@ -87,10 +87,6 @@ static void _s2s_config_expand(s2s_t *s2s) {
     config_elem_t *elem;
     int i, r;
 
-    s2s->id = config_get_one(s2s->config, "id", 0);
-    if(s2s->id == NULL)
-        s2s->id = "s2s";
-
     s2s->router_ip = config_get_one(s2s->config, "router.ip", 0);
     if(s2s->router_ip == NULL)
         s2s->router_ip = "127.0.0.1";
@@ -887,10 +883,19 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
         return 2;
     }
 
-    _s2s_config_expand(s2s);
+    s2s->id = config_get_one(s2s->config, "id", 0);
+    if(!s2s->id || s2s->id[0] == '\0')
+    {
+        fputs("s2s: no 'id' set, aborting\n", stderr);
+        config_free(s2s->config);
+        free(s2s);
+        return 2;
+    }
 
     s2s->log = log_get(s2s->id);
     LOG_NOTICE(s2s->log, "starting up (interval=%i, queue=%i, keepalive=%i, idle=%i)", s2s->check_interval, s2s->check_queue, s2s->check_keepalive, s2s->check_idle);
+
+    _s2s_config_expand(s2s);
 
     _s2s_pidfile(s2s);
 

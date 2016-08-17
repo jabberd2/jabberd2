@@ -41,27 +41,46 @@ typedef struct _authreg_error_st {
     char        *uri;
 } *authreg_error_t;
 
-/** get a handle for the named module */
-authreg_t *authreg_init(c2s_t *c2s, const char *name) {
+/** get a handle for the module */
+authreg_t *authreg_init(c2s_t *c2s, const char *id, config_t *config) {
     char mod_fullpath[PATH_MAX];
     ar_module_init_fn init_fn = NULL;
     authreg_t *ar;
     void *handle;
 
-    /* return if already loaded */
-    ar = xhash_get(c2s->ar_modules, name);
+    /* fail if already loaded */
+    ar = xhash_get(c2s->ar_modules, id);
     if (ar) {
-        return ar->initialized ? ar : NULL;
+        LOG_ERROR(c2s->log, "authreg module id '%s' already created", id);
+        config_free(config);
+        return NULL;
+    }
+
+    /* make a new one */
+    ar = pnew(xhash_pool(c2s->ar_modules), authreg_t);
+    if(!ar) {
+        LOG_FATAL(c2s->log, "cannot allocate memory for new authreg, aborting");
+        exit(1);
+    }
+
+    ar->c2s = c2s;
+    ar->config = config;
+
+    ar->driver = config_get_one(ar->config, "driver", 0);
+    if (!ar->driver || ar->driver[0] == '\0') {
+        LOG_ERROR(c2s->log, "authreg module id '%s' has no driver", id);
+        config_free(config);
+        return NULL;
     }
 
     LOG_NOTICE(c2s->log, "using modules search path: " LIBRARY_DIR);
 
-    LOG_INFO(c2s->log, "loading '%s' authreg module", name);
+    LOG_INFO(c2s->log, "loading '%s' authreg driver", ar->driver);
 #ifndef _WIN32
-    if (strchr(name, '/'))
-        snprintf(mod_fullpath, PATH_MAX, "%s", name);
+    if (strchr(ar->driver, '/'))
+        snprintf(mod_fullpath, PATH_MAX, "%s", ar->driver);
     else
-        snprintf(mod_fullpath, PATH_MAX, "%s/authreg_%s.so", LIBRARY_DIR, name);
+        snprintf(mod_fullpath, PATH_MAX, "%s/authreg_%s.so", LIBRARY_DIR, ar->driver);
     handle = dlopen(mod_fullpath, RTLD_LAZY);
     if (handle != NULL)
         init_fn = dlsym(handle, "ar_init");
@@ -76,10 +95,10 @@ authreg_t *authreg_init(c2s_t *c2s, const char *name) {
 #endif
 
     if (handle != NULL && init_fn != NULL) {
-        LOG_DEBUG(c2s->log, "preloaded module '%s' (not initialized yet)", name);
+        LOG_DEBUG(c2s->log, "preloaded module '%s' (not initialized yet)", ar->driver);
     } else {
 #ifndef _WIN32
-        LOG_ERROR(c2s->log, "failed loading authreg module '%s' (%s)", name, dlerror());
+        LOG_ERROR(c2s->log, "failed loading authreg module '%s' (%s)", ar->driver, dlerror());
         if (handle != NULL)
             dlclose(handle);
 #else
@@ -90,22 +109,13 @@ authreg_t *authreg_init(c2s_t *c2s, const char *name) {
         return NULL;
     }
 
-    /* make a new one */
-    ar = pnew(xhash_pool(c2s->ar_modules), authreg_t);
-    if(!ar) {
-        LOG_ERROR(c2s->log, "cannot allocate memory for new authreg, aborting");
-        exit(1);
-    }
 
     ar->handle = handle;
-    ar->c2s = c2s;
-
-    xhash_put(c2s->ar_modules, name, ar);
 
     /* call the initialiser */
     if((init_fn)(ar) != 0)
     {
-        LOG_ERROR(c2s->log, "failed to initialize auth module '%s'", name);
+        LOG_ERROR(c2s->log, "failed to initialize auth module '%s'", ar->driver);
         authreg_free(ar);
         return NULL;
     }
@@ -113,22 +123,23 @@ authreg_t *authreg_init(c2s_t *c2s, const char *name) {
     /* we need user_exists(), at the very least */
     if(ar->user_exists == NULL)
     {
-        LOG_ERROR(c2s->log, "auth module '%s' has no check for user existence", name);
+        LOG_ERROR(c2s->log, "auth module '%s' has no check for user existence", ar->driver);
         authreg_free(ar);
         return NULL;
     }
     
     /* its good */
-    ar->initialized = TRUE;
-    LOG_NOTICE(c2s->log, "initialized auth module '%s'", name);
+    LOG_NOTICE(c2s->log, "initialized auth module '%s' as id '%s", ar->driver, id);
 
+    xhash_put(c2s->ar_modules, id, ar);
     return ar;
 }
 
 /** shutdown the authreg system */
 void authreg_free(authreg_t *ar) {
-    if (ar && ar->initialized) {
-        if(ar->free != NULL) (ar->free)(ar);
+    if (ar) {
+        if (ar->free != NULL) (ar->free)(ar);
+        if (ar->config) config_free(ar->config);
     }
 }
 

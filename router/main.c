@@ -76,10 +76,6 @@ static void _router_config_expand(router_t *r)
     int i;
     alias_t *alias;
 
-    r->id = config_get_one(r->config, "id", 0);
-    if(r->id == NULL)
-        r->id = "router";
-
     r->local_ip = config_get_one(r->config, "local.ip", 0);
     if(r->local_ip == NULL)
         r->local_ip = "0.0.0.0";
@@ -363,10 +359,19 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
         return 2;
     }
 
-    _router_config_expand(r);
+    r->id = config_get_one(r->config, "id", 0);
+    if(!r->id || r->id[0] == '\0')
+    {
+        fputs("router: no 'id' set, aborting\n", stderr);
+        config_free(r->config);
+        free(r);
+        return 2;
+    }
 
     r->log = log_get(r->id);
     LOG_NOTICE(r->log, "starting up");
+
+    _router_config_expand(r);
 
     _router_pidfile(r);
 

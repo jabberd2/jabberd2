@@ -253,8 +253,7 @@ static int _roster_publish_user_load(mod_instance_t *mi, user_t *user) {
                         if(jid ) jid_free(jid);
                         jid = jid_new(str, -1);
                         if(roster_publish->removedomain ) {
-                            if(strcmp("1", roster_publish->removedomain) == 0 || /* XXX HACKY!!! "1" is very config.c dependant */
-                                    strcmp(jid->domain, roster_publish->removedomain) == 0 ) {
+                            if(strcmp("", roster_publish->removedomain) == 0 || strcmp(jid->domain, roster_publish->removedomain) == 0 ) {
                                 checksm = 1;
                             }
                         }

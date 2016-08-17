@@ -84,14 +84,10 @@ static void _c2s_pidfile(c2s_t* c2s) {
 static void _c2s_config_expand(c2s_t *c2s)
 {
     const char *str, *ip, *mask;
-    char *req_domain, *to_address, *to_port;
+    const char *req_domain, *to_address, *to_port;
     config_elem_t *elem;
     int i;
     stream_redirect_t *sr;
-
-    c2s->id = config_get_one(c2s->config, "id", 0);
-    if(c2s->id == NULL)
-        c2s->id = "c2s";
 
     c2s->router_ip = config_get_one(c2s->config, "router.ip", 0);
     if(c2s->router_ip == NULL)
@@ -152,42 +148,49 @@ static void _c2s_config_expand(c2s_t *c2s)
 
     c2s->pbx_pipe = config_get_one(c2s->config, "pbx.pipe", 0);
 
-    elem = config_get(c2s->config, "stream_redirect.redirect");
-    if(elem != NULL)
-    {
-        for(i = 0; i < elem->nvalues; i++)
-        {
-            sr = pnew(xhash_pool(c2s->stream_redirects), stream_redirect_t);
-            if(!sr) {
-                LOG_ERROR(c2s->log, "cannot allocate memory for new stream redirection record, aborting");
-                exit(1);
-            }
-            req_domain = j_attr((const char **) elem->attrs[i], "requested_domain");
-            to_address = j_attr((const char **) elem->attrs[i], "to_address");
-            to_port = j_attr((const char **) elem->attrs[i], "to_port");
-
-            if(req_domain == NULL || to_address == NULL || to_port == NULL) {
-                LOG_ERROR(c2s->log, "Error reading a stream_redirect.redirect element from file, skipping");
-                continue;
-            }
-
-            // Note that to_address should be RFC 3986 compliant
-            sr->to_address = to_address;
-            sr->to_port = to_port;
-
-            xhash_put(c2s->stream_redirects, pstrdup(xhash_pool(c2s->stream_redirects), req_domain), sr);
+    elem = config_get(c2s->config, "local.redirect");
+    if(elem != NULL) for(i = 0; i < elem->nvalues; i++) {
+        sr = pnew(xhash_pool(c2s->stream_redirects), stream_redirect_t);
+        if(!sr) {
+            LOG_ERROR(c2s->log, "cannot allocate memory for new stream redirection record, aborting");
+            exit(1);
         }
+        req_domain = elem->values[i];
+        to_address = j_attr(elem->attrs[i], "address");
+        to_port = j_attr(elem->attrs[i], "port");
+
+        if(req_domain == NULL || to_address == NULL || to_port == NULL) {
+            LOG_ERROR(c2s->log, "Error reading a stream_redirect.redirect element from file, skipping");
+            continue;
+        }
+
+        // Note that to_address should be RFC 3986 compliant
+        sr->to_address = to_address;
+        sr->to_port = to_port;
+
+        xhash_put(c2s->stream_redirects, pstrdup(xhash_pool(c2s->stream_redirects), req_domain), sr);
     }
 
-    c2s->ar_module_name = config_get_one(c2s->config, "authreg.module", 0);
+    elem = config_get(c2s->config, "authreg.module");
+    if(elem != NULL) for(i = 0; i < elem->nvalues; i++) {
+        str = j_attr((const char **) elem->attrs[i], "id");
+        if (str && str[0] != '\0') {
+            config_t *config = config_new(17);
+            config_load_elem(config, c2s->config, elem, i);
+            if(authreg_init(c2s, str, config) == NULL) {
+                LOG_ERROR(c2s->log, "Failed to initialize authreg module: %s", str);
+                continue;
+            }
+        }
+    }
 
     if(config_get(c2s->config, "authreg.mechanisms.traditional.plain") != NULL) c2s->ar_mechanisms |= AR_MECH_TRAD_PLAIN;
     if(config_get(c2s->config, "authreg.mechanisms.traditional.digest") != NULL) c2s->ar_mechanisms |= AR_MECH_TRAD_DIGEST;
     if(config_get(c2s->config, "authreg.mechanisms.traditional.cram-md5") != NULL) c2s->ar_mechanisms |= AR_MECH_TRAD_CRAMMD5;
 
-    if(config_get(c2s->config, "authreg.ssl-mechanisms.traditional.plain") != NULL) c2s->ar_ssl_mechanisms |= AR_MECH_TRAD_PLAIN;
-    if(config_get(c2s->config, "authreg.ssl-mechanisms.traditional.digest") != NULL) c2s->ar_ssl_mechanisms |= AR_MECH_TRAD_DIGEST;
-    if(config_get(c2s->config, "authreg.ssl-mechanisms.traditional.cram-md5") != NULL) c2s->ar_ssl_mechanisms |= AR_MECH_TRAD_CRAMMD5;
+    if(config_get(c2s->config, "authreg.mechanisms.ssl.traditional.plain") != NULL) c2s->ar_ssl_mechanisms |= AR_MECH_TRAD_PLAIN;
+    if(config_get(c2s->config, "authreg.mechanisms.ssl.traditional.digest") != NULL) c2s->ar_ssl_mechanisms |= AR_MECH_TRAD_DIGEST;
+    if(config_get(c2s->config, "authreg.mechanisms.ssl.traditional.cram-md5") != NULL) c2s->ar_ssl_mechanisms |= AR_MECH_TRAD_CRAMMD5;
 
     elem = config_get(c2s->config, "io.limits.bytes");
     if(elem != NULL)
@@ -240,39 +243,31 @@ static void _c2s_config_expand(c2s_t *c2s)
         c2s->access = access_new(1);
 
     elem = config_get(c2s->config, "io.access.allow");
-    if(elem != NULL)
-    {
-        for(i = 0; i < elem->nvalues; i++)
-        {
-            ip = j_attr((const char **) elem->attrs[i], "ip");
-            mask = j_attr((const char **) elem->attrs[i], "mask");
+    if(elem != NULL) for(i = 0; i < elem->nvalues; i++) {
+        ip = j_attr((const char **) elem->attrs[i], "ip");
+        mask = j_attr((const char **) elem->attrs[i], "mask");
 
-            if(ip == NULL)
-                continue;
+        if(ip == NULL)
+            continue;
 
-            if(mask == NULL)
-                mask = "255.255.255.255";
+        if(mask == NULL)
+            mask = "255.255.255.255";
 
-            access_allow(c2s->access, ip, mask);
-        }
+        access_allow(c2s->access, ip, mask);
     }
 
     elem = config_get(c2s->config, "io.access.deny");
-    if(elem != NULL)
-    {
-        for(i = 0; i < elem->nvalues; i++)
-        {
-            ip = j_attr((const char **) elem->attrs[i], "ip");
-            mask = j_attr((const char **) elem->attrs[i], "mask");
+    if(elem != NULL) for(i = 0; i < elem->nvalues; i++) {
+        ip = j_attr((const char **) elem->attrs[i], "ip");
+        mask = j_attr((const char **) elem->attrs[i], "mask");
 
-            if(ip == NULL)
-                continue;
+        if(ip == NULL)
+            continue;
 
-            if(mask == NULL)
-                mask = "255.255.255.255";
+        if(mask == NULL)
+            mask = "255.255.255.255";
 
-            access_deny(c2s->access, ip, mask);
-        }
+        access_deny(c2s->access, ip, mask);
     }
 }
 
@@ -290,9 +285,9 @@ static void _c2s_hosts_expand(c2s_t *c2s)
     }
     for(i = 0; i < elem->nvalues; i++) {
         host_t *host = pnew(xhash_pool(c2s->hosts), host_t);
-        if(!host) {
+        if(host == NULL) {
             LOG_ERROR(c2s->log, "cannot allocate memory for new host, aborting");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         realm = j_attr((const char **) elem->attrs[i], "realm");
@@ -302,10 +297,22 @@ static void _c2s_hosts_expand(c2s_t *c2s)
         id[1023] = '\0';
         if (stringprep_nameprep(id, 1024) != 0) {
             LOG_ERROR(c2s->log, "cannot stringprep id %s, aborting", id);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         host->realm = (realm != NULL) ? realm : pstrdup(xhash_pool(c2s->hosts), id);
+
+        host->ar_id = j_attr((const char **) elem->attrs[i], "authreg");
+        if (host->ar_id == NULL) {
+            LOG_ERROR(c2s->log, "no authreg specified for '%s', aborting", id);
+            exit(EXIT_FAILURE);
+        }
+
+        host->ar = xhash_get(c2s->ar_modules, host->ar_id);
+        if (host->ar == NULL) {
+            LOG_FATAL(c2s->log, "no authreg module id='%s', aborting", host->ar_id);
+            exit(EXIT_FAILURE);
+        }
 
         host->host_pemfile = j_attr((const char **) elem->attrs[i], "pemfile");
 
@@ -336,15 +343,6 @@ static void _c2s_hosts_expand(c2s_t *c2s)
 
         host->host_require_starttls = (j_attr((const char **) elem->attrs[i], "require-starttls") != NULL);
 
-        host->ar_module_name = j_attr((const char **) elem->attrs[i], "authreg-module");
-        if(host->ar_module_name) {
-            if((host->ar = authreg_init(c2s, host->ar_module_name)) == NULL) {
-                LOG_NOTICE(c2s->log, "failed to load %s authreg module - using default", host->realm);
-                host->ar = c2s->ar;
-            }
-        } else
-            host->ar = c2s->ar;
-
         host->ar_register_enable = (j_attr((const char **) elem->attrs[i], "register-enable") != NULL);
         host->ar_register_oob = j_attr((const char **) elem->attrs[i], "register-oob");
         if(host->ar_register_enable || host->ar_register_oob) {
@@ -358,8 +356,8 @@ static void _c2s_hosts_expand(c2s_t *c2s)
         } else
             host->ar_register_password = (j_attr((const char **) elem->attrs[i], "password-change") != NULL);
 
-        /* check for empty <id/> CDATA - XXX this "1" is VERY config.c dependant !!! */
-        if(! strcmp(id, "1")) {
+        /* check for empty <id/> CDATA */
+        if(! strcmp(id, "")) {
             /* remove the realm even if set */
             host->realm = NULL;
 
@@ -375,8 +373,7 @@ static void _c2s_hosts_expand(c2s_t *c2s)
         }
 
         LOG_NOTICE(c2s->log, "[%s] configured; realm=%s, authreg=%s, registration %s, using PEM:%s",
-                  id, (host->realm != NULL ? host->realm : "no realm set"),
-                  (host->ar_module_name ? host->ar_module_name : c2s->ar_module_name),
+                  id, (host->realm != NULL ? host->realm : "no realm set"), host->ar_id,
                   (host->ar_register_enable ? "enabled" : "disabled"),
                   (host->host_pemfile ? host->host_pemfile : "Default"));
     }
@@ -431,7 +428,7 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t *s, void *c
                 /* get host for request */
                 host = xhash_get(c2s->hosts, s->req_to);
                 if(host == NULL) {
-                    LOG_ERROR(c2s->log, "SASL callback for non-existing host: %s", s->req_to);
+                    LOG_ERROR(c2s->log, "sx sasl callback for non-existing host: %s", s->req_to);
                     *res = (void *)NULL;
                     return sx_sasl_ret_FAIL;
                 }
@@ -568,14 +565,14 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t *s, void *c
              * we've finished mechanism establishment
              */
             if (s->ssf>0) {
-                r = snprintf(buf, sizeof(buf), "authreg.ssl-mechanisms.sasl.%s",mechbuf);
+                r = snprintf(buf, sizeof(buf), "authreg.mechanisms.ssl.sasl.%s", mechbuf);
                 if (r < -1 || r > sizeof(buf))
                     return sx_sasl_ret_FAIL;
                 if(config_get(c2s->config,buf) != NULL)
                     return sx_sasl_ret_OK;
             }
 
-            r = snprintf(buf, sizeof(buf), "authreg.mechanisms.sasl.%s",mechbuf);
+            r = snprintf(buf, sizeof(buf), "authreg.mechanisms.sasl.%s", mechbuf);
             if (r < -1 || r > sizeof(buf))
                 return sx_sasl_ret_FAIL;
 
@@ -724,24 +721,23 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
         return 2;
     }
 
-    c2s->stream_redirects = xhash_new(11);
-
-    _c2s_config_expand(c2s);
-
-    c2s->ar_modules = xhash_new(5);
-    if(c2s->ar_module_name == NULL) {
-        fputs("c2s: no default authreg module specified in config file\n", stderr);
-    }
-    else if((c2s->ar = authreg_init(c2s, c2s->ar_module_name)) == NULL) {
-        fprintf(stderr, "c2s: failed to initialize authreg module: %s, aborting\n", c2s->ar_module_name);
-        access_free(c2s->access);
+    c2s->id = config_get_one(c2s->config, "id", 0);
+    if(!c2s->id || c2s->id[0] == '\0')
+    {
+        fputs("c2s: no 'id' set, aborting\n", stderr);
         config_free(c2s->config);
         free(c2s);
-        exit(1);
+        return 2;
     }
 
     c2s->log = log_get(c2s->id);
     LOG_NOTICE(c2s->log, "starting up");
+
+    c2s->stream_redirects = xhash_new(11);
+
+    c2s->ar_modules = xhash_new(5);
+
+    _c2s_config_expand(c2s);
 
     _c2s_pidfile(c2s);
 

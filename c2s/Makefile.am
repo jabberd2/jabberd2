@@ -13,8 +13,7 @@ c2s_CPPFLAGS = $(AM_CPPFLAGS) -DLIBRARY_DIR=\"$(pkglibdir)\"
 c2s_LDFLAGS = -export-dynamic
 c2s_LDADD = $(top_builddir)/sx/libsx.la \
             $(top_builddir)/mio/libmio.la \
-            $(top_builddir)/lib/libutil.la \
-            $(top_builddir)/lib/libvendor.la
+            $(top_builddir)/lib/libutil.la
 
 MODULE_LDFLAGS = -module -export-dynamic -avoid-version
 

@@ -20,6 +20,7 @@
 
 #include "config.h"
 #include "str.h"
+#include "sds.h"
 #include <expat.h>
 #include <errno.h>
 #include <string.h>
@@ -74,7 +75,7 @@ static char *_config_expandx(config_t *c, const char *value, int l);
 /** turn an xml file into a config hash */
 int config_load(config_t *c, const char *file)
 {
-    return config_load_with_id(c, file, 0);
+    return config_load_with_id(c, file, NULL);
 }
 
 /** turn an xml file into a config hash */
@@ -83,12 +84,8 @@ int config_load_with_id(config_t *c, const char *file, const char *id)
     struct build_data bd;
     FILE *f;
     XML_Parser p;
-    unsigned int done, len, end, i, j;
-    int attr;
-    char buf[1024], *next;
-    struct nad_elem_st **path;
-    config_elem_t *elem;
-    int rv = 0;
+    unsigned int done, len;
+    char buf[1024];
 
     /* open the file */
     f = fopen(file, "r");
@@ -119,7 +116,7 @@ int config_load_with_id(config_t *c, const char *file, const char *id)
     for(;;)
     {
         /* read that file */
-        len = fread(buf, 1, 1024, f);
+        len = fread(buf, 1, sizeof(buf), f);
         if(ferror(f))
         {
             fprintf(stderr, "config_load: read error: %s\n", strerror(errno));
@@ -150,41 +147,51 @@ int config_load_with_id(config_t *c, const char *file, const char *id)
 
     // Put id if specified
     if (id) {
-        elem = pnew(xhash_pool(c->hash), config_elem_t);
+        config_elem_t *elem = pnew(xhash_pool(c->hash), config_elem_t);
         xhash_put(c->hash, pstrdup(xhash_pool(c->hash), "id"), elem);
         elem->values = calloc(1, sizeof(char *));
+        elem->valuelems = calloc(1, sizeof(int));
         elem->values[0] = pstrdup(xhash_pool(c->hash), id);
         elem->nvalues = 1;
     }
 
-    /* now, turn the nad into a config hash */
+    return config_load_nad(c, bd.nad);
+}
+
+int config_load_nad(config_t *c, nad_t *nad)
+{
+    unsigned len, end, i, j;
+    int attr;
+    struct nad_elem_st **path;
+    config_elem_t *elem;
+    int rv = 0;
+    sds buf = sdsempty();
+
+    /* turn the nad into a config hash */
     path = NULL;
     len = 0, end = 0;
     /* start at 1, so we skip the root element */
-    for(i = 1; i < bd.nad->ecur && rv == 0; i++)
+    for(i = 1; i < nad->ecur && rv == 0; i++)
     {
         /* make sure we have enough room to add this element to our path */
-        if(end <= bd.nad->elems[i].depth)
+        if(end <= nad->elems[i].depth)
         {
-            end = bd.nad->elems[i].depth + 1;
+            end = nad->elems[i].depth + 1;
             path = realloc((void *) path, sizeof(struct nad_elem_st *) * end);
         }
 
         /* save this path element */
-        path[bd.nad->elems[i].depth] = &bd.nad->elems[i];
-        len = bd.nad->elems[i].depth + 1;
+        path[nad->elems[i].depth] = &nad->elems[i];
+        len = nad->elems[i].depth + 1;
 
         /* construct the key from the current path */
-        next = buf;
+        sdsclear(buf);
         for(j = 1; j < len; j++)
         {
-            strncpy(next, bd.nad->cdata + path[j]->iname, path[j]->lname);
-            next = next + path[j]->lname;
-            *next = '.';
-            next++;
+            buf = sdscatlen(buf, nad->cdata + path[j]->iname, path[j]->lname);
+            buf = sdscat(buf, ".");
         }
-        next--;
-        *next = '\0';
+        buf = sdstrim(buf, ".");
 
         /* find the config element for this key */
         elem = xhash_get(c->hash, buf);
@@ -198,12 +205,16 @@ int config_load_with_id(config_t *c, const char *file, const char *id)
         /* make room for this value .. can't easily realloc off a pool, so
          * we do it this way and let _config_reaper clean up */
         elem->values = realloc(elem->values, sizeof(char *) * (elem->nvalues + 1));
+        elem->valuelems = realloc(elem->valuelems, sizeof(int) * (elem->nvalues + 1));
+
+        /* remember NAD element index */
+        elem->valuelems[elem->nvalues] = i;
 
         /* and copy it in */
-        if(NAD_CDATA_L(bd.nad, i) > 0) {
+        if(NAD_CDATA_L(nad, i) > 0) {
             // Expand values
 
-            const char *val = _config_expandx(c, NAD_CDATA(bd.nad, i), NAD_CDATA_L(bd.nad, i));
+            const char *val = _config_expandx(c, NAD_CDATA(nad, i), NAD_CDATA_L(nad, i));
 
             if (!val) {
                 rv = 1;
@@ -212,7 +223,7 @@ int config_load_with_id(config_t *c, const char *file, const char *id)
             // Make a copy
             elem->values[elem->nvalues] = val;
         } else {
-            elem->values[elem->nvalues] = "1";
+            elem->values[elem->nvalues] = "";
         }
 
         /* make room for the attribute lists */
@@ -220,7 +231,7 @@ int config_load_with_id(config_t *c, const char *file, const char *id)
         elem->attrs[elem->nvalues] = NULL;
 
         /* count the attributes */
-        for(attr = bd.nad->elems[i].attr, j = 0; attr >= 0; attr = bd.nad->attrs[attr].next, j++);
+        for(attr = nad->elems[i].attr, j = 0; attr >= 0; attr = nad->attrs[attr].next, j++);
 
         /* make space */
         elem->attrs[elem->nvalues] = pmalloc(xhash_pool(c->hash), sizeof(char *) * (j * 2 + 2));
@@ -230,25 +241,25 @@ int config_load_with_id(config_t *c, const char *file, const char *id)
         {
             /* copy them in */
             j = 0;
-            attr = bd.nad->elems[i].attr;
+            attr = nad->elems[i].attr;
             while(attr >= 0)
             {
-                elem->attrs[elem->nvalues][j] = pstrdupx(xhash_pool(c->hash), NAD_ANAME(bd.nad, attr), NAD_ANAME_L(bd.nad, attr));
-                elem->attrs[elem->nvalues][j + 1] = pstrdupx(xhash_pool(c->hash), NAD_AVAL(bd.nad, attr), NAD_AVAL_L(bd.nad, attr));
+                elem->attrs[elem->nvalues][j] = pstrdupx(xhash_pool(c->hash), NAD_ANAME(nad, attr), NAD_ANAME_L(nad, attr));
+                elem->attrs[elem->nvalues][j + 1] = pstrdupx(xhash_pool(c->hash), NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr));
 
-        /*
-         * pstrdupx(blob, 0) returns NULL - which means that later
-         * there's no way of telling whether an attribute is defined
-         * as empty, or just not defined. This fixes that by creating
-         * an empty string for attributes which are defined empty
-         */
-                if (NAD_AVAL_L(bd.nad, attr)==0) {
+                /*
+                 * pstrdupx(blob, 0) returns NULL - which means that later
+                 * there's no way of telling whether an attribute is defined
+                 * as empty, or just not defined. This fixes that by creating
+                 * an empty string for attributes which are defined empty
+                 */
+                if (NAD_AVAL_L(nad, attr)==0) {
                     elem->attrs[elem->nvalues][j + 1] = pstrdup(xhash_pool(c->hash), "");
                 } else {
-                    elem->attrs[elem->nvalues][j + 1] = pstrdupx(xhash_pool(c->hash), NAD_AVAL(bd.nad, attr), NAD_AVAL_L(bd.nad, attr));
+                    elem->attrs[elem->nvalues][j + 1] = pstrdupx(xhash_pool(c->hash), NAD_AVAL(nad, attr), NAD_AVAL_L(nad, attr));
                 }
                 j += 2;
-                attr = bd.nad->attrs[attr].next;
+                attr = nad->attrs[attr].next;
             }
         }
 
@@ -259,14 +270,21 @@ int config_load_with_id(config_t *c, const char *file, const char *id)
         elem->nvalues++;
     }
 
-    if(path != NULL)
-        free(path);
+    free(path);
+    sdsfree(buf);
 
     if(c->nad != NULL)
         nad_free(c->nad);
-    c->nad = bd.nad;
+    c->nad = nad;
 
     return rv;
+}
+
+int config_load_elem(config_t *c, config_t *from, config_elem_t *elem, unsigned num)
+{
+    nad_t *nad = nad_new();
+    nad_insert_nad(nad, -1, from->nad, elem->valuelems[num]);
+    return config_load_nad(c, nad);
 }
 
 /** get the config element for this key */
@@ -330,6 +348,7 @@ static void _config_reaper(const char *key, int keylen, void *val, void *arg)
 
     free(elem->values);
     free(elem->attrs);
+    free(elem->valuelems);
 }
 
 char *config_expand(config_t *c, const char *value)

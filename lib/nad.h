@@ -134,7 +134,7 @@ JABBERD2_API void nad_drop_elem(nad_t *nad, unsigned int elem);
 JABBERD2_API void nad_wrap_elem(nad_t *nad, unsigned int elem, int ns, const char *name);
 
 /** insert part of a nad into another nad */
-JABBERD2_API int nad_insert_nad(nad_t *dest, unsigned int delem, nad_t *src, unsigned int selem);
+JABBERD2_API int nad_insert_nad(nad_t *dest, int delem, nad_t *src, unsigned int selem);
 
 /** append and return a new element */
 JABBERD2_API int nad_append_elem(nad_t *nad, int ns, const char *name, unsigned int depth);

@@ -82,10 +82,6 @@ static void _sm_config_expand(sm_t *sm)
 {
     config_elem_t *elem;
 
-    sm->id = config_get_one(sm->config, "id", 0);
-    if(sm->id == NULL)
-        sm->id = "sm";
-
     sm->router_ip = config_get_one(sm->config, "router.ip", 0);
     if(sm->router_ip == NULL)
         sm->router_ip = "127.0.0.1";
@@ -255,10 +251,19 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
         return 2;
     }
 
-    _sm_config_expand(sm);
+    sm->id = config_get_one(sm->config, "id", 0);
+    if(!sm->id || sm->id[0] == '\0')
+    {
+        fputs("sm: no 'id' set, aborting\n", stderr);
+        config_free(sm->config);
+        free(sm);
+        return 2;
+    }
 
     sm->log = log_get(sm->id);
     LOG_ERROR(sm->log, "starting up");
+
+    _sm_config_expand(sm);
 
     /* stringprep id (domain name) so that it's in canonical form */
     strncpy(id, sm->id, 1024);

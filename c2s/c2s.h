@@ -144,15 +144,15 @@ struct host_st {
     /** list of TLS ciphers */
     const char          *host_ciphers;
 
-    /* authreg module if different than default */
-    const char          *ar_module_name;
+    /** authreg module */
+    const char          *ar_id;
     authreg_t           *ar;
 
     /** registration */
     int                 ar_register_enable;
     const char          *ar_register_instructions;
     const char          *ar_register_oob;
-    int                 ar_register_password;
+    int                 ar_register_password; /** allow password change */
 };
 
 struct c2s_st {
@@ -257,10 +257,6 @@ struct c2s_st {
 
     time_t              next_check;
 
-    /** default auth/reg module */
-    const char          *ar_module_name;
-    authreg_t           *ar;
-
     /** loaded auth/reg modules */
     xht                 *ar_modules;
 
@@ -305,7 +301,7 @@ struct c2s_st {
 
     /** hosts mapping */
     xht                 *hosts;
-    host_t              *vhost;
+    host_t              *vhost; /** fallback host for unconfigured domain id */
 
     /** availability of sms that we are servicing */
     xht                 *sm_avail;
@@ -332,7 +328,12 @@ JABBERD2_API int    address_init(sx_env_t *env, sx_plugin_t *p, va_list args);
 struct authreg_st
 {
     c2s_t       *c2s;
-    int         initialized;
+
+    /** authreg config - extracted from c2s config */
+    config_t    *config;
+
+    /** driver module name */
+    const char  *driver;
 
     /**< loaded module handle */
     void        *handle;
@@ -373,7 +374,7 @@ struct authreg_st
 };
 
 /** get a handle for a single module */
-C2S_API authreg_t  *authreg_init(c2s_t *c2s, const char *name);
+C2S_API authreg_t  *authreg_init(c2s_t *c2s, const char *id, config_t *config);
 
 /** shut down */
 C2S_API void        authreg_free(authreg_t *ar);

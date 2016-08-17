@@ -121,7 +121,7 @@
          you want this, add this attribute with any value, when you need
          registration disabled.
 
-         authreg-module
+         authreg
          Use different authreg module than default one set in <authreg> section.
           -->
     <id register-enable='mu'>localhost.localdomain</id>
@@ -183,6 +183,15 @@
     <!-- SSL CA chain. Used to verify client certificates. CA names published to client upon connection -->
     <!--
     <cachain>@sysconfdir@/client_ca_certs.pem</cachain>  
+    -->
+
+    <!-- see-other-host error stream redirection support
+         This will redirect connections to specified domains to other host:port
+         Usefull when migrating service and DNS change did not propagate yet.
+         Note that to_address should be RFC 3986 compliant. -->
+    <!--
+    <redirect address="other.hostname" port="5269">some.domain</redirect>
+    <redirect address="some.other.host" port="1234">other.domain</redirect>
     -->
   </local>
 
@@ -350,22 +359,16 @@
     -->
   </pbx>
 
-  <!-- see-other-host error stream redirection support
-       This will redirect connections to specified domains to other host:port
-       Usefull when migrating service and DNS change did not propagate yet.
-       Note that to_address should be RFC 3986 compliant. -->
-  <stream_redirect>
-    <!--
-    <redirect requested_domain="some.domain" to_address="other.hostname" to_port="5269" />
-    <redirect requested_domain="other.domain" to_address="other.host" to_port="1234" />
-    -->
-  </stream_redirect>
-
   <!-- Authentication/registration database configuration -->
   <authreg>
-    <!-- Authreg backend module to use.
-         You can specify bare module name, or full path to .so file. -->
-    <module>sqlite</module>
+
+    <!-- Authreg modules configuration.
+         These are referred by id from local.id authreg attribute.
+         You can specify as many as you like. -->
+    <module id="anonymous">
+      <!-- Specify bare driver name, or full path to .so file. -->
+      <driver>anon</driver>
+    </module>
 
     <!-- Available authentication mechanisms -->
     <mechanisms>
@@ -376,8 +379,11 @@
            these mechanisms, then it will not be offered regardless of
            whether or not it is enabled here. -->
       <traditional>
+        <!--
         <plain/>
+        -->
         <digest/>
+        <cram-md5/>
       </traditional>
 
       <!-- SASL authentication mechanisms. Comment out any that you
@@ -385,7 +391,9 @@
            module does not support one of these mechanisms, then it will
            not be offered. -->
       <sasl>
+        <!--
         <plain/>
+        -->
         <digest-md5/>
         <!--
         <anonymous/>
@@ -393,25 +401,21 @@
         -->
       </sasl>
 
+      <!-- Additional mechanisms that are also available when the
+           connection is encrypted. Ie. when START-TLS had been
+           negotiated, or user connected on SSL-wrapped port. -->
+      <ssl>
+        <traditional>
+          <plain/>
+        </traditional>
+
+        <sasl>
+          <plain/>
+          <external/>
+        </sasl>
+      </ssl>
+
     </mechanisms>
-
-    <!-- Additional mechanisms that are also available when the
-         connection is encrypted. Ie. when START-TLS had been
-         negotiated, or user connected on SSL-wrapped port. -->
-    <ssl-mechanisms>
-
-      <!-- it's advisable that you disable plain in the above
-           <mechanisms/> section -->
-      <traditional>
-        <plain/>
-      </traditional>
-
-      <sasl>
-        <plain/>
-        <external/>
-      </sasl>
-
-    </ssl-mechanisms>
 
     <!-- SQLite driver configuration -->
     <sqlite>

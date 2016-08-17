@@ -37,19 +37,22 @@ typedef struct config_st
 /** a single config element */
 typedef struct config_elem_st
 {
+    unsigned            nvalues;
     const char          **values;
-    unsigned int        nvalues;
     const char          ***attrs;
+    unsigned            *valuelems;
 } config_elem_t;
 
-JABBERD2_API config_t      *config_new(unsigned int prime);
+JABBERD2_API config_t      *config_new(unsigned prime);
 JABBERD2_API int            config_load(config_t *c, const char *file);
 JABBERD2_API int            config_load_with_id(config_t *c, const char *file, const char *id);
+JABBERD2_API int            config_load_nad(config_t *c, nad_t *nad);
+JABBERD2_API int            config_load_elem(config_t *c, config_t *from, config_elem_t *elem, unsigned num);
 JABBERD2_API config_elem_t *config_get(config_t *c, const char *key);
-JABBERD2_API const char    *config_get_one(config_t *c, const char *key, unsigned int num);
-JABBERD2_API const char    *config_get_one_default(config_t *c, const char *key, unsigned int num, const char *default_value);
+JABBERD2_API const char    *config_get_one(config_t *c, const char *key, unsigned num);
+JABBERD2_API const char    *config_get_one_default(config_t *c, const char *key, unsigned num, const char *default_value);
 JABBERD2_API int            config_count(config_t *c, const char *key);
-JABBERD2_API char          *config_get_attr(config_t *c, const char *key, unsigned int num, const char *attr);
+JABBERD2_API char          *config_get_attr(config_t *c, const char *key, unsigned num, const char *attr);
 JABBERD2_API char          *config_expand(config_t *c, const char *value); //! Replaces $(some.value) with config_get_one(c, "some.value", 0)
 JABBERD2_API void           config_free(config_t *c);
 

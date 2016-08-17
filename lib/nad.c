@@ -521,7 +521,7 @@ void nad_wrap_elem(nad_t *nad, unsigned int elem, int ns, const char *name)
 }
 
 /** insert part of a nad into another nad */
-int nad_insert_nad(nad_t *dest, unsigned int delem, nad_t *src, unsigned int selem) {
+int nad_insert_nad(nad_t *dest, int delem, nad_t *src, unsigned int selem) {
     int first, ns, attr;
     unsigned int i, j, nelem, nattr;
     char buri[256], *uri = buri, bprefix[256], *prefix = bprefix;
@@ -530,7 +530,7 @@ int nad_insert_nad(nad_t *dest, unsigned int delem, nad_t *src, unsigned int sel
     _nad_ptr_check(__func__, src);
 
     /* can't do anything if these aren't real elems */
-    if (src->ecur <= selem || dest->ecur <= delem)
+    if (src->ecur <= selem || (int)dest->ecur <= delem)
         return -1;
 
     /* figure out how many elements to copy */
@@ -557,7 +557,7 @@ int nad_insert_nad(nad_t *dest, unsigned int delem, nad_t *src, unsigned int sel
         dest->elems[first + i].parent = delem + (src->elems[selem + i].parent - src->elems[selem].parent);
 
         /* depth */
-        dest->elems[first + i].depth = dest->elems[delem].depth + (src->elems[selem + i].depth - src->elems[selem].depth) + 1;
+        dest->elems[first + i].depth = (delem < 0 ? delem : dest->elems[delem].depth) + (src->elems[selem + i].depth - src->elems[selem].depth) + 1;
 
         /* name */
         dest->elems[first + i].lname = src->elems[selem + i].lname;
