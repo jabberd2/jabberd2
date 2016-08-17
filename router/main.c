@@ -405,7 +405,7 @@ JABBER_MAIN("jabberd2router", "Jabber 2 Router", "Jabber Open Source Server: Rou
     /* get sasl online */
     r->sx_sasl = sx_env_plugin(r->sx_env, sx_sasl_init, "jabberd-router", _router_sx_sasl_callback, (void *) r);
     if(r->sx_sasl == NULL) {
-        LOG_ERROR(r->log, "failed to initialise SASL context, aborting");
+        LOG_FATAL(r->log, "failed to initialise SASL context, aborting");
         exit(1);
     }
 

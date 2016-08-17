@@ -570,7 +570,7 @@ static mod_ret_t _roster_in_sess(mod_instance_t *mi, sess_t *sess, pkt_t *pkt)
         attr = nad_find_attr(pkt->nad, elem, -1, "jid", NULL);
         if(attr < 0 || NAD_AVAL_L(pkt->nad, attr) == 0)
         {
-            LOG_DEBUG(mi->sm->log, "no jid on this item, aborting");
+            LOG_DEBUG(mi->sm->log, "no jid on this item, dropping");
 
             /* no jid, abort */
             return -stanza_err_BAD_REQUEST;

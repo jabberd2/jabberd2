@@ -136,7 +136,7 @@ static void _sm_hosts_expand(sm_t *sm)
         strncpy(id, elem->values[i], 1024);
         id[1023] = '\0';
         if (stringprep_nameprep(id, 1024) != 0) {
-            LOG_ERROR(sm->log, "cannot stringprep id %s, aborting", id);
+            LOG_FATAL(sm->log, "cannot stringprep id %s, aborting", id);
             exit(1);
         }
 
@@ -269,7 +269,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
     strncpy(id, sm->id, 1024);
     id[sizeof(id)-1] = '\0';
     if (stringprep_nameprep(id, 1024) != 0) {
-        LOG_ERROR(sm->log, "cannot stringprep id %s, aborting", sm->id);
+        LOG_FATAL(sm->log, "cannot stringprep id %s, aborting", sm->id);
         exit(1);
     }
     sm->id = id;
@@ -281,7 +281,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
     /* start storage */
     sm->st = storage_new(sm->config, sm->log);
     if (sm->st == NULL) {
-        LOG_ERROR(sm->log, "failed to initialise one or more storage drivers, aborting");
+        LOG_FATAL(sm->log, "failed to initialise one or more storage drivers, aborting");
         exit(1);
     }
 
@@ -337,7 +337,7 @@ JABBER_MAIN("jabberd2sm", "Jabber 2 Session Manager", "Jabber Open Source Server
     /* get sasl online */
     sm->sx_sasl = sx_env_plugin(sm->sx_env, sx_sasl_init, "xmpp", NULL, NULL);
     if(sm->sx_sasl == NULL) {
-        LOG_ERROR(sm->log, "failed to initialise SASL context, aborting");
+        LOG_FATAL(sm->log, "failed to initialise SASL context, aborting");
         exit(1);
     }
 

@@ -152,7 +152,7 @@ static void _c2s_config_expand(c2s_t *c2s)
     if(elem != NULL) for(i = 0; i < elem->nvalues; i++) {
         sr = pnew(xhash_pool(c2s->stream_redirects), stream_redirect_t);
         if(!sr) {
-            LOG_ERROR(c2s->log, "cannot allocate memory for new stream redirection record, aborting");
+            LOG_FATAL(c2s->log, "cannot allocate memory for new stream redirection record, aborting");
             exit(1);
         }
         req_domain = elem->values[i];
@@ -286,7 +286,7 @@ static void _c2s_hosts_expand(c2s_t *c2s)
     for(i = 0; i < elem->nvalues; i++) {
         host_t *host = pnew(xhash_pool(c2s->hosts), host_t);
         if(host == NULL) {
-            LOG_ERROR(c2s->log, "cannot allocate memory for new host, aborting");
+            LOG_FATAL(c2s->log, "cannot allocate memory for new host, aborting");
             exit(EXIT_FAILURE);
         }
 
@@ -296,7 +296,7 @@ static void _c2s_hosts_expand(c2s_t *c2s)
         strncpy(id, elem->values[i], 1024);
         id[1023] = '\0';
         if (stringprep_nameprep(id, 1024) != 0) {
-            LOG_ERROR(c2s->log, "cannot stringprep id %s, aborting", id);
+            LOG_FATAL(c2s->log, "cannot stringprep id %s, aborting", id);
             exit(EXIT_FAILURE);
         }
 
@@ -304,7 +304,7 @@ static void _c2s_hosts_expand(c2s_t *c2s)
 
         host->ar_id = j_attr((const char **) elem->attrs[i], "authreg");
         if (host->ar_id == NULL) {
-            LOG_ERROR(c2s->log, "no authreg specified for '%s', aborting", id);
+            LOG_FATAL(c2s->log, "no authreg specified for '%s', aborting", id);
             exit(EXIT_FAILURE);
         }
 
@@ -801,7 +801,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
     /* get sasl online */
     c2s->sx_sasl = sx_env_plugin(c2s->sx_env, sx_sasl_init, "xmpp", _c2s_sx_sasl_callback, (void *) c2s);
     if(c2s->sx_sasl == NULL) {
-        LOG_ERROR(c2s->log, "failed to initialise SASL context, aborting");
+        LOG_FATAL(c2s->log, "failed to initialise SASL context, aborting");
         exit(1);
     }
 
@@ -810,7 +810,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
 
     c2s->mio = mio_new(c2s->io_max_fds);
     if(c2s->mio == NULL) {
-        LOG_ERROR(c2s->log, "failed to create MIO, aborting");
+        LOG_FATAL(c2s->log, "failed to create MIO, aborting");
         exit(1);
     }
 
@@ -848,7 +848,7 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
                     {
                         sr = pnew(xhash_pool(c2s->stream_redirects), stream_redirect_t);
                         if(!sr) {
-                            LOG_ERROR(c2s->log, "cannot allocate memory for new stream redirection record, aborting");
+                            LOG_FATAL(c2s->log, "cannot allocate memory for new stream redirection record, aborting");
                             exit(1);
                         }
                         req_domain = j_attr((const char **) elem->attrs[i], "requested_domain");

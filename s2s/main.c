@@ -205,7 +205,7 @@ static void _s2s_hosts_expand(s2s_t *s2s)
     if (elem) for(i = 0; i < elem->nvalues; i++) {
         host_t *host = pnew(xhash_pool(s2s->hosts), host_t);
         if(!host) {
-            LOG_ERROR(s2s->log, "cannot allocate memory for new host, aborting");
+            LOG_FATAL(s2s->log, "cannot allocate memory for new host, aborting");
             exit(1);
         }
 
@@ -215,7 +215,7 @@ static void _s2s_hosts_expand(s2s_t *s2s)
         strncpy(id, elem->values[i], 1024);
         id[1023] = '\0';
         if (stringprep_nameprep(id, 1024) != 0) {
-            LOG_ERROR(s2s->log, "cannot stringprep id %s, aborting", id);
+            LOG_FATAL(s2s->log, "cannot stringprep id %s, aborting", id);
             exit(1);
         }
 
@@ -943,7 +943,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
     /* get sasl online */
     s2s->sx_sasl = sx_env_plugin(s2s->sx_env, sx_sasl_init, "xmpp", NULL, NULL);
     if(s2s->sx_sasl == NULL) {
-        LOG_ERROR(s2s->log, "failed to initialise SASL context, aborting");
+        LOG_FATAL(s2s->log, "failed to initialise SASL context, aborting");
         exit(1);
     }
 
@@ -956,7 +956,7 @@ JABBER_MAIN("jabberd2s2s", "Jabber 2 S2S", "Jabber Open Source Server: Server to
     s2s->mio = mio_new(s2s->io_max_fds);
 
     if((s2s->udns_fd = dns_init(NULL, 1)) < 0) {
-        LOG_ERROR(s2s->log, "unable to initialize dns library, aborting");
+        LOG_FATAL(s2s->log, "unable to initialize dns library, aborting");
         exit(1);
     }
     s2s->udns_mio_fd = mio_register(s2s->mio, s2s->udns_fd, _mio_resolver_callback, (void *) s2s);
