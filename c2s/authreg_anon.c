@@ -18,10 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA02111-1307USA
  */
 
-/* this is a simple anonymous plugin. It uses the check_password method to
- * force authentication to succeed regardless of what credentials the client
- * provides
- */
+/* this is a simple anonymous plugin */
 
 #include "c2s.h"
 

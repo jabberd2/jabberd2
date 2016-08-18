@@ -17,8 +17,6 @@ c2s_LDADD = $(top_builddir)/sx/libsx.la \
 
 MODULE_LDFLAGS = -module -export-dynamic -avoid-version
 
-if AUTHREG_ANON
 pkglib_LTLIBRARIES += authreg_anon.la
 authreg_anon_la_SOURCES = authreg_anon.c
 authreg_anon_la_LDFLAGS = $(MODULE_LDFLAGS)
-endif

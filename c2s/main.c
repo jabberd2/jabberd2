@@ -576,12 +576,16 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t *s, void *c
             r = snprintf(buf, sizeof(buf), "authreg.mechanisms.sasl.%s", mechbuf);
             if (r < -1 || r > sizeof(buf))
                 return sx_sasl_ret_FAIL;
-
-            /* Work out if our configuration will let us use this mechanism */
             if(config_get(c2s->config, buf) != NULL)
                 return sx_sasl_ret_OK;
-            else
+
+            r = snprintf(buf, sizeof(buf), "mechanisms.%s", mechbuf);
+            if (r < -1 || r > sizeof(buf))
                 return sx_sasl_ret_FAIL;
+            if(config_get(host->ar->config, buf) != NULL)
+                return sx_sasl_ret_OK;
+
+            return sx_sasl_ret_FAIL;
     }
 
     return sx_sasl_ret_FAIL;

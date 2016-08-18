@@ -373,14 +373,19 @@
     <module id="anonymous">
       <!-- Specify bare driver name, or full path to .so file. -->
       <driver>anon</driver>
+
+      <!-- Additional (SASL) mechanisms supported. -->
+      <mechanisms>
+        <anonymous/>
+      </mechanisms>
     </module>
 
-    <!-- Available authentication mechanisms -->
+    <!-- Global authentication mechanisms policy -->
     <mechanisms>
 
       <!-- These are the traditional Jabber authentication mechanisms.
            Comment out any that you don't want to be offered to clients.
-           Note that if the auth/reg module does not support one of
+           Note that if the authreg module above does not support one of
            these mechanisms, then it will not be offered regardless of
            whether or not it is enabled here. -->
       <traditional>
@@ -392,16 +397,16 @@
       </traditional>
 
       <!-- SASL authentication mechanisms. Comment out any that you
-           don't want to be offered to clients. Again, if the auth/reg
-           module does not support one of these mechanisms, then it will
-           not be offered. -->
+           don't want to be offered to clients.
+           This is a list of strings used to filter GSasl supported
+           mechanisms. Again, if the auth/reg module does not support
+           one of these mechanisms, then it will not be offered anyway. -->
       <sasl>
         <!--
         <plain/>
         -->
         <digest-md5/>
         <!--
-        <anonymous/>
         <gssapi/>
         -->
       </sasl>
