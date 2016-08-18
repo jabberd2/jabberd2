@@ -342,6 +342,7 @@ static void _c2s_hosts_expand(c2s_t *c2s)
 #endif
 
         host->host_require_starttls = (j_attr((const char **) elem->attrs[i], "require-starttls") != NULL);
+        host->host_require_sasl = (j_attr((const char **) elem->attrs[i], "require-sasl") != NULL);
 
         host->ar_register_enable = (j_attr((const char **) elem->attrs[i], "register-enable") != NULL);
         host->ar_register_oob = j_attr((const char **) elem->attrs[i], "register-oob");
@@ -428,7 +429,7 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t *s, void *c
                 /* get host for request */
                 host = xhash_get(c2s->hosts, s->req_to);
                 if(host == NULL) {
-                    LOG_ERROR(c2s->log, "sx sasl callback for non-existing host: %s", s->req_to);
+                    LOG_WARN(c2s->log, "sx sasl callback for non-existing host: %s", s->req_to);
                     *res = (void *)NULL;
                     return sx_sasl_ret_FAIL;
                 }
@@ -544,7 +545,7 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t *s, void *c
             /* get host for request */
             host = xhash_get(c2s->hosts, s->req_to);
             if(host == NULL) {
-                LOG_WARN(c2s->log, "SASL callback for non-existing host: %s", s->req_to);
+                LOG_WARN(c2s->log, "sx sasl callback for non-existing host: %s", s->req_to);
                 return sx_sasl_ret_FAIL;
             }
 
@@ -568,7 +569,7 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t *s, void *c
                 r = snprintf(buf, sizeof(buf), "authreg.mechanisms.ssl.sasl.%s", mechbuf);
                 if (r < -1 || r > sizeof(buf))
                     return sx_sasl_ret_FAIL;
-                if(config_get(c2s->config,buf) != NULL)
+                if(config_get(c2s->config, buf) != NULL)
                     return sx_sasl_ret_OK;
             }
 
@@ -577,7 +578,7 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t *s, void *c
                 return sx_sasl_ret_FAIL;
 
             /* Work out if our configuration will let us use this mechanism */
-            if(config_get(c2s->config,buf) != NULL)
+            if(config_get(c2s->config, buf) != NULL)
                 return sx_sasl_ret_OK;
             else
                 return sx_sasl_ret_FAIL;

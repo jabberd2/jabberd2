@@ -104,6 +104,10 @@
          before they can authenticate. Until the stream is encrypted,
          all packets will be dropped.
 
+         require-sasl
+         If this attribute is set to any value, clients must do SASL
+         authentication. Traditional iq:auth is not offered.
+
          register-enable
          Remove this attribute to disable account registrations.
 
@@ -131,6 +135,7 @@
         verify-mode='7'
         cachain='@sysconfdir@/client_ca_certs.pem'
         require-starttls='mu'
+        require-sasl='mu'
         register-enable='mu'
         instructions='Enter a username and password to register with this server.'
         register-oob='http://example.org/register'

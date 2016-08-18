@@ -135,24 +135,27 @@ struct host_st {
     /** private key password */
     char                *host_private_key_password;
 
-    /** verify-mode  */
+    /** certificate verify-mode  */
     int                 host_verify_mode;
 
-    /** require starttls */
+    /** require STARTTLS */
     int                 host_require_starttls;
 
     /** list of TLS ciphers */
     const char          *host_ciphers;
+
+    /** require SASL */
+    int                 host_require_sasl;
 
     /** authreg module */
     const char          *ar_id;
     authreg_t           *ar;
 
     /** registration */
-    int                 ar_register_enable;
+    bool                ar_register_enable;
     const char          *ar_register_instructions;
     const char          *ar_register_oob;
-    int                 ar_register_password; /** allow password change */
+    bool                ar_register_password; /** allow password change */
 };
 
 struct c2s_st {
@@ -234,7 +237,7 @@ struct c2s_st {
     const char          *http_forward;
 
     /** websocket support */
-    int                 websocket;
+    bool                websocket;
 
     /** PBX integration named pipe */
     const char          *pbx_pipe;
@@ -248,7 +251,7 @@ struct c2s_st {
     int                 io_max_fds;
 
     /** enable Stream Compression */
-    int                 compression;
+    bool                compression;
 
     /** time checks */
     int                 io_check_interval;
@@ -294,10 +297,10 @@ struct c2s_st {
     jqueue_t            *dead_sess;
 
     /** this is true if we've connected to the router at least once */
-    int                 started;
+    bool                started;
 
     /** true if we're bound in the router */
-    int                 online;
+    bool                online;
 
     /** hosts mapping */
     xht                 *hosts;

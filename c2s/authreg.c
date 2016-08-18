@@ -726,27 +726,27 @@ int authreg_process(c2s_t *c2s, sess_t *sess, nad_t *nad) {
 
     /* hand to the correct handler */
     if(authreg == 0) {
-        /* can't do iq:auth after sasl auth */
-        if(sess->sasl_authd) {
+        /* can't do iq:auth after sasl auth or required */
+        if(sess->sasl_authd || sess->host->host_require_sasl) {
             sx_nad_write(sess->s, stanza_tofrom(stanza_error(nad, 0, stanza_err_NOT_ALLOWED), 0));
             return 0;
         }
 
         if(getset == 0) {
-            LOG_DEBUG(c2s->log, "auth get");
+            LOG_DEBUG(c2s->log, "iq:auth get");
             _authreg_auth_get(c2s, sess, nad);
         } else if(getset == 1) {
-            LOG_DEBUG(c2s->log, "auth set");
+            LOG_DEBUG(c2s->log, "iq:auth set");
             _authreg_auth_set(c2s, sess, nad);
         }
     }
 
     if(authreg == 1) {
         if(getset == 0) {
-            LOG_DEBUG(c2s->log, "register get");
+            LOG_DEBUG(c2s->log, "iq:register get");
             _authreg_register_get(c2s, sess, nad);
         } else if(getset == 1) {
-            LOG_DEBUG(c2s->log, "register set");
+            LOG_DEBUG(c2s->log, "iq:register set");
             _authreg_register_set(c2s, sess, nad);
         }
     }

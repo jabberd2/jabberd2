@@ -36,19 +36,22 @@ static void _bind_features(sx_t *s, sx_plugin_t *p, nad_t *nad) {
     if(s->auth_id == NULL) {
         host_t *host;
 
-        LOG_DEBUG(c2s->log, "not auth'd, offering auth and register");
+        LOG_DEBUG(c2s->log, "not auth'd, offering auth and register for '%s'", s->req_to);
 
-        ns = nad_add_namespace(nad, uri_IQAUTH, NULL);
-        nad_append_elem(nad, ns, "auth", 1);
-    
         host = xhash_get(c2s->hosts, s->req_to);
-        if(! host) host = c2s->vhost;
+        if(!host) host = c2s->vhost;
+
+        if(host && !host->host_require_sasl) {
+            ns = nad_add_namespace(nad, uri_IQAUTH, NULL);
+            nad_append_elem(nad, ns, "auth", 1);
+        }
+    
         if(host && host->ar_register_enable) {
             ns = nad_add_namespace(nad, uri_IQREGISTER, NULL);
             nad_append_elem(nad, ns, "register", 1);
         }
     } else {
-        LOG_DEBUG(c2s->log, "auth'd, offering resource bind and session");
+        LOG_DEBUG(c2s->log, "auth'd, offering resource bind and session for '%s'", s->req_to);
     
         ns = nad_add_namespace(nad, uri_BIND, NULL);
         nad_append_elem(nad, ns, "bind", 1);
