@@ -200,9 +200,7 @@ sx_buf_t *libwebsock_fragment_buffer(const char *data, unsigned int len, int fla
         payload_len_small = 127;
         payload_offset += 8;
     } else {
-        _sx_debug(ZONE,
-                "libwebsock does not support frame payload sizes over %u bytes long\n",
-                0xfffffff0);
+        _sx_debug("libwebsock does not support frame payload sizes over %u bytes long\n", 0xfffffff0);
         return NULL;
     }
     sx_buf_t *buf = _sx_buffer_new(NULL, frame_size, NULL, NULL);
@@ -277,7 +275,7 @@ void libwebsock_fail_connection(sx_t *s, _sx_websocket_conn_t *sc, unsigned shor
 }
 
 static int _sx_websocket_http_header_field(http_parser *parser, const char *chars, size_t length) {
-    _sx_debug("HTTP header field '%.*s'", length, chars);
+    _sx_debug("HTTP header field '%.*s'", (int)length, chars);
     _sx_websocket_conn_t *sc = parser->data;
     if(sc->header_value) {
         // new field incoming
@@ -290,7 +288,7 @@ static int _sx_websocket_http_header_field(http_parser *parser, const char *char
 }
 
 static int _sx_websocket_http_header_value(http_parser *parser, const char *chars, size_t length) {
-    _sx_debug("HTTP header value '%.*s'", length, chars);
+    _sx_debug("HTTP header value '%.*s'", (int)length, chars);
     _sx_websocket_conn_t *sc = parser->data;
     if(!sc->header_value) {
         // field name complete
@@ -533,7 +531,7 @@ static int _sx_websocket_rio(sx_t *s, sx_plugin_t *p, sx_buf_t *buf) {
         }
     }
 
-    _sx_debug("passing buffer: %.*s", sc->buf_len, sc->buf);
+    _sx_debug("passing buffer: %.*s", (int)sc->buf_len, sc->buf);
     _sx_buffer_set(buf, sc->buf, sc->buf_len, NULL);
     sc->buf_len = 0;
 
@@ -569,7 +567,7 @@ static void _sx_websocket_new(sx_t *s, sx_plugin_t *p) {
     if(sc != NULL)
         return;
 
-    _sx_debug("preparing for HTTP websocket connect for %d", s->tag);
+    _sx_debug("preparing for HTTP websocket connect for %s:%d", s->ip, s->port);
 
     sc = new(_sx_websocket_conn_t);
 

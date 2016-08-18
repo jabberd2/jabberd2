@@ -397,7 +397,7 @@ JABBERD2_API int __sx_event(sx_t *s, sx_event_t e, void *data);
 /** print debug output */
 #define _sx_debug(...) {\
     const log4c_location_info_t locinfo = LOG4C_LOCATION_INFO_INITIALIZER(NULL); \
-    log4c_category_log_locinfo(log4c_category_get("sx"), &locinfo, LOG4C_PRIORITY_DEBUG, ##__VA_ARGS__ ); \
+    log4c_category_log_locinfo(log4c_category_get("sx"), &locinfo, LOG4C_PRIORITY_TRACE, ##__VA_ARGS__ ); \
 }
 
 /** state changes with output */

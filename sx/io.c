@@ -47,7 +47,7 @@ void _sx_process_read(sx_t *s, sx_buf_t *buf) {
             /* parse error */
             errstring = (char *) XML_ErrorString(XML_GetErrorCode(s->expat));
 
-            _sx_debug("XML parse error: %s, character %d: %.*s",
+            _sx_debug("XML parse error: %s, character %ld: %.*s",
                       errstring, XML_GetCurrentByteIndex(s->expat) - s->tbytes, buf->len, buf->data);
             _sx_gen_error(sxe, SX_ERR_XML_PARSE, "XML parse error", errstring);
             _sx_event(s, event_ERROR, (void *) &sxe);
@@ -429,7 +429,7 @@ int _sx_nad_write(sx_t *s, nad_t *nad, int elem) {
     if (_sx_chain_nad_write(s, nad, elem) == 0)
         return 1;
 
-    /* serialise it */
+    /* materialize it */
     char *out; unsigned int len;
     nad_print(nad, elem, &out, &len);
 

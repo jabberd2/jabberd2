@@ -482,10 +482,10 @@ if test "x-$want_nad_debug" = "x-yes" ; then
     AC_DEFINE(NAD_DEBUG,1,[Define to 1 if you want to enable NAD pointer tracking.])
 fi
 
-AC_ARG_ENABLE(mio_debug, AC_HELP_STRING([--enable-mio-debug], [enable managed IO debug output]),
-              want_mio_debug=$enableval, want_mio_debug=no)
-if test "x-$want_mio_debug" = "x-yes" ; then
-    AC_DEFINE(MIO_DEBUG,1,[Define to 1 if you want to enable managed IO debug output.])
+AC_ARG_ENABLE(sx_debug, AC_HELP_STRING([--enable-sx-debug], [enable managed IO debug output]),
+              want_sx_debug=$enableval, want_sx_debug=no)
+if test "x-$want_sx_debug" = "x-yes" ; then
+    AC_DEFINE(SX_DEBUG,1,[Define to 1 if you want to enable eXtensible Streams debug output.])
 fi
 
 AC_CONFIG_FILES([Doxyfile

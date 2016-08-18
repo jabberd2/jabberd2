@@ -62,7 +62,7 @@ int s2s_route_key_match(char *local, const char *remote, const char *rkey, int r
 char *s2s_db_key(pool_t *p, const char *secret, const char *remote, const char *id) {
     char hash[41], buf[1024];
 
-    _sx_debug(ZONE, "generating dialback key, secret %s, remote %s, id %s", secret, remote, id);
+    _sx_debug("generating dialback key, secret %s, remote %s, id %s", secret, remote, id);
 
     shahash_r(secret, hash);
 
@@ -72,7 +72,7 @@ char *s2s_db_key(pool_t *p, const char *secret, const char *remote, const char *
     snprintf(buf, 1024, "%s%s", hash, id);
     shahash_r(buf, hash);
 
-    _sx_debug(ZONE, "dialback key generated: %s", hash);
+    _sx_debug("dialback key generated: %s", hash);
 
     if(p == NULL)
         return strdup(hash);
