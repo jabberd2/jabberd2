@@ -151,9 +151,7 @@
         verify-mode='7'
         cachain='@sysconfdir@/client_ca_certs.pem'
         require-starttls='mu'
-        register-enable='mu'
-        instructions='Enter a username and password to register with this server.'
-        register-oob='http://example.org/register'
+        register-oob='http://example.net/register'
         password-change='mu'
     >example.net</id> -->
     <!-- or the default host
