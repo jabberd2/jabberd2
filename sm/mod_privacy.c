@@ -861,6 +861,7 @@ static mod_ret_t _privacy_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) {
                     if(result->from != NULL) {
                         jid_free(result->from);
                         nad_set_attr(result->nad, 1, -1, "from", NULL, 0);
+                        result->from = NULL;
                     }
                     pkt_id_new(result);
                     pkt_sess(result, sscan);
