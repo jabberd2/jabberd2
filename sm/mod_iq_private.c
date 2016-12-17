@@ -176,6 +176,7 @@ static mod_ret_t _iq_private_in_sess(mod_instance_t mi, sess_t sess, pkt_t pkt) 
                     result = pkt_dup(pkt, jid_full(sscan->jid), NULL);
                     if(result->from != NULL) {
                         jid_free(result->from);
+                        result->from = NULL;
                         nad_set_attr(result->nad, 1, -1, "from", NULL, 0);
                     }
                     pkt_id_new(result);

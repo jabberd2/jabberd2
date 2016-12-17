@@ -667,8 +667,21 @@ st_ret_t st_init(st_driver_t drv) {
         log_write(drv->st->log, LOG_ERR, "pgsql: connection to database failed: %s", PQerrorMessage(conn));
 
     if (schema) {
+        PGresult *res;
         snprintf(sql, sizeof(sql), "SET search_path TO \"%s\"", schema);
-        PQexec(conn, sql);
+        res = PQexec(conn, sql);
+
+	if (res) {
+	    if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+                log_write(drv->st->log, LOG_ERR, "pgsql: unable to set search path: %s", PQresultErrorMessage(res));
+		PQclear(res);
+		return st_FAILED;
+	    }
+            PQclear(res);
+	} else {
+            log_write(drv->st->log, LOG_ERR, "pgsql: unable to set search path");
+	    return st_FAILED;
+	}
     }
 
     data = (drvdata_t) calloc(1, sizeof(struct drvdata_st));
