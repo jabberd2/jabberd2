@@ -754,6 +754,8 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
 
     _c2s_config_expand(c2s);
 
+    c2s->log = log_new(c2s->log_type, c2s->log_ident, c2s->log_facility);
+
     c2s->ar_modules = xhash_new(5);
     if(c2s->ar_module_name == NULL) {
         log_write(c2s->log, LOG_NOTICE, "no default authreg module specified in config file");
@@ -766,7 +768,6 @@ JABBER_MAIN("jabberd2c2s", "Jabber 2 C2S", "Jabber Open Source Server: Client to
         exit(1);
     }
 
-    c2s->log = log_new(c2s->log_type, c2s->log_ident, c2s->log_facility);
     log_write(c2s->log, LOG_NOTICE, "starting up");
 
     _c2s_pidfile(c2s);
