@@ -3,24 +3,86 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <title>jabberd</title>
+<link href="https://fonts.googleapis.com/css?family=Anonymous+Pro|Cormorant+Garamond|Proza+Libre" rel="stylesheet">
 <link href="style.css" rel="stylesheet" type="text/css" media="screen" />
-<link href='http://fonts.googleapis.com/css?family=Open+Sans:400,300,700&amp;subset=latin,latin-ext' rel='stylesheet' type='text/css' />
 </head>
 
 <body>
-<div id="container">
-  <div id="header">
-    <div id="logo"><a href="#">homepage</a></div>
-    <div class="site-description"> XMPP Server</div>
-  </div>
-  <div id="maincolumn">
-<h1>jabberd</h1>
-<p>jabberd 2.x project is the next generation of the jabberd project.
-
+<h1 id="logo"><a href="#">jabberd</a></h1>
+<ul id="navigation">
+ <li><a href="https://github.com/jabberd2/jabberd2/releases">Download</a></li>
+ <li><a href="https://github.com/jabberd2/jabberd2/wiki">Documentation</a></li>
+ <li><a href="https://github.com/jabberd2/jabberd2">Development</a></li>
+ <li><a href="https://github.com/jabberd2/jabberd2/wiki/SuccessStories">Success Stories</a></li>
+</ul>
+<p>jabberd 2.x project is the next generation of the jabberd project.<br />
 It has been rewritten from the ground up to be scalable, architecturally sound and to support the latest XMPP Extension Protocols coming out of the XSF.
-<br />
-<em>Please note: jabberd 2.x is not a newer version of jabberd 1.x but a completely different project.</em>
 </p>
+<p>
+<em>Please note: jabberd 2 is not a newer version of jabberd 1.4, but a completely different project.</em>
+</p>
+
+<h2>Featuring</h2>
+<ul>
+ <li>stability &ndash; it may not be the flashiest stallion around, but it is a good'ol donkey that gets the job done; consistantly; always</li>
+ <li>low on resources &ndash; written in neat, effective C; able to run on your Raspberry Pi or DD-WRT router</li>
+ <li>extensibility &ndash; jabberd server is modular and it is very easy to extent by adding additional modules</li>
+ <li>distributed &ndash; you may run multiple instances of jabberd component processes to distribute load</li>
+</ul>
+<h2>XMPP Extension Protocol</h2>
+<ul>
+ <li>XEP-0011 Jabber Browsing</li>
+ <li>XEP-0012 Last Activity</li>
+ <li>XEP-0016 Privacy Lists</li>
+ <li><strike>XEP-0018 Invisible Presence</strike></li>
+ <li>XEP-0022 Message Events</li>
+ <li>XEP-0023 Message Expiration</li>
+ <li>XEP-0030 Service Discovery</li>
+ <li>XEP-0045 Multi-User Chat (by add-on)</li>
+ <li>XEP-0048 Bookmark Storage</li>
+ <li>XEP-0049 Private XML Storage</li>
+ <li>XEP-0054 vcard-temp</li>
+ <li>XEP-0055 Jabber Search (by add-on)</li>
+ <li>XEP-0060 Publish-Subscribe (by add-on)</li>
+ <li>XEP-0065 SOCKS5 Bytestreams (by add-on)</li>
+ <li>XEP-0073 Basic IM Protocol Suite</li>
+ <li>XEP-0077 In-Band Registration</li>
+ <li>XEP-0078 Non-SASL Authentication</li>
+ <li>XEP-0079 Advanced Message Processing (partial)</li>
+ <li>XEP-0083 Nested Roster Groups</li>
+ <li>XEP-0086 Error Condition Mappings</li>
+ <li>XEP-0090 Entity Time</li>
+ <li>XEP-0091 Delayed Delivery</li>
+ <li>XEP-0092 Software Version</li>
+ <li>XEP-0093 Agent Information</li>
+ <li>XEP-0114 Jabber Component Protocol</li>
+ <li>XEP-0124 HTTP Binding (by add-on)</li>
+ <li>XEP-0128 Service Discovery Extensions</li>
+ <li>XEP-0138 Stream Compression</li>
+ <li>XEP-0145 Annotations</li>
+ <li>XEP-0153 vCard-Based Avatars</li>
+ <li>XEP-0157 Contact Addresses for XMPP Services</li>
+ <li>XEP-0160 Best Practices for Handling Offline Messages</li>
+ <li>XEP-0170 Recommended Order of Stream Feature Negotiation</li>
+ <li>XEP-0175 Best Practices of Use of SASL ANONYMOUS</li>
+ <li>XEP-0178 Best Practices of Use of SASL EXTERNAL (partial)</li>
+ <li>XEP-0185 Dialback Key Generation and Validation</li>
+ <li>XEP-0190 Best Practice for Closing Idle Streams</li>
+ <li>XEP-0191 Simple Communications Blocking</li>
+ <li>XEP-0192 Proposed Stream Feature Improvements</li>
+ <li>XEP-0193 Proposed Resource Binding Improvements</li>
+ <li>XEP-0198 Stanza Acknowledgements</li>
+ <li>XEP-0199 XMPP Ping</li>
+ <li>XEP-0202 Entity Time</li>
+ <li>XEP-0203 Delayed Delivery</li>
+ <li>XEP-0205 Best Practices to Discourage Denial of Service Attacks (partial)</li>
+ <li>XEP-0206 XMPP Over BOSH (by add-on)</li>
+ <li>XEP-0209 Metacontacts</li>
+ <li>XEP-0212 XMPP Basic Server 2008</li>
+ <li>XEP-0216 XMPP Intermediate IM Server 2008 (partial)</li>
+ <li>XEP-0220 Server Dialback</li>
+ <li>XEP-0225 Component Connections</li>
+</ul>
 
 <h2>Why XMPP?</h2>
 <p>
@@ -51,22 +113,7 @@ To subscribe send e-mail to <a href="jabberd2+subscribe@lists.xiaoka.com">jabber
 
 <h2>Source Code</h2>
 <p>Get the source code on GitHub: <a href="https://github.com/jabberd2">jabberd2/jabberd2</a></p> 
-<p>You can also clone the project with Git by running:</p>
-<p class="commline"><strong>$ git clone git://github.com/jabberd2/jabberd2</strong></p>
+<p>You can also clone the project with Git by running: <tt>$ git clone git://github.com/jabberd2/jabberd2</tt></p>
 
-</div>
-  
-  
-  <div id="rightcolumn">
-  <ul>
-  <li><a href="https://github.com/jabberd2/jabberd2/releases"><img src="download.png" width="63" height="68" alt="download" />download</a></li>
-  <li><a href="https://github.com/jabberd2/jabberd2/wiki"><img src="documentation.png" width="64" height="47" alt="documentation" />documentation</a></li>
-  <li><a href="https://github.com/jabberd2/jabberd2"><img src="development.png" width="64" height="48" alt="development" />development</a></li>
-  <li><a href="https://github.com/jabberd2/jabberd2/wiki"><img src="community.png" width="64" height="53" alt="community" />community</a></li>
- <li><a href="https://github.com/jabberd2/jabberd2/wiki/SuccessStories"><img src="documentation.png" width="64" height="53" alt="success stories" />success stories</a></li>
- <!-- <li><a href="#"><img src="blog.png" width="64" height="48" alt="blog" />blog</a></li> -->
-  </ul>
-  </div>
-</div>
 </body>
 </html>
