@@ -21,8 +21,11 @@
 #ifndef INCL_SX_SASL_H
 #define INCL_SX_SASL_H
 
-/* RFC 3290 defines a number of failure messages */
+/* RFC 6120 defines a number of failure messages */
 #define _sasl_err_ABORTED               "aborted"
+#define _sasl_err_ACCOUNT_DISABLED      "account-disabled"
+#define _sasl_err_CREDENTIALS_EXPIRED   "credentials-expired"
+#define _sasl_err_ENCRYPTION_REQUIRED   "encryption-required"
 #define _sasl_err_INCORRECT_ENCODING    "incorrect-encoding"
 #define _sasl_err_INVALID_AUTHZID       "invalid-authzid"
 #define _sasl_err_INVALID_MECHANISM     "invalid-mechanism"
