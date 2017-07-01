@@ -332,7 +332,7 @@ static void _sx_sasl_client_process(sx_t s, sx_plugin_t p, Gsasl_session *sd, co
     if(mech != NULL) {
         _sx_debug(ZONE, "auth request from client (mechanism=%s)", mech);
 
-        if(!gsasl_server_support_p(ctx->gsasl_ctx, mech)) {
+        if(!gsasl_server_support_p(ctx->gsasl_ctx, mech) || (ctx->cb)(sx_sasl_cb_CHECK_MECH, (void*)mech, NULL, s, ctx->cbarg) != sx_sasl_ret_OK) {
              _sx_debug(ZONE, "client requested mechanism (%s) that we didn't offer", mech);
              _sx_nad_write(s, _sx_sasl_failure(s, _sasl_err_INVALID_MECHANISM, NULL), 0);
              return;

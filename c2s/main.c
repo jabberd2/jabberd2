@@ -562,6 +562,8 @@ static int _c2s_sx_sasl_callback(int cb, void *arg, void **res, sx_t s, void *cb
             mechbuf[sizeof(mechbuf)-1]='\0';
             for(i = 0; mechbuf[i]; i++) mechbuf[i] = tolower(mechbuf[i]);
 
+            log_debug(ZONE, "sx sasl callback: check mech (mech=%s)", mechbuf);
+
             /* get host for request */
             host = xhash_get(c2s->hosts, s->req_to);
             if(host == NULL) {
