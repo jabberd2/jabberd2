@@ -2,6 +2,14 @@ This file contains news, important changes
 and upgrade instructions between different versions of jabberd2.
 
 
+* 2.6.0 to 2.6.1 upgrade:
+
+What changed:
+- Fixed offered SASL mechanism check
+
+This is a security bugfix release.
+
+
 * 2.5.0 to 2.6.0 upgrade:
 
 What changed:
