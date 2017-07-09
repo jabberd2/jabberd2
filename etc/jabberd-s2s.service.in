@@ -2,7 +2,7 @@
 Description=Jabber Server To Server Connector
 Requires=jabberd-router.service
 After=network.target jabberd-router.service
-BindTo=jabberd.service
+BindsTo=jabberd.service
 
 [Service]
 User=jabber

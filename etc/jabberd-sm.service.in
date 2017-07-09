@@ -1,7 +1,7 @@
 [Unit]
 Description=Jabber IM Session Manager
 After=network.target
-BindTo=jabberd.service
+BindsTo=jabberd.service
 
 [Service]
 User=jabber
