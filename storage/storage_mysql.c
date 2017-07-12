@@ -584,6 +584,8 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv) {
     const char *host, *port, *dbname, *user, *pass;
     MYSQL *conn;
     drvdata_t data;
+    /* enable reconnect */
+    my_bool reconnect= 1;
 
     host = config_get_one(drv->st->config, "storage.mysql.host", 0);
     port = config_get_one(drv->st->config, "storage.mysql.port", 0);
@@ -604,6 +606,7 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv) {
 
     mysql_options(conn, MYSQL_READ_DEFAULT_GROUP, "jabberd");
     mysql_options(conn, MYSQL_SET_CHARSET_NAME, "utf8");
+    mysql_options(conn, MYSQL_OPT_RECONNECT, (void *)&reconnect);
 
     /* connect with CLIENT_INTERACTIVE to get a (possibly) higher timeout value than default */
     if(mysql_real_connect(conn, host, user, pass, dbname, atoi(port), NULL, CLIENT_INTERACTIVE) == NULL) {
@@ -611,9 +614,6 @@ DLLEXPORT st_ret_t st_init(st_driver_t drv) {
         mysql_close(conn);
         return st_FAILED;
     }
-
-    /* Set reconnect flag to 1 (set to 0 by default from mysql 5 on) */
-    conn->reconnect = 1;
 
     data = (drvdata_t) calloc(1, sizeof(struct drvdata_st));
 
