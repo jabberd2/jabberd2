@@ -447,12 +447,14 @@ static int _c2s_client_sx_callback(sx_t s, sx_event_t e, void *data, void *arg) 
 
             /* only send a result and bring us online if this wasn't a sasl auth */
             if(strlen(s->auth_method) < 4 || strncmp("SASL", s->auth_method, 4) != 0) {
-                /* return the auth result to the client */
-                sx_nad_write(s, sess->result);
-                sess->result = NULL;
+		if(sess->result) {
+			/* return the auth result to the client */
+			sx_nad_write(s, sess->result);
+			sess->result = NULL;
 
-                /* we're good to go */
-                sess->active = 1;
+			/* we're good to go */
+			sess->active = 1;
+		}
             }
 
             /* they sasl auth'd, so we only want the new-style session start */
