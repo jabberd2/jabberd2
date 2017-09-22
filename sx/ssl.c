@@ -124,7 +124,7 @@ static DH *sx_ssl_make_dh_params(BIGNUM *(*const get_prime)(BIGNUM *), const cha
     }
 #else
     {
-        BIGNUM *p, *g;
+        BIGNUM *p, *g = NULL;
         p = get_prime(NULL);
         BN_dec2bn(&g, gen);
 
