@@ -6,6 +6,7 @@ BindsTo=jabberd.service
 [Service]
 User=jabber
 ExecStart=@bindir@/@jabberd_sm_bin@ -c @sysconfdir@/sm.xml
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
