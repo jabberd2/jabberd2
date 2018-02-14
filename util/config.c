@@ -391,7 +391,7 @@ static char *_config_expandx(config_t c, const char *value, int l)
                 break;
             }
         } else {
-            fprintf(stderr, "config_expand: } missmatch\n");
+            fprintf(stderr, "config_expand: } mismatch\n");
             free(s);
             s = 0;
             break;

@@ -37,7 +37,7 @@
 
       <listitem>
         <para>MIO action (event) - <command>mio_action_t</command></para>
-        <para><command>mio_action_t</command> is an enumeration which is passed as the second argument to a callback, to inform the application of which event occured. It can take one of four values:</para>
+        <para><command>mio_action_t</command> is an enumeration which is passed as the second argument to a callback, to inform the application of which event occurred. It can take one of four values:</para>
         <itemizedlist>
           <listitem><command>action_ACCEPT</command> - someone has connected to this (listening) file descriptor.</listitem>
           <listitem><command>action_READ</command> - this file descriptor has data waiting to be read.</listitem>
@@ -53,8 +53,8 @@
         <para>When called, the arguments passed to the callback are as follows:</para>
         <itemizedlist>
           <listitem><command>mio_t m</command> - the MIO context that is managing the file descriptor.</listitem>
-          <listitem><command>mio_action_t a</command> - the action that occured.</listitem>
-          <listitem><command>int fd</command> - the file descriptor that this action occured on. Note that for <command>action_ACCEPT</command>, this argument will be hold the file descriptor of the new connection.</listitem>
+          <listitem><command>mio_action_t a</command> - the action that occurred.</listitem>
+          <listitem><command>int fd</command> - the file descriptor that this action occurred on. Note that for <command>action_ACCEPT</command>, this argument will be hold the file descriptor of the new connection.</listitem>
           <listitem><command>void *data</command> - action-specific data. This is currently only used for <command>action_ACCEPT</command> - when this action occurs, <command>data</command> should be casted to <command>char *</command>, where it will contain a string representation of the remote IP address.</listitem>
           <listitem><command>void *arg</command> - this is the application-specific data that was registered at the same time the callback was registered with <link linkend='mio-callback'><command>mio_fd()</command></link> or <link linkend='mio-callback'><command>mio_app()</command></link>.</listitem>
         </itemizedlist>

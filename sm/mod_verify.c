@@ -126,7 +126,7 @@ error:
     nad_insert_elem(res->nad, 1, NAD_ENS(res->nad, 1),
                     "subject", "Error");
     nad_insert_elem(res->nad, 1, NAD_ENS(res->nad, 1), "body",
-                    "An error occured while trying to send the verification email to you.\n"
+                    "An error occurred while trying to send the verification email to you.\n"
                     "Please try again later. If the problem persists, please contact the\n"
                     "server admin.");
 free:
@@ -177,7 +177,7 @@ static void print_instructions(pkt_t res)
                     "subject", "Please enter your email address");
     nad_insert_elem(res->nad, 1, NAD_ENS(res->nad, 1), "body",
                     "You are blocked from this jabber server until "
-                    "you have entered and validated your email adddress! "
+                    "you have entered and validated your email address! "
                     "To do this, please type in \"email: \" followed by "
                     "your email address as a reply to this message, e.g.\n\n"
                     "email: johndoe@example.com\n\n"
