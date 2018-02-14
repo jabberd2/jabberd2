@@ -207,7 +207,9 @@ static st_ret_t _st_fs_get(st_driver_t drv, const char *type, const char *owner,
     DIR *dir;
     struct dirent *dirent;
     FILE *f;
-    char buf[STORAGE_FS_READ_BLOCKSIZE], *otc, *val, *c;
+    char *otc, *val, *c;
+    char *dynBuf;
+    long long fileLength;
     os_object_t o;
     os_type_t ot;
     int i, size;
@@ -246,13 +248,30 @@ static st_ret_t _st_fs_get(st_driver_t drv, const char *type, const char *owner,
             closedir(dir);
             return st_FAILED;
         }
+	/* we can read the file and now need additional information about it */
+	{
+	  struct stat sb;
+          if (stat(file, &sb) == -1) {
+              fileLength=STORAGE_FS_READ_BLOCKSIZE; /* in case of problems use the old default */
+	  }
+	  else {
+              fileLength=sb.st_size+1; /* file size plus '\0' */
+          }
+	}
+        log_debug(ZONE, "fileLength: %i",fileLength);
+        dynBuf=calloc(1, fileLength);
+	if (dynBuf==NULL) {
+            /* can not calloc memory for read buffer*/
+            log_debug(ZONE, "can not calloc memory for read buffer");
+	    return st_FAILED;
+	}
 
         o = os_object_new(*os);
 
-        while(fgets(buf, STORAGE_FS_READ_BLOCKSIZE, f) != NULL) {
-            size = strlen(buf);
+        while(fgets(dynBuf, fileLength, f) != NULL) {
+            size = strlen(dynBuf);
 
-            otc = strchr(buf, ' ');
+            otc = strchr(dynBuf, ' ');
             *otc = '\0'; otc++;
 
             val = strchr(otc, ' ');
@@ -264,23 +283,23 @@ static st_ret_t _st_fs_get(st_driver_t drv, const char *type, const char *owner,
                 case os_type_BOOLEAN:
                 case os_type_INTEGER:
                     i = atoi(val);
-                    os_object_put(o, buf, &i, ot);
+                    os_object_put(o, dynBuf, &i, ot);
 
                     break;
 
                 case os_type_STRING:
                     c = strchr(val, '\n');
                     if(c != NULL) *c = '\0';
-                    os_object_put(o, buf, val, ot);
+                    os_object_put(o, dynBuf, val, ot);
 
                     break;
 
                 case os_type_NAD:
                     nad = nad_parse(val, 0);
                     if(nad == NULL) {
-                        while(fgets(buf + size, STORAGE_FS_READ_BLOCKSIZE - size, f) != NULL
+                        while(fgets(dynBuf + size, fileLength - size, f) != NULL
                               && nad == NULL && size < STORAGE_FS_READ_BLOCKSIZE) {
-                            size += strlen(buf + size);
+                            size += strlen(dynBuf + size);
                             nad = nad_parse(val, 0);
                         }
                     }
@@ -292,7 +311,7 @@ static st_ret_t _st_fs_get(st_driver_t drv, const char *type, const char *owner,
                         closedir(dir);
                         return st_FAILED;
                     }
-                    os_object_put(o, buf, nad, ot);
+                    os_object_put(o, dynBuf, nad, ot);
                     nad_free(nad);
 
                     break;
@@ -304,6 +323,7 @@ static st_ret_t _st_fs_get(st_driver_t drv, const char *type, const char *owner,
 
         if(!feof(f)) {
             log_write(drv->st->log, LOG_ERR, "fs: couldn't read from '%s': %s", path, strerror(errno));
+            if(dynBuf != NULL) free(dynBuf);
             os_free(*os);
             *os = NULL;
             fclose(f);
@@ -315,6 +335,7 @@ static st_ret_t _st_fs_get(st_driver_t drv, const char *type, const char *owner,
 
         errno = 0;
     }
+    if(dynBuf != NULL) free(dynBuf);
 
     if(errno != 0) {
         log_write(drv->st->log, LOG_ERR, "fs: couldn't read from directory '%s': %s", path, strerror(errno));
@@ -349,7 +370,9 @@ static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *own
     os_t os;
     struct dirent *dirent;
     FILE *f;
-    char buf[STORAGE_FS_READ_BLOCKSIZE], *otc, *val, *c;
+    char *otc, *val, *c;
+    char *dynBuf;
+    long long fileLength;
     os_object_t o;
     os_type_t ot;
     int i, size;
@@ -388,13 +411,31 @@ static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *own
             closedir(dir);
             return st_FAILED;
         }
+	/* we can read the file and now need additional information about it */
+	{
+	  struct stat sb;
+          if (stat(file, &sb) == -1) {
+              fileLength=STORAGE_FS_READ_BLOCKSIZE; /* in case of problems use the old default */
+	  }
+	  else {
+              fileLength=sb.st_size+1; /* file size plus '\0' */
+          }
+	}
+        log_debug(ZONE, "fileLength: %i",fileLength);
+        dynBuf=calloc(1, fileLength);
+	if (dynBuf==NULL) {
+            /* can not calloc memory for read buffer*/
+            log_debug(ZONE, "can not calloc memory for read buffer");
+	    return st_FAILED;
+	}
 
         o = os_object_new(os);
 
-        while(fgets(buf, STORAGE_FS_READ_BLOCKSIZE, f) != NULL) {
-            size = strlen(buf);
+        // while(fgets(buf, STORAGE_FS_READ_BLOCKSIZE, f) != NULL) {
+        while(fgets(dynBuf, fileLength, f) != NULL) {
+            size = strlen(dynBuf);
 
-            otc = strchr(buf, ' ');
+            otc = strchr(dynBuf, ' ');
             *otc = '\0'; otc++;
 
             val = strchr(otc, ' ');
@@ -406,30 +447,30 @@ static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *own
                 case os_type_BOOLEAN:
                 case os_type_INTEGER:
                     i = atoi(val);
-                    os_object_put(o, buf, &i, ot);
+                    os_object_put(o, dynBuf, &i, ot);
 
                     break;
 
                 case os_type_STRING:
                     c = strchr(val, '\n');
                     if(c != NULL) *c = '\0';
-                    os_object_put(o, buf, val, ot);
+                    os_object_put(o, dynBuf, val, ot);
 
                     break;
 
                 case os_type_NAD:
                     nad = nad_parse(val, 0);
                     if(nad == NULL) {
-                        while(fgets(buf + size, STORAGE_FS_READ_BLOCKSIZE - size, f) != NULL
-                              && nad == NULL && size < STORAGE_FS_READ_BLOCKSIZE) {
-                            size += strlen(buf + size);
+                        while(fgets(dynBuf + size, fileLength - size, f) != NULL
+                              && nad == NULL && size < fileLength) {
+                            size += strlen(dynBuf + size);
                             nad = nad_parse(val, 0);
                         }
                     }
                     if(nad == NULL)
                         log_write(drv->st->log, LOG_ERR, "fs: unable to parse stored XML; type=%s, owner=%s", type, owner);
                     else {
-                        os_object_put(o, buf, nad, ot);
+                        os_object_put(o, dynBuf, nad, ot);
                         nad_free(nad);
                     }
 
@@ -442,6 +483,7 @@ static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *own
 
         if(!feof(f)) {
             log_write(drv->st->log, LOG_ERR, "fs: couldn't read from '%s': %s", path, strerror(errno));
+            if(dynBuf != NULL) free(dynBuf);
             os_free(os);
             fclose(f);
             closedir(dir);
@@ -455,6 +497,7 @@ static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *own
             if(ret < 0) {
                 log_write(drv->st->log, LOG_ERR, "fs: couldn't unlink '%s': %s", path, strerror(errno));
                 if(sf != NULL) pool_free(sf->p);
+                if(dynBuf != NULL) free(dynBuf);
                 os_free(os);
                 closedir(dir);
                 return st_FAILED;
@@ -463,6 +506,8 @@ static st_ret_t _st_fs_delete(st_driver_t drv, const char *type, const char *own
 
         errno = 0;
     }
+
+    if(dynBuf != NULL) free(dynBuf);
 
     if(errno != 0) {
         log_write(drv->st->log, LOG_ERR, "fs: couldn't read from directory '%s': %s", path, strerror(errno));
