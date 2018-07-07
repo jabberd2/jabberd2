@@ -14,3 +14,8 @@ check_nad_LDADD = $(top_builddir)/util/libutil.la $(CHECK_LIBS)
 check_config_SOURCES = check_config.c
 check_config_CFLAGS = $(CHECK_CFLAGS)
 check_config_LDADD = $(top_builddir)/util/libutil.la $(CHECK_LIBS)
+
+if HAVE_SSL
+check_config_CFLAGS += $(SSL_CFLAGS)
+check_config_LDADD += $(SSL_LIBS)
+endif
