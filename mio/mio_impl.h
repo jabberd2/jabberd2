@@ -401,7 +401,7 @@ static mio_fd_t _mio_connect(mio_t m, int port, const char *hostip, const char *
 
     /* convert the hostip */
     if(j_inet_pton(hostip, &sa)<=0) {
-        MIO_SETERROR(EFAULT);
+        MIO_SETERROR(EAFNOSUPPORT);
         return NULL;
     }
 
@@ -414,7 +414,7 @@ static mio_fd_t _mio_connect(mio_t m, int port, const char *hostip, const char *
     if (srcip != NULL) {
         /* convert the srcip */
         if(j_inet_pton(srcip, &src)<=0) {
-            MIO_SETERROR(EFAULT);
+            MIO_SETERROR(EAFNOSUPPORT);
             close(fd);
             return NULL;
         }
